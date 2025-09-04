@@ -24,35 +24,35 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio-data:/data
+      - deepsight-minio-data:/data
 
-  milvus-standalone:
-    image: milvusdb/milvus:v2.2.16
-    platform: linux/amd64
-    command: ["/tini","--","milvus","run","standalone"]
-    environment:
-      - ETCD_ENDPOINTS=etcd:2379
-      - MINIO_ADDRESS=minio:9000
-      - MINIO_ACCESS_KEY=minioadmin
-      - MINIO_SECRET_KEY=minioadmin
-    depends_on:
-      - etcd
-      - minio
-    ports:
-      - "19530:19530"
-      - "19121:19121"
-    volumes:
-      - milvus-data:/var/lib/milvus
+  # milvus-standalone:
+  #   image: milvusdb/milvus:v2.2.16
+  #   platform: linux/amd64
+  #   command: ["/tini","--","milvus","run","standalone"]
+  #   environment:
+  #     - ETCD_ENDPOINTS=etcd:2379
+  #     - MINIO_ADDRESS=minio:9000
+  #     - MINIO_ACCESS_KEY=minioadmin
+  #     - MINIO_SECRET_KEY=minioadmin
+  #   depends_on:
+  #     - etcd
+  #     - minio
+  #   ports:
+  #     - "19530:19530"
+  #     - "19121:19121"
+  #   volumes:
+  #     - milvus-data:/var/lib/milvus
 
   redis:
     image: redis:8-alpine
     ports:
       - "6379:6379"
     volumes:
-      - redis-data:/data
+      - deepsight-redis-data:/data
     command: redis-server --appendonly yes
 
 volumes:
-  minio-data:
-  milvus-data:
-  redis-data:
+  deepsight-minio-data:
+  # milvus-data:
+  deepsight-redis-data:
