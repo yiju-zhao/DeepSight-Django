@@ -1,0 +1,66 @@
+# Core Django and API
+Django
+django-cors-headers
+djangorestframework
+drf-nested-routers
+drf_yasg
+django-filter
+
+# Database and Storage
+redis
+pymilvus
+django-storages
+boto3
+minio
+
+# AI and ML
+openai
+google-generativeai
+google_api_python_client
+sentence_transformers
+transformers
+torch
+numpy
+scikit_learn
+dspy_ai==2.4.9
+crewai
+crewai-tools
+litellm
+
+# Search and Retrieval
+tavily-python
+rank_bm25
+langchain_community
+langchain-openai
+langchain_milvus
+langchain_text_splitters
+duckduckgo_search
+ragflow-sdk
+
+# Document Processing
+PyPDF2
+PyMuPDF1
+trafilatura
+marker-pdf==1.7.5
+python-magic
+
+# Image Processing
+Pillow
+imagehash
+
+# Utilities
+backoff
+python-dotenv
+httpx
+requests
+pandas
+pytz
+toml
+tqdm
+regex
+ujson
+celery
+pydantic
+ffmpeg-python
+aiohttp
+ragflow-sdk
