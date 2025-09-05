@@ -230,7 +230,7 @@ class FileViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOwnerPermission]
     pagination_class = LargePageNumberPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['processing_status', 'content_type']
+    filterset_fields = ['parsing_status', 'content_type']
     search_fields = ['title', 'notes']
     ordering_fields = ['created_at', 'updated_at', 'title']
     ordering = ['-created_at']
@@ -879,7 +879,7 @@ class KnowledgeBaseViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOwnerPermission]
     pagination_class = LargePageNumberPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['processing_status', 'content_type']
+    filterset_fields = ['parsing_status', 'content_type']
     search_fields = ['title', 'notes']
     ordering_fields = ['created_at', 'updated_at', 'title']
     ordering = ['-created_at']

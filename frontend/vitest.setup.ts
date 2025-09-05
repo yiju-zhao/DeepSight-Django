@@ -38,7 +38,10 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
 }));
 
 // Mock requestIdleCallback
-global.requestIdleCallback = vi.fn((cb) => setTimeout(cb, 0));
+global.requestIdleCallback = vi.fn((cb) => {
+  const id = setTimeout(cb, 0);
+  return id as unknown as number;
+});
 global.cancelIdleCallback = vi.fn();
 
 // Mock crypto.randomUUID
@@ -61,10 +64,12 @@ Object.defineProperty(performance, 'measure', {
 });
 
 // Mock PerformanceObserver
-global.PerformanceObserver = vi.fn().mockImplementation(() => ({
+const PerformanceObserverMock = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   disconnect: vi.fn(),
 }));
+(PerformanceObserverMock as any).supportedEntryTypes = ['measure', 'navigation', 'resource'];
+global.PerformanceObserver = PerformanceObserverMock as any;
 
 // Mock fetch if not available
 if (!global.fetch) {
@@ -77,8 +82,10 @@ const localStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
+  length: 0,
+  key: vi.fn(),
 };
-global.localStorage = localStorageMock;
+global.localStorage = localStorageMock as Storage;
 
 // Mock sessionStorage
 const sessionStorageMock = {
@@ -86,8 +93,10 @@ const sessionStorageMock = {
   setItem: vi.fn(),
   removeItem: vi.fn(),
   clear: vi.fn(),
+  length: 0,
+  key: vi.fn(),
 };
-global.sessionStorage = sessionStorageMock;
+global.sessionStorage = sessionStorageMock as Storage;
 
 // Mock console methods in test environment
 const originalConsole = { ...console };

@@ -73,26 +73,16 @@ class RagFlowService(NotebookBaseService):
                 status='creating'
             )
             
-            # Create chat assistant for the dataset
-            try:
-                chat_info = self.ragflow_client.create_chat_assistant(
-                    dataset_ids=[ragflow_dataset_info['id']],
-                    name=f"Assistant for {notebook.name}"
-                )
-                ragflow_dataset.ragflow_chat_id = chat_info['id']
-                ragflow_dataset.mark_active()
-                
-                self.log_notebook_operation(
-                    "ragflow_dataset_created",
-                    str(notebook.id),
-                    notebook.user.id,
-                    ragflow_dataset_id=ragflow_dataset_info['id'],
-                    chat_id=chat_info['id']
-                )
-                
-            except Exception as chat_error:
-                logger.warning(f"Failed to create chat assistant for dataset {ragflow_dataset_info['id']}: {chat_error}")
-                ragflow_dataset.mark_active()  # Still mark as active, chat can be created later
+            # Don't create chat assistant yet - wait for first file upload
+            ragflow_dataset.mark_active()
+            
+            self.log_notebook_operation(
+                "ragflow_dataset_created",
+                str(notebook.id),
+                notebook.user.id,
+                ragflow_dataset_id=ragflow_dataset_info['id'],
+                chat_id=None  # No chat assistant created yet
+            )
             
             return {
                 "success": True,
@@ -436,6 +426,7 @@ class RagFlowService(NotebookBaseService):
                 "details": {"error": str(e)}
             }
     
+
     def health_check(self) -> Dict:
         """
         Check RagFlow service health.
