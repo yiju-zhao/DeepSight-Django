@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import viewsets, permissions, status, filters, authentication
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -212,6 +213,92 @@ class NotebookViewSet(viewsets.ModelViewSet):
             return Response(
                 {"error": "Failed to duplicate notebook", "details": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
+            )
+
+    @action(detail=True, methods=['get'])
+    def overview(self, request, pk=None):
+        """
+        Get consolidated notebook overview data in a single API call.
+        
+        GET /api/v1/notebooks/{id}/overview/
+        
+        Replaces multiple API calls with one optimized endpoint:
+        - Notebook details
+        - Files list (paginated)
+        - Chat history  
+        - Report jobs
+        - Podcast jobs
+        - Report models
+        """
+        notebook = self.get_object()
+        
+        try:
+            # Get files with pagination
+            files_queryset = notebook.knowledge_base_items.select_related().order_by('-created_at')
+            limit = min(int(request.query_params.get('limit', 50)), 100)
+            offset = int(request.query_params.get('offset', 0))
+            
+            files_page = files_queryset[offset:offset + limit]
+            files_serializer = KnowledgeBaseItemSerializer(files_page, many=True)
+            
+            # Get recent chat history
+            chat_limit = int(request.query_params.get('chat_limit', 20))
+            chat_messages = notebook.chat_messages.order_by('-timestamp')[:chat_limit]
+            from ..serializers import NotebookChatMessageSerializer
+            chat_serializer = NotebookChatMessageSerializer(list(reversed(chat_messages)), many=True)
+            
+            # Get recent report jobs
+            try:
+                report_jobs = notebook.report_jobs.order_by('-created_at')[:10]
+                from reports.serializers import ReportJobSerializer
+                reports_serializer = ReportJobSerializer(report_jobs, many=True)
+                reports_data = reports_serializer.data
+            except:
+                reports_data = []
+            
+            # Get recent podcast jobs
+            try:
+                podcast_jobs = notebook.podcast_jobs.order_by('-created_at')[:10]  
+                from podcast.serializers import PodcastJobSerializer
+                podcasts_serializer = PodcastJobSerializer(podcast_jobs, many=True)
+                podcasts_data = podcasts_serializer.data
+            except:
+                podcasts_data = []
+            
+            # Get report models (static data, can be cached)
+            try:
+                from reports.models import ReportModel
+                from reports.serializers import ReportModelSerializer
+                report_models = ReportModel.objects.all()
+                report_models_serializer = ReportModelSerializer(report_models, many=True)
+                report_models_data = report_models_serializer.data
+            except:
+                report_models_data = []
+            
+            # Combine all data in single response
+            overview_data = {
+                'notebook': NotebookSerializer(notebook).data,
+                'files': {
+                    'results': files_serializer.data,
+                    'count': files_queryset.count(),
+                    'limit': limit,
+                    'offset': offset,
+                    'has_more': files_queryset.count() > offset + limit
+                },
+                'chat_history': chat_serializer.data,
+                'report_jobs': reports_data,
+                'podcast_jobs': podcasts_data,
+                'report_models': report_models_data,
+                'timestamp': timezone.now().isoformat()  # For cache invalidation
+            }
+            
+            return Response(overview_data)
+            
+        except Exception as e:
+            logger.exception(f"Failed to get notebook overview: {e}")
+            return Response(
+                {"error": "Failed to get notebook overview", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 
