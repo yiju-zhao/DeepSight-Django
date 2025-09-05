@@ -1,18 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { checkCurrentUser, logoutUser } from "@/features/auth/authSlice";
+import { useCurrentUser, useLogout as useLogoutMutation } from '@/shared/queries/auth';
 import type { User } from '@/shared/types';
-import type { AppDispatch } from '@/app/store';
-
-// Redux state interface
-interface RootState {
-  auth: {
-    isAuthenticated: boolean;
-    user: User | null;
-    isLoading: boolean;
-  };
-}
 
 // Hook return type
 interface UseAuthReturn {
@@ -24,34 +12,20 @@ interface UseAuthReturn {
 }
 
 /**
- * Custom hook for authentication management
- * Handles authentication state, checking, and logout functionality
+ * Custom hook for authentication management using React Query
+ * Prevents redundant API calls through proper caching
  */
 export const useAuth = (): UseAuthReturn => {
   const navigate = useNavigate();
-  const dispatch = useDispatch<AppDispatch>();
-  const { isAuthenticated, user, isLoading } = useSelector((state: RootState) => state.auth);
-  const [authChecked, setAuthChecked] = useState<boolean>(false);
+  const { data: user, isLoading, isError, isFetched } = useCurrentUser();
+  const logoutMutation = useLogoutMutation();
 
-  // Check authentication state on mount
-  useEffect(() => {
-    const checkAuth = async () => {
-      await dispatch(checkCurrentUser());
-      setAuthChecked(true);
-    };
-    checkAuth();
-  }, [dispatch]);
-
-  // Redirect to login if not authenticated (after auth check is complete)
-  useEffect(() => {
-    if (authChecked && !isAuthenticated) {
-      navigate('/login');
-    }
-  }, [isAuthenticated, authChecked, navigate]);
+  const isAuthenticated = !!user && !isError;
+  const authChecked = isFetched; // Use isFetched instead of custom state
 
   const handleLogout = async (): Promise<void> => {
     try {
-      await dispatch(logoutUser());
+      await logoutMutation.mutateAsync();
       navigate('/login');
     } catch (error) {
       console.error('Logout failed:', error);
@@ -62,7 +36,7 @@ export const useAuth = (): UseAuthReturn => {
 
   return {
     isAuthenticated,
-    user,
+    user: user || null,
     isLoading,
     authChecked,
     handleLogout,

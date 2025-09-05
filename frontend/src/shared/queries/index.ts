@@ -2,6 +2,9 @@
  * TanStack Query hooks exports
  */
 
+// Auth queries
+export * from './auth';
+
 // Notebook queries
 export * from './notebooks';
 
