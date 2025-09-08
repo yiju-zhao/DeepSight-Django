@@ -1,9 +1,10 @@
-import React, { useState, useRef, useImperativeHandle, forwardRef, useEffect, useCallback, useMemo } from "react";
-import { Trash2, Plus, ChevronLeft, RefreshCw, AlertCircle, Upload, Group, File as FileIcon, FileText, Music, Video, Presentation, Loader2, Eye, Database, Link2, Globe, ImageIcon } from "lucide-react";
+import React, { useState, useImperativeHandle, forwardRef, useEffect, useCallback, useMemo } from "react";
+import { Trash2, Plus, ChevronLeft, RefreshCw, AlertCircle, Upload, Group, File as FileIcon, FileText, Music, Video, Presentation, Loader2, Database, Link2, Globe, ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/shared/components/ui/button";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Badge } from "@/shared/components/ui/badge";
+import { Checkbox } from "@/shared/components/ui/checkbox";
 import sourceService from "@/features/notebook/services/SourceService";
 import { supportsPreview } from "@/features/notebook/utils/filePreview";
 import { PANEL_HEADERS, COLORS } from "@/features/notebook/config/uiConfig";
@@ -445,21 +446,27 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     const handleItemClick = useCallback((e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      // Only open preview if the source supports preview
+      if (supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {})) {
+        onPreview(source);
+      }
+    }, [onPreview, source]);
+
+    const handleCheckboxClick = useCallback((e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
       onToggle(String(source.id));
     }, [onToggle]);
 
-    const handlePreviewClick = useCallback((e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onPreview(source);
-    }, [onPreview, source]);
+    const supportsPreviewCheck = supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {});
 
     return (
       <div
-        className={`px-4 py-3 border-b border-gray-100 cursor-pointer ${
-          source.selected ? 'bg-red-50 border-red-200' : ''
-        }`}
-        onClick={handleItemClick}
+        className={`px-4 py-3 border-b border-gray-100 ${
+          supportsPreviewCheck ? 'cursor-pointer hover:bg-gray-50' : ''
+        } ${source.selected ? 'bg-red-50 border-red-200' : ''}`}
+        onClick={supportsPreviewCheck ? handleItemClick : undefined}
+        title={supportsPreviewCheck ? getSourceTooltip(source) : undefined}
       >
         <div className="flex items-center space-x-3">
           <div className="flex-shrink-0">
@@ -479,17 +486,14 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           </div>
           
           <div className="flex items-center space-x-2">
-            {supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {}) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 text-gray-400"
-                onClick={handlePreviewClick}
-                title={getSourceTooltip(source)}
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-            )}
+            <div onClick={handleCheckboxClick} className="flex items-center">
+              <Checkbox
+                checked={source.selected}
+                onCheckedChange={() => onToggle(String(source.id))}
+                variant="default"
+                size="default"
+              />
+            </div>
           </div>
         </div>
       </div>
