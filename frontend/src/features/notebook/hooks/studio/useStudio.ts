@@ -1,0 +1,182 @@
+/**
+ * TanStack Query-powered hooks for studio operations
+ * Replaces the consolidated notebook-overview with atomic, focused hooks
+ */
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import studioService from '@/features/notebook/services/StudioService';
+
+// Query keys factory
+const studioKeys = {
+  all: ['studio'] as const,
+  notebook: (notebookId: string) => [...studioKeys.all, 'notebook', notebookId] as const,
+  
+  // Report jobs
+  reportJobs: (notebookId: string) => [...studioKeys.notebook(notebookId), 'report-jobs'] as const,
+  
+  // Podcast jobs
+  podcastJobs: (notebookId: string) => [...studioKeys.notebook(notebookId), 'podcast-jobs'] as const,
+  
+  // Models (global)
+  models: ['studio', 'models'] as const,
+};
+
+// ─── REPORT JOBS ─────────────────────────────────────────────────────────────
+
+export const useReportJobs = (notebookId: string) => {
+  return useQuery({
+    queryKey: studioKeys.reportJobs(notebookId),
+    queryFn: () => studioService.listReportJobs(notebookId),
+    enabled: !!notebookId,
+    staleTime: 30 * 1000, // 30 seconds - report jobs can change frequently during generation
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
+    retry: 2,
+    select: (data) => ({
+      ...data,
+      jobs: data.jobs || [],
+      completedJobs: data.jobs?.filter((job: any) => job.status === 'completed') || [],
+    })
+  });
+};
+
+// ─── PODCAST JOBS ────────────────────────────────────────────────────────────
+
+export const usePodcastJobs = (notebookId: string) => {
+  return useQuery({
+    queryKey: studioKeys.podcastJobs(notebookId),
+    queryFn: () => studioService.listPodcastJobs(notebookId),
+    enabled: !!notebookId,
+    staleTime: 30 * 1000, // 30 seconds - podcast jobs can change frequently during generation
+    gcTime: 5 * 60 * 1000, // 5 minutes cache
+    retry: 2,
+    select: (data) => ({
+      ...data,
+      jobs: data.jobs || [],
+      completedJobs: data.jobs?.filter((job: any) => job.status === 'completed') || [],
+    })
+  });
+};
+
+// ─── AVAILABLE MODELS ────────────────────────────────────────────────────────
+
+export const useReportModels = () => {
+  return useQuery({
+    queryKey: studioKeys.models,
+    queryFn: () => studioService.getAvailableModels(),
+    staleTime: 10 * 60 * 1000, // 10 minutes - models don't change often
+    gcTime: 30 * 60 * 1000, // 30 minutes cache
+    retry: 1,
+    select: (data) => ({
+      data: data,
+      models: data,
+      providers: data.providers || [],
+      retrievers: data.retrievers || [],
+      time_ranges: data.time_ranges || [],
+    })
+  });
+};
+
+// ─── MUTATIONS ───────────────────────────────────────────────────────────────
+
+export const useGenerateReport = (notebookId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (config: any) => studioService.generateReport(config, notebookId),
+    onSuccess: () => {
+      // Invalidate report jobs to show the new job
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.reportJobs(notebookId),
+      });
+    },
+  });
+};
+
+export const useGeneratePodcast = (notebookId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (formData: FormData) => studioService.generatePodcast(formData, notebookId),
+    onSuccess: () => {
+      // Invalidate podcast jobs to show the new job
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.podcastJobs(notebookId),
+      });
+    },
+  });
+};
+
+export const useDeleteReport = (notebookId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (jobId: string) => studioService.deleteReport(jobId, notebookId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.reportJobs(notebookId),
+      });
+    },
+  });
+};
+
+export const useDeletePodcast = (notebookId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (jobId: string) => studioService.deletePodcast(jobId, notebookId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.podcastJobs(notebookId),
+      });
+    },
+  });
+};
+
+export const useCancelReportJob = (notebookId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (jobId: string) => studioService.cancelReportJob(jobId, notebookId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.reportJobs(notebookId),
+      });
+    },
+  });
+};
+
+export const useCancelPodcastJob = (notebookId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: (jobId: string) => studioService.cancelPodcastJob(jobId, notebookId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.podcastJobs(notebookId),
+      });
+    },
+  });
+};
+
+export const useUpdateReport = (notebookId: string) => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ jobId, content }: { jobId: string; content: string }) => 
+      studioService.updateReport(jobId, notebookId, content),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.reportJobs(notebookId),
+      });
+    },
+  });
+};
+
+// ─── BACKWARD COMPATIBILITY ALIASES ─────────────────────────────────────────
+// These maintain the same interface as the old notebook-overview hooks
+
+export const useNotebookReportJobs = useReportJobs;
+export const useNotebookPodcastJobs = usePodcastJobs;
+
+// Export query keys for external use
+export { studioKeys };

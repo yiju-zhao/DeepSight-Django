@@ -16,7 +16,7 @@ import studioService from "@/features/notebook/services/StudioService";
 import { config } from "@/config";
 import { PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
 import { useGenerationState, useJobStatus } from "@/features/notebook/hooks";
-import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels } from "@/shared/queries/notebook-overview";
+import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels } from "@/features/notebook/hooks/studio/useStudio";
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused UI components

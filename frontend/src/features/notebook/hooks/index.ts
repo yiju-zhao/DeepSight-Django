@@ -32,5 +32,27 @@ export { useFileSelection } from './file/useFileSelection';
 export { useJobStatus } from './generation/useJobStatus';
 export { useGenerationState } from './generation/useGenerationState';
 
-// Studio functionality
+// Studio functionality - TanStack Query powered
 export { useStudioData } from './studio/useStudioData';
+export { 
+  useReportJobs, 
+  usePodcastJobs, 
+  useReportModels,
+  useNotebookReportJobs,
+  useNotebookPodcastJobs,
+  useGenerateReport,
+  useGeneratePodcast,
+  useDeleteReport,
+  useDeletePodcast
+} from './studio/useStudio';
+
+// Sources functionality - TanStack Query powered
+export {
+  useParsedFiles,
+  useKnowledgeBase,
+  useFileStatus,
+  useParseFile,
+  useParseUrl,
+  useDeleteParsedFile,
+  useSourcesOperations
+} from './sources/useSources';
