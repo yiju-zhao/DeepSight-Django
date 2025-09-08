@@ -148,7 +148,7 @@ export const useChat = (notebookId: string, sourcesListRef: SourcesListRef): Use
       }));
 
       // Update suggestions if provided
-      if (response.suggested_questions?.length > 0) {
+      if (response.suggested_questions && response.suggested_questions.length > 0) {
         queryClient.setQueryData(chatKeys.suggestions(notebookId), {
           suggestions: response.suggested_questions
         });

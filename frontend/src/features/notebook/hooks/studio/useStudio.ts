@@ -60,20 +60,31 @@ export const usePodcastJobs = (notebookId: string) => {
 // ─── AVAILABLE MODELS ────────────────────────────────────────────────────────
 
 export const useReportModels = () => {
-  return useQuery({
+  const queryResult = useQuery({
     queryKey: studioKeys.models,
     queryFn: () => studioService.getAvailableModels(),
     staleTime: 10 * 60 * 1000, // 10 minutes - models don't change often
     gcTime: 30 * 60 * 1000, // 30 minutes cache
     retry: 1,
-    select: (data) => ({
-      data: data,
-      models: data,
-      providers: data.providers || [],
-      retrievers: data.retrievers || [],
-      time_ranges: data.time_ranges || [],
-    })
   });
+
+  // Return data in the expected format with backward compatibility
+  return {
+    ...queryResult,
+    data: queryResult.data ? {
+      ...queryResult.data,
+      model_providers: queryResult.data.providers, // Map providers to model_providers for AvailableModels interface
+    } : {
+      model_providers: [],
+      providers: [],
+      retrievers: [],
+      time_ranges: []
+    },
+    models: queryResult.data,
+    providers: queryResult.data?.providers || [],
+    retrievers: queryResult.data?.retrievers || [],
+    time_ranges: queryResult.data?.time_ranges || [],
+  };
 };
 
 // ─── MUTATIONS ───────────────────────────────────────────────────────────────
@@ -174,9 +185,25 @@ export const useUpdateReport = (notebookId: string) => {
 
 // ─── BACKWARD COMPATIBILITY ALIASES ─────────────────────────────────────────
 // These maintain the same interface as the old notebook-overview hooks
+// They return the data in the expected structure (with .jobs property)
 
-export const useNotebookReportJobs = useReportJobs;
-export const useNotebookPodcastJobs = usePodcastJobs;
+export const useNotebookReportJobs = (notebookId: string) => {
+  const queryResult = useReportJobs(notebookId);
+  return {
+    ...queryResult,
+    jobs: queryResult.data?.jobs || [],
+    completedJobs: queryResult.data?.completedJobs || [],
+  };
+};
+
+export const useNotebookPodcastJobs = (notebookId: string) => {
+  const queryResult = usePodcastJobs(notebookId);
+  return {
+    ...queryResult,
+    jobs: queryResult.data?.jobs || [],
+    completedJobs: queryResult.data?.completedJobs || [],
+  };
+};
 
 // Export query keys for external use
 export { studioKeys };

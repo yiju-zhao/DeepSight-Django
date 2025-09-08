@@ -63,7 +63,7 @@ export const useFileStatus = (notebookId: string, fileId: string) => {
     refetchInterval: (data) => {
       // Auto-refetch every 2 seconds if still processing
       const status = data?.status;
-      return ['pending', 'processing', 'in_progress', 'uploading'].includes(status) ? 2000 : false;
+      return status && ['pending', 'processing', 'in_progress', 'uploading'].includes(status) ? 2000 : false;
     }
   });
 };
