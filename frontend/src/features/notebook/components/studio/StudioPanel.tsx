@@ -15,7 +15,8 @@ import studioService from "@/features/notebook/services/StudioService";
 // Import focused custom hooks for specific concerns
 import { config } from "@/config";
 import { PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
-import { useStudioData, useGenerationState, useJobStatus } from "@/features/notebook/hooks";
+import { useGenerationState, useJobStatus } from "@/features/notebook/hooks";
+import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels } from "@/shared/queries/notebook-overview";
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused UI components
@@ -64,8 +65,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
   const [selectedSources, setSelectedSources] = useState<SourceItem[]>([]);
 
-  // ====== DEPENDENCY INVERSION: Use abstracted services ======
-  const studioData = useStudioData(notebookId, studioService);
+  // ====== DEPENDENCY INVERSION: Use consolidated overview hooks ======
+  const reportJobs = useNotebookReportJobs(notebookId);
+  const podcastJobs = useNotebookPodcastJobs(notebookId);
+  const reportModels = useReportModels();
 
   // ====== SINGLE RESPONSIBILITY: Report generation state ======
   const reportGeneration: GenerationStateHook = useGenerationState({
@@ -96,7 +99,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   // ====== SINGLE RESPONSIBILITY: Report generation completion ======
   const handleReportComplete = useCallback(() => {
     reportGeneration.completeGeneration();
-    studioData.loadReports(); // Refresh the entire list to get updated titles
+    reportJobs.refetch(); // Refresh the entire list to get updated titles
     if (reportGeneration.currentJobId) {
       jobStorage.clearJob(reportGeneration.currentJobId);
     }
@@ -104,7 +107,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       title: "Report Generated",
       description: "Your research report has been generated successfully."
     });
-  }, [reportGeneration, studioData, toast]);
+  }, [reportGeneration, reportJobs, toast]);
 
   // ====== SINGLE RESPONSIBILITY: Podcast generation completion ======
   const handlePodcastComplete = useCallback(async (result: PodcastItem) => {
@@ -125,11 +128,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         }
       }
       
-      studioData.addPodcast(completeResult);
+      podcastJobs.refetch(); // Refresh to get the complete podcast data
     } catch (error) {
       console.error('Error in handlePodcastComplete:', error);
-      // Fallback to original behavior
-      studioData.addPodcast(result);
+      // Fallback to refreshing the data
+      podcastJobs.refetch();
     }
     
     if (podcastGeneration.currentJobId) {
@@ -139,7 +142,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       title: "Podcast Generated", 
       description: "Your panel discussion has been generated successfully."
     });
-  }, [podcastGeneration, studioData, studioService, notebookId, toast]);
+  }, [podcastGeneration, podcastJobs, studioService, notebookId, toast]);
 
   // ====== SINGLE RESPONSIBILITY: Job status monitoring ======
   const handleReportError = useCallback((error: string) => {
@@ -406,10 +409,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   // ====== SINGLE RESPONSIBILITY: Data refresh ======
   const handleRefresh = useCallback(() => {
-    studioData.loadReports();
-    studioData.loadPodcasts();
-    studioData.loadModels();
-  }, [studioData]);
+    reportJobs.refetch();
+    podcastJobs.refetch();
+    reportModels.refetch();
+  }, [reportJobs, podcastJobs, reportModels]);
 
   // ====== SINGLE RESPONSIBILITY: File operations ======
   const handleSelectReport = useCallback(async (report: ReportItem) => {
@@ -558,8 +561,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         throw new Error(result?.error || 'Backend deletion failed');
       }
       
-      // Only remove from local state after confirming backend deletion succeeded
-      studioData.removeReport(reportId);
+      // Refresh data after confirming backend deletion succeeded
+      reportJobs.refetch();
       
       // Clear selected file if it's the one being deleted, without navigating to another file
       if (selectedFile?.id === reportId || selectedFile?.job_id === reportId) {
@@ -579,7 +582,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [studioData, selectedFile, notebookId, toast]);
+  }, [reportJobs, selectedFile, notebookId, toast]);
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
     if (!confirm('Are you sure you want to delete this podcast?')) {
@@ -600,8 +603,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         throw new Error(result.error || 'Backend deletion failed');
       }
       
-      // Only remove from local state after confirming backend deletion succeeded
-      studioData.removePodcast(podcastId);
+      // Refresh data after confirming backend deletion succeeded
+      podcastJobs.refetch();
       
       if (selectedFile?.id === podcastId || selectedFile?.job_id === podcastId) {
         setSelectedFile(null);
@@ -620,7 +623,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [studioData, selectedFile, notebookId, toast]);
+  }, [podcastJobs, selectedFile, notebookId, toast]);
 
   const handleSaveFile = useCallback(async (content: string) => {
     if (!selectedFile) return;
@@ -637,7 +640,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       setSelectedFileContent(content);
       
       // Refresh the report data to ensure it's synchronized
-      studioData.loadReports();
+      reportJobs.refetch();
       
       toast({
         title: "File Saved",
@@ -652,7 +655,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [selectedFile, studioService, studioData, notebookId, toast]);
+  }, [selectedFile, studioService, reportJobs, notebookId, toast]);
 
   const handleCloseFile = useCallback(() => {
     setSelectedFile(null);
@@ -761,9 +764,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   size="sm"
                   className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
                   onClick={handleRefresh}
-                  disabled={studioData.loading.reports || studioData.loading.podcasts}
+                  disabled={reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading}
                 >
-                  <RefreshCw className={`h-3 w-3 mr-1 ${studioData.loading.reports || studioData.loading.podcasts ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-3 w-3 mr-1 ${reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
                 <Button
@@ -781,7 +784,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                           podcastConfig={podcastGeneration.config}
                           onReportConfigChange={reportGeneration.updateConfig}
                           onPodcastConfigChange={podcastGeneration.updateConfig}
-                          availableModels={studioData.availableModels || {}}
+                          availableModels={reportModels.data || {}}
                         />
                       );
                       onOpenModal('advancedSettings', settingsContent);
@@ -816,7 +819,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
             <ReportGenerationForm
               config={reportGeneration.config}
               onConfigChange={reportGeneration.updateConfig}
-              availableModels={studioData.availableModels || {}}
+              availableModels={reportModels.data || {}}
               generationState={{
                 state: reportGeneration.state,
                 progress: reportGeneration.progress,
@@ -849,15 +852,15 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
           {/* ====== SCROLLABLE SECTION: Generated Files List ====== */}
           <div className="flex-1 overflow-auto scrollbar-overlay">
-            {(studioData.reports.length > 0 || studioData.podcasts.length > 0) ? (() => {
+            {(reportJobs.jobs.length > 0 || podcastJobs.jobs.length > 0) ? (() => {
               // Combine reports and podcasts into a unified list
               const allItems = [
-                ...studioData.reports.map((report: ReportItem) => ({
+                ...reportJobs.jobs.map((report: ReportItem) => ({
                   ...report,
                   type: 'report',
                   created_at: report.created_at || new Date().toISOString()
                 })),
-                ...studioData.podcasts.map((podcast: PodcastItem) => ({
+                ...podcastJobs.jobs.map((podcast: PodcastItem) => ({
                   ...podcast,
                   type: 'podcast',
                   created_at: podcast.created_at || new Date().toISOString()

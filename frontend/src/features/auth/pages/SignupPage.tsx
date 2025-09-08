@@ -1,9 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { signupUser } from "../authSlice";
-import { config } from "@/config";
-import type { AppDispatch, RootState } from "@/app/store";
+import { useSignup } from "@/shared/queries/auth";
 
 // helper to read CSRF token from cookies
 function getCookie(name: string): string | null {
@@ -14,20 +11,11 @@ function getCookie(name: string): string | null {
 
 export default function SignupPage() {
   const navigate = useNavigate();
-  const dispatch = useDispatch<AppDispatch>();
-  const { isLoading, error, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const signupMutation = useSignup();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
-
-  // fetch CSRF (Django sets it automatically on first GET to any view)
-  useEffect(() => {
-    // make a cheap GET to set the csrftoken cookie
-    fetch(`${config.API_BASE_URL}/users/csrf/`, {
-      credentials: "include"
-    }).catch(() => {});
-  }, []);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,26 +25,13 @@ export default function SignupPage() {
       return;
     }
 
-    // Prepare the data for the signup request
-    const signupData = {
-      username,
-      email,
-      password,
-
-
-    // Dispatch the signup action with the payload
-      password_confirm: passwordConfirm,
-    };
-
-    // Dispatch the signup action with the prepared data
-    dispatch(signupUser(signupData));
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/"); // Redirect to the homepage if the user is authenticated
+    try {
+      await signupMutation.mutateAsync({ username, email, password });
+      navigate("/deepdive");
+    } catch (error) {
+      console.error("Signup failed:", error);
     }
-  }, [isAuthenticated, navigate]);
+  };
 
   return (
     <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -66,9 +41,9 @@ export default function SignupPage() {
       >
         <h2 className="text-xl font-semibold mb-4 text-center">Sign Up</h2>
 
-        {(error || (password !== passwordConfirm && passwordConfirm !== "")) && (
+        {(signupMutation.error || (password !== passwordConfirm && passwordConfirm !== "")) && (
           <div className="bg-red-100 text-red-700 text-sm p-2 rounded mb-4">
-            {password !== passwordConfirm && passwordConfirm !== "" ? "Passwords do not match." : error}
+            {password !== passwordConfirm && passwordConfirm !== "" ? "Passwords do not match." : signupMutation.error?.message}
           </div>
         )}
 
@@ -110,10 +85,10 @@ export default function SignupPage() {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={signupMutation.isPending}
           className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 transition disabled:opacity-50"
         >
-          {isLoading ? "Signing up..." : "Sign Up"}
+          {signupMutation.isPending ? "Signing up..." : "Sign Up"}
         </button>
       </form>
     </div>

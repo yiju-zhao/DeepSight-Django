@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
-import { loginUser, clearError } from "../authSlice";
+import { useLogin, useCsrfToken } from "@/shared/queries/auth";
 import { config } from "@/config";
-import type { AppDispatch, RootState } from "@/app/store";
 
 // helper to read CSRF token from cookies
 function getCookie(name: string): string | null {
@@ -14,35 +12,22 @@ function getCookie(name: string): string | null {
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const dispatch = useDispatch<AppDispatch>();
-  const { isLoading, error, isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const loginMutation = useLogin();
+  const { data: csrfData } = useCsrfToken();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // prime CSRF cookie by hitting the CSRF endpoint
-  useEffect(() => {
-    fetch(`${config.API_BASE_URL}/users/csrf/`, {
-      method: "GET",
-      credentials: "include",
-    }).catch(() => {});
-  }, []);
-
-  // Clear any previous auth errors when component mounts
-  useEffect(() => {
-    dispatch(clearError());
-  }, [dispatch]);
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(loginUser({ username, password }));
-    console.log("Logging");
-  };
-
-  useEffect(() => {
-    if (isAuthenticated) {
+    
+    try {
+      await loginMutation.mutateAsync({ username, password });
       navigate("/deepdive");
+    } catch (error) {
+      // Error is handled by the mutation
+      console.error("Login failed:", error);
     }
-  }, [isAuthenticated, navigate]);
+  };
 
   return (
     <div className="flex justify-center items-center h-screen bg-gray-50">
@@ -52,9 +37,9 @@ export default function LoginPage() {
       >
         <h2 className="text-xl font-semibold mb-4 text-center">Log In</h2>
 
-        {error && (
+        {loginMutation.error && (
           <div className="bg-red-100 text-red-700 text-sm p-2 rounded mb-4">
-            {error}
+            {loginMutation.error.message}
           </div>
         )}
 
@@ -78,10 +63,10 @@ export default function LoginPage() {
 
         <button
           type="submit"
-          disabled={isLoading}
+          disabled={loginMutation.isPending}
           className="w-full bg-red-600 text-white py-2 rounded hover:bg-red-700 transition disabled:opacity-50"
         >
-          {isLoading ? "Logging in..." : "Log In"}
+          {loginMutation.isPending ? "Logging in..." : "Log In"}
         </button>
       </form>
     </div>
