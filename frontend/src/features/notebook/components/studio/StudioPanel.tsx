@@ -179,11 +179,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   // ====== SINGLE RESPONSIBILITY: Job recovery on page load ======
   useEffect(() => {
-    const recoverRunningJobs = async () => {
+    const recoverRunningJobs = () => {
       try {
-        // Fetch current reports to check for running jobs
-        const response = await studioService.listReportJobs(notebookId);
-        const reports = response.jobs;
+        // Use TanStack Query data instead of manual API calls
+        const reports = reportJobs.data?.jobs || [];
+        const podcasts = podcastJobs.data?.jobs || [];
         
         // Find running report jobs
         const runningReport = reports.find((report: any) => 
@@ -191,8 +191,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         );
         
         // Find running podcast jobs
-        const podcastResponse = await studioService.listPodcastJobs(notebookId);
-        const podcasts = podcastResponse.jobs;
         const runningPodcast = podcasts.find((podcast: any) => 
           podcast.status === 'generating' || podcast.status === 'pending'
         );
@@ -215,10 +213,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
     };
     
-    if (notebookId) {
+    // Only recover jobs when data is loaded
+    if (notebookId && reportJobs.data && podcastJobs.data) {
       recoverRunningJobs();
     }
-  }, [notebookId, studioService, reportGeneration, podcastGeneration]);
+  }, [notebookId, reportJobs.data, podcastJobs.data, reportGeneration, podcastGeneration]);
 
   // ====== SINGLE RESPONSIBILITY: Progress sync ======
   useEffect(() => {

@@ -12,9 +12,8 @@ import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
 import "highlight.js/styles/github.css";
-import { useFileSelection } from "@/features/notebook/hooks";
+import { useFileSelection, useChat } from "@/features/notebook/hooks";
 import { PANEL_HEADERS, COLORS } from "@/features/notebook/config/uiConfig";
-import ChatService from "@/features/notebook/services/ChatService";
 
 // Memoized markdown content component for assistant messages
 interface MarkdownContentProps {
@@ -135,52 +134,33 @@ interface ChatPanelProps {
 }
 
 const ChatPanel = ({ notebookId, sourcesListRef, onSelectionChange }: ChatPanelProps) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [inputMessage, setInputMessage] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isTyping, setIsTyping] = useState<boolean>(false);
   const [isPanelExpanded, setIsPanelExpanded] = useState<boolean>(true);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
-  const [suggestedQuestions, setSuggestedQuestions] = useState<(string | Suggestion)[]>([]);
   
-  // Use custom hook for file selection management
+  // ✅ Replace all manual state with the optimized useChat hook
+  const {
+    messages,
+    inputMessage,
+    setInputMessage,
+    isLoading,
+    error,
+    setError,
+    isTyping,
+    suggestedQuestions,
+    messagesEndRef,
+    sendMessage,
+    clearChatHistory,
+    copyMessage,
+    handleKeyPress,
+    fetchSuggestions,
+    fetchChatHistory,
+  } = useChat(notebookId, sourcesListRef);
+  
+  // Use custom hook for file selection management  
   const { selectedFiles, selectedSources, hasSelectedFiles, getCurrentSelectedFiles, updateSelectedFiles } = useFileSelection(sourcesListRef);
 
-  // Helper functions for caching suggested questions
-  const getCachedSuggestions = useCallback(() => {
-    try {
-      const cached = localStorage.getItem(`suggestedQuestions_${notebookId}`);
-      return cached ? JSON.parse(cached) : [];
-    } catch (error) {
-      console.error('Error loading cached suggestions:', error);
-      return [];
-    }
-  }, [notebookId]);
-
-  const cacheSuggestions = useCallback((suggestions: (string | Suggestion)[]) => {
-    try {
-      localStorage.setItem(`suggestedQuestions_${notebookId}`, JSON.stringify(suggestions));
-    } catch (error) {
-      console.error('Error caching suggestions:', error);
-    }
-  }, [notebookId]);
-
-  const fetchSuggestions = async () => {
-    try {
-      const data = await ChatService.getSuggestedQuestionsWithFetch(notebookId);
-      setSuggestedQuestions(data.suggestions || []);
-    } catch (err) {
-      console.error("Failed to load suggestions:", err);
-    }
-  };
-
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // ✅ All caching, fetching, and utility functions now handled by useChat hook
 
   // Register callback with parent component
   useEffect(() => {
@@ -190,44 +170,7 @@ const ChatPanel = ({ notebookId, sourcesListRef, onSelectionChange }: ChatPanelP
   }, [onSelectionChange, updateSelectedFiles]);
     
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
-
-useEffect(() => {
-  const fetchChatHistory = async () => {
-    try {
-      const data = await ChatService.getChatHistoryWithFetch(notebookId);
-      const formattedMessages = data.messages.map((msg: any) => ({
-        id: msg.id.toString(),
-        type: msg.sender === "user" ? "user" : "assistant" as const,
-        content: msg.message,
-        timestamp: msg.timestamp,
-        isWelcome: false
-      }));
-
-      setMessages(formattedMessages);
-      
-      // Load cached suggestions after loading chat history
-      // Only load if there are messages (indicating a previous conversation)
-      if (formattedMessages.length > 0) {
-        const cachedSuggestions = getCachedSuggestions();
-        if (cachedSuggestions.length > 0) {
-          setSuggestedQuestions(cachedSuggestions);
-        }
-      }
-    } catch (err) {
-      console.error("Could not load chat history:", err);
-      toast({
-        title: "Failed to load chat history",
-        description: "We could not fetch the previous conversation.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  if (notebookId) fetchChatHistory();
-}, [notebookId, getCachedSuggestions]);
+  // ✅ Chat history loading and message scrolling now handled by useChat hook
 
   function parseSSE(buffer: string[], onEvent: (data: any) => void) {
     const text = buffer.join("");
@@ -255,127 +198,7 @@ useEffect(() => {
     }
   }
 
-  const handleSendMessage = async (overrideMessage: string | null = null) => {
-    const messageToSend = overrideMessage || inputMessage.trim();
-    if (!messageToSend || isLoading) return;
-
-    // 1) Push the user message
-    const userMessage: ChatMessage = {
-      id: Date.now().toString(),
-      type: 'user' as const,
-      content: messageToSend,
-      timestamp: new Date().toISOString(),
-    };
-    setMessages(prev => [...prev, userMessage]);
-    setInputMessage('');
-    setIsLoading(true);
-    setIsTyping(true);
-    setError(null);
-    setSuggestedQuestions([]);
-
-    // 2) Build your payload
-    const currentSelectedFiles = getCurrentSelectedFiles();
-    const selectedFileIds = currentSelectedFiles
-      .map((f: any) => f.file_id || f.file)
-      .filter(Boolean);
-    if (selectedFileIds.length === 0) {
-      setIsLoading(false);
-      setIsTyping(false);
-      toast({
-        title: "No Documents Selected",
-        description: "Please select at least one document.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const response = await ChatService.sendChatMessageStream(notebookId, selectedFileIds, messageToSend);
-
-      // 3) Set up SSE reader
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("Failed to get response reader");
-      }
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      // 4) Insert a placeholder assistant message
-      const assistantId = (Date.now() + 1).toString();
-      setMessages(prev => [
-        ...prev,
-        { id: assistantId, type: "assistant" as const, content: "", timestamp: new Date().toISOString() },
-      ]);
-
-      // 5) Read the stream chunk-by-chunk
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop() || ""; // leftover
-
-        for (const part of parts) {
-          // each part looks like "data: { … }" or "event: done"
-          if (part.startsWith("data:")) {
-            const payload = JSON.parse(part.slice(5));
-            if (payload.type === "metadata") {
-              // Optionally handle metadata (e.g., retrieved docs)
-            } else if (payload.type === "token") {
-              // append each token to the assistant bubble
-              setMessages(prev =>
-                prev.map(msg =>
-                  msg.id === assistantId
-                    ? { ...msg, content: msg.content + payload.text }
-                    : msg
-                )
-              );
-            }
-          }
-        }
-      }
-
-      // 6) Stream is done – fetch follow-up suggestions
-      try {
-        const data = await ChatService.getSuggestedQuestionsWithFetch(notebookId);
-        const suggestions = data.suggestions;
-        setSuggestedQuestions(suggestions || []);
-        // Cache the new suggestions
-        if ((suggestions || []).length > 0) {
-          cacheSuggestions(suggestions);
-        }
-      } catch (e) {
-        console.error("Failed to fetch suggested questions:", e);
-      }
-    } catch (err) {
-      console.error("Chat error:", err);
-      setError("Failed to get a response from the AI. Please try again.");
-      toast({
-        title: "Message Failed",
-        description: err instanceof Error ? err.message : 'Unknown error',
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-      setIsTyping(false);
-    }
-  };
-
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const handleCopyMessage = (content: string) => {
-    navigator.clipboard.writeText(content);
-    toast({
-      title: "Copied",
-      description: "Message copied to clipboard"
-    });
-  };
+  // ✅ All message handling now managed by useChat hook
 
   return (
     <div className={`h-full flex flex-col ${COLORS.panels.commonBackground} min-h-0`}>
@@ -392,34 +215,7 @@ useEffect(() => {
               variant="ghost"
               size="sm"
               className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
-              onClick={async () => {
-                try {
-                  await ChatService.clearChatHistoryWithFetch(notebookId);
-
-                  // Reset to empty messages
-                  setMessages([]);
-                  
-                  // Clear cached suggestions when chat is cleared
-                  setSuggestedQuestions([]);
-                  try {
-                    localStorage.removeItem(`suggestedQuestions_${notebookId}`);
-                  } catch (error) {
-                    console.error('Error clearing cached suggestions:', error);
-                  }
-
-                  toast({
-                    title: "Chat Cleared",
-                    description: "Previous chat history was successfully removed.",
-                  });
-                } catch (err) {
-                  console.error("Error clearing chat:", err);
-                  toast({
-                    title: "Error",
-                    description: "Could not clear chat history.",
-                    variant: "destructive",
-                  });
-                }
-              }}
+              onClick={() => clearChatHistory()} // ✅ Use useChat hook function
             >
               Clear
             </Button>
@@ -510,7 +306,7 @@ useEffect(() => {
                   key={index}
                   suggestion={suggestion}
                   hasFiles={hasSelectedFiles()}
-                  onSendMessage={handleSendMessage}
+                  onSendMessage={sendMessage} // ✅ Use useChat hook function
                   index={index}
                 />
               ))}
@@ -621,7 +417,7 @@ useEffect(() => {
                         disabled={!hasSelectedFiles()}
                         onClick={() => {
                           if (hasSelectedFiles()) {
-                            handleSendMessage(typeof question === 'string' ? question : question.text || '');
+                            sendMessage(typeof question === 'string' ? question : question.text || ''); // ✅ Use useChat hook function
                           }
                         }}
                       >
@@ -677,7 +473,7 @@ useEffect(() => {
             />
           </div>
           <Button
-            onClick={() => handleSendMessage()}
+            onClick={() => sendMessage()} // ✅ Use useChat hook function
             disabled={!inputMessage.trim() || isLoading || !hasSelectedFiles()}
             size="sm"
             className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"

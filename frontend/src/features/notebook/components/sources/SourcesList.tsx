@@ -13,6 +13,7 @@ import { Source, SourcesListProps, SourceItemProps } from "@/features/notebook/t
 import { FileMetadata } from "@/shared/types";
 import { useFileUploadStatus } from "@/features/notebook/hooks/generation/useFileUploadStatus";
 import { useFileStatus } from "@/features/notebook/hooks/generation/useFileStatus";
+import { useParsedFiles } from "@/features/notebook/hooks/sources/useSources";
 import AddSourceModal from "./AddSourceModal";
 
 const fileIcons: FileIcons = {
@@ -106,10 +107,16 @@ interface SourcesListRef {
 
 
 const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, onSelectionChange, onToggleCollapse, onOpenModal, onCloseModal }, ref) => {
-  const [sources, setSources] = useState<Source[]>([]);
+  // ✅ Replace manual state with TanStack Query
+  const { 
+    data: parsedFilesResponse, 
+    isLoading, 
+    error: queryError, 
+    refetch: refetchFiles 
+  } = useParsedFiles(notebookId);
 
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [sources, setSources] = useState<Source[]>([]);
+  const error = queryError?.message || null;
 
   // Group state
   const [isGrouped, setIsGrouped] = useState(false);
@@ -122,12 +129,12 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     fileUploadStatus.setNotebookId(notebookId);
     // Ensure any completion (including caption generation completion events) triggers a refresh
     fileUploadStatus.setOnAnyFileComplete(() => {
-      loadParsedFiles();
+      refetchFiles(); // ✅ Use TanStack Query refetch
       if (onSelectionChange) {
         setTimeout(() => onSelectionChange(), 100);
       }
     });
-  }, [notebookId, fileUploadStatus]);
+  }, [notebookId, fileUploadStatus, refetchFiles]);
 
   // Individual file status update handler - updates specific file in sources array
   const updateFileStatus = useCallback((fileId: string, newStatus: string) => {
@@ -138,13 +145,37 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     ));
   }, []);
 
-  // Load parsed files on component mount (only once)
+  // ✅ Process TanStack Query data when it changes
   useEffect(() => {
-    // Only load if we don't have sources already (prevents double loading)
-    if (sources.length === 0 && !isLoading) {
-      loadParsedFiles();
+    if (parsedFilesResponse?.results) {
+      const data = parsedFilesResponse.results || [];
+      
+      const parsedSources = data.map((metadata: FileMetadata) => ({
+        id: metadata.file_id || 'unknown',
+        name: generatePrincipleTitle(metadata),
+        title: generatePrincipleTitle(metadata),
+        authors: generatePrincipleFileDescription(metadata),
+        ext: getPrincipleFileExtension(metadata),
+        selected: false,
+        type: "parsed" as const,
+        createdAt: metadata.upload_timestamp || new Date().toISOString(),
+        file_id: metadata.file_id,
+        upload_file_id: metadata.upload_file_id,
+        parsing_status: metadata.parsing_status,
+        metadata: {
+          ...metadata,
+          knowledge_item_id: metadata.knowledge_item_id
+        },
+        error_message: metadata.error_message,
+        originalFile: getPrincipleFileInfo(metadata)
+      }));
+      
+      setSources(parsedSources);
+      fileUploadStatus.stopAllTracking();
+    } else if (parsedFilesResponse && !parsedFilesResponse.results) {
+      setSources([]);
     }
-  }, []); // Keep empty dependency array - only run on mount
+  }, [parsedFilesResponse, fileUploadStatus]);
 
   // Get processing files for individual SSE tracking
   const processingFiles = useMemo(() => {
@@ -157,70 +188,26 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
 
 
-  const loadParsedFiles = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const response = await sourceService.listParsedFiles(notebookId);
-      
-      // Handle paginated response format {results: [...], count: 0, etc}
-      if (response && response.results !== undefined) {
-        const data = response.results || [];
-        
-        const parsedSources = data.map((metadata: FileMetadata) => ({
-          id: metadata.file_id || 'unknown',
-          name: generatePrincipleTitle(metadata),
-          title: generatePrincipleTitle(metadata),
-          authors: generatePrincipleFileDescription(metadata),
-          ext: getPrincipleFileExtension(metadata),
-          selected: false,
-          type: "parsed" as const,
-          createdAt: metadata.upload_timestamp || new Date().toISOString(),
-          file_id: metadata.file_id,
-          upload_file_id: metadata.upload_file_id,
-          parsing_status: metadata.parsing_status,
-          metadata: {
-            ...metadata,
-            knowledge_item_id: metadata.knowledge_item_id
-          },
-          error_message: metadata.error_message,
-          originalFile: getPrincipleFileInfo(metadata)
-        }));
-        
-        setSources(parsedSources);
-        
-        fileUploadStatus.stopAllTracking();
-      } else {
-        throw new Error("Failed to load files - unexpected response format");
-      }
-    } catch (error) {
-      console.error('Error loading parsed files:', error);
-      setError(`${error instanceof Error ? error.message : 'Unknown error'}`);
-      setSources([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // ✅ loadParsedFiles function removed - now handled by TanStack Query
 
   // Handle processing completion for specific files - reload to get fresh data
   const handleFileProcessingComplete = useCallback(() => {
-    loadParsedFiles();
+    refetchFiles(); // ✅ Use TanStack Query refetch
     
     if (onSelectionChange) {
       setTimeout(() => onSelectionChange(), 100);
     }
-  }, [onSelectionChange]);
+  }, [onSelectionChange, refetchFiles]);
 
   // Handle processing errors for specific files
   const handleFileProcessingError = useCallback((_fileId: string, error: string) => {
-    setError(`Processing failed for file: ${error}`);
-    loadParsedFiles();
+    // Error is now handled by TanStack Query automatically
+    refetchFiles(); // ✅ Use TanStack Query refetch
     
     if (onSelectionChange) {
       setTimeout(() => onSelectionChange(), 100);
     }
-  }, [onSelectionChange]);
+  }, [onSelectionChange, refetchFiles]);
 
   // Simple helper to get original filename
   const getOriginalFilename = (metadata: FileMetadata) => {
@@ -401,13 +388,13 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       fileUploadStatus.stopTracking(completedUploadId);
     }
     
-    loadParsedFiles();
-  }, [loadParsedFiles, fileUploadStatus]);
+    refetchFiles(); // ✅ Use TanStack Query refetch
+  }, [refetchFiles, fileUploadStatus]);
 
   // Manual refresh
   const handleManualRefresh = useCallback(async () => {
-    loadParsedFiles();
-  }, [loadParsedFiles]);
+    refetchFiles(); // ✅ Use TanStack Query refetch
+  }, [refetchFiles]);
 
   // Expose methods to parent components
   useImperativeHandle(ref, (): SourcesListRef => ({
@@ -423,7 +410,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     clearSelection: () => {
       setSources(prev => prev.map(source => ({ ...source, selected: false })));
     },
-    refreshSources: loadParsedFiles,
+    refreshSources: () => refetchFiles(), // ✅ Use TanStack Query refetch
     startUploadTracking: (uploadFileId: string) => {
       fileUploadStatus.startTracking(uploadFileId);
     },
@@ -590,7 +577,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           onClose={() => onCloseModal?.('addSourceModal')}
           notebookId={notebookId}
           onSourcesAdded={() => {
-            loadParsedFiles();
+            refetchFiles(); // ✅ Use TanStack Query refetch
             if (onSelectionChange) {
               setTimeout(() => onSelectionChange(), 100);
             }
@@ -641,7 +628,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             }
           }}
           onKnowledgeBaseItemsDeleted={() => {
-            loadParsedFiles();
+            refetchFiles(); // ✅ Use TanStack Query refetch
           }}
         />
       );
