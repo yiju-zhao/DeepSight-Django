@@ -31,6 +31,11 @@ class RagFlowChatError(RagFlowClientError):
     pass
 
 
+class RagFlowSessionError(RagFlowClientError):
+    """Exception for session-related errors."""
+    pass
+
+
 class RagFlowClient:
     """
     RagFlow client wrapper with error handling, retry logic, and logging.
@@ -454,96 +459,347 @@ class RagFlowClient:
             logger.error(f"Failed to create chat completion for chat '{chat_id}': {e}")
             raise RagFlowChatError(f"Failed to create chat completion: {e}")
     
-    # Agent Management for Agentic RAG
-    def get_knowledge_base_agent(self, agent_name: str = None) -> Optional[Any]:
+    # Agent Management
+    def list_agents(self, page: int = 1, page_size: int = 30, orderby: str = "create_time", 
+                   desc: bool = True, id: str = None, title: str = None) -> List[Dict]:
         """
-        Get or create a knowledge base agent for agentic RAG.
+        List RagFlow agents.
         
         Args:
-            agent_name: Optional name to filter agents, defaults to first KB agent found
+            page: Page number (defaults to 1)
+            page_size: Number of agents per page (defaults to 30)
+            orderby: Sort by attribute ("create_time" or "update_time")
+            desc: Sort in descending order
+            id: Filter by agent ID
+            title: Filter by agent title
             
         Returns:
-            Agent object or None if not found
+            List of agent dictionaries
+            
+        Raises:
+            RagFlowClientError: If listing fails
         """
         try:
-            # List available agents
-            agents = self.client.list_agents()
+            logger.info(f"Listing RagFlow agents (page={page}, size={page_size})")
             
-            # Look for knowledge base agent (either by name or type)
-            kb_agent = None
+            def _list():
+                return self.client.list_agents(
+                    page=page,
+                    page_size=page_size,
+                    orderby=orderby,
+                    desc=desc,
+                    id=id,
+                    title=title
+                )
+            
+            agents = self._retry_on_failure(_list)
+            
+            # Convert to dict format for consistency
+            agent_list = []
             for agent in agents:
-                agent_name_attr = getattr(agent, 'name', '')
-                # Look for Knowledge Base Agent template or custom name
-                if (agent_name and agent_name.lower() in agent_name_attr.lower()) or \
-                   ('knowledge' in agent_name_attr.lower() and 'base' in agent_name_attr.lower()):
-                    kb_agent = agent
-                    break
+                agent_list.append({
+                    'id': getattr(agent, 'id', ''),
+                    'title': getattr(agent, 'title', ''),
+                    'description': getattr(agent, 'description', ''),
+                    'create_time': getattr(agent, 'create_time', None),
+                    'update_time': getattr(agent, 'update_time', None)
+                })
             
-            if not kb_agent and agents:
-                # Fallback to first available agent if no KB agent found
-                kb_agent = agents[0]
-                logger.warning("No Knowledge Base Agent found, using first available agent")
+            logger.info(f"Retrieved {len(agent_list)} agents")
+            return agent_list
             
-            if kb_agent:
-                logger.info(f"Found knowledge base agent: {getattr(kb_agent, 'name', 'Unknown')}")
-                return kb_agent
-            else:
-                logger.error("No agents available in RagFlow")
-                return None
-                
         except Exception as e:
-            logger.error(f"Failed to get knowledge base agent: {e}")
-            return None
+            logger.error(f"Failed to list agents: {e}")
+            raise RagFlowClientError(f"Failed to list agents: {e}")
     
-    def create_agent_session(self, agent, session_name: str = None) -> Optional[Any]:
+    def create_agent(self, title: str, dsl: Dict, description: str = None) -> Dict:
         """
-        Create a session with a knowledge base agent.
+        Create a RagFlow agent.
         
         Args:
-            agent: Agent object from RagFlow
-            session_name: Optional session name
+            title: Agent title
+            dsl: Canvas DSL configuration
+            description: Agent description
             
         Returns:
-            Session object or None if creation failed
+            Dict with creation result
+            
+        Raises:
+            RagFlowClientError: If creation fails
         """
         try:
-            session = agent.create_session(name=session_name)
-            logger.info(f"Created agent session: {getattr(session, 'id', 'unknown')}")
-            return session
+            logger.info(f"Creating RagFlow agent: {title}")
+            
+            def _create():
+                return self.client.create_agent(
+                    title=title,
+                    dsl=dsl,
+                    description=description
+                )
+            
+            result = self._retry_on_failure(_create)
+            logger.info(f"Agent created successfully: {title}")
+            
+            return {
+                'success': True,
+                'title': title,
+                'description': description
+            }
             
         except Exception as e:
-            logger.error(f"Failed to create agent session: {e}")
-            return None
+            logger.error(f"Failed to create agent '{title}': {e}")
+            raise RagFlowClientError(f"Failed to create agent: {e}")
     
-    def ask_agent(self, session, question: str, stream: bool = True) -> Any:
+    def delete_agent(self, agent_id: str) -> bool:
         """
-        Ask a question to the knowledge base agent.
+        Delete a RagFlow agent.
         
         Args:
-            session: Agent session object
-            question: Question to ask the agent
+            agent_id: Agent ID to delete
+            
+        Returns:
+            True if successful
+            
+        Raises:
+            RagFlowClientError: If deletion fails
+        """
+        try:
+            logger.info(f"Deleting RagFlow agent: {agent_id}")
+            
+            def _delete():
+                self.client.delete_agent(agent_id)
+                return True
+            
+            result = self._retry_on_failure(_delete)
+            logger.info(f"Agent deleted successfully: {agent_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to delete agent '{agent_id}': {e}")
+            raise RagFlowClientError(f"Failed to delete agent: {e}")
+    
+    # Session Management
+    def create_session(self, agent_id: str, **kwargs) -> Dict:
+        """
+        Create a session with a RagFlow agent.
+        
+        Args:
+            agent_id: Agent ID to create session with
+            **kwargs: Additional session parameters
+            
+        Returns:
+            Dict containing session information
+            
+        Raises:
+            RagFlowSessionError: If session creation fails
+        """
+        try:
+            logger.info(f"Creating session with agent: {agent_id}")
+            
+            # Get the agent first
+            agents = self.client.list_agents(id=agent_id)
+            if not agents:
+                raise RagFlowSessionError(f"Agent {agent_id} not found")
+            
+            agent = agents[0]
+            
+            def _create_session():
+                return agent.create_session(**kwargs)
+            
+            session = self._retry_on_failure(_create_session)
+            logger.info(f"Session created successfully: {session.id}")
+            
+            return {
+                'id': session.id,
+                'agent_id': agent_id,
+                'messages': getattr(session, 'messages', [])
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to create session with agent '{agent_id}': {e}")
+            raise RagFlowSessionError(f"Failed to create session: {e}")
+    
+    def list_agent_sessions(self, agent_id: str, page: int = 1, page_size: int = 30,
+                           orderby: str = "update_time", desc: bool = True, 
+                           session_id: str = None) -> List[Dict]:
+        """
+        List sessions for a specific agent.
+        
+        Args:
+            agent_id: Agent ID
+            page: Page number (defaults to 1)
+            page_size: Number of sessions per page (defaults to 30)
+            orderby: Sort by attribute ("create_time" or "update_time")
+            desc: Sort in descending order
+            session_id: Filter by specific session ID
+            
+        Returns:
+            List of session dictionaries
+            
+        Raises:
+            RagFlowSessionError: If listing fails
+        """
+        try:
+            logger.info(f"Listing sessions for agent {agent_id} (page={page}, size={page_size})")
+            
+            # Get the agent first
+            agents = self.client.list_agents(id=agent_id)
+            if not agents:
+                raise RagFlowSessionError(f"Agent {agent_id} not found")
+            
+            agent = agents[0]
+            
+            def _list_sessions():
+                return agent.list_sessions(
+                    page=page,
+                    page_size=page_size,
+                    orderby=orderby,
+                    desc=desc,
+                    id=session_id
+                )
+            
+            sessions = self._retry_on_failure(_list_sessions)
+            
+            # Convert to dict format for consistency
+            session_list = []
+            for session in sessions:
+                session_list.append({
+                    'id': getattr(session, 'id', ''),
+                    'agent_id': agent_id,
+                    'messages': getattr(session, 'messages', []),
+                    'create_time': getattr(session, 'create_time', None),
+                    'update_time': getattr(session, 'update_time', None)
+                })
+            
+            logger.info(f"Retrieved {len(session_list)} sessions for agent {agent_id}")
+            return session_list
+            
+        except Exception as e:
+            logger.error(f"Failed to list sessions for agent '{agent_id}': {e}")
+            raise RagFlowSessionError(f"Failed to list sessions: {e}")
+    
+    def delete_agent_sessions(self, agent_id: str, session_ids: List[str] = None) -> bool:
+        """
+        Delete sessions for a specific agent.
+        
+        Args:
+            agent_id: Agent ID
+            session_ids: List of session IDs to delete (if None, deletes all sessions)
+            
+        Returns:
+            True if successful
+            
+        Raises:
+            RagFlowSessionError: If deletion fails
+        """
+        try:
+            session_count = len(session_ids) if session_ids else "all"
+            logger.info(f"Deleting {session_count} sessions for agent: {agent_id}")
+            
+            # Get the agent first
+            agents = self.client.list_agents(id=agent_id)
+            if not agents:
+                raise RagFlowSessionError(f"Agent {agent_id} not found")
+            
+            agent = agents[0]
+            
+            def _delete_sessions():
+                agent.delete_sessions(ids=session_ids)
+                return True
+            
+            result = self._retry_on_failure(_delete_sessions)
+            logger.info(f"Sessions deleted successfully for agent {agent_id}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to delete sessions for agent '{agent_id}': {e}")
+            raise RagFlowSessionError(f"Failed to delete sessions: {e}")
+    
+    def ask_session(self, agent_id: str, session_id: str, question: str, 
+                   stream: bool = False) -> Any:
+        """
+        Ask a question in an agent session.
+        
+        Args:
+            agent_id: Agent ID
+            session_id: Session ID
+            question: Question to ask
             stream: Whether to stream the response
             
         Returns:
-            Agent response (streaming or non-streaming)
+            Message response or iterator for streaming
             
         Raises:
-            RagFlowChatError: If agent query fails
+            RagFlowSessionError: If question fails
         """
         try:
-            logger.info(f"Asking agent: {question[:100]}...")
+            logger.info(f"Asking question in session {session_id} for agent {agent_id}")
+            
+            # Get the agent first
+            agents = self.client.list_agents(id=agent_id)
+            if not agents:
+                raise RagFlowSessionError(f"Agent {agent_id} not found")
+            
+            agent = agents[0]
+            
+            # Get the session
+            sessions = agent.list_sessions(id=session_id)
+            if not sessions:
+                raise RagFlowSessionError(f"Session {session_id} not found")
+            
+            session = sessions[0]
             
             def _ask():
-                return session.ask(question, stream=stream)
+                return session.ask(question=question, stream=stream)
             
             response = self._retry_on_failure(_ask)
-            logger.info("Agent response received successfully")
+            logger.info(f"Question asked successfully in session {session_id}")
             
             return response
             
         except Exception as e:
-            logger.error(f"Failed to ask agent: {e}")
-            raise RagFlowChatError(f"Agent query failed: {e}")
+            logger.error(f"Failed to ask question in session '{session_id}': {e}")
+            raise RagFlowSessionError(f"Failed to ask question: {e}")
+    
+    def get_session(self, agent_id: str, session_id: str) -> Optional[Dict]:
+        """
+        Get information about a specific session.
+        
+        Args:
+            agent_id: Agent ID
+            session_id: Session ID
+            
+        Returns:
+            Session information or None if not found
+        """
+        try:
+            logger.info(f"Getting session {session_id} for agent {agent_id}")
+            
+            # Get the agent first
+            agents = self.client.list_agents(id=agent_id)
+            if not agents:
+                return None
+            
+            agent = agents[0]
+            
+            # Get the session
+            sessions = agent.list_sessions(id=session_id)
+            if not sessions:
+                return None
+            
+            session = sessions[0]
+            
+            return {
+                'id': getattr(session, 'id', ''),
+                'agent_id': agent_id,
+                'messages': getattr(session, 'messages', []),
+                'create_time': getattr(session, 'create_time', None),
+                'update_time': getattr(session, 'update_time', None)
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get session '{session_id}': {e}")
+            return None
 
     # Health Check
     def health_check(self) -> bool:

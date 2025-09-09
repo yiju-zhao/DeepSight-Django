@@ -1,24 +1,33 @@
 """
 Chat Service - Handle chat functionality business logic following Django patterns.
+Includes integrated agentic RAG functionality using RagFlow Knowledge Base Agents.
 """
 import json
 import logging
-from typing import Dict, List, Optional, Generator
+from typing import Dict, List, Optional, Generator, Any
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.core.cache import cache
 from rest_framework import status
 
-from ..models import Notebook, NotebookChatMessage
+from ..models import Notebook, NotebookChatMessage, RagFlowDataset
+from infrastructure.ragflow.client import get_ragflow_client, RagFlowClientError, RagFlowSessionError
 from core.services import NotebookBaseService
 
 logger = logging.getLogger(__name__)
 
 
 class ChatService(NotebookBaseService):
-    """Handle chat functionality business logic following Django patterns."""
+    """
+    Handle chat functionality business logic following Django patterns.
+    Includes integrated agentic RAG functionality using RagFlow Knowledge Base Agents.
+    """
     
     def __init__(self):
         super().__init__()
+        self.ragflow_client = get_ragflow_client()
+        self._agent_cache_timeout = 300  # 5 minutes
+        self._session_cache_timeout = 1800  # 30 minutes
     
     def perform_action(self, **kwargs):
         """
@@ -187,8 +196,6 @@ class ChatService(NotebookBaseService):
         Returns:
             Generator yielding chat stream chunks
         """
-        from .agentic_rag_service import AgenticRAGService
-        
         # Convert history format for agent
         formatted_history = []
         if history:
@@ -196,15 +203,12 @@ class ChatService(NotebookBaseService):
                 role = "user" if sender == "user" else "assistant"
                 formatted_history.append({"role": role, "content": message})
         
-        # Create agentic RAG service
-        agentic_rag = AgenticRAGService()
-        
         def wrapped_stream():
             """Wrapper to capture assistant tokens and save final response"""
             buffer = []
             
             # Get streaming response from knowledge base agent
-            agent_stream = agentic_rag.ask_agent_streaming(
+            agent_stream = self.ask_agent_streaming(
                 notebook=notebook,
                 user_id=user_id,
                 question=question,
@@ -217,7 +221,6 @@ class ChatService(NotebookBaseService):
                 # Parse token events to build full response
                 if chunk.startswith("data: "):
                     try:
-                        import json
                         payload = json.loads(chunk[len("data: "):])
                         if payload.get("type") == "token":
                             buffer.append(payload.get("text", ""))
@@ -304,8 +307,6 @@ class ChatService(NotebookBaseService):
             Dict with suggestions or error information
         """
         try:
-            from .agentic_rag_service import AgenticRAGService
-            
             # Get recent chat history
             recent_messages = NotebookChatMessage.objects.filter(
                 notebook=notebook
@@ -321,9 +322,8 @@ class ChatService(NotebookBaseService):
             suggestion_prompt = """Based on our conversation and the knowledge base, suggest 3-5 relevant follow-up questions that would be helpful to explore. 
             Make the questions specific and actionable. Format your response as a simple numbered list."""
             
-            # Use agentic RAG to generate suggestions
-            agentic_rag = AgenticRAGService()
-            result = agentic_rag.ask_agent_direct(
+            # Use integrated agentic RAG to generate suggestions
+            result = self.ask_agent_direct(
                 notebook=notebook,
                 user_id=notebook.user.id,
                 question=suggestion_prompt,
@@ -373,4 +373,449 @@ class ChatService(NotebookBaseService):
                 "error": "Failed to generate suggestions",
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "details": {"error": str(e)}
+            }
+
+    # Agentic RAG Integration Methods
+    
+    def get_or_create_agent_session(self, notebook: Notebook, user_id: int) -> Dict:
+        """
+        Get or create an agent session for the notebook's dataset.
+        
+        Args:
+            notebook: Notebook instance
+            user_id: User ID for session management
+            
+        Returns:
+            Dict with session info or error
+        """
+        try:
+            # Validate notebook access
+            self.validate_notebook_access(notebook, notebook.user)
+            
+            # Check if notebook has RagFlow dataset
+            if not hasattr(notebook, 'ragflow_dataset'):
+                return {
+                    "error": "Notebook has no RagFlow dataset",
+                    "status_code": status.HTTP_400_BAD_REQUEST
+                }
+            
+            ragflow_dataset = notebook.ragflow_dataset
+            if not ragflow_dataset.is_ready():
+                return {
+                    "error": "RagFlow dataset is not ready",
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                    "dataset_status": ragflow_dataset.status
+                }
+            
+            # Check cache for existing session
+            cache_key = f"ragflow_agent_session_{notebook.id}_{user_id}"
+            cached_session = cache.get(cache_key)
+            
+            if cached_session:
+                logger.info(f"Using cached agent session for notebook {notebook.id}")
+                return {
+                    "success": True,
+                    "session_info": cached_session,
+                    "cached": True
+                }
+            
+            # Get or create knowledge base agent
+            agent_result = self._get_or_create_knowledge_base_agent(ragflow_dataset.ragflow_dataset_id)
+            if not agent_result.get('success'):
+                return agent_result
+            
+            agent_id = agent_result['agent_id']
+            
+            # Create new session with the agent
+            session_result = self.ragflow_client.create_session(
+                agent_id=agent_id,
+                **{'knowledge base': ragflow_dataset.ragflow_dataset_id}  # Pass dataset as parameter
+            )
+            
+            # Cache the session info
+            session_info = {
+                "session": session_result,
+                "agent_id": agent_id,
+                "dataset_id": ragflow_dataset.ragflow_dataset_id,
+                "notebook_id": notebook.id,
+                "created_for_user": user_id
+            }
+            
+            cache.set(cache_key, session_info, timeout=self._session_cache_timeout)
+            
+            self.log_notebook_operation(
+                "agent_session_created",
+                str(notebook.id),
+                user_id,
+                session_id=session_result.get('id', 'unknown'),
+                agent_id=agent_id
+            )
+            
+            return {
+                "success": True,
+                "session_info": session_info,
+                "cached": False
+            }
+            
+        except (RagFlowClientError, RagFlowSessionError) as e:
+            logger.exception(f"RagFlow error creating agent session for notebook {notebook.id}: {e}")
+            return {
+                "error": f"RagFlow service error: {e}",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"ragflow_error": str(e)}
+            }
+        except Exception as e:
+            logger.exception(f"Failed to create agent session for notebook {notebook.id}: {e}")
+            return {
+                "error": "Failed to create agent session",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
+            }
+    
+    def ask_agent_streaming(self, notebook: Notebook, user_id: int, question: str, 
+                           history: List[Dict] = None) -> Generator:
+        """
+        Ask the knowledge base agent a question with streaming response.
+        
+        Args:
+            notebook: Notebook instance
+            user_id: User ID
+            question: Question to ask
+            history: Optional conversation history
+            
+        Returns:
+            Generator yielding streaming response chunks
+        """
+        try:
+            # Get or create agent session
+            session_result = self.get_or_create_agent_session(notebook, user_id)
+            
+            if not session_result.get('success'):
+                # Yield error as SSE format
+                error_msg = session_result.get('error', 'Unknown error')
+                yield f"data: {{'type': 'error', 'message': '{error_msg}'}}\n\n"
+                return
+            
+            session_info = session_result.get('session_info')
+            session = session_info.get('session')
+            agent_id = session_info.get('agent_id')
+            session_id = session.get('id')
+            
+            # Add history context if provided
+            if history:
+                context_prompt = self._build_context_from_history(history)
+                enhanced_question = f"{context_prompt}\n\nCurrent question: {question}"
+            else:
+                enhanced_question = question
+            
+            # Ask the agent with streaming
+            logger.info(f"Asking agent for notebook {notebook.id}: {question[:100]}...")
+            response = self.ragflow_client.ask_session(
+                agent_id=agent_id,
+                session_id=session_id,
+                question=enhanced_question,
+                stream=True
+            )
+            
+            # Stream the response
+            for chunk in response:
+                try:
+                    if hasattr(chunk, 'content') and chunk.content:
+                        # Format as SSE
+                        content = chunk.content.replace('\n', '\\n').replace('"', '\\"')
+                        yield f"data: {{'type': 'token', 'text': '{content}'}}\n\n"
+                    elif isinstance(chunk, str):
+                        # Handle string responses
+                        content = chunk.replace('\n', '\\n').replace('"', '\\"')
+                        yield f"data: {{'type': 'token', 'text': '{content}'}}\n\n"
+                        
+                except Exception as chunk_error:
+                    logger.error(f"Error processing agent response chunk: {chunk_error}")
+                    continue
+            
+            # Send completion signal
+            yield f"data: {{'type': 'done', 'message': 'Agent response complete'}}\n\n"
+            
+            self.log_notebook_operation(
+                "agent_question_asked",
+                str(notebook.id),
+                user_id,
+                question_length=len(question)
+            )
+            
+        except (RagFlowClientError, RagFlowSessionError) as e:
+            logger.exception(f"RagFlow error during agent query: {e}")
+            yield f"data: {{'type': 'error', 'message': 'RagFlow service error: {str(e)}'}}\n\n"
+            
+        except Exception as e:
+            logger.exception(f"Error during agent streaming query: {e}")
+            yield f"data: {{'type': 'error', 'message': 'Agent query failed: {str(e)}'}}\n\n"
+    
+    def ask_agent_direct(self, notebook: Notebook, user_id: int, question: str, 
+                        history: List[Dict] = None) -> Dict:
+        """
+        Ask the knowledge base agent a question with direct response.
+        
+        Args:
+            notebook: Notebook instance
+            user_id: User ID
+            question: Question to ask
+            history: Optional conversation history
+            
+        Returns:
+            Dict with agent response
+        """
+        try:
+            # Get or create agent session
+            session_result = self.get_or_create_agent_session(notebook, user_id)
+            
+            if not session_result.get('success'):
+                return session_result
+            
+            session_info = session_result.get('session_info')
+            session = session_info.get('session')
+            agent_id = session_info.get('agent_id')
+            session_id = session.get('id')
+            
+            # Add history context if provided
+            if history:
+                context_prompt = self._build_context_from_history(history)
+                enhanced_question = f"{context_prompt}\n\nCurrent question: {question}"
+            else:
+                enhanced_question = question
+            
+            # Ask the agent without streaming
+            response = self.ragflow_client.ask_session(
+                agent_id=agent_id,
+                session_id=session_id,
+                question=enhanced_question,
+                stream=False
+            )
+            
+            # Extract content from response
+            if hasattr(response, 'content'):
+                content = response.content
+            elif isinstance(response, str):
+                content = response
+            else:
+                content = str(response)
+            
+            self.log_notebook_operation(
+                "agent_question_asked_direct",
+                str(notebook.id),
+                user_id,
+                question_length=len(question),
+                response_length=len(content)
+            )
+            
+            return {
+                "success": True,
+                "content": content,
+                "agent_response": response
+            }
+            
+        except (RagFlowClientError, RagFlowSessionError) as e:
+            logger.exception(f"RagFlow error during direct agent query: {e}")
+            return {
+                "error": f"RagFlow service error: {e}",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"ragflow_error": str(e)}
+            }
+        except Exception as e:
+            logger.exception(f"Error during direct agent query: {e}")
+            return {
+                "error": "Agent query failed",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
+            }
+    
+    def clear_agent_session(self, notebook: Notebook, user_id: int) -> Dict:
+        """
+        Clear the agent session for a notebook.
+        
+        Args:
+            notebook: Notebook instance
+            user_id: User ID
+            
+        Returns:
+            Dict with operation result
+        """
+        try:
+            cache_key = f"ragflow_agent_session_{notebook.id}_{user_id}"
+            cache.delete(cache_key)
+            
+            self.log_notebook_operation(
+                "agent_session_cleared",
+                str(notebook.id),
+                user_id
+            )
+            
+            return {
+                "success": True,
+                "message": "Agent session cleared"
+            }
+            
+        except Exception as e:
+            logger.exception(f"Error clearing agent session: {e}")
+            return {
+                "error": "Failed to clear agent session",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
+            }
+    
+    def _get_or_create_knowledge_base_agent(self, dataset_id: str) -> Dict:
+        """
+        Get or create knowledge base agent for the dataset using the template DSL.
+        
+        Args:
+            dataset_id: RagFlow dataset ID
+            
+        Returns:
+            Dict with agent info or error
+        """
+        try:
+            # Check cache first
+            cache_key = f"ragflow_kb_agent_{dataset_id}"
+            cached_agent = cache.get(cache_key)
+            
+            if cached_agent:
+                return {
+                    "success": True,
+                    "agent_id": cached_agent,
+                    "cached": True
+                }
+            
+            # Load the knowledge base agent DSL template
+            import os
+            template_path = os.path.join(
+                os.path.dirname(__file__), 
+                '../../infrastructure/ragflow/template/knowledge_base_agent.json'
+            )
+            
+            with open(template_path, 'r') as f:
+                template = json.load(f)
+            
+            # Customize the DSL for this specific dataset
+            dsl = template['dsl'].copy()
+            
+            # Update the retrieval tool to use this dataset
+            for component in dsl['components'].values():
+                if 'tools' in component.get('obj', {}).get('params', {}):
+                    for tool in component['obj']['params']['tools']:
+                        if tool['component_name'] == 'Retrieval':
+                            tool['params']['kb_ids'] = [dataset_id]
+            
+            # Update the begin component to use this dataset
+            if 'begin' in dsl['components']:
+                begin_params = dsl['components']['begin']['obj']['params']
+                if 'inputs' in begin_params and 'knowledge base' in begin_params['inputs']:
+                    begin_params['inputs']['knowledge base']['options'] = [dataset_id]
+            
+            # Create unique agent title
+            agent_title = f"Knowledge Base Agent - Dataset {dataset_id[:8]}"
+            agent_description = f"Specialized agent for dataset {dataset_id}"
+            
+            # Check if agent already exists
+            existing_agents = self.ragflow_client.list_agents(title=agent_title)
+            
+            if existing_agents:
+                agent_id = existing_agents[0]['id']
+                logger.info(f"Using existing agent {agent_id} for dataset {dataset_id}")
+            else:
+                # Create the agent
+                create_result = self.ragflow_client.create_agent(
+                    title=agent_title,
+                    dsl=dsl,
+                    description=agent_description
+                )
+                
+                if not create_result.get('success'):
+                    return {
+                        "error": "Failed to create knowledge base agent",
+                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        "details": create_result
+                    }
+                
+                # Get the created agent ID
+                created_agents = self.ragflow_client.list_agents(title=agent_title)
+                if not created_agents:
+                    return {
+                        "error": "Agent created but not found",
+                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR
+                    }
+                
+                agent_id = created_agents[0]['id']
+                logger.info(f"Created new agent {agent_id} for dataset {dataset_id}")
+            
+            # Cache the agent ID
+            cache.set(cache_key, agent_id, timeout=self._agent_cache_timeout)
+            
+            return {
+                "success": True,
+                "agent_id": agent_id,
+                "cached": False
+            }
+            
+        except Exception as e:
+            logger.exception(f"Error creating knowledge base agent for dataset {dataset_id}: {e}")
+            return {
+                "error": "Failed to create knowledge base agent",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
+            }
+    
+    def _build_context_from_history(self, history: List[Dict]) -> str:
+        """Build context prompt from conversation history."""
+        if not history:
+            return ""
+        
+        context_parts = ["Previous conversation context:"]
+        for msg in history[-5:]:  # Use last 5 messages for context
+            role = msg.get('role', 'unknown')
+            content = msg.get('content', '')
+            if content:
+                context_parts.append(f"{role.title()}: {content}")
+        
+        return "\n".join(context_parts)
+    
+    def get_agent_info(self, notebook: Notebook) -> Dict:
+        """Get information about the current knowledge base agent."""
+        try:
+            if not hasattr(notebook, 'ragflow_dataset'):
+                return {
+                    "available": False,
+                    "error": "No RagFlow dataset found"
+                }
+            
+            ragflow_dataset = notebook.ragflow_dataset
+            agent_result = self._get_or_create_knowledge_base_agent(ragflow_dataset.ragflow_dataset_id)
+            
+            if not agent_result.get('success'):
+                return {
+                    "available": False,
+                    "error": agent_result.get('error', 'Unknown error')
+                }
+            
+            agent_id = agent_result['agent_id']
+            agents = self.ragflow_client.list_agents(id=agent_id)
+            
+            if not agents:
+                return {
+                    "available": False,
+                    "error": "Agent not found"
+                }
+            
+            agent = agents[0]
+            return {
+                "available": True,
+                "name": agent.get('title', 'Unknown'),
+                "id": agent.get('id', 'Unknown'),
+                "description": agent.get('description', ''),
+            }
+            
+        except Exception as e:
+            logger.exception(f"Error getting agent info: {e}")
+            return {
+                "available": False,
+                "error": str(e)
             }
