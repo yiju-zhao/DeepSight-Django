@@ -41,6 +41,7 @@ export const useJobStatus = (
   const onErrorRef = useRef(onError);
   const currentJobIdRef = useRef(jobId);
   const currentNotebookIdRef = useRef(notebookId);
+  const jobTypeRef = useRef(jobType);
 
   // Update refs when props change
   useEffect(() => {
@@ -54,11 +55,12 @@ export const useJobStatus = (
   useEffect(() => {
     currentJobIdRef.current = jobId;
     currentNotebookIdRef.current = notebookId;
+    jobTypeRef.current = jobType;
     // Reset completion flag when job ID changes
     if (jobId !== currentJobIdRef.current) {
       jobCompletedRef.current = false;
     }
-  }, [jobId, notebookId]);
+  }, [jobId, notebookId, jobType]);
 
   const connectEventSource = useCallback(() => {
     if (!currentJobIdRef.current || jobCompletedRef.current || isConnectingRef.current) {
@@ -71,7 +73,7 @@ export const useJobStatus = (
     }
 
     isConnectingRef.current = true;
-    console.log('Starting SSE connection for job:', currentJobIdRef.current, 'type:', jobType);
+    console.log('Starting SSE connection for job:', currentJobIdRef.current, 'type:', jobTypeRef.current);
     
     // Create a new AbortController for this connection attempt
     const ctrl = new AbortController();
@@ -79,11 +81,11 @@ export const useJobStatus = (
     
     try {
       // Use the appropriate API service method to get the correct SSE URL
-      const sseUrl = jobType === 'report'
-        ? studioService.getReportJobStatusStreamUrl(currentJobIdRef.current, currentNotebookIdRef.current)
-        : studioService.getPodcastJobStatusStreamUrl(currentJobIdRef.current, currentNotebookIdRef.current);
+      const sseUrl = jobTypeRef.current === 'report'
+        ? studioService.getReportJobStatusStreamUrl(currentJobIdRef.current, currentNotebookIdRef.current!)
+        : studioService.getPodcastJobStatusStreamUrl(currentJobIdRef.current, currentNotebookIdRef.current!);
       
-      console.log(`Connecting to ${jobType} SSE:`, sseUrl);
+      console.log(`Connecting to ${jobTypeRef.current} SSE:`, sseUrl);
       
       fetchEventSource(sseUrl, {
         method: 'GET',
@@ -213,14 +215,14 @@ export const useJobStatus = (
       isConnectingRef.current = false;
     }
 
-  }, [jobType]);
+  }, []); // Remove jobType dependency to stabilize the callback
 
   // Function to cancel job
   const cancel = useCallback(async () => {
     if (!currentJobIdRef.current || !currentNotebookIdRef.current) return false;
     
     try {
-      const success = jobType === 'report'
+      const success = jobTypeRef.current === 'report'
         ? await studioService.cancelReportJob(currentJobIdRef.current, currentNotebookIdRef.current)
         : await studioService.cancelPodcastJob(currentJobIdRef.current, currentNotebookIdRef.current);
       
@@ -241,7 +243,7 @@ export const useJobStatus = (
       console.error('Error cancelling job:', error);
       return false;
     }
-  }, [jobType]);
+  }, []); // Remove jobType dependency to stabilize the callback
 
   // Function to disconnect from current job
   const disconnect = useCallback(() => {
@@ -286,7 +288,7 @@ export const useJobStatus = (
     return () => {
       disconnect(); // Cleanup on unmount
     };
-  }, [jobId, notebookId, connectEventSource, disconnect]);
+  }, [jobId, notebookId]); // Removed connectEventSource and disconnect from dependencies
 
   return { status, progress, result, error, isConnected, connectionError, cancel, disconnect };
 };

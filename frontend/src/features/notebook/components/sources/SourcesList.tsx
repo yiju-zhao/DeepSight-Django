@@ -116,7 +116,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   } = useParsedFiles(notebookId);
 
   const [sources, setSources] = useState<Source[]>([]);
-  const error = queryError?.message || null;
+  const [error, setError] = useState<string | null>(null);
+  const queryErrorMessage = queryError?.message || null;
 
   // Group state
   const [isGrouped, setIsGrouped] = useState(false);
@@ -853,7 +854,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       {/* Error Display with unified styling */}
       <AnimatePresence>
-        {error && (
+        {(error || queryErrorMessage) && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
@@ -863,7 +864,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             <Alert variant="destructive" className="border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4" />
               <AlertDescription className="text-sm text-red-800">
-                {error}
+                {error || queryErrorMessage}
                 <Button
                   variant="ghost"
                   size="sm"

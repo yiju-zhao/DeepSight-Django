@@ -12,12 +12,12 @@ class ChatService {
 
   // Get suggested questions for a notebook
   async getSuggestedQuestions(notebookId: string): Promise<string[]> {
-    return httpClient.get<string[]>(`/notebooks/${notebookId}/suggested-questions/`);
+    return httpClient.get<string[]>(`/notebooks/${notebookId}/chat/suggested_questions/`);
   }
 
   // Get suggested questions with fetch (for consistency with existing ChatPanel implementation)
   async getSuggestedQuestionsWithFetch(notebookId: string): Promise<any> {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/suggested-questions/`, {
+    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/suggested_questions/`, {
       credentials: 'include',
     });
     
