@@ -253,42 +253,16 @@ class NotebookService(ModelService):
             'batch_jobs_count': notebook.batch_jobs.count(),
         }
         
-        # Delete RagFlow dataset if it exists
-        ragflow_dataset_deleted = False
-        ragflow_dataset_id = None
-        if hasattr(notebook, 'ragflow_dataset'):
-            try:
-                from .ragflow_service import RagFlowService
-                ragflow_service = RagFlowService()
-                ragflow_dataset_id = notebook.ragflow_dataset.ragflow_dataset_id
-                
-                delete_result = ragflow_service.delete_dataset(notebook.ragflow_dataset)
-                ragflow_dataset_deleted = delete_result.get('success', False)
-                
-                if not ragflow_dataset_deleted:
-                    self.logger.warning(
-                        f"Failed to delete RagFlow dataset {ragflow_dataset_id} "
-                        f"for notebook {notebook_id}: {delete_result.get('error')}"
-                    )
-                else:
-                    stats['ragflow_dataset_deleted'] = True
-                    stats['ragflow_dataset_id'] = ragflow_dataset_id
-                    
-            except Exception as e:
-                self.logger.error(
-                    f"Error deleting RagFlow dataset for notebook {notebook_id}: {e}"
-                )
-                stats['ragflow_cleanup_error'] = str(e)
+        # Clean up external resources before deleting notebook
+        self._cleanup_external_resources(notebook)
         
-        # Delete notebook (cascade will handle related objects including RagFlowDataset)
+        # Delete notebook (cascade will handle related objects)
         notebook.delete()
         
         self.log_operation(
-            "notebook_deleted_with_ragflow_cleanup",
+            "notebook_deleted",
             notebook_id=notebook_id,
             user_id=user.id,
-            ragflow_dataset_deleted=ragflow_dataset_deleted,
-            ragflow_dataset_id=ragflow_dataset_id,
             **stats
         )
         
@@ -435,75 +409,98 @@ class NotebookService(ModelService):
     
     # RagFlow Integration Methods
     
-    def get_notebook_dataset(self, notebook_id: str, user):
+    def has_ragflow_integration(self, notebook_id: str, user) -> bool:
         """
-        Get RagFlow dataset for a notebook.
+        Check if notebook has RagFlow integration configured.
         
         Args:
             notebook_id: ID of the notebook
             user: User who owns the notebook
             
         Returns:
-            RagFlowDataset instance or None if not found
-            
-        Raises:
-            PermissionDenied: If user doesn't own the notebook
-        """
-        notebook = self.get_object_for_user(notebook_id, user)
-        return getattr(notebook, 'ragflow_dataset', None)
-    
-    def has_dataset(self, notebook_id: str, user) -> bool:
-        """
-        Check if notebook has an associated RagFlow dataset.
-        
-        Args:
-            notebook_id: ID of the notebook
-            user: User who owns the notebook
-            
-        Returns:
-            True if dataset exists and is active
+            True if RagFlow IDs are configured
         """
         try:
-            dataset = self.get_notebook_dataset(notebook_id, user)
-            return dataset is not None and dataset.is_ready()
+            notebook = self.get_object_for_user(notebook_id, user)
+            return bool(notebook.ragflow_dataset_id or notebook.ragflow_agent_id or notebook.ragflow_chat_id)
         except Exception:
             return False
     
-    def get_dataset_status(self, notebook_id: str, user):
+    def get_ragflow_status(self, notebook_id: str, user):
         """
-        Get RagFlow dataset status for a notebook.
+        Get RagFlow integration status for a notebook.
         
         Args:
             notebook_id: ID of the notebook
             user: User who owns the notebook
             
         Returns:
-            Dict with dataset status information
+            Dict with RagFlow integration information
         """
         try:
-            dataset = self.get_notebook_dataset(notebook_id, user)
-            if not dataset:
-                return {
-                    'has_dataset': False,
-                    'status': 'not_created'
-                }
+            notebook = self.get_object_for_user(notebook_id, user)
             
             return {
-                'has_dataset': True,
-                'status': dataset.status,
-                'dataset_id': dataset.ragflow_dataset_id,
-                'dataset_name': dataset.dataset_name,
-                'chat_id': dataset.ragflow_chat_id,
-                'error_message': dataset.error_message if dataset.has_error() else None,
-                'document_count': dataset.get_document_count(),
-                'created_at': dataset.created_at,
-                'updated_at': dataset.updated_at
+                'has_integration': self.has_ragflow_integration(notebook_id, user),
+                'dataset_id': notebook.ragflow_dataset_id,
+                'agent_id': notebook.ragflow_agent_id,
+                'chat_id': notebook.ragflow_chat_id,
+                'created_at': notebook.created_at,
+                'updated_at': notebook.updated_at
             }
             
         except Exception as e:
-            self.logger.exception(f"Failed to get dataset status for notebook {notebook_id}: {e}")
+            self.logger.exception(f"Failed to get RagFlow status for notebook {notebook_id}: {e}")
             return {
-                'has_dataset': False,
-                'status': 'error',
+                'has_integration': False,
                 'error': str(e)
             }
+    
+    def _cleanup_external_resources(self, notebook):
+        """
+        Clean up external RagFlow resources associated with a notebook.
+        
+        Args:
+            notebook: Notebook instance to clean up
+        """
+        try:
+            from infrastructure.ragflow.client import get_ragflow_client
+            ragflow_client = get_ragflow_client()
+            
+            # Delete agent sessions if agent exists
+            if notebook.ragflow_agent_id:
+                try:
+                    # Get agent and delete all its sessions
+                    agents = ragflow_client.client.list_agents(id=notebook.ragflow_agent_id)
+                    if agents:
+                        agent = agents[0]
+                        agent.delete_sessions()  # Delete all sessions
+                        self.logger.info(f"Deleted all sessions for RagFlow agent: {notebook.ragflow_agent_id}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete agent sessions {notebook.ragflow_agent_id}: {e}")
+                
+                # Delete agent
+                try:
+                    ragflow_client.delete_agent(notebook.ragflow_agent_id)
+                    self.logger.info(f"Deleted RagFlow agent: {notebook.ragflow_agent_id}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete RagFlow agent {notebook.ragflow_agent_id}: {e}")
+            
+            # Delete chat assistant if exists
+            if notebook.ragflow_chat_id:
+                try:
+                    ragflow_client.delete_chat_assistant(notebook.ragflow_chat_id)
+                    self.logger.info(f"Deleted RagFlow chat assistant: {notebook.ragflow_chat_id}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete RagFlow chat assistant {notebook.ragflow_chat_id}: {e}")
+            
+            # Delete dataset (includes all documents)
+            if notebook.ragflow_dataset_id:
+                try:
+                    ragflow_client.delete_dataset(notebook.ragflow_dataset_id)
+                    self.logger.info(f"Deleted RagFlow dataset: {notebook.ragflow_dataset_id}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete RagFlow dataset {notebook.ragflow_dataset_id}: {e}")
+                
+        except Exception as e:
+            self.logger.error(f"Error during RagFlow cleanup for notebook {notebook.id}: {e}")

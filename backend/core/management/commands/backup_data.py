@@ -301,21 +301,21 @@ class Command(BaseCommand):
             for user_id in user_ids:
                 if user_id:
                     try:
-                        # RagFlow datasets are managed per-notebook, not per-user
-                        from notebooks.models import RagFlowDataset
-                        datasets = RagFlowDataset.objects.filter(notebook__user_id=user_id)
+                        # RagFlow integration data is now stored directly in notebooks
+                        from notebooks.models import Notebook
+                        notebooks = Notebook.objects.filter(user_id=user_id).exclude(ragflow_dataset_id='')
                         
-                        for dataset in datasets:
+                        for notebook in notebooks:
                             collections_metadata.append({
                                 'user_id': user_id,
-                                'notebook_id': dataset.notebook.id,
-                                'ragflow_dataset_id': dataset.ragflow_dataset_id,
-                                'status': dataset.status,
-                                'document_count': dataset.get_document_count() if dataset.is_ready() else 0
+                                'notebook_id': notebook.id,
+                                'ragflow_dataset_id': notebook.ragflow_dataset_id,
+                                'ragflow_agent_id': notebook.ragflow_agent_id,
+                                'ragflow_chat_id': notebook.ragflow_chat_id,
                             })
                         
                     except Exception as e:
-                        logger.warning(f"Failed to backup RagFlow datasets for user {user_id}: {e}")
+                        logger.warning(f"Failed to backup RagFlow data for user {user_id}: {e}")
                         continue
             
             # Save metadata

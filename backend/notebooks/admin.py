@@ -4,7 +4,6 @@ from .models import (
     Notebook,
     KnowledgeBaseItem,
     NotebookChatMessage,
-    RagFlowDataset,
 )
 
 
@@ -88,38 +87,6 @@ class KnowledgeBaseItemAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("notebook", "notebook__user")
 
-
-@admin.register(RagFlowDataset)
-class RagFlowDatasetAdmin(admin.ModelAdmin):
-    """Admin configuration for RagFlowDataset model."""
-    
-    list_display = (
-        "id", 
-        "notebook", 
-        "dataset_name", 
-        "status", 
-        "get_document_count",
-        "created_at"
-    )
-    list_filter = ("status", "created_at")
-    search_fields = ("dataset_name", "notebook__name", "notebook__user__username")
-    readonly_fields = ("created_at", "updated_at", "ragflow_dataset_id", "ragflow_chat_id")
-    fieldsets = (
-        (None, {"fields": ("notebook", "dataset_name", "status")}),
-        ("RagFlow Integration", {"fields": ("ragflow_dataset_id", "ragflow_chat_id")}),
-        ("Status", {"fields": ("error_message",)}),
-        ("Metadata", {"fields": ("metadata",), "classes": ("collapse",)}),
-        ("Timestamps", {"fields": ("created_at", "updated_at"), "classes": ("collapse",)}),
-    )
-    
-    def get_document_count(self, obj):
-        """Get count of documents in the dataset."""
-        return obj.get_document_count()
-    
-    get_document_count.short_description = "Documents"
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related("notebook", "notebook__user")
 
 
 @admin.register(NotebookChatMessage)

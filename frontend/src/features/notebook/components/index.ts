@@ -7,7 +7,7 @@ export { default as NotebookHeader } from './layout/NotebookHeader';
 export { default as SidebarMenu } from './layout/SidebarMenu';
 
 // Panel components
-export { default as ChatPanel } from './panels/ChatPanel';
+export { default as SessionChatPanel } from './panels/SessionChatPanel';
 export { default as SourcesPanel } from './panels/SourcesPanel';
 export { default as StudioPanel } from './panels/StudioPanel';
 

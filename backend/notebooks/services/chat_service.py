@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.cache import cache
 from rest_framework import status
 
-from ..models import Notebook, NotebookChatMessage, RagFlowDataset
+from ..models import Notebook, NotebookChatMessage, ChatSession, SessionChatMessage
 from infrastructure.ragflow.client import get_ragflow_client, RagFlowClientError, RagFlowSessionError
 from core.services import NotebookBaseService
 
@@ -818,4 +818,503 @@ class ChatService(NotebookBaseService):
             return {
                 "available": False,
                 "error": str(e)
+            }
+
+    # Session Management Methods
+    
+    @transaction.atomic
+    def create_chat_session(self, notebook: Notebook, user_id: int, title: str = None) -> Dict:
+        """
+        Create a new chat session for a notebook.
+        
+        Args:
+            notebook: Notebook instance
+            user_id: User ID
+            title: Optional session title
+            
+        Returns:
+            Dict with session info or error
+        """
+        try:
+            # Validate notebook access
+            self.validate_notebook_access(notebook, notebook.user)
+            
+            # Get or create agent for this notebook's dataset
+            agent_result = self._get_or_create_knowledge_base_agent_for_session(notebook)
+            if not agent_result.get('success'):
+                return agent_result
+            
+            agent_id = agent_result['agent_id']
+            
+            # Create RagFlow session
+            ragflow_session = self.ragflow_client.create_session(
+                agent_id=agent_id,
+                **{'knowledge base': notebook.ragflow_dataset.ragflow_dataset_id}
+            )
+            
+            # Create local session record
+            chat_session = ChatSession.objects.create(
+                notebook=notebook,
+                title=title,
+                ragflow_session_id=ragflow_session.get('id'),
+                ragflow_agent_id=agent_id,
+                session_metadata={
+                    'created_by_user': user_id,
+                    'dataset_id': notebook.ragflow_dataset.ragflow_dataset_id
+                }
+            )
+            
+            self.log_notebook_operation(
+                "chat_session_created",
+                str(notebook.id),
+                user_id,
+                session_id=str(chat_session.session_id),
+                ragflow_session_id=ragflow_session.get('id')
+            )
+            
+            return {
+                "success": True,
+                "session": {
+                    "id": str(chat_session.session_id),
+                    "title": chat_session.title,
+                    "status": chat_session.status,
+                    "created_at": chat_session.created_at.isoformat(),
+                    "message_count": 0
+                },
+                "ragflow_session_id": ragflow_session.get('id')
+            }
+            
+        except (RagFlowClientError, RagFlowSessionError) as e:
+            logger.exception(f"RagFlow error creating session for notebook {notebook.id}: {e}")
+            return {
+                "error": f"RagFlow service error: {e}",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"ragflow_error": str(e)}
+            }
+        except Exception as e:
+            logger.exception(f"Failed to create chat session for notebook {notebook.id}: {e}")
+            return {
+                "error": "Failed to create chat session",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
+            }
+    
+    def list_chat_sessions(self, notebook: Notebook, user_id: int, include_closed: bool = False) -> Dict:
+        """
+        List all chat sessions for a notebook.
+        
+        Args:
+            notebook: Notebook instance
+            user_id: User ID
+            include_closed: Whether to include closed/archived sessions
+            
+        Returns:
+            Dict with sessions list or error
+        """
+        try:
+            # Validate notebook access
+            self.validate_notebook_access(notebook, notebook.user)
+            
+            # Get sessions
+            sessions_query = ChatSession.objects.filter(notebook=notebook)
+            
+            if not include_closed:
+                sessions_query = sessions_query.filter(status='active')
+            
+            sessions = sessions_query.order_by('-last_activity')
+            
+            # Format sessions for API
+            sessions_data = []
+            for session in sessions:
+                last_message = session.get_last_message()
+                sessions_data.append({
+                    "id": str(session.session_id),
+                    "title": session.title,
+                    "status": session.status,
+                    "message_count": session.get_message_count(),
+                    "last_activity": session.last_activity.isoformat(),
+                    "created_at": session.created_at.isoformat(),
+                    "last_message": {
+                        "sender": last_message.sender,
+                        "message": last_message.message[:100],
+                        "timestamp": last_message.timestamp.isoformat()
+                    } if last_message else None
+                })
+            
+            return {
+                "success": True,
+                "sessions": sessions_data,
+                "total_count": len(sessions_data)
+            }
+            
+        except Exception as e:
+            logger.exception(f"Failed to list sessions for notebook {notebook.id}: {e}")
+            return {
+                "error": "Failed to list chat sessions",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
+            }
+    
+    @transaction.atomic
+    def close_chat_session(self, session_id: str, notebook: Notebook, user_id: int, 
+                          delete_ragflow_session: bool = True) -> Dict:
+        """
+        Close a chat session.
+        
+        Args:
+            session_id: Session UUID
+            notebook: Notebook instance
+            user_id: User ID
+            delete_ragflow_session: Whether to delete the RagFlow session
+            
+        Returns:
+            Dict with operation result
+        """
+        try:
+            # Validate notebook access
+            self.validate_notebook_access(notebook, notebook.user)
+            
+            # Get the session
+            session = ChatSession.objects.filter(
+                session_id=session_id, 
+                notebook=notebook
+            ).first()
+            
+            if not session:
+                return {
+                    "error": "Session not found",
+                    "status_code": status.HTTP_404_NOT_FOUND
+                }
+            
+            # Delete RagFlow session if requested
+            if delete_ragflow_session and session.ragflow_session_id and session.ragflow_agent_id:
+                try:
+                    self.ragflow_client.delete_agent_sessions(
+                        agent_id=session.ragflow_agent_id,
+                        session_ids=[session.ragflow_session_id]
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to delete RagFlow session {session.ragflow_session_id}: {e}")
+            
+            # Close the session
+            session.close()
+            
+            self.log_notebook_operation(
+                "chat_session_closed",
+                str(notebook.id),
+                user_id,
+                session_id=str(session.session_id)
+            )
+            
+            return {
+                "success": True,
+                "session_id": str(session.session_id),
+                "status": session.status
+            }
+            
+        except Exception as e:
+            logger.exception(f"Failed to close session {session_id}: {e}")
+            return {
+                "error": "Failed to close chat session",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
+            }
+    
+    def get_chat_session(self, session_id: str, notebook: Notebook, user_id: int) -> Dict:
+        """
+        Get details of a specific chat session.
+        
+        Args:
+            session_id: Session UUID
+            notebook: Notebook instance
+            user_id: User ID
+            
+        Returns:
+            Dict with session details or error
+        """
+        try:
+            # Validate notebook access
+            self.validate_notebook_access(notebook, notebook.user)
+            
+            # Get the session
+            session = ChatSession.objects.filter(
+                session_id=session_id, 
+                notebook=notebook
+            ).first()
+            
+            if not session:
+                return {
+                    "error": "Session not found",
+                    "status_code": status.HTTP_404_NOT_FOUND
+                }
+            
+            # Get recent messages
+            recent_messages = session.messages.order_by('-timestamp')[:50]
+            messages_data = []
+            
+            for msg in reversed(recent_messages):  # Reverse to get chronological order
+                messages_data.append({
+                    "id": msg.id,
+                    "sender": msg.sender,
+                    "message": msg.message,
+                    "timestamp": msg.timestamp.isoformat(),
+                    "sources": msg.get_sources(),
+                    "confidence": msg.get_confidence()
+                })
+            
+            return {
+                "success": True,
+                "session": {
+                    "id": str(session.session_id),
+                    "title": session.title,
+                    "status": session.status,
+                    "message_count": session.get_message_count(),
+                    "created_at": session.created_at.isoformat(),
+                    "last_activity": session.last_activity.isoformat(),
+                    "messages": messages_data
+                }
+            }
+            
+        except Exception as e:
+            logger.exception(f"Failed to get session {session_id}: {e}")
+            return {
+                "error": "Failed to get chat session",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
+            }
+    
+    @transaction.atomic
+    def update_session_title(self, session_id: str, notebook: Notebook, user_id: int, title: str) -> Dict:
+        """
+        Update the title of a chat session.
+        
+        Args:
+            session_id: Session UUID
+            notebook: Notebook instance
+            user_id: User ID
+            title: New title
+            
+        Returns:
+            Dict with operation result
+        """
+        try:
+            # Validate notebook access
+            self.validate_notebook_access(notebook, notebook.user)
+            
+            # Get the session
+            session = ChatSession.objects.filter(
+                session_id=session_id, 
+                notebook=notebook
+            ).first()
+            
+            if not session:
+                return {
+                    "error": "Session not found",
+                    "status_code": status.HTTP_404_NOT_FOUND
+                }
+            
+            # Update title
+            session.title = title.strip()
+            session.save(update_fields=['title', 'updated_at'])
+            
+            return {
+                "success": True,
+                "session_id": str(session.session_id),
+                "title": session.title
+            }
+            
+        except Exception as e:
+            logger.exception(f"Failed to update session title {session_id}: {e}")
+            return {
+                "error": "Failed to update session title",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
+            }
+    
+    def create_session_chat_stream(self, session_id: str, notebook: Notebook, user_id: int, question: str) -> Generator:
+        """
+        Create chat stream for a specific session.
+        
+        Args:
+            session_id: Session UUID
+            notebook: Notebook instance
+            user_id: User ID
+            question: User's question
+            
+        Returns:
+            Generator yielding chat stream chunks
+        """
+        try:
+            # Validate notebook access
+            self.validate_notebook_access(notebook, notebook.user)
+            
+            # Get the session
+            session = ChatSession.objects.filter(
+                session_id=session_id, 
+                notebook=notebook,
+                status='active'
+            ).first()
+            
+            if not session:
+                yield f"data: {{'type': 'error', 'message': 'Session not found or inactive'}}\n\n"
+                return
+            
+            # Record user message
+            user_message = SessionChatMessage.objects.create(
+                session=session,
+                notebook=notebook,
+                sender='user',
+                message=question
+            )
+            
+            self.log_notebook_operation(
+                "session_user_message_recorded",
+                str(notebook.id),
+                user_id,
+                session_id=str(session.session_id),
+                message_id=str(user_message.id)
+            )
+            
+            # Get conversation history for context
+            history = []
+            recent_messages = session.messages.order_by('timestamp')[:20]  # Last 20 messages
+            for msg in recent_messages:
+                if msg.id != user_message.id:  # Don't include the current message
+                    role = "user" if msg.sender == "user" else "assistant"
+                    history.append({"role": role, "content": msg.message})
+            
+            # Stream response from agent
+            def session_stream():
+                buffer = []
+                
+                try:
+                    # Use RagFlow session directly
+                    if not session.ragflow_session_id or not session.ragflow_agent_id:
+                        yield f"data: {{'type': 'error', 'message': 'Session not properly initialized'}}\n\n"
+                        return
+                    
+                    # Ask the agent with streaming
+                    response = self.ragflow_client.ask_session(
+                        agent_id=session.ragflow_agent_id,
+                        session_id=session.ragflow_session_id,
+                        question=question,
+                        stream=True
+                    )
+                    
+                    for chunk in response:
+                        try:
+                            if hasattr(chunk, 'content') and chunk.content:
+                                # Format as SSE
+                                content = chunk.content.replace('\n', '\\n').replace('"', '\\"')
+                                yield f"data: {{'type': 'token', 'text': '{content}'}}\n\n"
+                                buffer.append(chunk.content)
+                            elif isinstance(chunk, str):
+                                # Handle string responses
+                                content = chunk.replace('\n', '\\n').replace('"', '\\"')
+                                yield f"data: {{'type': 'token', 'text': '{content}'}}\n\n"
+                                buffer.append(chunk)
+                                
+                        except Exception as chunk_error:
+                            logger.error(f"Error processing chunk: {chunk_error}")
+                            continue
+                    
+                    # Send completion signal
+                    yield f"data: {{'type': 'done', 'message': 'Response complete'}}\n\n"
+                    
+                    # Save assistant response
+                    full_response = "".join(buffer).strip()
+                    if full_response:
+                        SessionChatMessage.objects.create(
+                            session=session,
+                            notebook=notebook,
+                            sender='assistant',
+                            message=full_response
+                        )
+                        
+                        self.log_notebook_operation(
+                            "session_assistant_message_recorded",
+                            str(notebook.id),
+                            user_id,
+                            session_id=str(session.session_id),
+                            response_length=len(full_response)
+                        )
+                
+                except Exception as e:
+                    logger.exception(f"Error in session stream: {e}")
+                    yield f"data: {{'type': 'error', 'message': 'Response generation failed'}}\n\n"
+            
+            return session_stream()
+            
+        except Exception as e:
+            logger.exception(f"Failed to create session chat stream: {e}")
+            yield f"data: {{'type': 'error', 'message': 'Failed to initialize chat stream'}}\n\n"
+    
+    def _get_or_create_knowledge_base_agent_for_session(self, notebook: Notebook) -> Dict:
+        """
+        Get or create knowledge base agent for session management.
+        Wrapper around existing method for session-specific logic.
+        """
+        if not hasattr(notebook, 'ragflow_dataset'):
+            return {
+                "error": "Notebook has no RagFlow dataset",
+                "status_code": status.HTTP_400_BAD_REQUEST
+            }
+        
+        ragflow_dataset = notebook.ragflow_dataset
+        if not ragflow_dataset.is_ready():
+            return {
+                "error": "RagFlow dataset is not ready",
+                "status_code": status.HTTP_400_BAD_REQUEST,
+                "dataset_status": ragflow_dataset.status
+            }
+        
+        return self._get_or_create_knowledge_base_agent(ragflow_dataset.ragflow_dataset_id)
+    
+    def get_session_count_for_notebook(self, notebook: Notebook) -> int:
+        """Get the number of active sessions for a notebook."""
+        return ChatSession.objects.filter(notebook=notebook, status='active').count()
+    
+    def cleanup_inactive_sessions(self, notebook: Notebook, max_age_hours: int = 24) -> Dict:
+        """
+        Clean up inactive sessions older than specified hours.
+        
+        Args:
+            notebook: Notebook instance
+            max_age_hours: Maximum age in hours for inactive sessions
+            
+        Returns:
+            Dict with cleanup results
+        """
+        try:
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            cutoff_time = timezone.now() - timedelta(hours=max_age_hours)
+            
+            # Find inactive sessions
+            inactive_sessions = ChatSession.objects.filter(
+                notebook=notebook,
+                status='active',
+                last_activity__lt=cutoff_time
+            )
+            
+            cleanup_count = 0
+            for session in inactive_sessions:
+                # Close the session (this also handles RagFlow cleanup)
+                session.close()
+                cleanup_count += 1
+            
+            logger.info(f"Cleaned up {cleanup_count} inactive sessions for notebook {notebook.id}")
+            
+            return {
+                "success": True,
+                "cleaned_up_count": cleanup_count
+            }
+            
+        except Exception as e:
+            logger.exception(f"Failed to cleanup sessions for notebook {notebook.id}: {e}")
+            return {
+                "error": "Failed to cleanup inactive sessions",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)}
             }

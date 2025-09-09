@@ -19,7 +19,7 @@ export { useAsyncState } from './shared/useAsyncState';
 // ============================================================================
 
 // Chat functionality
-export { useChat } from './chat/useChat';
+export { useSessionChat } from './chat/useSessionChat';
 
 // Data management
 export { useNotebookData } from './data/useNotebookData';

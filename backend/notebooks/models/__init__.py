@@ -9,7 +9,7 @@ from .notebook import Notebook
 from .knowledge_item import KnowledgeBaseItem, KnowledgeBaseImage
 from .batch_processing import BatchJob, BatchJobItem
 from .chat import NotebookChatMessage
-from .ragflow_dataset import RagFlowDataset
+from .chat_session import ChatSession, SessionChatMessage
 
 # Maintain backward compatibility
 __all__ = [
@@ -19,5 +19,6 @@ __all__ = [
     'BatchJob',
     'BatchJobItem',
     'NotebookChatMessage',
-    'RagFlowDataset',
+    'ChatSession',
+    'SessionChatMessage',
 ]

@@ -152,13 +152,6 @@ export interface FileUploadProps {
   multiple?: boolean;
 }
 
-export interface ChatPanelProps {
-  notebookId: string;
-  messages: NotebookChatMessage[];
-  onSendMessage: (message: string) => void;
-  isLoading?: boolean;
-  suggestedQuestions?: string[];
-}
 
 export interface StudioPanelProps {
   notebookId: string;
@@ -270,3 +263,6 @@ export interface SourceItemProps {
 //   KnowledgeBaseItem,
 //   Suggestion
 // } from '@/features/notebook/type';
+
+// Chat Session Types (new session-based chat system)
+export * from './types/chatSession';

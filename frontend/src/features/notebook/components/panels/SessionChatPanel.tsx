@@ -1,0 +1,212 @@
+import React from 'react';
+import { MessageCircle, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Alert, AlertDescription } from '@/shared/components/ui/alert';
+import { useSessionChat } from '@/features/notebook/hooks/chat/useSessionChat';
+import SessionTabs from '@/features/notebook/components/chat/SessionTabs';
+import SessionChatWindow from '@/features/notebook/components/chat/SessionChatWindow';
+import WelcomeScreen from '@/features/notebook/components/chat/WelcomeScreen';
+import { PANEL_HEADERS, COLORS } from '@/features/notebook/config/uiConfig';
+
+interface SessionChatPanelProps {
+  notebookId: string;
+  sourcesListRef?: React.RefObject<any>;
+  onSelectionChange?: (selection: any) => void;
+}
+
+const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
+  notebookId,
+  sourcesListRef,
+  onSelectionChange,
+}) => {
+  const {
+    // Session management
+    sessions,
+    activeTabs,
+    activeSessionId,
+    activeSession,
+    
+    // Messages
+    currentMessages,
+    
+    // Loading states
+    isLoading,
+    isCreatingSession,
+    
+    // Error handling
+    error,
+    clearError,
+    
+    // Actions
+    createSession,
+    closeSession,
+    switchSession,
+    updateSessionTitle,
+    sendMessage,
+    
+    // Tab management
+    openTab,
+    closeTab,
+  } = useSessionChat(notebookId);
+
+  const handleCreateFirstSession = async () => {
+    const newSession = await createSession('New Chat');
+    if (newSession) {
+      // The hook automatically handles opening the tab and switching to it
+    }
+  };
+
+  const handleCreateAdditionalSession = async () => {
+    const sessionCount = sessions.length + 1;
+    await createSession(`Chat ${sessionCount}`);
+  };
+
+  const handleSendMessage = async (message: string): Promise<boolean> => {
+    if (!activeSessionId) return false;
+    return await sendMessage(activeSessionId, message);
+  };
+
+  const handleCloseSession = async (sessionId: string) => {
+    await closeSession(sessionId);
+  };
+
+  const handleUpdateTitle = async (sessionId: string, title: string) => {
+    await updateSessionTitle(sessionId, title);
+  };
+
+  const showWelcomeScreen = sessions.length === 0 && !isLoading;
+  const showChatInterface = sessions.length > 0 || isLoading;
+
+  return (
+    <div className={`h-full flex flex-col ${COLORS.panels.commonBackground} min-h-0`}>
+      {/* Panel Header */}
+      <div className={`${PANEL_HEADERS.container} ${PANEL_HEADERS.separator}`}>
+        <div className={PANEL_HEADERS.layout}>
+          <div className={PANEL_HEADERS.titleContainer}>
+            <div className={PANEL_HEADERS.iconContainer}>
+              <MessageCircle className={PANEL_HEADERS.icon} />
+            </div>
+            <h3 className={PANEL_HEADERS.title}>Chat Sessions</h3>
+          </div>
+          <div className={PANEL_HEADERS.actionsContainer}>
+            {sessions.length > 0 && (
+              <span className="text-xs text-gray-500">
+                {activeTabs.length} active
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Error Alert */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex-shrink-0 p-4 border-b border-gray-200"
+          >
+            <Alert variant="destructive" className="border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="text-sm text-red-800">
+                {error}
+                <button
+                  className="ml-2 text-red-600 hover:text-red-800 underline"
+                  onClick={clearError}
+                >
+                  Dismiss
+                </button>
+              </AlertDescription>
+            </Alert>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Session Tabs (only show if we have sessions) */}
+      {showChatInterface && (
+        <SessionTabs
+          sessions={sessions}
+          activeTabs={activeTabs}
+          activeSessionId={activeSessionId}
+          onCreateSession={handleCreateAdditionalSession}
+          onSwitchSession={switchSession}
+          onCloseSession={handleCloseSession}
+          onUpdateTitle={handleUpdateTitle}
+          isLoading={isCreatingSession}
+        />
+      )}
+
+      {/* Main Content Area */}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        <AnimatePresence mode="wait">
+          {showWelcomeScreen ? (
+            <motion.div
+              key="welcome"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
+              className="h-full"
+            >
+              <WelcomeScreen
+                onStartChat={handleCreateFirstSession}
+                isCreating={isCreatingSession}
+              />
+            </motion.div>
+          ) : showChatInterface ? (
+            <motion.div
+              key="chat"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+              className="h-full"
+            >
+              <SessionChatWindow
+                session={activeSession}
+                messages={currentMessages}
+                isLoading={isLoading}
+                onSendMessage={handleSendMessage}
+                notebookId={notebookId}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="h-full flex items-center justify-center"
+            >
+              <div className="text-center">
+                <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-sm text-gray-500">Loading chat sessions...</p>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Loading Overlay for Critical Operations */}
+      <AnimatePresence>
+        {isLoading && sessions.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50"
+          >
+            <div className="text-center">
+              <div className="w-12 h-12 border-3 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-base font-medium text-gray-900 mb-2">Setting up your chat</p>
+              <p className="text-sm text-gray-500">Initializing AI agent and knowledge base...</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default SessionChatPanel;

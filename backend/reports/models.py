@@ -12,10 +12,10 @@ class Report(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="reports"
     )
-    # Optional linking to a notebook (if relevant)
+    # Linking to a notebook (cascade delete when notebook is deleted)
     notebooks = models.ForeignKey(
         "notebooks.Notebook",
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name="reports",

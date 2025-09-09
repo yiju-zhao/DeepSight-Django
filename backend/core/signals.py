@@ -137,12 +137,14 @@ class SignalHandlers:
         cache.delete(f"user_notebooks:{user.id}")
         cache.delete(f"notebook_stats:{notebook_id}")
         
-        # Cleanup related resources
+        # Note: External resource cleanup is now handled in NotebookService.delete_notebook()
+        # This signal handler only manages cross-cutting concerns like cache invalidation
         try:
-            # Any cleanup logic would go here
-            pass
+            # Any additional cross-cutting cleanup can be added here
+            logger.info(f"Completed cache cleanup for deleted notebook {notebook_id}")
+            
         except Exception as e:
-            logger.exception(f"Failed to cleanup resources for deleted notebook {notebook_id}: {e}")
+            logger.exception(f"Failed to cleanup caches for deleted notebook {notebook_id}: {e}")
     
     @staticmethod
     @receiver(file_uploaded)

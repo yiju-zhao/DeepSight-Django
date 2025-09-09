@@ -4,7 +4,7 @@ import { useAuth } from "@/shared/hooks/useAuth";
 import { useNotebookData } from "@/features/notebook/hooks";
 import NotebookLayout from "@/features/notebook/components/layout/NotebookLayout";
 import SourcesPanel from "@/features/notebook/components/panels/SourcesPanel";
-import ChatPanel from "@/features/notebook/components/panels/ChatPanel";
+import SessionChatPanel from "@/features/notebook/components/panels/SessionChatPanel";
 import StudioPanel from "@/features/notebook/components/panels/StudioPanel";
 import "highlight.js/styles/github.css";
 
@@ -128,7 +128,7 @@ export default function DeepdivePage() {
         />
       }
       chatPanel={
-        <ChatPanel 
+        <SessionChatPanel 
           notebookId={notebookId}
           sourcesListRef={sourcesListRef}
           onSelectionChange={handleSelectionChange}

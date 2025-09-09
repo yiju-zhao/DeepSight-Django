@@ -37,7 +37,7 @@ from ...serializers import (
 )
 from ...services import FileService, ChatService, KnowledgeBaseService, NotebookService
 from core.permissions import IsOwnerPermission
-from core.pagination import StandardPageNumberPagination, LargePageNumberPagination, ChatMessagePagination, NotebookPagination
+from core.pagination import StandardPageNumberPagination, LargePageNumberPagination, NotebookPagination
 
 logger = logging.getLogger(__name__)
 
@@ -88,8 +88,8 @@ class NotebookViewSet(viewsets.ModelViewSet):
             'user'
         ).prefetch_related(
             'knowledge_base_items',
-            'chat_messages',
-            'batch_jobs'
+            'batch_jobs',
+            'chat_sessions'
         ).order_by('-updated_at')
     
     def get_serializer_class(self):
@@ -241,11 +241,10 @@ class NotebookViewSet(viewsets.ModelViewSet):
             files_page = files_queryset[offset:offset + limit]
             files_serializer = KnowledgeBaseItemSerializer(files_page, many=True)
             
-            # Get recent chat history
+            # Get recent chat history (from session system)
             chat_limit = int(request.query_params.get('chat_limit', 20))
-            chat_messages = notebook.chat_messages.order_by('-timestamp')[:chat_limit]
-            from ..serializers import NotebookChatMessageSerializer
-            chat_serializer = NotebookChatMessageSerializer(list(reversed(chat_messages)), many=True)
+            # Note: Chat messages now handled by session system, keeping empty for compatibility
+            chat_serializer_data = []
             
             # Get recent report jobs
             try:
@@ -285,7 +284,7 @@ class NotebookViewSet(viewsets.ModelViewSet):
                     'offset': offset,
                     'has_more': files_queryset.count() > offset + limit
                 },
-                'chat_history': chat_serializer.data,
+                'chat_history': chat_serializer_data,
                 'report_jobs': reports_data,
                 'podcast_jobs': podcasts_data,
                 'report_models': report_models_data,
@@ -796,165 +795,6 @@ class FileViewSet(viewsets.ModelViewSet):
             )
 
 
-class ChatViewSet(viewsets.ViewSet):
-    """
-    ViewSet for chat operations within notebooks.
-    
-    Provides endpoints:
-    - GET /api/v1/notebooks/{notebook_id}/chat/ - Get chat history
-    - POST /api/v1/notebooks/{notebook_id}/chat/ - Send message
-    - DELETE /api/v1/notebooks/{notebook_id}/chat/ - Clear history
-    """
-    
-    permission_classes = [permissions.IsAuthenticated]
-    pagination_class = ChatMessagePagination
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.chat_service = ChatService()
-    
-    def list(self, request, notebook_pk=None):
-        """Get chat history for the notebook."""
-        from ...models import Notebook
-        
-        try:
-            notebook = Notebook.objects.get(id=notebook_pk, user=request.user)
-        except Notebook.DoesNotExist:
-            return Response(
-                {"error": "Notebook not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        try:
-            history = self.chat_service.get_formatted_chat_history(notebook)
-            return Response({"messages": history})
-            
-        except Exception as e:
-            logger.exception(f"Failed to get chat history: {e}")
-            return Response(
-                {"error": "Failed to retrieve chat history", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    def create(self, request, notebook_pk=None):
-        """Send a chat message."""
-        from ...models import Notebook
-        
-        try:
-            notebook = Notebook.objects.get(id=notebook_pk, user=request.user)
-        except Notebook.DoesNotExist:
-            return Response(
-                {"error": "Notebook not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        question = request.data.get('question')
-        file_ids = request.data.get('file_ids', [])
-        
-        # Validate request
-        validation_error = self.chat_service.validate_chat_request(question, file_ids)
-        if validation_error:
-            return Response(validation_error, status=validation_error.get('status_code', status.HTTP_400_BAD_REQUEST))
-        
-        # Check knowledge base
-        kb_error = self.chat_service.check_user_knowledge_base(request.user.id)
-        if kb_error:
-            return Response(kb_error, status=kb_error.get('status_code', status.HTTP_400_BAD_REQUEST))
-        
-        try:
-            # Record user message
-            self.chat_service.record_user_message(notebook, question)
-            
-            # Get chat history for context
-            history = self.chat_service.get_chat_history(notebook)
-            
-            # Create streaming response
-            from django.http import StreamingHttpResponse
-            import json
-            
-            def generate_response():
-                stream = self.chat_service.create_chat_stream(
-                    user_id=request.user.id,
-                    question=question,
-                    history=history,
-                    file_ids=file_ids,
-                    notebook=notebook
-                )
-                
-                for chunk in stream:
-                    yield chunk
-            
-            response = StreamingHttpResponse(
-                generate_response(),
-                content_type='text/plain'
-            )
-            response['Cache-Control'] = 'no-cache'
-            return response
-            
-        except Exception as e:
-            logger.exception(f"Chat request failed: {e}")
-            return Response(
-                {"error": "Chat request failed", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    def destroy(self, request, notebook_pk=None):
-        """Clear chat history for the notebook."""
-        from ...models import Notebook
-        
-        try:
-            notebook = Notebook.objects.get(id=notebook_pk, user=request.user)
-        except Notebook.DoesNotExist:
-            return Response(
-                {"error": "Notebook not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        try:
-            success = self.chat_service.clear_chat_history(notebook)
-            if success:
-                return Response(
-                    {"message": "Chat history cleared successfully"},
-                    status=status.HTTP_204_NO_CONTENT
-                )
-            else:
-                return Response(
-                    {"error": "Failed to clear chat history"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-                
-        except Exception as e:
-            logger.exception(f"Failed to clear chat history: {e}")
-            return Response(
-                {"error": "Failed to clear chat history", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-    
-    @action(detail=False, methods=['get'])
-    def suggested_questions(self, request, notebook_pk=None):
-        """
-        Generate suggested questions based on chat history.
-        
-        GET /api/v1/notebooks/{notebook_id}/chat/suggested_questions/
-        """
-        notebook = get_object_or_404(Notebook, id=notebook_pk, user=request.user)
-        
-        try:
-            result = self.chat_service.generate_suggested_questions(notebook)
-            
-            if 'error' in result:
-                return Response(result, status=result.get('status_code', status.HTTP_500_INTERNAL_SERVER_ERROR))
-            
-            return Response(result)
-            
-        except Exception as e:
-            logger.exception(f"Failed to generate suggested questions: {e}")
-            return Response(
-                {"error": "Failed to generate suggested questions", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
 class KnowledgeBaseViewSet(viewsets.ReadOnlyModelViewSet):
     """
     ViewSet for knowledge base operations within notebooks.
@@ -1011,37 +851,3 @@ class BatchJobViewSet(viewsets.ReadOnlyModelViewSet):
             notebook = Notebook.objects.get(id=notebook_id, user=self.request.user)
             return BatchJob.objects.filter(notebook=notebook).select_related('notebook')
         return BatchJob.objects.none()
-
-
-class ChatHistoryView(APIView):
-    """
-    Compatibility endpoint for frontend that expects /chat-history/
-    Redirects to the standard ChatViewSet.list() functionality
-    """
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get(self, request, notebook_pk=None):
-        """Get chat history for the notebook."""
-        from ...models import Notebook
-        
-        try:
-            notebook = Notebook.objects.get(id=notebook_pk, user=request.user)
-        except Notebook.DoesNotExist:
-            return Response(
-                {"error": "Notebook not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        try:
-            chat_service = ChatService()
-            history = chat_service.get_formatted_chat_history(notebook)
-            return Response({"messages": history})
-            
-        except Exception as e:
-            logger.exception(f"Failed to get chat history: {e}")
-            return Response(
-                {"error": "Failed to retrieve chat history", "details": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-

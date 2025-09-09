@@ -25,6 +25,26 @@ class Notebook(BaseModel, UserOwnedMixin):
         help_text="Optional description of the notebook's purpose"
     )
     
+    # RagFlow integration fields
+    ragflow_dataset_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="RagFlow dataset ID for this notebook"
+    )
+    ragflow_agent_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="RagFlow agent ID for this notebook"
+    )
+    ragflow_chat_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="RagFlow chat assistant ID for this notebook"
+    )
+    
     # Custom manager
     objects = NotebookManager()
     
