@@ -3,6 +3,7 @@ import { MessageCircle, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { useSessionChat } from '@/features/notebook/hooks/chat/useSessionChat';
+import { useParsedFiles } from '@/features/notebook/hooks/sources/useSources';
 import SessionTabs from '@/features/notebook/components/chat/SessionTabs';
 import SessionChatWindow from '@/features/notebook/components/chat/SessionChatWindow';
 import WelcomeScreen from '@/features/notebook/components/chat/WelcomeScreen';
@@ -49,7 +50,18 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     closeTab,
   } = useSessionChat(notebookId);
 
+  // Get parsed files to check availability
+  const { data: parsedFilesData } = useParsedFiles(notebookId, { limit: 1 });
+
+  // Check if files are available for chat
+  const hasFiles = React.useMemo(() => {
+    return parsedFilesData && parsedFilesData.results && parsedFilesData.results.length > 0;
+  }, [parsedFilesData]);
+
   const handleCreateFirstSession = async () => {
+    if (!hasFiles) {
+      return; // Don't create session if no files are available
+    }
     const newSession = await createSession('New Chat');
     if (newSession) {
       // The hook automatically handles opening the tab and switching to it
@@ -152,6 +164,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
               <WelcomeScreen
                 onStartChat={handleCreateFirstSession}
                 isCreating={isCreatingSession}
+                hasFiles={hasFiles}
               />
             </motion.div>
           ) : showChatInterface ? (

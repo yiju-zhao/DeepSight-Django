@@ -162,4 +162,5 @@ export interface SessionChatWindowProps {
 export interface WelcomeScreenProps {
   onStartChat: () => void;
   isCreating?: boolean;
+  hasFiles?: boolean;
 }
