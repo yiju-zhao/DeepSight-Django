@@ -149,16 +149,8 @@ class NotebookService(ModelService):
                 description=notebook.description or f"Dataset for notebook '{notebook.name}'"
             )
             
-            # Update notebook with RagFlow IDs
+            # Update notebook with RagFlow dataset ID
             notebook.ragflow_dataset_id = dataset_result['id']
-            
-            # Create chat assistant for the dataset
-            chat_result = ragflow_client.create_chat_assistant(
-                dataset_ids=[dataset_result['id']],
-                name=f"Chat for {notebook.name}"
-            )
-            notebook.ragflow_chat_id = chat_result['id']
-            
             notebook.save()
             
             self.log_operation(
@@ -166,8 +158,7 @@ class NotebookService(ModelService):
                 notebook_id=str(notebook.id),
                 user_id=user.id,
                 name=notebook.name,
-                ragflow_dataset_id=dataset_result['id'],
-                ragflow_chat_id=chat_result['id']
+                ragflow_dataset_id=dataset_result['id']
             )
             
         except ValidationError:
