@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useLogin, useCsrfToken } from "@/shared/queries/auth";
 import { config } from "@/config";
 
@@ -12,17 +12,22 @@ function getCookie(name: string): string | null {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const loginMutation = useLogin();
   const { data: csrfData } = useCsrfToken();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
+  // Get the intended destination from the location state (set by PrivateRoute)
+  const from = (location.state as any)?.from || "/deepdive";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
       await loginMutation.mutateAsync({ username, password });
-      navigate("/deepdive");
+      // Redirect to the originally requested page
+      navigate(from, { replace: true });
     } catch (error) {
       // Error is handled by the mutation
       console.error("Login failed:", error);

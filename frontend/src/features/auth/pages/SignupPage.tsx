@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useSignup } from "@/shared/queries/auth";
 
 // helper to read CSRF token from cookies
@@ -11,11 +11,15 @@ function getCookie(name: string): string | null {
 
 export default function SignupPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const signupMutation = useSignup();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
+
+  // Get the intended destination from the location state (set by PrivateRoute)
+  const from = (location.state as any)?.from || "/deepdive";
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,7 +31,8 @@ export default function SignupPage() {
 
     try {
       await signupMutation.mutateAsync({ username, email, password });
-      navigate("/deepdive");
+      // Redirect to the originally requested page
+      navigate(from, { replace: true });
     } catch (error) {
       console.error("Signup failed:", error);
     }

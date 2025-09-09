@@ -6,6 +6,8 @@ import { Toaster } from "@/shared/components/ui/toaster";
 import { ErrorBoundary } from "@/shared/components/ui/ErrorBoundary";
 import { QueryProvider } from "@/shared/providers/QueryProvider";
 import { PerformanceMonitor, reportWebVitals } from "@/shared/utils/performance";
+import { PrivateRoute } from "@/shared/components/auth/PrivateRoute";
+import { useAuth } from "@/shared/hooks/useAuth";
 import {
   HomePage,
   DatasetPage,
@@ -22,6 +24,9 @@ import {
 } from "@/features/routes/LazyRoutes";
 
 function AppRoutes() {
+  // Initialize authentication check
+  useAuth();
+  
   // Preload critical routes on mount
   useEffect(() => {
     preloadCriticalRoutes().catch(console.warn);
@@ -31,8 +36,22 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<HomePage.Component />} />
       <Route path="/dataset" element={<DatasetPage.Component />} />
-      <Route path="/deepdive" element={<NotebookListPage.Component />} />
-      <Route path="/deepdive/:notebookId" element={<DeepdivePage.Component />} />
+      <Route 
+        path="/deepdive" 
+        element={
+          <PrivateRoute>
+            <NotebookListPage.Component />
+          </PrivateRoute>
+        } 
+      />
+      <Route 
+        path="/deepdive/:notebookId" 
+        element={
+          <PrivateRoute>
+            <DeepdivePage.Component />
+          </PrivateRoute>
+        } 
+      />
       <Route path="/dashboard" element={<DashboardPage.Component />} />
       <Route path="/conference" element={<ConferencePage.Component />} />
       <Route path="/report" element={<ReportPage.Component />} />
