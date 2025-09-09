@@ -35,7 +35,14 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<HomePage.Component />} />
-      <Route path="/dataset" element={<DatasetPage.Component />} />
+      <Route 
+        path="/dataset" 
+        element={
+          <PrivateRoute>
+            <DatasetPage.Component />
+          </PrivateRoute>
+        } 
+      />
       <Route 
         path="/deepdive" 
         element={
@@ -52,7 +59,14 @@ function AppRoutes() {
           </PrivateRoute>
         } 
       />
-      <Route path="/dashboard" element={<DashboardPage.Component />} />
+      <Route 
+        path="/dashboard" 
+        element={
+          <PrivateRoute>
+            <DashboardPage.Component />
+          </PrivateRoute>
+        } 
+      />
       <Route path="/conference" element={<ConferencePage.Component />} />
       <Route path="/report" element={<ReportPage.Component />} />
       <Route path="/podcast" element={<PodcastPage.Component />} />
