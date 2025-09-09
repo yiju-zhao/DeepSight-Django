@@ -140,23 +140,34 @@ class NotebookService(ModelService):
         
         # Create RagFlow dataset for the notebook
         try:
-            from .ragflow_service import RagFlowService
-            ragflow_service = RagFlowService()
-            dataset_result = ragflow_service.create_dataset(notebook)
+            from infrastructure.ragflow.client import get_ragflow_client
+            ragflow_client = get_ragflow_client()
             
-            if not dataset_result.get('success'):
-                # If dataset creation fails, rollback notebook creation
-                notebook.delete()
-                error_msg = dataset_result.get('error', 'Failed to create RagFlow dataset')
-                raise ValidationError(f"Failed to create notebook: {error_msg}")
+            # Create dataset
+            dataset_result = ragflow_client.create_dataset(
+                name=f"notebook_{notebook.id}_{notebook.name}",
+                description=notebook.description or f"Dataset for notebook '{notebook.name}'"
+            )
+            
+            # Update notebook with RagFlow IDs
+            notebook.ragflow_dataset_id = dataset_result['id']
+            
+            # Create chat assistant for the dataset
+            chat_result = ragflow_client.create_chat_assistant(
+                dataset_ids=[dataset_result['id']],
+                name=f"Chat for {notebook.name}"
+            )
+            notebook.ragflow_chat_id = chat_result['id']
+            
+            notebook.save()
             
             self.log_operation(
                 "notebook_created_with_ragflow_dataset",
                 notebook_id=str(notebook.id),
                 user_id=user.id,
                 name=notebook.name,
-                ragflow_dataset_id=dataset_result.get('dataset_id'),
-                ragflow_chat_id=dataset_result.get('chat_id')
+                ragflow_dataset_id=dataset_result['id'],
+                ragflow_chat_id=chat_result['id']
             )
             
         except ValidationError:
@@ -166,7 +177,7 @@ class NotebookService(ModelService):
             # For any other error, rollback and raise ValidationError
             notebook.delete()
             self.logger.error(f"Failed to create RagFlow dataset for notebook {name}: {e}")
-            raise ValidationError(f"Failed to create notebook: RagFlow service error")
+            raise ValidationError(f"Failed to create notebook: {str(e)}")
         
         return notebook
     
