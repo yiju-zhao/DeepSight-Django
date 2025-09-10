@@ -5,6 +5,9 @@ import os
 import tempfile
 import time
 import logging
+import requests
+import json
+import base64
 from typing import Dict, Any, Optional
 from pathlib import Path
 
@@ -13,44 +16,20 @@ try:
 except ImportError:
     fitz = None
 
-# Lazy import for marker dependencies
-marker_imports = {}
-
-def get_marker_imports():
-    """Lazy import marker dependencies."""
-    global marker_imports
-    if not marker_imports:
-        try:
-            from marker.converters.pdf import PdfConverter
-            from marker.models import create_model_dict
-            from marker.output import text_from_rendered, save_output
-            from marker.config.parser import ConfigParser
-            
-            marker_imports = {
-                'PdfConverter': PdfConverter,
-                'create_model_dict': create_model_dict,
-                'text_from_rendered': text_from_rendered,
-                'save_output': save_output,
-                'ConfigParser': ConfigParser,
-                'available': True
-            }
-        except ImportError as e:
-            logging.getLogger(__name__).warning(f"Marker not available: {e}")
-            marker_imports = {'available': False}
-    return marker_imports
-
 logger = logging.getLogger(__name__)
 
 
 class FileProcessor:
     """Handle file type specific processing"""
     
-    def __init__(self):
+    def __init__(self, mineru_base_url: str = "http://10.218.163.144:8008"):
         self.logger = logging.getLogger(f"{__name__}.file_processor")
         
         # Initialize whisper model lazily
         self._whisper_model = None
-        self._pdf_processor = None
+        # MinerU API configuration
+        self.mineru_base_url = mineru_base_url.rstrip('/')
+        self.mineru_parse_endpoint = f"{self.mineru_base_url}/file_parse"
     
     @property 
     def whisper_model(self):
@@ -66,29 +45,14 @@ class FileProcessor:
                 self._whisper_model = False
         return self._whisper_model
 
-    @property
-    def pdf_processor(self):
-        """Lazy load PDF processor."""
-        if self._pdf_processor is None:
-            try:
-                marker_imports = get_marker_imports()
-                if marker_imports.get('available'):
-                    device = self._detect_device()
-                    models = marker_imports['create_model_dict']()
-                    config = marker_imports['ConfigParser']({})
-                    self._pdf_processor = marker_imports['PdfConverter'](
-                        artifact_dict=models,
-                        processor_list=config.get_processors(),
-                        renderer=config.get_renderer(),
-                        extract_images=True
-                    )
-                    self.logger.info(f"Loaded marker PDF processor on {device}")
-                else:
-                    self._pdf_processor = False
-            except Exception as e:
-                self.logger.warning(f"Failed to load PDF processor: {e}")
-                self._pdf_processor = False
-        return self._pdf_processor
+    def check_mineru_health(self) -> bool:
+        """Check if MinerU API is available."""
+        try:
+            response = requests.get(f"{self.mineru_base_url}/docs", timeout=10)
+            return response.status_code == 200
+        except Exception as e:
+            self.logger.warning(f"MinerU API health check failed: {e}")
+            return False
 
     def _detect_device(self):
         """Detect best available device."""
@@ -107,7 +71,7 @@ class FileProcessor:
         file_extension = file_metadata.get('file_extension', '').lower()
         
         if file_extension == '.pdf':
-            return self.process_pdf_marker(file_path, file_metadata)
+            return self.process_pdf_mineru(file_path, file_metadata)
         elif file_extension in ['.mp3', '.wav', '.m4a']:
             return await self.process_audio_immediate(file_path, file_metadata)
         elif file_extension in [".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv", ".3gp", ".ogv", ".m4v"]:
@@ -126,21 +90,15 @@ class FileProcessor:
                 'processing_time': 'immediate'
             }
 
-    def process_pdf_marker(self, file_path: str, file_metadata: Dict) -> Dict[str, Any]:
-        """PDF text extraction using marker package with native image output."""
+    def process_pdf_mineru(self, file_path: str, file_metadata: Dict) -> Dict[str, Any]:
+        """PDF text extraction using MinerU API."""
         try:
-            marker_imports = get_marker_imports()
-            if not marker_imports.get('available'):
-                # Fallback to PyMuPDF if marker is not available
-                return self.process_pdf_pymupdf_fallback(file_path, file_metadata)
-
-            self.logger.info(f"Starting marker processing of {file_path}")
+            self.logger.info(f"Starting MinerU processing of {file_path}")
             start_time = time.time()
 
-            # Get the marker PDF processor
-            pdf_processor = self.pdf_processor
-            if not pdf_processor:
-                # Fallback to PyMuPDF if marker processor failed to load
+            # Check if MinerU API is available
+            if not self.check_mineru_health():
+                self.logger.warning("MinerU API not available, falling back to PyMuPDF")
                 return self.process_pdf_pymupdf_fallback(file_path, file_metadata)
 
             # Generate clean filename for PDF
@@ -154,34 +112,46 @@ class FileProcessor:
             except ImportError:
                 clean_pdf_title = base_title
 
-            # Convert the PDF to markdown using marker
-            rendered = pdf_processor(str(file_path))
-
-            # Extract the markdown content for display
-            content = rendered.text_content if hasattr(rendered, 'text_content') else str(rendered)
-
-            # Save the original marker output to temporary directory for later processing
-            temp_marker_dir = None
-            try:
-                temp_marker_dir = tempfile.mkdtemp(suffix='_marker_output')
-                from marker.output import save_output
-                save_output(rendered, temp_marker_dir, "markdown")
-                self.logger.info(f"Saved marker output to temporary directory: {temp_marker_dir}")
-                
-            except Exception as e:
-                self.logger.warning(f"Could not save marker output: {e}")
-                # Fallback: save the text content manually
-                try:
-                    temp_marker_dir = tempfile.mkdtemp(suffix='_marker_fallback')
-                    fallback_md_file = os.path.join(temp_marker_dir, "markdown.md")
-                    with open(fallback_md_file, 'w', encoding='utf-8') as f:
-                        f.write(content)
-                    self.logger.info(f"Saved marker text content to: {fallback_md_file}")
-                except Exception as save_error:
-                    self.logger.error(f"Failed to save marker output: {save_error}")
-                    temp_marker_dir = None
-
-            # Get basic PDF metadata using PyMuPDF
+            # Call MinerU API
+            mineru_result = self._call_mineru_api(file_path)
+            
+            # Extract the results for the first (and likely only) document
+            results = mineru_result.get('results', {})
+            if not results:
+                raise Exception("No results returned from MinerU API")
+            
+            # Get the first document result (assuming single PDF)
+            doc_key = next(iter(results.keys()))
+            doc_result = results[doc_key]
+            
+            # Extract markdown content
+            md_content = doc_result.get('md_content', '')
+            
+            # Extract images if available
+            images = doc_result.get('images', {})
+            
+            # Save content to temporary file for processing
+            temp_dir = tempfile.mkdtemp(suffix='_mineru_output')
+            
+            # Save markdown content
+            md_file_path = os.path.join(temp_dir, f"{doc_key}.md")
+            with open(md_file_path, 'w', encoding='utf-8') as f:
+                f.write(md_content)
+            
+            # Save images if any
+            image_files = []
+            for img_name, img_data in images.items():
+                if img_data.startswith('data:image/'):
+                    # Handle base64 encoded images
+                    header, data = img_data.split(',', 1)
+                    img_bytes = base64.b64decode(data)
+                    
+                    img_path = os.path.join(temp_dir, img_name)
+                    with open(img_path, 'wb') as f:
+                        f.write(img_bytes)
+                    image_files.append(img_path)
+            
+            # Get basic PDF metadata using PyMuPDF if available
             try:
                 if fitz:
                     doc = fitz.open(file_path)
@@ -191,49 +161,69 @@ class FileProcessor:
                         'author': doc.metadata.get('author', ''),
                         'creation_date': doc.metadata.get('creationDate', ''),
                         'modification_date': doc.metadata.get('modDate', ''),
-                        'processing_method': 'marker',
-                        'has_marker_extraction': temp_marker_dir is not None
+                        'processing_method': 'mineru_api',
+                        'api_version': mineru_result.get('version', 'unknown'),
+                        'backend': mineru_result.get('backend', 'pipeline'),
+                        'has_markdown_content': bool(md_content),
+                        'extracted_images_count': len(images),
+                        'temp_output_dir': temp_dir
                     }
                     doc.close()
                 else:
                     pdf_metadata = {
-                        'processing_method': 'marker',
-                        'has_marker_extraction': temp_marker_dir is not None
+                        'processing_method': 'mineru_api',
+                        'api_version': mineru_result.get('version', 'unknown'),
+                        'backend': mineru_result.get('backend', 'pipeline'),
+                        'has_markdown_content': bool(md_content),
+                        'extracted_images_count': len(images),
+                        'temp_output_dir': temp_dir
                     }
             except Exception as e:
                 self.logger.warning(f"Could not extract PDF metadata: {e}")
                 pdf_metadata = {
-                    'processing_method': 'marker',
+                    'processing_method': 'mineru_api',
+                    'api_version': mineru_result.get('version', 'unknown'),
                     'metadata_error': str(e),
-                    'has_marker_extraction': temp_marker_dir is not None
+                    'has_markdown_content': bool(md_content),
+                    'extracted_images_count': len(images),
+                    'temp_output_dir': temp_dir
                 }
 
             end_time = time.time()
             duration = end_time - start_time
-            self.logger.info(f"Marker processing completed in {duration:.2f} seconds")
+            self.logger.info(f"MinerU processing completed in {duration:.2f} seconds")
+
+            # Calculate features available
+            features_available = ['advanced_pdf_extraction', 'markdown_conversion']
+            if images:
+                features_available.append('image_extraction')
+            if 'table' in md_content.lower() or '|' in md_content:
+                features_available.append('table_extraction')
+            if any(marker in md_content for marker in ['$$', '$', '\\(']):
+                features_available.append('formula_extraction')
+            features_available.append('layout_analysis')
 
             result = {
-                'content': "",  # Empty for marker since it provides better content
-                'content_filename': f"{clean_pdf_title}.md", 
+                'content': md_content,  # Return markdown content directly
+                'content_filename': f"{clean_pdf_title}.md",
                 'metadata': pdf_metadata,
-                'features_available': ['advanced_pdf_extraction', 'figure_extraction', 'table_extraction', 'formula_extraction', 'layout_analysis'],
+                'features_available': features_available,
                 'processing_time': f'{duration:.2f}s',
-                'skip_content_file': True
-            }
-
-            # Add marker extraction result for post-processing
-            if temp_marker_dir:
-                result['marker_extraction_result'] = {
+                'mineru_extraction_result': {
                     'success': True,
-                    'temp_marker_dir': temp_marker_dir,
-                    'clean_title': clean_pdf_title
+                    'temp_output_dir': temp_dir,
+                    'clean_title': clean_pdf_title,
+                    'markdown_file': md_file_path,
+                    'image_files': image_files,
+                    'api_response': mineru_result
                 }
+            }
 
             return result
 
         except Exception as e:
-            self.logger.warning(f"Marker processing failed: {e}")
-            # Fallback to PyMuPDF if marker fails
+            self.logger.warning(f"MinerU processing failed: {e}")
+            # Fallback to PyMuPDF if MinerU fails
             return self.process_pdf_pymupdf_fallback(file_path, file_metadata)
 
     def process_pdf_pymupdf_fallback(self, file_path: str, file_metadata: Dict) -> Dict[str, Any]:
@@ -283,6 +273,85 @@ class FileProcessor:
 
         except Exception as e:
             raise Exception(f"PDF processing failed: {str(e)}")
+
+    def _call_mineru_api(
+        self,
+        file_path: str,
+        output_dir: str = "./output",
+        lang_list: list = None,
+        backend: str = "pipeline",
+        parse_method: str = "auto",
+        formula_enable: bool = True,
+        table_enable: bool = True,
+        server_url: str = "10.218.163.144",
+        return_md: bool = True,
+        return_middle_json: bool = False,
+        return_model_output: bool = False,
+        return_content_list: bool = False,
+        return_images: bool = True,
+        response_format_zip: bool = False,
+        start_page_id: int = 0,
+        end_page_id: int = 99999
+    ) -> Dict[str, Any]:
+        """Call the MinerU API to parse a PDF file."""
+        if lang_list is None:
+            lang_list = ['ch']
+            
+        # Validate file exists
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"PDF file not found: {file_path}")
+        
+        try:
+            # Prepare the multipart form data
+            files = {
+                'files': (os.path.basename(file_path), open(file_path, 'rb'), 'application/pdf')
+            }
+            
+            data = {
+                'output_dir': output_dir,
+                'lang_list': lang_list,
+                'backend': backend,
+                'parse_method': parse_method,
+                'formula_enable': formula_enable,
+                'table_enable': table_enable,
+                'server_url': server_url,
+                'return_md': return_md,
+                'return_middle_json': return_middle_json,
+                'return_model_output': return_model_output,
+                'return_content_list': return_content_list,
+                'return_images': return_images,
+                'response_format_zip': response_format_zip,
+                'start_page_id': start_page_id,
+                'end_page_id': end_page_id
+            }
+            
+            # Make the API request
+            response = requests.post(
+                self.mineru_parse_endpoint,
+                files=files,
+                data=data,
+                timeout=300  # 5 minute timeout for large PDFs
+            )
+            
+            # Close the file handle
+            files['files'][1].close()
+            
+            response.raise_for_status()
+            
+            # Parse the JSON response
+            result = response.json()
+            
+            return result
+            
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"MinerU API request failed: {e}")
+            raise Exception(f"MinerU API request failed: {e}")
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Failed to parse MinerU API response: {e}")
+            raise Exception(f"Invalid JSON response from MinerU API: {e}")
+        except Exception as e:
+            self.logger.error(f"MinerU API call failed: {e}")
+            raise Exception(f"MinerU API call failed: {e}")
 
     async def process_audio_immediate(self, file_path: str, file_metadata: Dict) -> Dict[str, Any]:
         """Quick audio transcription using faster-whisper."""
