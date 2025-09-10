@@ -64,11 +64,11 @@ export default function NotebookListPage() {
   };
 
   // Filter notebooks based on search term
-  const notebooks = notebooksResponse?.data ?? notebooksResponse ?? [];
-  const filteredNotebooks = Array.isArray(notebooks) ? notebooks.filter((notebook: any) =>
+  const notebooks = notebooksResponse?.data ?? [];
+  const filteredNotebooks = notebooks.filter((notebook: any) =>
     notebook.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (notebook.description && notebook.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  ) : [];
+  );
 
   // Format date helper
   const formatDate = (dateString: string) => {

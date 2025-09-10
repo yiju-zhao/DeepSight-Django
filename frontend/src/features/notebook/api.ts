@@ -16,6 +16,10 @@ export interface Notebook {
   sourceCount: number;
   itemCount: number;
   isProcessing: boolean;
+  user?: string;
+  lastActivity?: string;
+  isPublic?: boolean;
+  tags?: string[];
 }
 
 export interface CreateNotebookRequest {
