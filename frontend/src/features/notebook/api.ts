@@ -44,13 +44,13 @@ export interface GetNotebooksParams extends PaginationParams {
 export const notebooksApi = {
   // Core CRUD operations
   getAll: (params?: GetNotebooksParams): Promise<PaginatedResponse<Notebook>> =>
-    apiClient.get('/notebooks', params ? { params } : {}),
+    apiClient.get('/notebooks/', params ? { params } : {}),
 
   getById: (id: string): Promise<Notebook> =>
     apiClient.get(`/notebooks/${id}`),
 
   create: (data: CreateNotebookRequest): Promise<Notebook> =>
-    apiClient.post('/notebooks', data),
+    apiClient.post('/notebooks/', data),
 
   update: (id: string, data: UpdateNotebookRequest): Promise<Notebook> =>
     apiClient.patch(`/notebooks/${id}`, data),
