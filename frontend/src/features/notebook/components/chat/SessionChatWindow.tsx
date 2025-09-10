@@ -11,7 +11,7 @@ import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import 'highlight.js/styles/github.css';
-import type { SessionChatWindowProps } from '@/features/notebook/types/chatSession';
+import type { SessionChatWindowProps } from '@/features/notebook/type';
 
 // Memoized markdown content component
 const MarkdownContent = React.memo(({ content }: { content: string }) => (

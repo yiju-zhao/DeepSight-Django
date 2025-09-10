@@ -24,7 +24,6 @@ export { default as Chat } from './components/panels/SessionChatPanel';
 export { default as Studio } from './components/studio/StudioPanel';
 
 // Hooks
-export { useNotebookData } from './hooks/data/useNotebookData';
 export { useFileUpload } from './hooks/file/useFileUpload';
 export { useFileSelection } from './hooks/file/useFileSelection';
 export { useSessionChat } from './hooks/chat/useSessionChat';
@@ -34,6 +33,10 @@ export { default as NotebookService } from './services/NotebookService';
 export { default as SourceService } from './services/SourceService';
 export { default as SessionChatService } from './services/SessionChatService';
 export { default as StudioService } from './services/StudioService';
+
+// API & Queries
+export { notebooksApi } from './api';
+export * from './queries';
 
 // Configuration
 export * from './config/fileConfig';

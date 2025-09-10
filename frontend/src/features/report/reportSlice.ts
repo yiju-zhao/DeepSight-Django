@@ -198,7 +198,7 @@ const reportSlice = createSlice({
       // Cancel report
       .addCase(cancelReport.fulfilled, (state, action) => {
         const index = state.reports.findIndex((r: Report) => r.id === action.payload);
-        if (index !== -1) {
+        if (index !== -1 && state.reports[index]) {
           state.reports[index].status = 'cancelled';
         }
         if (state.currentReport?.id === action.payload) {

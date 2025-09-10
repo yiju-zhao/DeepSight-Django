@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BookOpen, Calendar, Edit3, ChevronDown, Trash2, MoreVertical } from "lucide-react";
-
-interface Notebook {
-  id: string;
-  name: string;
-  description?: string;
-  created_at: string;
-}
+import type { Notebook } from "@/shared/api";
 
 interface NotebookListProps {
   notebooks: Notebook[];
@@ -83,7 +77,7 @@ const NotebookList: React.FC<NotebookListProps> = ({ notebooks, onNotebookClick,
                   <div className="flex items-center text-xs text-gray-500 mt-2 space-x-4">
                     <div className="flex items-center space-x-1">
                       <Calendar className="w-3 h-3" />
-                      <span>Created {formatDate(notebook.created_at)}</span>
+                      <span>Created {formatDate(notebook.createdAt)}</span>
                     </div>
                   </div>
                 </div>

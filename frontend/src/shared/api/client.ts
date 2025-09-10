@@ -4,7 +4,6 @@
 
 import { config } from "@/config";
 import { ApiError, RequestConfig } from './types';
-import { apiMigration, DataMigrationAdapter } from './migration';
 
 function getCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
@@ -21,23 +20,16 @@ export class ApiClient {
 
   private buildUrl(
     endpoint: string,
-    method: string,
-    params?: Record<string, any>,
-    migrationContext?: { notebookId?: string; resourceId?: string }
+    params?: Record<string, any>
   ): string {
-    // Use migration adapter to get the correct endpoint
+    // Build URL directly - no migration needed
     let url: string;
     if (endpoint.startsWith('http')) {
       url = endpoint;
     } else {
-      // Apply API migration logic with the actual HTTP method
-      const migratedEndpoint = apiMigration.getEndpoint(
-        `${method} ${endpoint}`,
-        migrationContext?.notebookId,
-        migrationContext?.resourceId
-      );
-      // Remove the base URL since migration adapter adds it
-      url = migratedEndpoint;
+      // Ensure endpoint starts with /
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      url = `${this.baseUrl}${cleanEndpoint}`;
     }
 
     if (!params) return url;
@@ -99,11 +91,10 @@ export class ApiClient {
 
   async request<T = any>(
     endpoint: string, 
-    config: RequestConfig & { migrationContext?: { notebookId?: string; resourceId?: string } } = {}
+    config: RequestConfig = {}
   ): Promise<T> {
-    const { params, timeout = this.defaultTimeout, migrationContext, ...requestInit } = config;
-    const method = (requestInit.method || 'GET').toString().toUpperCase();
-    const url = this.buildUrl(endpoint, method, params, migrationContext);
+    const { params, timeout = this.defaultTimeout, ...requestInit } = config;
+    const url = this.buildUrl(endpoint, params);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);

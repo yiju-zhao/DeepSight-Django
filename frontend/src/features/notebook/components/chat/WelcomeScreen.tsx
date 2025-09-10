@@ -3,7 +3,7 @@ import { MessageCircle, Loader2, AlertCircle, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/shared/components/ui/button';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
-import type { WelcomeScreenProps } from '@/features/notebook/types/chatSession';
+import type { WelcomeScreenProps } from '@/features/notebook/type';
 
 const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onStartChat,

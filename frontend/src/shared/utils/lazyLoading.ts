@@ -63,12 +63,12 @@ export function createLazyComponent<T = any>(
 
   const LazyComponent = lazy(loadComponent);
 
-  const Component: ComponentType<T> = (props) => {
+  const Component: React.FC<T> = (props: T) => {
     return React.createElement(ErrorBoundary, { 
       level: "component",
       children: React.createElement(Suspense, { 
         fallback: React.createElement(FallbackComponent),
-        children: React.createElement(LazyComponent, props as any)
+        children: React.createElement(LazyComponent as any, props as any)
       })
     });
   };
@@ -186,7 +186,7 @@ export function createIntersectionLazyComponent<T = any>(
     return React.createElement('div', 
       { ref },
       isVisible 
-        ? React.createElement(lazyResult.Component, props as any)
+        ? React.createElement(lazyResult.Component as any, props as any)
         : React.createElement('div', 
             { className: "h-32 flex items-center justify-center" },
             React.createElement(LoadingSpinner, { size: "sm" })

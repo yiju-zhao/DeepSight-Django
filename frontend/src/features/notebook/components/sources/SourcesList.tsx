@@ -411,7 +411,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     clearSelection: () => {
       setSources(prev => prev.map(source => ({ ...source, selected: false })));
     },
-    refreshSources: () => refetchFiles(), // ✅ Use TanStack Query refetch
+    refreshSources: async () => { await refetchFiles(); }, // ✅ Use TanStack Query refetch
     startUploadTracking: (uploadFileId: string) => {
       fileUploadStatus.startTracking(uploadFileId);
     },

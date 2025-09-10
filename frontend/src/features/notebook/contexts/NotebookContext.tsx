@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
-import { useNotebook, useNotebookStats } from "@/shared/queries/notebooks";
+import { useNotebook, useNotebookStats } from "@/features/notebook/queries";
 import type { ViewMode, SortConfig } from "@/shared/types/global";
 
 interface NotebookContextValue {

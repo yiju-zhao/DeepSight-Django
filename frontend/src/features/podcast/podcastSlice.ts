@@ -186,7 +186,7 @@ const podcastSlice = createSlice({
       // Cancel podcast
       .addCase(cancelPodcast.fulfilled, (state, action) => {
         const index = state.podcasts.findIndex((p: any) => p.id === action.payload);
-        if (index !== -1) {
+        if (index !== -1 && state.podcasts[index]) {
           state.podcasts[index].status = 'cancelled';
         }
         if (state.currentPodcast?.id === action.payload) {

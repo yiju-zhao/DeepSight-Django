@@ -3,8 +3,8 @@
  * Modern API v1 implementation
  */
 
-import { apiClient } from '../client';
-import { PaginatedResponse, PaginationParams } from '../types';
+import { apiClient } from '@/shared/api/client';
+import { PaginatedResponse, PaginationParams } from '@/shared/api/types';
 
 // Types - these should be moved to a types file eventually
 export interface Notebook {

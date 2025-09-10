@@ -9,7 +9,7 @@ import type {
   UpdateSessionTitleRequest,
   UpdateSessionTitleResponse,
   SessionStreamMessage
-} from "@/features/notebook/types/chatSession";
+} from "@/features/notebook/type";
 
 /**
  * Service class for session-based chat operations

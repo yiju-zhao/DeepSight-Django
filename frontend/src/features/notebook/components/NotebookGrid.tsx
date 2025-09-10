@@ -1,12 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { BookOpen, Calendar, MoreVertical, Trash2 } from "lucide-react";
-
-interface Notebook {
-  id: string;
-  name: string;
-  description?: string;
-  created_at: string;
-}
+import type { Notebook } from "@/shared/api";
 
 interface NotebookGridProps {
   notebooks: Notebook[];
@@ -106,7 +100,7 @@ const NotebookGrid: React.FC<NotebookGridProps> = ({ notebooks, onNotebookClick,
           <div className="flex items-center text-xs text-gray-500 space-x-4">
             <div className="flex items-center space-x-1">
               <Calendar className="w-3 h-3" />
-              <span>{formatDate(notebook.created_at)}</span>
+              <span>{formatDate(notebook.createdAt)}</span>
             </div>
           </div>
         </div>

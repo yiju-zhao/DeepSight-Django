@@ -12,7 +12,7 @@ import {
   useDuplicateNotebook,
   useNotebookStats,
   notebookQueries 
-} from "@/shared/queries/notebooks";
+} from "@/features/notebook/queries";
 import type { UpdateNotebookRequest } from "@/shared/api";
 import { useErrorBoundary } from "@/shared/components/ui/ErrorBoundary";
 

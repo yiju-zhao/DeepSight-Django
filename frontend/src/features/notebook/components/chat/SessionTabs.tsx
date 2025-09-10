@@ -5,7 +5,7 @@ import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Badge } from '@/shared/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/shared/components/ui/tooltip';
-import type { SessionTabsProps } from '@/features/notebook/types/chatSession';
+import type { SessionTabsProps } from '@/features/notebook/type';
 
 const SessionTabs: React.FC<SessionTabsProps> = ({
   sessions,

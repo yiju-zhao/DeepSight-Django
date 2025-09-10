@@ -5,7 +5,7 @@
 import React, { useMemo, useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Grid, List } from 'lucide-react';
-import { useNotebooks, useCreateNotebook } from "@/shared/queries/notebooks";
+import { useNotebooks, useCreateNotebook } from "@/features/notebook/queries";
 import { ErrorBoundary } from "@/shared/components/ui/ErrorBoundary";
 import { LoadingSpinner, NotebookGridSkeleton } from "@/shared/components/ui/LoadingSpinner";
 import { Button } from "@/shared/components/ui/button";

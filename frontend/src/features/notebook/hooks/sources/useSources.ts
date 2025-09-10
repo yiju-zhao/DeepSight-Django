@@ -60,9 +60,9 @@ export const useFileStatus = (notebookId: string, fileId: string) => {
     staleTime: 10 * 1000, // 10 seconds - status changes frequently during processing
     gcTime: 60 * 1000, // 1 minute cache
     retry: 3,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Auto-refetch every 2 seconds if still processing
-      const status = data?.status;
+      const status = query?.state?.data?.status;
       return status && ['pending', 'processing', 'in_progress', 'uploading'].includes(status) ? 2000 : false;
     }
   });

@@ -7,7 +7,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders, createMockNotebooks, createMockApiResponse } from '@/test-utils/render';
 import { NotebookGrid } from '../NotebookGrid';
-import { notebooksApi } from "@/shared/api/resources/notebooks";
+import { notebooksApi } from "@/features/notebook/api";
 
 // Mock the API
 vi.mock('@/lib/api/resources/notebooks', () => ({

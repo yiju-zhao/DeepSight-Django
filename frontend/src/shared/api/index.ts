@@ -17,8 +17,11 @@ export type {
 
 export { ApiError } from './types';
 
-// Resources
-export { notebooksApi } from './resources/notebooks';
+// Resources have been moved to feature folders
+// Import notebook resources from: @/features/notebook/api
+// Import notebook queries from: @/features/notebook/queries
+
+// Re-export commonly used notebook types for backward compatibility
 export type {
   Notebook,
   CreateNotebookRequest,
@@ -34,7 +37,7 @@ export type {
   ChatResponse,
   KnowledgeBaseItem,
   KnowledgeBaseImage,
-} from './resources/notebooks';
+} from '@/features/notebook/api';
 
 // TODO: Add other resources as they are created
 // export { reportsApi } from './resources/reports';

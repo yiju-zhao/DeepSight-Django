@@ -59,6 +59,9 @@ const PodcastPage: React.FC = () => {
       }, 5000);
       return () => clearTimeout(timer);
     }
+    
+    // Always return a cleanup function (even if it does nothing)
+    return () => {};
   }, [error, dispatch]);
 
   const handleSelectPodcast = async (podcast: Podcast) => {

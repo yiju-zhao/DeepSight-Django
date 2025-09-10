@@ -56,6 +56,9 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
         }
       };
     }
+    
+    // Always return a cleanup function (even if it does nothing)
+    return () => {};
   }, [currentPodcast.status, currentPodcast.id]);
 
   useEffect(() => {

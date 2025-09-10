@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "@/shared/hooks/useAuth";
-import { useNotebook } from "@/shared/queries/notebooks";
+import { useNotebook } from "@/features/notebook/queries";
 import { useApiUtils } from "@/features/notebook/hooks";
 import NotebookLayout from "@/features/notebook/components/layout/NotebookLayout";
 import SourcesPanel from "@/features/notebook/components/panels/SourcesPanel";

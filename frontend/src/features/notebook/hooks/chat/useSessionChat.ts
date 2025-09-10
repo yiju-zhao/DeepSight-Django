@@ -7,7 +7,7 @@ import type {
   SessionChatMessage,
   ChatTab,
   UseSessionChatReturn,
-} from '@/features/notebook/types/chatSession';
+} from '@/features/notebook/type';
 
 // Query keys factory
 const sessionKeys = {
@@ -346,8 +346,10 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   useEffect(() => {
     if (sessions.length > 0 && activeTabs.length === 0 && !activeSessionId) {
       const firstSession = sessions[0];
-      openTab(firstSession.id);
-      setActiveSessionId(firstSession.id);
+      if (firstSession) {
+        openTab(firstSession.id);
+        setActiveSessionId(firstSession.id);
+      }
     }
   }, [sessions, activeTabs.length, activeSessionId, openTab]);
 

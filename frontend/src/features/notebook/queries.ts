@@ -3,8 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { notebookService } from "@/shared/services/NotebookService";
-import { notebooksApi } from '../api/resources/notebooks';
+import { notebooksApi } from './api';
 import type {
   Notebook,
   CreateNotebookRequest,
@@ -13,7 +12,7 @@ import type {
   CreateSourceRequest,
   ProcessUrlRequest,
   AddTextRequest,
-} from '../api/resources/notebooks';
+} from './api';
 
 // Query Keys Factory
 export const notebookQueries = {
@@ -40,7 +39,7 @@ export const notebookQueries = {
 export const useNotebooks = (params?: GetNotebooksParams) => {
   return useQuery({
     queryKey: notebookQueries.list(params),
-    queryFn: () => notebookService.getAll(),
+    queryFn: () => notebooksApi.getAll(params),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   });
@@ -49,7 +48,7 @@ export const useNotebooks = (params?: GetNotebooksParams) => {
 export const useNotebook = (id: string) => {
   return useQuery({
     queryKey: notebookQueries.detail(id),
-    queryFn: () => notebookService.getById(id),
+    queryFn: () => notebooksApi.getById(id),
     enabled: !!id,
     staleTime: 2 * 60 * 1000, // 2 minutes
   });
