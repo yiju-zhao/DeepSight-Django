@@ -101,12 +101,12 @@ export class ApiClient {
 
     const requestConfig: RequestInit = {
       credentials: 'include',
+      signal: controller.signal,
+      ...requestInit,
       headers: {
         'Content-Type': 'application/json',
         ...requestInit.headers,
       },
-      signal: controller.signal,
-      ...requestInit,
     };
 
     // Handle FormData - remove Content-Type to let browser set it

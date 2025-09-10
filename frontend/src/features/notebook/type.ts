@@ -95,39 +95,7 @@ export interface PaginatedResponse<T> {
   results: T[];
 }
 
-// State Types
-export interface NotebookState {
-  notebooks: Notebook[];
-  currentNotebook: Notebook | null;
-  isLoading: boolean;
-  error: string | null;
-  lastFetched: number | null;
-  searchTerm: string;
-  sortOrder: 'recent' | 'oldest' | 'name' | 'updated';
-  viewMode: 'grid' | 'list';
-}
 
-export interface FileState {
-  files: File[];
-  selectedFiles: string[];
-  uploadProgress: Record<string, number>;
-  isLoading: boolean;
-  error: string | null;
-}
-
-export interface ChatState {
-  messages: NotebookChatMessage[];
-  isLoading: boolean;
-  error: string | null;
-  suggestedQuestions: string[];
-}
-
-export interface StudioState {
-  jobs: GenerationJob[];
-  currentJob: GenerationJob | null;
-  isLoading: boolean;
-  error: string | null;
-}
 
 // Component Props Types
 export interface NotebookCardProps {
@@ -190,8 +158,6 @@ export interface FileFilters {
 }
 
 // Utility Types
-export type ViewMode = 'grid' | 'list';
-export type SortOrder = 'recent' | 'oldest' | 'name' | 'updated';
 export type FileStatus = 'uploading' | 'processing' | 'completed' | 'error';
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type GenerationType = 'report' | 'podcast';
@@ -354,15 +320,6 @@ export interface ChatTab {
   lastActivity: string;
 }
 
-// Context provider state
-export interface SessionChatState {
-  sessions: ChatSession[];
-  activeTabs: ChatTab[];
-  activeSessionId: string | null;
-  currentMessages: SessionChatMessage[];
-  isLoading: boolean;
-  error: string | null;
-}
 
 // Hook return types
 export interface UseSessionChatReturn {

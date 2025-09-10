@@ -29,7 +29,6 @@ export { useFileSelection } from './hooks/file/useFileSelection';
 export { useSessionChat } from './hooks/chat/useSessionChat';
 
 // Services
-export { default as NotebookService } from './services/NotebookService';
 export { default as SourceService } from './services/SourceService';
 export { default as SessionChatService } from './services/SessionChatService';
 export { default as StudioService } from './services/StudioService';
@@ -62,6 +61,3 @@ export {
 // Types
 export * from './type';
 
-// Redux
-export { default as notebookSlice } from './notebookSlice';
-export * from './notebookSlice';
