@@ -10,6 +10,7 @@ import {
   PodcastFilters,
   PodcastStats 
 } from "@/features/podcast/types/type";
+import { config } from "@/config";
 
 export interface IPodcastService {
   getPodcasts(filters?: PodcastFilters): Promise<Podcast[]>;
@@ -302,9 +303,9 @@ export class PodcastService implements IPodcastService {
       // Construct URL from object key using the correct endpoint
       const podcastId = podcast.id || podcast.job_id;
       if (this.notebookId && podcastId) {
-        return `/api/notebooks/${this.notebookId}/podcast-jobs/${podcastId}/audio/`;
+        return `${config.API_BASE_URL}/notebooks/${this.notebookId}/podcast-jobs/${podcastId}/audio/`;
       } else if (podcastId) {
-        return `/api/podcasts/${podcastId}/audio/`;
+        return `${config.API_BASE_URL}/podcasts/${podcastId}/audio/`;
       }
     }
     return null;

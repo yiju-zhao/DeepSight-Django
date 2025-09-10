@@ -19,15 +19,20 @@ export class ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  private buildUrl(endpoint: string, params?: Record<string, any>, migrationContext?: { notebookId?: string; resourceId?: string }): string {
+  private buildUrl(
+    endpoint: string,
+    method: string,
+    params?: Record<string, any>,
+    migrationContext?: { notebookId?: string; resourceId?: string }
+  ): string {
     // Use migration adapter to get the correct endpoint
     let url: string;
     if (endpoint.startsWith('http')) {
       url = endpoint;
     } else {
-      // Apply API migration logic
+      // Apply API migration logic with the actual HTTP method
       const migratedEndpoint = apiMigration.getEndpoint(
-        `GET ${endpoint}`, // Add method prefix for mapping lookup
+        `${method} ${endpoint}`,
         migrationContext?.notebookId,
         migrationContext?.resourceId
       );
@@ -97,7 +102,8 @@ export class ApiClient {
     config: RequestConfig & { migrationContext?: { notebookId?: string; resourceId?: string } } = {}
   ): Promise<T> {
     const { params, timeout = this.defaultTimeout, migrationContext, ...requestInit } = config;
-    const url = this.buildUrl(endpoint, params, migrationContext);
+    const method = (requestInit.method || 'GET').toString().toUpperCase();
+    const url = this.buildUrl(endpoint, method, params, migrationContext);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);

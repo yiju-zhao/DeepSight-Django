@@ -65,37 +65,60 @@ export class ApiMigrationAdapter {
    * Get the appropriate endpoint based on migration flags
    */
   getEndpoint(legacyEndpoint: string, notebookId?: string, resourceId?: string): string {
+    // Extract method (if provided) and clean path
+    const methodMatch = legacyEndpoint.match(/^([A-Z]+)\s+/);
+    const method = methodMatch ? methodMatch[1] : 'GET';
+    let rawPath = legacyEndpoint.replace(/^[A-Z]+\s+/, '');
+
+    // Ensure path starts with '/'
+    if (!rawPath.startsWith('/')) rawPath = `/${rawPath}`;
+
     // Substitute path parameters
-    let endpoint = legacyEndpoint;
     if (notebookId) {
-      endpoint = endpoint.replace('{id}', notebookId);
+      rawPath = rawPath.replace('{id}', notebookId);
     }
     if (resourceId) {
-      endpoint = endpoint.replace('{fileId}', resourceId)
-                         .replace('{sourceId}', resourceId)
-                         .replace('{reportId}', resourceId)
-                         .replace('{podcastId}', resourceId);
+      rawPath = rawPath.replace('{fileId}', resourceId)
+                       .replace('{sourceId}', resourceId)
+                       .replace('{reportId}', resourceId)
+                       .replace('{podcastId}', resourceId);
     }
 
-    const endpointKey = endpoint as EndpointKey;
-    const v1Endpoint = ENDPOINT_MAPPING[endpointKey];
-    
-    if (!v1Endpoint) {
-      console.warn(`No v1 mapping found for endpoint: ${endpoint}`);
-      return this.buildFullUrl(endpoint);
+    // Try mapping with and without trailing slash
+    const withSlash = rawPath.endsWith('/') ? rawPath : `${rawPath}/`;
+    const withoutSlash = withSlash.slice(0, -1);
+
+    const tryKeys = [
+      `${method} ${withSlash}` as EndpointKey,
+      `${method} ${withoutSlash}/` as EndpointKey,
+      // Common fallback: allow GET mapping to serve others
+      `GET ${withSlash}` as EndpointKey,
+      `GET ${withoutSlash}/` as EndpointKey,
+    ];
+
+    let v1Endpoint: string | undefined;
+    for (const key of tryKeys) {
+      if (key in ENDPOINT_MAPPING) {
+        v1Endpoint = ENDPOINT_MAPPING[key as EndpointKey];
+        break;
+      }
     }
 
     // Determine which version to use based on feature flags
-    const shouldUseV1 = this.shouldUseV1Endpoint(endpoint);
-    const finalEndpoint = shouldUseV1 ? v1Endpoint.replace(/^[A-Z]+ /, '') : endpoint.replace(/^[A-Z]+ /, '');
+    const evaluationPath = withSlash; // normalized for flag checks
+    const useV1 = this.shouldUseV1Endpoint(evaluationPath);
+
+    const finalPath = v1Endpoint && useV1 ? v1Endpoint : withSlash;
     
-    return this.buildFullUrl(finalEndpoint);
+    // Always return a full URL composed with configured API base
+    return this.buildFullUrl(finalPath);
   }
 
   /**
    * Check if we should use v1 endpoint based on feature flags
    */
   private shouldUseV1Endpoint(endpoint: string): boolean {
+    // Ensure we're checking the path portion only
     if (endpoint.includes('/notebooks/') && !endpoint.includes('/chat/') && !endpoint.includes('/reports/') && !endpoint.includes('/podcasts/')) {
       return API_MIGRATION_FLAGS.USE_V1_NOTEBOOKS;
     }

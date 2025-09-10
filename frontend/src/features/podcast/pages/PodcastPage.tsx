@@ -23,6 +23,7 @@ import PodcastFilters from "@/features/podcast/components/PodcastFilters";
 import PodcastStats from "@/features/podcast/components/PodcastStats";
 import PodcastDetail from "@/features/podcast/components/PodcastDetail";
 import { Podcast } from "@/features/podcast/types/type";
+import { config } from "@/config";
 
 const PodcastPage: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -106,7 +107,7 @@ const PodcastPage: React.FC = () => {
     
     try {
       // Directly navigate to the download endpoint, let browser handle the download
-      const downloadUrl = `/api/v1/notebooks/${podcast.notebook_id}/podcast-jobs/${podcast.id}/download/`;
+      const downloadUrl = `${config.API_BASE_URL}/notebooks/${podcast.notebook_id}/podcast-jobs/${podcast.id}/download/`;
       window.open(downloadUrl, '_blank');
     } catch (error) {
       console.error('Failed to download podcast:', error);
