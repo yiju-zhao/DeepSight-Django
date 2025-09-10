@@ -18,31 +18,31 @@ const API_MIGRATION_FLAGS = {
 // Endpoint mapping from legacy to v1
 const ENDPOINT_MAPPING = {
   // Notebooks
-  'GET /notebooks/': 'GET /api/v1/notebooks/',
-  'POST /notebooks/': 'POST /api/v1/notebooks/',
-  'GET /notebooks/{id}/': 'GET /api/v1/notebooks/{id}/',
-  'PUT /notebooks/{id}/': 'PUT /api/v1/notebooks/{id}/',
-  'DELETE /notebooks/{id}/': 'DELETE /api/v1/notebooks/{id}/',
+  'GET /notebooks/': 'GET /notebooks/',
+  'POST /notebooks/': 'POST /notebooks/',
+  'GET /notebooks/{id}/': 'GET /notebooks/{id}/',
+  'PUT /notebooks/{id}/': 'PUT /notebooks/{id}/',
+  'DELETE /notebooks/{id}/': 'DELETE /notebooks/{id}/',
   
   // Sources (formerly files)
-  'GET /notebooks/{id}/files/': 'GET /api/v1/notebooks/{id}/sources/',
-  'POST /notebooks/{id}/files/upload/': 'POST /api/v1/notebooks/{id}/sources/',
-  'DELETE /notebooks/{id}/files/{fileId}/': 'DELETE /api/v1/notebooks/{id}/sources/{sourceId}/',
-  'PUT /notebooks/{id}/files/{fileId}/': 'PUT /api/v1/notebooks/{id}/sources/{sourceId}/',
+  'GET /notebooks/{id}/files/': 'GET /notebooks/{id}/sources/',
+  'POST /notebooks/{id}/files/upload/': 'POST /notebooks/{id}/sources/',
+  'DELETE /notebooks/{id}/files/{fileId}/': 'DELETE /notebooks/{id}/sources/{sourceId}/',
+  'PUT /notebooks/{id}/files/{fileId}/': 'PUT /notebooks/{id}/sources/{sourceId}/',
   
   // Chat
-  'POST /notebooks/{id}/chat/': 'POST /api/v1/notebooks/{id}/chat/',
-  'GET /notebooks/{id}/chat/history/': 'GET /api/v1/notebooks/{id}/chat/history/',
+  'POST /notebooks/{id}/chat/': 'POST /notebooks/{id}/chat/',
+  'GET /notebooks/{id}/chat/history/': 'GET /notebooks/{id}/chat/history/',
   
   // Reports
-  'GET /notebooks/{id}/reports/': 'GET /api/v1/notebooks/{id}/reports/',
-  'POST /notebooks/{id}/reports/': 'POST /api/v1/notebooks/{id}/reports/',
-  'GET /notebooks/{id}/reports/{reportId}/': 'GET /api/v1/notebooks/{id}/reports/{reportId}/',
+  'GET /notebooks/{id}/reports/': 'GET /notebooks/{id}/reports/',
+  'POST /notebooks/{id}/reports/': 'POST /notebooks/{id}/reports/',
+  'GET /notebooks/{id}/reports/{reportId}/': 'GET /notebooks/{id}/reports/{reportId}/',
   
   // Podcasts
-  'GET /notebooks/{id}/podcasts/': 'GET /api/v1/notebooks/{id}/podcasts/',
-  'POST /notebooks/{id}/podcasts/': 'POST /api/v1/notebooks/{id}/podcasts/',
-  'GET /notebooks/{id}/podcasts/{podcastId}/': 'GET /api/v1/notebooks/{id}/podcasts/{podcastId}/',
+  'GET /notebooks/{id}/podcasts/': 'GET /notebooks/{id}/podcasts/',
+  'POST /notebooks/{id}/podcasts/': 'POST /notebooks/{id}/podcasts/',
+  'GET /notebooks/{id}/podcasts/{podcastId}/': 'GET /notebooks/{id}/podcasts/{podcastId}/',
 } as const;
 
 type EndpointKey = keyof typeof ENDPOINT_MAPPING;

@@ -55,34 +55,34 @@ const handlers = [
   }),
 
   // Notebooks
-  http.get(`${config.API_BASE_URL}/api/v1/notebooks/`, () => {
+  http.get(`${config.API_BASE_URL}/notebooks/`, () => {
     return HttpResponse.json([mockNotebook]);
   }),
 
-  http.get(`${config.API_BASE_URL}/api/v1/notebooks/:id/`, ({ params }) => {
+  http.get(`${config.API_BASE_URL}/notebooks/:id/`, ({ params }) => {
     return HttpResponse.json({ ...mockNotebook, id: params.id });
   }),
 
-  http.post(`${config.API_BASE_URL}/api/v1/notebooks/`, async ({ request }) => {
+  http.post(`${config.API_BASE_URL}/notebooks/`, async ({ request }) => {
     const body = await request.json() as any;
     return HttpResponse.json({ ...mockNotebook, ...(body || {}), id: '2' });
   }),
 
-  http.put(`${config.API_BASE_URL}/api/v1/notebooks/:id/`, async ({ request, params }) => {
+  http.put(`${config.API_BASE_URL}/notebooks/:id/`, async ({ request, params }) => {
     const body = await request.json() as any;
     return HttpResponse.json({ ...mockNotebook, ...(body || {}), id: params.id });
   }),
 
-  http.delete(`${config.API_BASE_URL}/api/v1/notebooks/:id/`, () => {
+  http.delete(`${config.API_BASE_URL}/notebooks/:id/`, () => {
     return HttpResponse.json({ success: true });
   }),
 
   // Sources
-  http.get(`${config.API_BASE_URL}/api/v1/notebooks/:notebookId/sources/`, () => {
+  http.get(`${config.API_BASE_URL}/notebooks/:notebookId/sources/`, () => {
     return HttpResponse.json([mockSource]);
   }),
 
-  http.post(`${config.API_BASE_URL}/api/v1/notebooks/:notebookId/sources/`, async ({ request, params }) => {
+  http.post(`${config.API_BASE_URL}/notebooks/:notebookId/sources/`, async ({ request, params }) => {
     const body = await request.json() as any;
     return HttpResponse.json({ 
       ...mockSource, 
@@ -92,12 +92,12 @@ const handlers = [
     });
   }),
 
-  http.delete(`${config.API_BASE_URL}/api/v1/notebooks/:notebookId/sources/:sourceId/`, () => {
+  http.delete(`${config.API_BASE_URL}/notebooks/:notebookId/sources/:sourceId/`, () => {
     return HttpResponse.json({ success: true });
   }),
 
   // Chat
-  http.post(`${config.API_BASE_URL}/api/v1/notebooks/:notebookId/chat/`, async ({ request }) => {
+  http.post(`${config.API_BASE_URL}/notebooks/:notebookId/chat/`, async ({ request }) => {
     const body = await request.json() as any;
     return HttpResponse.json({
       message: `Echo: ${body?.message || ''}`,
@@ -106,7 +106,7 @@ const handlers = [
   }),
 
   // Reports
-  http.get(`${config.API_BASE_URL}/api/v1/notebooks/:notebookId/reports/`, () => {
+  http.get(`${config.API_BASE_URL}/notebooks/:notebookId/reports/`, () => {
     return HttpResponse.json([{
       id: '1',
       title: 'Test Report',
@@ -115,7 +115,7 @@ const handlers = [
     }]);
   }),
 
-  http.post(`${config.API_BASE_URL}/api/v1/notebooks/:notebookId/reports/`, async ({ request }) => {
+  http.post(`${config.API_BASE_URL}/notebooks/:notebookId/reports/`, async ({ request }) => {
     const body = await request.json() as any;
     return HttpResponse.json({
       id: '2',
@@ -126,7 +126,7 @@ const handlers = [
   }),
 
   // Podcasts
-  http.get(`${config.API_BASE_URL}/api/v1/notebooks/:notebookId/podcasts/`, () => {
+  http.get(`${config.API_BASE_URL}/notebooks/:notebookId/podcasts/`, () => {
     return HttpResponse.json([{
       id: '1',
       title: 'Test Podcast',
@@ -136,7 +136,7 @@ const handlers = [
     }]);
   }),
 
-  http.post(`${config.API_BASE_URL}/api/v1/notebooks/:notebookId/podcasts/`, async ({ request }) => {
+  http.post(`${config.API_BASE_URL}/notebooks/:notebookId/podcasts/`, async ({ request }) => {
     const body = await request.json() as any;
     return HttpResponse.json({
       id: '2',
