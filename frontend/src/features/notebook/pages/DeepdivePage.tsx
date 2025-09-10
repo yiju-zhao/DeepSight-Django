@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "@/shared/hooks/useAuth";
-import { useNotebookData } from "@/features/notebook/hooks";
+import { useNotebook } from "@/shared/queries/notebooks";
+import { useApiUtils } from "@/features/notebook/hooks";
 import NotebookLayout from "@/features/notebook/components/layout/NotebookLayout";
 import SourcesPanel from "@/features/notebook/components/panels/SourcesPanel";
 import SessionChatPanel from "@/features/notebook/components/panels/SessionChatPanel";
@@ -15,14 +16,16 @@ import "highlight.js/styles/github.css";
 export default function DeepdivePage() {
   const { notebookId } = useParams();
   const { isAuthenticated, authChecked } = useAuth();
-  const { 
-    currentNotebook, 
-    loading: loadingNotebook, 
-    error: loadError,
-    fetchNotebook,
-    primeCsrfToken,
-    clearError 
-  } = useNotebookData();
+  const { primeCsrfToken } = useApiUtils();
+
+  // Use TanStack Query for notebook details to avoid duplicate fetches
+  const effectiveNotebookId = useMemo(
+    () => (authChecked && isAuthenticated && notebookId ? notebookId : ""),
+    [authChecked, isAuthenticated, notebookId]
+  );
+  const { data: currentNotebook, isLoading: loadingNotebook, error: loadError } = useNotebook(
+    effectiveNotebookId as string
+  );
 
   // State for component props
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -51,19 +54,16 @@ export default function DeepdivePage() {
     setSourcesRemovedTrigger(prev => prev + 1);
   };
 
-  // Prime CSRF on mount
+  // Prime CSRF on mount (guard against StrictMode double-invoke)
+  const csrfPrimedRef = useRef(false);
   useEffect(() => {
-    if (authChecked && isAuthenticated) {
+    if (!csrfPrimedRef.current && authChecked && isAuthenticated) {
+      csrfPrimedRef.current = true;
       primeCsrfToken();
     }
   }, [authChecked, isAuthenticated, primeCsrfToken]);
 
-  // Fetch notebook metadata
-  useEffect(() => {
-    if (authChecked && isAuthenticated && notebookId) {
-      fetchNotebook(notebookId);
-    }
-  }, [authChecked, isAuthenticated, notebookId, fetchNotebook]);
+  // Remove manual fetch effect; TanStack Query handles fetching and deduping
 
   // Loading state
   if (!authChecked || loadingNotebook) {
@@ -78,24 +78,13 @@ export default function DeepdivePage() {
   if (loadError) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-white p-4">
-        <p className="text-red-600 mb-4">{loadError}</p>
+        <p className="text-red-600 mb-4">{String(loadError)}</p>
         <div className="space-x-4">
           <button
             onClick={() => window.history.back()}
             className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
           >
             Go Back
-          </button>
-          <button
-            onClick={() => {
-              clearError();
-              if (notebookId) {
-                fetchNotebook(notebookId);
-              }
-            }}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-          >
-            Retry
           </button>
         </div>
       </div>

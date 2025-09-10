@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/shared/hooks/useAuth";
-import { useNotebookData } from "@/features/notebook/hooks";
+import { useNotebooks, useCreateNotebook, useDeleteNotebook } from "@/shared/queries/notebooks";
 import SidebarMenu from "@/features/notebook/components/layout/SidebarMenu";
 import NotebookGrid from "@/features/notebook/components/NotebookGrid";
 import NotebookList from "@/features/notebook/components/NotebookList";
@@ -17,30 +17,23 @@ import {
 export default function NotebookListPage() {
   const navigate = useNavigate();
   const { isAuthenticated, user, authChecked, handleLogout } = useAuth();
-  const { 
-    notebooks, 
-    loading, 
-    error, 
-    fetchNotebooks, 
-    createNotebook,
-    deleteNotebook,
-    clearError 
-  } = useNotebookData();
+  const [sortOrder, setSortOrder] = useState("recent");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Map UI sort order to API ordering parameter
+  const ordering = sortOrder === 'recent' ? '-created_at' : 'created_at';
+
+  const { data: notebooksResponse, isLoading: loading, error: listError } = useNotebooks({ ordering });
+  const createMutation = useCreateNotebook();
+  const deleteMutation = useDeleteNotebook();
 
   // UI state
   const [menuOpen, setMenuOpen] = useState(false);
   const [isGridView, setIsGridView] = useState(true);
-  const [sortOrder, setSortOrder] = useState("recent");
-  const [searchTerm, setSearchTerm] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [creating, setCreating] = useState(false);
 
-  // Prime CSRF and load notebooks
-  useEffect(() => {
-    if (authChecked && isAuthenticated && user) {
-      fetchNotebooks(sortOrder as 'recent' | 'oldest' | 'name' | 'updated');
-    }
-  }, [authChecked, isAuthenticated, user, sortOrder, fetchNotebooks]);
+  // No manual fetch; React Query handles caching and refetching
 
   // Handle notebook creation
   const handleCreateNotebook = async (name: string, description: string) => {
@@ -50,13 +43,9 @@ export default function NotebookListPage() {
 
     setCreating(true);
     try {
-      const result = await createNotebook({ name, description });
-      if (result.success && result.data) {
-        navigate(`/deepdive/${result.data.id}`);
-        return { success: true };
-      } else {
-        return { success: false, error: result.error || 'Failed to create notebook' };
-      }
+      const newNotebook = await createMutation.mutateAsync({ name, description });
+      if (newNotebook?.id) navigate(`/deepdive/${newNotebook.id}`);
+      return { success: true };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
       return { success: false, error: errorMessage };
@@ -68,14 +57,15 @@ export default function NotebookListPage() {
   // Handle notebook deletion
   const handleDeleteNotebook = async (notebookId: string) => {
     try {
-      await deleteNotebook(notebookId);
+      await deleteMutation.mutateAsync(notebookId);
     } catch (err) {
       console.error('Failed to delete notebook:', err);
     }
   };
 
   // Filter notebooks based on search term
-  const filteredNotebooks = Array.isArray(notebooks) ? notebooks.filter(notebook =>
+  const notebooks = notebooksResponse?.data ?? notebooksResponse ?? [];
+  const filteredNotebooks = Array.isArray(notebooks) ? notebooks.filter((notebook: any) =>
     notebook.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (notebook.description && notebook.description.toLowerCase().includes(searchTerm.toLowerCase()))
   ) : [];
@@ -221,21 +211,15 @@ export default function NotebookListPage() {
               onSubmit={handleCreateNotebook}
               onCancel={() => setShowCreateForm(false)}
               loading={creating}
-              error={error}
+              error={createMutation.isError ? (createMutation.error as Error).message : undefined}
             />
           )}
         </div>
 
         {/* Error Display */}
-        {error && (
+        {listError && (
           <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-            <p className="text-red-600 font-medium">{error}</p>
-            <button
-              onClick={clearError}
-              className="mt-2 text-sm text-red-500 hover:text-red-700 underline"
-            >
-              Dismiss
-            </button>
+            <p className="text-red-600 font-medium">{String(listError)}</p>
           </div>
         )}
 

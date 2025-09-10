@@ -21,8 +21,7 @@ export { useAsyncState } from './shared/useAsyncState';
 // Chat functionality
 export { useSessionChat } from './chat/useSessionChat';
 
-// Data management
-export { useNotebookData } from './data/useNotebookData';
+// Data management (legacy hook removed). Use TanStack Query hooks in shared/queries instead.
 
 // File handling
 export { useFileUpload } from './file/useFileUpload';
