@@ -450,11 +450,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       }
     }, [onPreview, source]);
 
-    const handleCheckboxClick = useCallback((e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      onToggle(String(source.id));
-    }, [onToggle]);
 
     const supportsPreviewCheck = supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {});
 
@@ -484,7 +479,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           </div>
           
           <div className="flex items-center space-x-2">
-            <div onClick={handleCheckboxClick} className="flex items-center cursor-pointer">
+            <div className="flex items-center cursor-pointer">
               <Checkbox
                 checked={source.selected}
                 onCheckedChange={() => onToggle(String(source.id))}
@@ -653,7 +648,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   const renderFileStatus = (source: Source): React.ReactNode => {
     const isProcessing =
       source.parsing_status &&
-      ['queueing', 'pending', 'uploading', 'processing', 'parsing', 'in_progress'].includes(source.parsing_status);
+      ['queueing', 'uploading', 'parsing'].includes(source.parsing_status);
     const isFailed = source.parsing_status === 'failed' || source.parsing_status === 'error';
     
     // Check if this is a file with images and caption generation status
@@ -665,7 +660,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     
     // Show caption generation status for completed files with images
     const showCaptionStatus =
-      (source.parsing_status === 'done' || source.parsing_status === 'completed') &&
+      source.parsing_status === 'done' &&
       hasImages &&
       captionGenerationStatus &&
       ['pending', 'in_progress'].includes(captionGenerationStatus);
@@ -677,12 +672,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           <span className="text-xs text-gray-500">
             {source.parsing_status === 'uploading'
               ? 'Uploading...'
-              : source.parsing_status === 'pending'
-              ? 'Queued...'
-              : source.parsing_status === 'processing'
-              ? 'Processing...'
-              : source.parsing_status === 'in_progress'
-              ? 'Processing...'
               : source.parsing_status === 'parsing'
               ? 'Parsing...'
               : source.parsing_status === 'queueing'
@@ -974,7 +963,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                   <SourceItem
                     key={`source-${source.id}-${source.file_id || source.upload_file_id}`}
                     source={source}
-                    onToggle={() => toggleSource(source.id)}
+                    onToggle={toggleSource}
                     onPreview={() => handlePreviewFile(source)}
                     getSourceTooltip={getSourceTooltip}
                     getPrincipleFileIcon={getPrincipleFileIcon}
