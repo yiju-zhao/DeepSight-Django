@@ -37,7 +37,7 @@ from ...serializers import (
     NotebookUpdateSerializer
 )
 from ...services import FileService, ChatService, KnowledgeBaseService, NotebookService
-from core.permissions import IsOwnerPermission
+from core.permissions import IsOwnerPermission, IsNotebookOwner
 from core.pagination import StandardPageNumberPagination, LargePageNumberPagination, NotebookPagination
 
 logger = logging.getLogger(__name__)
@@ -317,7 +317,7 @@ class FileViewSet(viewsets.ModelViewSet):
     """
     
     serializer_class = KnowledgeBaseItemSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerPermission]
+    permission_classes = [permissions.IsAuthenticated, IsNotebookOwner]
     pagination_class = LargePageNumberPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['parsing_status', 'content_type']
