@@ -1006,6 +1006,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 export default SourcesList;
 
 
+/* Duplicate block commented out: retains only the first implementation above.
 const fileIcons: FileIcons = {
   pdf: FileIcon,
   txt: FileText,
@@ -2001,4 +2002,4 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   );
 });
 
-export default SourcesList;
+export default SourcesList;*/
