@@ -52,87 +52,87 @@ export const notebooksApi = {
     apiClient.get('/notebooks/', params ? { params } : {}),
 
   getById: (id: string): Promise<Notebook> =>
-    apiClient.get(`/notebooks/${id}`),
+    apiClient.get(`/notebooks/${id}/`),
 
   create: (data: CreateNotebookRequest): Promise<Notebook> =>
     apiClient.post('/notebooks/', data),
 
   update: (id: string, data: UpdateNotebookRequest): Promise<Notebook> =>
-    apiClient.patch(`/notebooks/${id}`, data),
+    apiClient.patch(`/notebooks/${id}/`, data),
 
   delete: (id: string): Promise<void> =>
-    apiClient.delete(`/notebooks/${id}`),
+    apiClient.delete(`/notebooks/${id}/`),
 
   // Custom actions
   getStats: (id: string): Promise<NotebookStats> =>
-    apiClient.get(`/notebooks/${id}/stats`),
+    apiClient.get(`/notebooks/${id}/stats/`),
 
   duplicate: (id: string, name?: string): Promise<Notebook> =>
-    apiClient.post(`/notebooks/${id}/duplicate`, { name }),
+    apiClient.post(`/notebooks/${id}/duplicate/`, { name }),
 
   cleanupEmpty: (id: string): Promise<{ removed: number }> =>
-    apiClient.post(`/notebooks/${id}/cleanup-empty`),
+    apiClient.post(`/notebooks/${id}/cleanup-empty/`),
 
   // Nested resources - Sources
   sources: {
     getAll: (notebookId: string, params?: PaginationParams): Promise<PaginatedResponse<Source>> =>
-      apiClient.get(`/notebooks/${notebookId}/sources`, params ? { params } : {}),
+      apiClient.get(`/notebooks/${notebookId}/sources/`, params ? { params } : {}),
 
     getById: (notebookId: string, sourceId: string): Promise<Source> =>
-      apiClient.get(`/notebooks/${notebookId}/sources/${sourceId}`),
+      apiClient.get(`/notebooks/${notebookId}/sources/${sourceId}/`),
 
     create: (notebookId: string, data: CreateSourceRequest): Promise<Source> =>
-      apiClient.post(`/notebooks/${notebookId}/sources`, data),
+      apiClient.post(`/notebooks/${notebookId}/sources/`, data),
 
     update: (notebookId: string, sourceId: string, data: UpdateSourceRequest): Promise<Source> =>
-      apiClient.patch(`/notebooks/${notebookId}/sources/${sourceId}`, data),
+      apiClient.patch(`/notebooks/${notebookId}/sources/${sourceId}/`, data),
 
     delete: (notebookId: string, sourceId: string): Promise<void> =>
-      apiClient.delete(`/notebooks/${notebookId}/sources/${sourceId}`),
+      apiClient.delete(`/notebooks/${notebookId}/sources/${sourceId}/`),
 
     // File upload
     uploadFile: (notebookId: string, file: File): Promise<Source> => {
       const formData = new FormData();
       formData.append('file', file);
-      return apiClient.post(`/notebooks/${notebookId}/sources`, formData);
+      return apiClient.post(`/notebooks/${notebookId}/sources/`, formData);
     },
 
     // URL processing
     processUrl: (notebookId: string, data: ProcessUrlRequest): Promise<Source> =>
-      apiClient.post(`/notebooks/${notebookId}/sources/process-url`, data),
+      apiClient.post(`/notebooks/${notebookId}/sources/process-url/`, data),
 
     // Text content
     addText: (notebookId: string, data: AddTextRequest): Promise<Source> =>
-      apiClient.post(`/notebooks/${notebookId}/sources/add-text`, data),
+      apiClient.post(`/notebooks/${notebookId}/sources/add-text/`, data),
   },
 
   // Nested resources - Chat
   chat: {
     getHistory: (notebookId: string, params?: PaginationParams): Promise<PaginatedResponse<ChatMessage>> =>
-      apiClient.get(`/notebooks/${notebookId}/chat/history`, params ? { params } : {}),
+      apiClient.get(`/notebooks/${notebookId}/chat/history/`, params ? { params } : {}),
 
     sendMessage: (notebookId: string, message: string): Promise<ChatResponse> =>
-      apiClient.post(`/notebooks/${notebookId}/chat`, { message }),
+      apiClient.post(`/notebooks/${notebookId}/chat/`, { message }),
 
     clearHistory: (notebookId: string): Promise<void> =>
-      apiClient.delete(`/notebooks/${notebookId}/chat/history`),
+      apiClient.delete(`/notebooks/${notebookId}/chat/history/`),
 
     getSuggestions: (notebookId: string): Promise<string[]> =>
-      apiClient.get(`/notebooks/${notebookId}/chat/suggestions`),
+      apiClient.get(`/notebooks/${notebookId}/chat/suggestions/`),
   },
 
   // Knowledge base
   knowledgeBase: {
     getItems: (notebookId: string, params?: PaginationParams): Promise<PaginatedResponse<KnowledgeBaseItem>> =>
-      apiClient.get(`/notebooks/${notebookId}/knowledge-base`, params ? { params } : {}),
+      apiClient.get(`/notebooks/${notebookId}/knowledge-base/`, params ? { params } : {}),
 
     searchItems: (notebookId: string, query: string): Promise<KnowledgeBaseItem[]> =>
-      apiClient.get(`/notebooks/${notebookId}/knowledge-base/search`, { 
+      apiClient.get(`/notebooks/${notebookId}/knowledge-base/search/`, { 
         params: { q: query } 
       }),
 
     getImages: (notebookId: string, itemId: string): Promise<KnowledgeBaseImage[]> =>
-      apiClient.get(`/notebooks/${notebookId}/knowledge-base/${itemId}/images`),
+      apiClient.get(`/notebooks/${notebookId}/knowledge-base/${itemId}/images/`),
   },
 };
 
