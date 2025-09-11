@@ -90,29 +90,29 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
       ),
     },
     {
-      accessorKey: 'sourceCount',
+      accessorKey: 'source_count',
       header: 'Sources',
       cell: ({ row }) => (
         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-          {row.original.sourceCount} sources
+          {row.original.source_count} sources
         </span>
       ),
     },
     {
-      accessorKey: 'itemCount',
+      accessorKey: 'knowledge_item_count',
       header: 'Items',
       cell: ({ row }) => (
         <span className="text-sm text-gray-600">
-          {row.original.itemCount} items
+          {row.original.knowledge_item_count} items
         </span>
       ),
     },
     {
-      accessorKey: 'updatedAt',
+      accessorKey: 'updated_at',
       header: 'Last Updated',
       cell: ({ row }) => (
         <span className="text-sm text-gray-500">
-          {new Date(row.original.updatedAt).toLocaleDateString()}
+          {new Date(row.original.updated_at).toLocaleDateString()}
         </span>
       ),
     },
@@ -165,11 +165,11 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
             
             <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
               <div className="flex items-center space-x-4">
-                <span>{notebook.sourceCount} sources</span>
-                <span>{notebook.itemCount} items</span>
+                <span>{notebook.source_count} sources</span>
+                <span>{notebook.knowledge_item_count} items</span>
               </div>
               <span>
-                {new Date(notebook.updatedAt).toLocaleDateString()}
+                {new Date(notebook.updated_at).toLocaleDateString()}
               </span>
             </div>
           </div>

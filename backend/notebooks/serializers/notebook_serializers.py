@@ -14,49 +14,41 @@ class NotebookSerializer(serializers.ModelSerializer):
     Serializer for Notebook model with comprehensive field handling.
     
     Provides basic CRUD operations with proper validation and read-only fields.
-    Returns camelCase field names for frontend compatibility.
     """
     
-    # Computed fields with camelCase names
-    sourceCount = serializers.SerializerMethodField()
-    itemCount = serializers.SerializerMethodField()
-    chatMessageCount = serializers.SerializerMethodField()
-    lastActivity = serializers.SerializerMethodField()
-    ragflowDatasetInfo = serializers.SerializerMethodField()
-    
-    # Map snake_case model fields to camelCase
-    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
-    updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
-    
-    # Additional fields that might be useful
-    isProcessing = serializers.SerializerMethodField()
+    # Computed fields
+    source_count = serializers.SerializerMethodField()
+    knowledge_item_count = serializers.SerializerMethodField()
+    chat_message_count = serializers.SerializerMethodField()
+    last_activity = serializers.SerializerMethodField()
+    ragflow_dataset_info = serializers.SerializerMethodField()
     
     class Meta:
         model = Notebook
         fields = [
-            "id", "name", "description", "createdAt", "updatedAt",
-            "sourceCount", "itemCount", "chatMessageCount", 
-            "lastActivity", "ragflowDatasetInfo", "isProcessing"
+            "id", "name", "description", "created_at", "updated_at",
+            "source_count", "knowledge_item_count", "chat_message_count", 
+            "last_activity", "ragflow_dataset_info"
         ]
         read_only_fields = [
-            "id", "createdAt", "updatedAt", "sourceCount", 
-            "itemCount", "chatMessageCount", "lastActivity",
-            "ragflowDatasetInfo", "isProcessing"
+            "id", "created_at", "updated_at", "source_count", 
+            "knowledge_item_count", "chat_message_count", "last_activity",
+            "ragflow_dataset_info"
         ]
     
-    def get_sourceCount(self, obj):
+    def get_source_count(self, obj):
         """Get count of knowledge base items in the notebook."""
         return obj.knowledge_base_items.count()
     
-    def get_itemCount(self, obj):
+    def get_knowledge_item_count(self, obj):
         """Get count of processed knowledge base items."""
         return obj.knowledge_base_items.filter(parsing_status='done').count()
     
-    def get_chatMessageCount(self, obj):
+    def get_chat_message_count(self, obj):
         """Get count of chat messages in the notebook."""
         return obj.chat_messages.count()
     
-    def get_lastActivity(self, obj):
+    def get_last_activity(self, obj):
         """Get the timestamp of the last activity in the notebook."""
         latest_kb_item = obj.knowledge_base_items.order_by('-updated_at').first()
         latest_chat = obj.chat_messages.order_by('-timestamp').first()
@@ -71,30 +63,26 @@ class NotebookSerializer(serializers.ModelSerializer):
         
         return last_activity
     
-    def get_ragflowDatasetInfo(self, obj):
+    def get_ragflow_dataset_info(self, obj):
         """Get RagFlow dataset information for the notebook."""
         try:
             ragflow_dataset = obj.ragflow_dataset
             return {
                 "id": ragflow_dataset.ragflow_dataset_id,
                 "status": ragflow_dataset.status,
-                "isReady": ragflow_dataset.is_ready(),
-                "documentCount": ragflow_dataset.get_document_count() if ragflow_dataset.is_ready() else 0,
-                "errorMessage": ragflow_dataset.error_message or None
+                "is_ready": ragflow_dataset.is_ready(),
+                "document_count": ragflow_dataset.get_document_count() if ragflow_dataset.is_ready() else 0,
+                "error_message": ragflow_dataset.error_message or None
             }
         except AttributeError:
             # No RagFlow dataset exists yet
             return {
                 "id": None,
                 "status": "not_created",
-                "isReady": False,
-                "documentCount": 0,
-                "errorMessage": None
+                "is_ready": False,
+                "document_count": 0,
+                "error_message": None
             }
-    
-    def get_isProcessing(self, obj):
-        """Check if the notebook has any processing items."""
-        return obj.knowledge_base_items.filter(parsing_status__in=['pending', 'processing']).exists()
     
     def validate_name(self, value):
         """Validate notebook name."""
@@ -119,34 +107,18 @@ class NotebookListSerializer(serializers.ModelSerializer):
     Lightweight serializer for notebook listing with minimal fields.
     
     Used in list views where full detail is not needed for performance.
-    Returns camelCase field names for frontend compatibility.
     """
     
-    # CamelCase computed fields
-    sourceCount = serializers.SerializerMethodField()
-    itemCount = serializers.SerializerMethodField()
-    isProcessing = serializers.SerializerMethodField()
-    
-    # Map snake_case model fields to camelCase
-    createdAt = serializers.DateTimeField(source='created_at', read_only=True)
-    updatedAt = serializers.DateTimeField(source='updated_at', read_only=True)
+    item_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Notebook
-        fields = ["id", "name", "description", "createdAt", "updatedAt", "sourceCount", "itemCount", "isProcessing"]
-        read_only_fields = ["id", "createdAt", "updatedAt", "sourceCount", "itemCount", "isProcessing"]
+        fields = ["id", "name", "description", "created_at", "item_count"]
+        read_only_fields = ["id", "created_at", "item_count"]
     
-    def get_sourceCount(self, obj):
-        """Get total count of sources in the notebook."""
+    def get_item_count(self, obj):
+        """Get total count of items in the notebook."""
         return obj.knowledge_base_items.count()
-    
-    def get_itemCount(self, obj):
-        """Get count of processed items in the notebook."""
-        return obj.knowledge_base_items.filter(parsing_status='done').count()
-    
-    def get_isProcessing(self, obj):
-        """Check if the notebook has any processing items."""
-        return obj.knowledge_base_items.filter(parsing_status__in=['pending', 'processing']).exists()
 
 
 class NotebookCreateSerializer(serializers.ModelSerializer):

@@ -100,7 +100,7 @@ const NotebookGrid: React.FC<NotebookGridProps> = ({ notebooks, onNotebookClick,
           <div className="flex items-center text-xs text-gray-500 space-x-4">
             <div className="flex items-center space-x-1">
               <Calendar className="w-3 h-3" />
-              <span>{formatDate(notebook.createdAt)}</span>
+              <span>{formatDate(notebook.created_at)}</span>
             </div>
           </div>
         </div>

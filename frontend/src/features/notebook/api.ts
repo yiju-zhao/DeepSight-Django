@@ -9,15 +9,16 @@ import { PaginatedResponse, PaginationParams } from '@/shared/api/types';
 // Types - these should be moved to a types file eventually
 export interface Notebook {
   readonly id: string;
-  readonly createdAt: string;
-  readonly updatedAt: string;
+  readonly created_at: string;
+  readonly updated_at: string;
   name: string;
   description: string;
-  sourceCount: number;
-  itemCount: number;
-  isProcessing: boolean;
+  source_count: number;
+  knowledge_item_count: number;
+  chat_message_count?: number;
+  last_activity?: string;
+  ragflow_dataset_info?: any;
   user?: string;
-  lastActivity?: string;
   isPublic?: boolean;
   tags?: string[];
 }
