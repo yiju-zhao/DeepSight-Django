@@ -135,7 +135,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         setTimeout(() => onSelectionChange(), 100);
       }
     });
-  }, [notebookId, fileUploadStatus, refetchFiles]);
+  }, [notebookId, refetchFiles, onSelectionChange]);
 
   // Individual file status update handler - updates specific file in sources array
   const updateFileStatus = useCallback((fileId: string, newStatus: string) => {
@@ -176,7 +176,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     } else if (parsedFilesResponse && !parsedFilesResponse.results) {
       setSources([]);
     }
-  }, [parsedFilesResponse, fileUploadStatus]);
+  }, [parsedFilesResponse]);
 
   // Get processing files for individual SSE tracking
   const processingFiles = useMemo(() => {
