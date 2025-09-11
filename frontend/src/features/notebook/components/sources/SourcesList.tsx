@@ -522,34 +522,26 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         let result;
         let knowledgeItemId = null;
         
-        console.log('Attempting to delete source:', source);
         
+        // Use knowledge_item_id as the primary identifier for deletion
         if (source.metadata?.knowledge_item_id) {
           knowledgeItemId = source.metadata.knowledge_item_id;
-          console.log('Deleting by metadata knowledge_item_id:', knowledgeItemId);
           result = await sourceService.deleteParsedFile(source.metadata.knowledge_item_id, notebookId);
-        } else if (source.file_id) {
-          knowledgeItemId = source.file_id;
-          console.log('Deleting by file_id:', knowledgeItemId);
-          result = await sourceService.deleteParsedFile(source.file_id, notebookId);
-        } else if (source.upload_file_id) {
-          console.log('Deleting by upload_file_id:', source.upload_file_id);
-          result = await sourceService.deleteFileByUploadId(source.upload_file_id, notebookId);
-          fileUploadStatus.stopTracking(source.upload_file_id);
         } else {
-          console.warn('Source has no valid ID for deletion:', source);
+          console.warn('Source has no valid knowledge_item_id for deletion:', source);
           continue;
         }
         
-        console.log('Delete result:', result);
+        // Check for successful deletion - handle both explicit success and HTTP 204 responses
+        const isSuccess = result?.success === true || (result && typeof result === 'object' && !result.error);
         
-        if (result.success) {
+        if (isSuccess) {
           deletionResults.push({ source, success: true });
           if (knowledgeItemId) {
             unlinkedKnowledgeItems.push(knowledgeItemId);
           }
         } else {
-          deletionResults.push({ source, success: false, error: result.error });
+          deletionResults.push({ source, success: false, error: result?.error || 'Unknown error' });
         }
       } catch (error) {
         console.error(`Error deleting file ${source.title}:`, error);
@@ -561,7 +553,11 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       .filter(result => result.success)
       .map(result => result.source.id);
     
+    
     setSources((prev) => prev.filter((source) => !successfullyDeleted.includes(source.id)));
+    
+    // Refresh the sources list from the server
+    refetchFiles();
     
     if (unlinkedKnowledgeItems.length > 0 && onSelectionChange) {
       setTimeout(() => {
