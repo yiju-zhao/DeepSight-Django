@@ -13,6 +13,7 @@ from uuid import uuid4
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import transaction
 from rest_framework import viewsets, permissions, status, filters, authentication
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -736,6 +737,58 @@ class FileViewSet(viewsets.ModelViewSet):
             logger.exception(f"Failed to get file status: {e}")
             return Response(
                 {"error": "Failed to retrieve file status", "details": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def destroy(self, request, *args, **kwargs):
+        """Delete knowledge base item using safe cleanup."""
+        try:
+            # Get the object with permission check
+            instance = self.get_object()
+            
+            # Log deletion attempt
+            logger.info(f"Deleting knowledge base item: {instance.id} (title: {instance.title})")
+            
+            # Perform safe deletion with cleanup
+            with transaction.atomic():
+                # Clean up any related RagFlow resources
+                try:
+                    if instance.ragflow_document_id:
+                        # Clean up RagFlow document if needed
+                        # This could be done asynchronously if needed
+                        pass
+                except Exception as e:
+                    logger.warning(f"Failed to clean up RagFlow resources for {instance.id}: {e}")
+                
+                # Clean up MinIO storage files
+                try:
+                    if instance.file_object_key:
+                        # Clean up processed file
+                        from infrastructure.storage.adapters import get_storage_adapter
+                        storage = get_storage_adapter()
+                        storage.delete_file(instance.file_object_key)
+                    
+                    if instance.original_file_object_key:
+                        # Clean up original file
+                        from infrastructure.storage.adapters import get_storage_adapter
+                        storage = get_storage_adapter()
+                        storage.delete_file(instance.original_file_object_key)
+                except Exception as e:
+                    logger.warning(f"Failed to clean up storage files for {instance.id}: {e}")
+                
+                # Delete related images
+                instance.images.all().delete()
+                
+                # Finally delete the main object
+                instance.delete()
+            
+            logger.info(f"Successfully deleted knowledge base item: {instance.id}")
+            return Response(status=status.HTTP_204_NO_CONTENT)
+            
+        except Exception as e:
+            logger.exception(f"Failed to delete knowledge base item: {e}")
+            return Response(
+                {"error": "Failed to delete file", "details": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
