@@ -157,7 +157,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       const data = parsedFilesResponse.results || [];
       
       const parsedSources = data.map((metadata: FileMetadata) => ({
-        id: metadata.file_id || 'unknown',
+        id: metadata.id || metadata.file_id || 'unknown', // Use the actual ID from API response
         name: generatePrincipleTitle(metadata),
         title: generatePrincipleTitle(metadata),
         authors: generatePrincipleFileDescription(metadata),
@@ -170,7 +170,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         parsing_status: metadata.parsing_status,
         metadata: {
           ...metadata,
-          knowledge_item_id: metadata.knowledge_item_id
+          knowledge_item_id: metadata.id || metadata.knowledge_item_id // Use the actual ID
         },
         error_message: metadata.error_message,
         originalFile: getPrincipleFileInfo(metadata)
