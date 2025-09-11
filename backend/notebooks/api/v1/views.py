@@ -60,7 +60,7 @@ class NotebookViewSet(viewsets.ModelViewSet):
     """
     
     permission_classes = [permissions.IsAuthenticated, IsOwnerPermission]
-    authentication_classes = [authentication.SessionAuthentication]
+    authentication_classes = [authentication.SessionAuthentication, authentication.TokenAuthentication]
     pagination_class = NotebookPagination
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['created_at']
@@ -79,10 +79,17 @@ class NotebookViewSet(viewsets.ModelViewSet):
         Uses select_related and prefetch_related for optimal database performance.
         """
         # Handle schema generation when user is not authenticated
-        if getattr(self, 'swagger_fake_view', False) or not self.request.user.is_authenticated:
+        if getattr(self, 'swagger_fake_view', False):
+            return Notebook.objects.none()
+        
+        # Debug: Log authentication status
+        print(f"DEBUG: User authenticated: {self.request.user.is_authenticated}")
+        print(f"DEBUG: User: {self.request.user}")
+        
+        if not self.request.user.is_authenticated:
             return Notebook.objects.none()
             
-        return Notebook.objects.filter(
+        queryset = Notebook.objects.filter(
             user=self.request.user
         ).select_related(
             'user'
@@ -91,6 +98,11 @@ class NotebookViewSet(viewsets.ModelViewSet):
             'batch_jobs',
             'chat_sessions'
         ).order_by('-updated_at')
+        
+        # Debug: Log queryset count
+        print(f"DEBUG: Found {queryset.count()} notebooks for user {self.request.user}")
+        
+        return queryset
     
     def get_serializer_class(self):
         """Return appropriate serializer class based on action."""
