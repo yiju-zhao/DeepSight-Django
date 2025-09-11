@@ -247,8 +247,9 @@ export const useJobStatus = (
 
   // Function to disconnect from current job
   const disconnect = useCallback(() => {
-    if (import.meta.env.DEV) {
-      console.log('Disconnecting from job status updates');
+    // Only log disconnect message if there was actually a job being tracked
+    if (import.meta.env.DEV && currentJobIdRef.current) {
+      console.log('Disconnecting from job status updates for job:', currentJobIdRef.current);
     }
     
     if (reconnectTimeoutRef.current) {
@@ -280,13 +281,16 @@ export const useJobStatus = (
       
       // Start SSE connection
       connectEventSource();
-    } else {
-      // Disconnect when no job ID
+    } else if (currentJobIdRef.current) {
+      // Only disconnect if there was actually a job being tracked
       disconnect();
     }
     
     return () => {
-      disconnect(); // Cleanup on unmount
+      // Only cleanup if there's an active job
+      if (currentJobIdRef.current) {
+        disconnect();
+      }
     };
   }, [jobId, notebookId]); // Removed connectEventSource and disconnect from dependencies
 

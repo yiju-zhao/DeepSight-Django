@@ -242,46 +242,6 @@ export const useGenerationState = (initialConfig = {}) => {
   };
 };
 
-// ====== JOB STATUS MONITORING ======
-
-export const useJobStatus = (
-  jobId: string | null,
-  onComplete: () => void,
-  onError: (error: string) => void,
-  notebookId: string,
-  jobType: 'report' | 'podcast'
-) => {
-  const [progress, setProgress] = useState<string>('');
-
-  useEffect(() => {
-    if (!jobId) return;
-
-    const checkStatus = async () => {
-      try {
-        const endpoint = jobType === 'report' 
-          ? `/notebooks/${notebookId}/report-jobs/${jobId}/status/`
-          : `/notebooks/${notebookId}/podcast-jobs/${jobId}/status/`;
-        
-        const response = await new ApiClient().get(endpoint);
-        
-        if (response.status === 'completed') {
-          onComplete();
-        } else if (response.status === 'failed') {
-          onError(response.error || 'Generation failed');
-        } else if (response.progress) {
-          setProgress(response.progress);
-        }
-      } catch (error) {
-        console.error('Error checking job status:', error);
-      }
-    };
-
-    const interval = setInterval(checkStatus, 2000);
-    return () => clearInterval(interval);
-  }, [jobId, notebookId, jobType, onComplete, onError]);
-
-  return { progress };
-};
 
 // ====== UTILITY FUNCTIONS ======
 

@@ -161,6 +161,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     }
   }, [podcastGeneration]);
 
+  // Only use job status hooks when there's an active job ID
   const reportJobStatus = useJobStatus(
     reportGeneration.currentJobId,
     handleReportComplete,
