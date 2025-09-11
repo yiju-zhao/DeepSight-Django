@@ -243,7 +243,7 @@ class Command(BaseCommand):
         cutoff_date = timezone.now() - timedelta(days=days)
         
         stuck_items = KnowledgeBaseItem.objects.filter(
-            processing_status='processing',
+            parsing_status='failed',
             created_at__lt=cutoff_date
         )
         

@@ -19,6 +19,7 @@ class KnowledgeBaseItem(BaseModel):
         ("queueing", "Queueing"),
         ("parsing", "Parsing"),
         ("done", "Done"),
+        ("failed", "Failed"),
     ]
     
     CONTENT_TYPE_CHOICES = [

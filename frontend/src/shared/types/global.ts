@@ -177,8 +177,7 @@ export interface FileMetadata {
   textContent?: string;
   knowledge_item_id?: string;
   upload_file_id?: string;
-  parsing_status?: 'pending' | 'processing' | 'in_progress' | 'completed' | 'failed' | 'error' | 'cancelled' | 'unsupported' | 'uploading';
-  processing_status?: string;
+  parsing_status?: 'queueing' | 'parsing' | 'done';
   format?: string;
   fileSize?: string;
   duration?: string;

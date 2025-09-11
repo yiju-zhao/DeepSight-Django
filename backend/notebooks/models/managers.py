@@ -78,7 +78,7 @@ class KnowledgeBaseItemQuerySet(models.QuerySet):
     
     def processing(self):
         """Filter items currently being processed."""
-        return self.filter(processing_status__in=['processing', 'in_progress'])
+        return self.filter(parsing_status__in=['parsing', 'queueing'])
     
     def failed(self):
         """Filter items that failed processing."""
@@ -257,4 +257,4 @@ class BatchJobManager(models.Manager):
         return self.get_queryset().failed()
     
     def recent(self, days=7):
-        return self.get_queryset().recent(days)
+        return self.get_queryset().recent(days)(days)

@@ -155,7 +155,7 @@ class FileService(NotebookBaseService):
                     notebook=notebook,
                     title=file_obj.name,
                     content_type="document",
-                    processing_status="processing",
+                    parsing_status="parsing",
                     tags=[],  # Explicitly set empty list
                     file_metadata={}  # Explicitly set empty dict
                 )

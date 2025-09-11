@@ -674,7 +674,7 @@ class FileStorageService:
                     'title': item.title,
                     'content_type': item.content_type,
                     'source_hash': item.source_hash,
-                    'processing_status': item.processing_status,  # Add processing status
+                    'parsing_status': item.parsing_status,  # Add processing status
                     'metadata': item.metadata or {},
                     'file_metadata': item.file_metadata or {},
                     'created_at': item.created_at.isoformat(),
@@ -752,7 +752,7 @@ class FileStorageService:
                     'title': item.title,
                     'content_type': item.content_type,
                     'source_hash': item.source_hash,
-                    'processing_status': item.processing_status,
+                    'parsing_status': item.parsing_status,
                     'metadata': item.metadata or {},
                     'file_metadata': item.file_metadata or {},
                     'notes': item.notes,
@@ -866,4 +866,4 @@ def get_storage_adapter() -> StorageAdapter:
 # Factory function for getting MinIO backend
 def get_minio_backend() -> MinIOBackend:
     """Get MinIO backend instance."""
-    return MinIOBackend() 
+    return MinIOBackend() () 

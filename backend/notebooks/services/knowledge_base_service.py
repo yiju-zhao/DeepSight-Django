@@ -74,7 +74,7 @@ class KnowledgeBaseService(NotebookBaseService):
                     "id": str(kb_item.id),
                     "title": kb_item.title,
                     "content_type": kb_item.content_type,
-                    "processing_status": kb_item.processing_status,
+                    "parsing_status": kb_item.parsing_status,
                     "metadata": kb_item.metadata or {},
                     "file_metadata": kb_item.file_metadata or {},
                     "created_at": kb_item.created_at.isoformat(),

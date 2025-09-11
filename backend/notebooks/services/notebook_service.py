@@ -316,7 +316,7 @@ class NotebookService(ModelService):
                 'batch_jobs': notebook.batch_jobs.count(),
                 'images': notebook.knowledge_base_items.with_images().count(),
             },
-            'processing_status': processing_status,
+            'parsing_status': processing_status,
             'content_types': content_types,
             'recent_activity': {
                 'items_last_week': recent_items,

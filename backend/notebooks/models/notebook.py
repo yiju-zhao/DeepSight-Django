@@ -114,7 +114,7 @@ class Notebook(BaseModel, UserOwnedMixin):
         """Get summary of processing status for all knowledge items."""
         from django.db.models import Count
         
-        status_counts = self.knowledge_base_items.values('processing_status').annotate(
+        status_counts = self.knowledge_base_items.values('parsing_status').annotate(
             count=Count('id')
         ).order_by('processing_status')
         

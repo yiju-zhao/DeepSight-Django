@@ -24,9 +24,8 @@ const mockSource = {
   size: 1024,
   created_at: '2024-01-01T00:00:00Z',
   selected: false,
-  metadata: {
-    processing_status: 'completed',
-  },
+  parsing_status: 'done',
+  metadata: {},
 };
 
 const mockUser = {

@@ -63,14 +63,13 @@ def on_knowledge_base_item_saved(sender, instance, created, **kwargs):
                 elif instance.processing_status == "done":
                     parsing_status = "completed"
                 
-                NotebookFileChangeNotifier.notify_file_change(
+                                NotebookFileChangeNotifier.notify_file_change(
                     notebook_id=instance.notebook.id,
                     change_type='file_status_updated',
                     file_data={
                         'file_id': str(instance.id),
                         'title': instance.title,
-                        'status': parsing_status,  # Use mapped status
-                        'processing_status': instance.processing_status  # Include original for debugging
+                        'status': instance.parsing_status,
                     }
                 )
     except Exception as e:

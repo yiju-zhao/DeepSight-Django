@@ -40,7 +40,7 @@ class URLService(NotebookBaseService):
             # Run async processing using async_to_sync
             result = async_to_sync(process_url_async)()
 
-            # Create KnowledgeBaseItem with processing_status="processing" directly in notebook
+            # Create KnowledgeBaseItem with parsing_status="parsing" directly in notebook
 
 
             # Ingest the KB item content for this URL
@@ -151,7 +151,7 @@ class URLService(NotebookBaseService):
 
             result = async_to_sync(process_url_with_media_async)()
 
-            # Create KnowledgeBaseItem with processing_status="processing" directly in notebook
+            # Create KnowledgeBaseItem with parsing_status="parsing" directly in notebook
 
 
             return {
@@ -179,7 +179,7 @@ class URLService(NotebookBaseService):
 
             result = async_to_sync(process_document_url_async)()
 
-            # Create KnowledgeBaseItem with processing_status="processing" directly in notebook
+            # Create KnowledgeBaseItem with parsing_status="parsing" directly in notebook
 
 
             return {

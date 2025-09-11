@@ -147,18 +147,6 @@ class FileListResponseMixin(FileMetadataExtractorMixin):
     def build_file_response_data(self, kb_item: KnowledgeBaseItem) -> Dict[str, Any]:
         """Build standardized file response data from KnowledgeBaseItem."""
 
-        # Determine parsing status based on processing_status and content availability
-        parsing_status = "completed"  # Default for completed items
-        if hasattr(kb_item, 'processing_status'):
-            if kb_item.processing_status == "in_progress":
-                parsing_status = "in_progress"  # Keep original status name
-            elif kb_item.processing_status == "error":
-                parsing_status = "error"
-            elif kb_item.processing_status == "pending":
-                parsing_status = "pending"
-            elif kb_item.processing_status == "done":
-                parsing_status = "completed"  # Map "done" to "completed" for frontend
-
         # Combine metadata and file_metadata for frontend compatibility
         combined_metadata = {**(kb_item.metadata or {})}
         if kb_item.file_metadata:
@@ -176,8 +164,7 @@ class FileListResponseMixin(FileMetadataExtractorMixin):
             "has_file": bool(kb_item.file_object_key),
             "has_content": bool(kb_item.content),
             "has_original_file": bool(kb_item.original_file_object_key),
-            "parsing_status": parsing_status,
-            "processing_status": getattr(kb_item, 'processing_status', 'done'),
+            "parsing_status": kb_item.parsing_status,
             # Extract metadata from knowledge base item
             "original_filename": self.extract_original_filename(
                 kb_item.metadata, kb_item.title

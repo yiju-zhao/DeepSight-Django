@@ -826,7 +826,7 @@ class KnowledgeBaseViewSet(viewsets.ReadOnlyModelViewSet):
             notebook = Notebook.objects.get(id=notebook_id, user=self.request.user)
             return KnowledgeBaseItem.objects.filter(
                 notebook=notebook,
-                processing_status='completed'
+                parsing_status='completed'
             ).select_related('notebook')
         return KnowledgeBaseItem.objects.none()
 

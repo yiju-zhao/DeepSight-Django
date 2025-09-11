@@ -85,7 +85,7 @@ class SourceModelTests(TestCase):
         self.assertEqual(source.notebook, self.notebook)
         self.assertEqual(source.source_type, "file")
         self.assertEqual(source.title, "test.pdf")
-        self.assertEqual(source.processing_status, "pending")
+        self.assertEqual(source.parsing_status, "pending")
 
     def test_source_str_representation(self):
         """Test source string representation."""

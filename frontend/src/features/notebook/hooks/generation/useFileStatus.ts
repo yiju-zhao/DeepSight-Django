@@ -84,10 +84,8 @@ export const useFileStatus = (
       const fileId = currentFileIdRef.current;
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(fileId);
       
-      // Build SSE URL based on file type
-      const sseUrl = isUUID 
-        ? `${config.API_BASE_URL}/notebooks/${currentNotebookIdRef.current}/files/${fileId}/status/stream/`
-        : `${config.API_BASE_URL}/notebooks/${currentNotebookIdRef.current}/files/${fileId}/status/stream`;
+      // Build SSE URL - always use trailing slash to avoid 301 redirects
+      const sseUrl = `${config.API_BASE_URL}/notebooks/${currentNotebookIdRef.current}/files/${fileId}/status/stream/`;
       
       console.log('Connecting to file SSE:', sseUrl, 'isUUID:', isUUID);
       
@@ -148,7 +146,7 @@ export const useFileStatus = (
                 if (ctrlRef.current) ctrlRef.current.abort();
                 setIsConnected(false);
                 
-              } else if (fileData.status === 'error') {
+              } else if (fileData.status === 'failed') {
                 processingCompletedRef.current = true;
                 const errorMsg = 'File processing failed';
                 
