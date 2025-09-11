@@ -47,29 +47,20 @@ def on_knowledge_base_item_saved(sender, instance, created, **kwargs):
                 file_data={
                     'file_id': str(instance.id),
                     'title': instance.title,
-                    'status': instance.processing_status
+                    'status': instance.parsing_status
                 }
             )
         else:
             # Check if processing status changed
             update_fields = kwargs.get('update_fields') or []
-            if 'processing_status' in update_fields or not update_fields:
-                # Map processing status to parsing status for consistency with API
-                parsing_status = "completed"  # Default for completed items
-                if instance.processing_status == "processing":
-                    parsing_status = "in_progress"
-                elif instance.processing_status == "failed":
-                    parsing_status = "error"
-                elif instance.processing_status == "done":
-                    parsing_status = "completed"
-                
-                                NotebookFileChangeNotifier.notify_file_change(
+            if 'parsing_status' in update_fields or not update_fields:
+                NotebookFileChangeNotifier.notify_file_change(
                     notebook_id=instance.notebook.id,
                     change_type='file_status_updated',
                     file_data={
                         'file_id': str(instance.id),
                         'title': instance.title,
-                        'status': instance.parsing_status,
+                        'status': instance.parsing_status
                     }
                 )
     except Exception as e:
