@@ -866,4 +866,4 @@ def get_storage_adapter() -> StorageAdapter:
 # Factory function for getting MinIO backend
 def get_minio_backend() -> MinIOBackend:
     """Get MinIO backend instance."""
-    return MinIOBackend() () 
+    return MinIOBackend()
