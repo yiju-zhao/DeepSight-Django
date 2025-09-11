@@ -75,6 +75,10 @@ class UploadProcessor:
         # Fallback to default if still None
         if mineru_base_url is None:
             mineru_base_url = "http://localhost:8008"
+
+        # Normalize: ensure URL has a scheme to avoid requests errors like 'no scheme supplied'
+        if not str(mineru_base_url).lower().startswith(("http://", "https://")):
+            mineru_base_url = f"http://{mineru_base_url}"
             
         self.mineru_base_url = mineru_base_url.rstrip('/')
         self.mineru_parse_endpoint = f"{self.mineru_base_url}/file_parse"

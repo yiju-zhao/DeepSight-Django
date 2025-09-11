@@ -28,6 +28,9 @@ class FileTypeProcessors:
     """Handle file type specific processing logic."""
     
     def __init__(self, mineru_base_url: str, whisper_model=None, logger=None):
+        # Normalize: ensure URL has a scheme
+        if not str(mineru_base_url).lower().startswith(("http://", "https://")):
+            mineru_base_url = f"http://{mineru_base_url}"
         self.mineru_base_url = mineru_base_url.rstrip('/')
         self.mineru_parse_endpoint = f"{self.mineru_base_url}/file_parse"
         self.whisper_model = whisper_model
