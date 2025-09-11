@@ -160,16 +160,20 @@ class NotebookPagination(PageNumberPagination):
         active_notebooks = sum(1 for item in data if isinstance(item, dict) and item.get('knowledge_item_count', 0) > 0)
         
         return Response(OrderedDict([
-            ('count', self.page.paginator.count),
-            ('total_pages', self.page.paginator.num_pages),
-            ('current_page', self.page.number),
-            ('page_size', self.get_page_size(self.request)),
-            ('next', self.get_next_link()),
-            ('previous', self.get_previous_link()),
-            ('stats', {
-                'total_notebooks': self.page.paginator.count,
-                'active_notebooks': active_notebooks,
-                'total_items_across_notebooks': total_items,
-            }),
-            ('results', data)
+            ('data', data),
+            ('meta', {
+                'pagination': {
+                    'count': self.page.paginator.count,
+                    'page': self.page.number,
+                    'pages': self.page.paginator.num_pages,
+                    'pageSize': self.get_page_size(self.request),
+                    'hasNext': self.get_next_link() is not None,
+                    'hasPrevious': self.get_previous_link() is not None,
+                },
+                'stats': {
+                    'total_notebooks': self.page.paginator.count,
+                    'active_notebooks': active_notebooks,
+                    'total_items_across_notebooks': total_items,
+                }
+            })
         ]))
