@@ -26,6 +26,8 @@ export { useSessionChat } from './chat/useSessionChat';
 // File handling
 export { useFileUpload } from './file/useFileUpload';
 export { useFileSelection } from './file/useFileSelection';
+export { useFileStatusSSE } from './file/useFileStatusSSE';
+export { useFileUploadStatus } from './file/useFileUploadStatus';
 
 // Generation and job management
 export { useJobStatus } from './generation/useJobStatus';

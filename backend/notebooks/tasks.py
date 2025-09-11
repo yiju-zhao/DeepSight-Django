@@ -91,17 +91,29 @@ def _handle_ragflow_upload(kb_item: KnowledgeBaseItem) -> bool:
         return False
     
     try:
-        from .services.ragflow_service import RagFlowService
-        ragflow_service = RagFlowService()
+        from infrastructure.ragflow.client import get_ragflow_client
+        ragflow_client = get_ragflow_client()
         
-        # Upload to RagFlow
-        upload_result = ragflow_service.upload_knowledge_item_content(kb_item)
-        if not upload_result.get('success'):
-            logger.warning(f"Failed to upload KB item {kb_item.id} to RagFlow: {upload_result.get('error')}")
+        # Upload to RagFlow - we need the notebook's RagFlow dataset ID
+        if kb_item.notebook.ragflow_dataset_id:
+            upload_result = ragflow_client.upload_document(
+                dataset_id=kb_item.notebook.ragflow_dataset_id,
+                content=kb_item.content,
+                display_name=kb_item.title
+            )
+        else:
+            logger.warning(f"No RagFlow dataset ID found for notebook {kb_item.notebook.id}")
             return False
-        
-        logger.info(f"Successfully uploaded KB item {kb_item.id} to RagFlow: {upload_result.get('ragflow_document_id')}")
-        return True
+        if upload_result and upload_result.get('id'):
+            logger.info(f"Successfully uploaded KB item {kb_item.id} to RagFlow: {upload_result.get('id')}")
+            # Store the RagFlow document ID in the knowledge base item metadata
+            kb_item.metadata = kb_item.metadata or {}
+            kb_item.metadata['ragflow_document_id'] = upload_result.get('id')
+            kb_item.save(update_fields=['metadata'])
+            return True
+        else:
+            logger.warning(f"Failed to upload KB item {kb_item.id} to RagFlow")
+            return False
         
     except Exception as ragflow_error:
         logger.error(f"RagFlow upload error for KB item {kb_item.id}: {ragflow_error}")

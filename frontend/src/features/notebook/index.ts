@@ -26,6 +26,8 @@ export { default as Studio } from './components/studio/StudioPanel';
 // Hooks
 export { useFileUpload } from './hooks/file/useFileUpload';
 export { useFileSelection } from './hooks/file/useFileSelection';
+export { useFileStatusSSE } from './hooks/file/useFileStatusSSE';
+export { useFileUploadStatus } from './hooks/file/useFileUploadStatus';
 export { useSessionChat } from './hooks/chat/useSessionChat';
 
 // Services

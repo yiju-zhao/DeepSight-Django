@@ -16,7 +16,7 @@ interface FileStatusData {
   updated_at: string | null;
 }
 
-export const useFileStatus = (
+export const useFileStatusSSE = (
   fileId: string | null,
   notebookId: string,
   onComplete: (result: FileStatusData) => void,

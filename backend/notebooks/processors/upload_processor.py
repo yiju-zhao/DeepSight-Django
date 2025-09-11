@@ -75,7 +75,7 @@ def get_marker_imports():
 class UploadProcessor:
     """Handles immediate processing of uploaded files with MinIO storage only."""
 
-    def __init__(self, mineru_base_url: str = "http://10.218.163.144:8008"):
+    def __init__(self, mineru_base_url: str = "http://localhost:8008"):
         self.service_name = "upload_processor"
         self.logger = logging.getLogger(f"{__name__}.upload_processor")
 
