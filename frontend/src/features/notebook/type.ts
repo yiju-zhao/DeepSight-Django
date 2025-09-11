@@ -184,7 +184,7 @@ export interface Source {
   selected?: boolean;
   file?: string | File;
   upload_file_id?: string;
-  parsing_status?: 'pending' | 'processing' | 'in_progress' | 'completed' | 'failed' | 'error' | 'cancelled' | 'unsupported' | 'uploading';
+  parsing_status?: 'queueing' | 'parsing' | 'done' | 'failed' | 'error' | 'cancelled' | 'unsupported' | 'uploading';
   ext?: string;
   authors?: string;
   error_message?: string;

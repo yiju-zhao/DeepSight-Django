@@ -176,10 +176,10 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Get processing files for individual SSE tracking
   const processingFiles = useMemo(() => {
-    return sources.filter(source => 
-      source.file_id && 
-      source.parsing_status && 
-      ['queueing', 'parsing'].includes(source.parsing_status)
+    return sources.filter(source =>
+      source.file_id &&
+      source.parsing_status &&
+      ['uploading', 'queueing', 'parsing'].includes(source.parsing_status)
     );
   }, [sources]);
 
@@ -636,7 +636,9 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
 
   const renderFileStatus = (source: Source): React.ReactNode => {
-    const isProcessing = source.parsing_status && ['queueing', 'parsing'].includes(source.parsing_status);
+    const isProcessing =
+      source.parsing_status &&
+      ['queueing', 'pending', 'uploading', 'processing', 'parsing', 'in_progress'].includes(source.parsing_status);
     const isFailed = source.parsing_status === 'failed' || source.parsing_status === 'error';
     
     // Check if this is a file with images and caption generation status
@@ -647,21 +649,34 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     
     
     // Show caption generation status for completed files with images
-    const showCaptionStatus = source.parsing_status === 'done' && 
-                              hasImages && 
-                              captionGenerationStatus && 
-                              ['pending', 'in_progress'].includes(captionGenerationStatus);
+    const showCaptionStatus =
+      (source.parsing_status === 'done' || source.parsing_status === 'completed') &&
+      hasImages &&
+      captionGenerationStatus &&
+      ['pending', 'in_progress'].includes(captionGenerationStatus);
     
     if (isProcessing) {
       return (
         <div className="flex items-center space-x-1">
           <Loader2 className="h-3 w-3 text-red-600 animate-spin" />
           <span className="text-xs text-gray-500">
-            {source.parsing_status === 'queueing' ? 'Queued...' : 'Parsing...'}
+            {source.parsing_status === 'uploading'
+              ? 'Uploading...'
+              : source.parsing_status === 'pending'
+              ? 'Queued...'
+              : source.parsing_status === 'processing'
+              ? 'Processing...'
+              : source.parsing_status === 'in_progress'
+              ? 'Processing...'
+              : source.parsing_status === 'parsing'
+              ? 'Parsing...'
+              : source.parsing_status === 'queueing'
+              ? 'Queued...'
+              : 'Processing...'}
           </span>
-        </div>
-      );
-    }
+      </div>
+    );
+  }
     
     if (isFailed) {
       return (
@@ -751,7 +766,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   return (
     <div className={`h-full flex flex-col ${COLORS.panels.commonBackground} min-h-0`}>
-      {/* Header */}
+      {/* Header * /}
       <div className={`${PANEL_HEADERS.container} ${PANEL_HEADERS.separator} flex-shrink-0`}>
         <div className={PANEL_HEADERS.layout}>
           <div className={PANEL_HEADERS.titleContainer}>
@@ -826,7 +841,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         </div>
       </div>
 
-      {/* Add Source Button */}
+      {/* Add Source Button * /}
       <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-200 flex justify-center">
         <Button
           variant="default"
@@ -844,7 +859,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         </Button>
       </div>
 
-      {/* Error Display with unified styling */}
+      {/* Error Display with unified styling * /}
       <AnimatePresence>
         {(error || queryErrorMessage) && (
           <motion.div
@@ -871,7 +886,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         )}
       </AnimatePresence>
 
-      {/* Simple Selection Bar */}
+      {/* Simple Selection Bar * /}
       {sources.length > 0 && (
         <div className="flex-shrink-0 px-4 py-3 bg-gray-50 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -916,7 +931,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         </div>
       )}
 
-      {/* Main Content Area */}
+      {/* Main Content Area * /}
       <div className="flex-1 min-h-0 overflow-y-auto relative">
         {isGrouped ? (
           // Grouped rendering with unified styling
@@ -969,7 +984,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           </div>
         )}
         
-        {/* Empty/Loading States */}
+        {/* Empty/Loading States * /}
         {!isLoading && sources.length === 0 && (
           <div className="p-8 text-center">
             <div className="w-12 h-12 bg-white rounded-lg mx-auto mb-3 flex items-center justify-center">
@@ -988,7 +1003,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         )}
       </div>
 
-      {/* Individual file status trackers - hidden components that handle SSE for each processing file */}
+      {/* Individual file status trackers - hidden components that handle SSE for each processing file * /}
       {processingFiles.map(file => (
         <FileStatusTracker
           key={`status-tracker-${file.file_id}`}
@@ -1004,9 +1019,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 });
 
 export default SourcesList;
-
-
-/* Duplicate block commented out: retains only the first implementation above.
 const fileIcons: FileIcons = {
   pdf: FileIcon,
   txt: FileText,
@@ -1605,7 +1617,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 type: "parsed" as const,
                 createdAt: new Date().toISOString(),
                 upload_file_id: uploadFileId,
-                parsing_status: 'processing',
+                parsing_status: 'queueing',
                 metadata: {
                   filename: filename,
                   file_extension: `.${fileType}`
@@ -1642,7 +1654,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     
     
     // Show caption generation status for completed files with images
-    const showCaptionStatus = source.parsing_status === 'completed' && 
+    const showCaptionStatus = source.parsing_status === 'done' && 
                               hasImages && 
                               captionGenerationStatus && 
                               ['pending', 'in_progress'].includes(captionGenerationStatus);
@@ -1653,9 +1665,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           <Loader2 className="h-3 w-3 text-red-600 animate-spin" />
           <span className="text-xs text-gray-500">
             {source.parsing_status === 'uploading' ? 'Uploading...' : 
-             source.parsing_status === 'pending' ? 'Queued...' : 
-             source.parsing_status === 'processing' ? 'Processing...' :
-             source.parsing_status === 'in_progress' ? 'Processing...' :
+             source.parsing_status === 'queueing' ? 'Queued...' : 
              'Parsing...'}
           </span>
         </div>
