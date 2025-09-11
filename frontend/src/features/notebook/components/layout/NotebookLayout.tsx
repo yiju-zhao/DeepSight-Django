@@ -129,74 +129,47 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           }}
         >
           {/* Sources Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ 
-              opacity: 1, 
-              x: 0
-            }}
-            transition={{ duration: 0.3 }}
+          <div
             className={`${COLORS.panels.sources.background} backdrop-blur-sm ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} ${SHADOWS.panel.hover} transition-all duration-300 overflow-hidden min-h-0 relative`}
           >
-            <AnimatePresence mode="wait">
-              {!isSourcesCollapsed && !isStudioExpanded ? (
-                <motion.div
-                  key="sources-content"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20, transition: { duration: 0.15 } }}
-                  transition={{ duration: 0.15 }}
+            {!isSourcesCollapsed && !isStudioExpanded ? (
+              <div>
+                {React.cloneElement(sourcesPanel, {
+                  ...panelProps,
+                  ref: sourcesListRef,
+                  onToggleCollapse: () => setIsSourcesCollapsed(true),
+                  isCollapsed: isSourcesCollapsed,
+                  onSelectionChange: handleSelectionChange
+                })}
+              </div>
+            ) : (
+              <div className="h-full flex flex-col">
+                {/* Collapsed Header - Entire bar clickable with red highlight */}
+                <div 
+                  className="flex-shrink-0 py-4 bg-gray-100/95 backdrop-blur-sm flex items-center justify-center h-full w-full cursor-pointer hover:bg-red-50 transition-all duration-200 group"
+                  onClick={() => {
+                    if (isStudioExpanded) {
+                      setIsStudioExpanded(false);
+                    }
+                    setIsSourcesCollapsed(false);
+                  }}
+                  title={isStudioExpanded ? "Minimize Studio & Expand Sources Panel" : "Expand Sources Panel"}
                 >
-                  {React.cloneElement(sourcesPanel, {
-                    ...panelProps,
-                    ref: sourcesListRef,
-                    onToggleCollapse: () => setIsSourcesCollapsed(true),
-                    isCollapsed: isSourcesCollapsed,
-                    onSelectionChange: handleSelectionChange
-                  })}
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="collapsed-sources"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0, transition: { duration: 0.15 } }}
-                  transition={{ duration: 0.15 }}
-                  className="h-full flex flex-col"
-                >
-                  {/* Collapsed Header - Entire bar clickable with red highlight */}
-                  <div 
-                    className="flex-shrink-0 py-4 bg-gray-100/95 backdrop-blur-sm flex items-center justify-center h-full w-full cursor-pointer hover:bg-red-50 transition-all duration-200 group"
-                    onClick={() => {
-                      if (isStudioExpanded) {
-                        setIsStudioExpanded(false);
-                      }
-                      setIsSourcesCollapsed(false);
-                    }}
-                    title={isStudioExpanded ? "Minimize Studio & Expand Sources Panel" : "Expand Sources Panel"}
-                  >
-                    <Database className="h-4 w-4 text-gray-400 group-hover:text-red-600 transition-all duration-200" />
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+                  <Database className="h-4 w-4 text-gray-400 group-hover:text-red-600 transition-all duration-200" />
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Chat Panel */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.1 }}
+          <div
             className={`${COLORS.panels.chat.background} backdrop-blur-sm ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} ${SHADOWS.panel.hover} transition-all duration-300 overflow-hidden min-h-0`}
           >
             {React.cloneElement(chatPanel, panelProps)}
-          </motion.div>
+          </div>
 
           {/* Studio Panel */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
+          <div
             className={`${COLORS.panels.studio.background} backdrop-blur-sm ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} ${SHADOWS.panel.hover} transition-all duration-300 overflow-auto min-h-0`}
           >
             {React.cloneElement(studioPanel, {
@@ -204,7 +177,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
               onToggleExpand: handleStudioToggleExpand,
               isStudioExpanded: isStudioExpanded
             })}
-          </motion.div>
+          </div>
         </div>
       </main>
 

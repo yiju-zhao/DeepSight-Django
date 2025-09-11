@@ -926,77 +926,56 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       {/* Main Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto relative">
-        <AnimatePresence mode="wait">
-          {isGrouped ? (
-            // Grouped rendering with unified styling
-            <motion.div
-              key="grouped"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {Object.entries(processedSources as Record<string, Source[]>).map(([type, groupSources]: [string, Source[]]) => (
-                <motion.div 
-                  key={type}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
-                >
-                  <div className="px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-5 h-5 bg-gray-200 rounded-md flex items-center justify-center">
-                        {React.createElement(fileIcons[type] || FileIcon, {
-                          className: "h-3 w-3 text-gray-600"
-                        })}
-                      </div>
-                      <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
-                        {type.toUpperCase()}
-                      </h4>
-                      <Badge variant="outline" className="text-xs bg-white border-gray-300">
-                        {groupSources.length}
-                      </Badge>
+        {isGrouped ? (
+          // Grouped rendering with unified styling
+          <div>
+            {Object.entries(processedSources as Record<string, Source[]>).map(([type, groupSources]: [string, Source[]]) => (
+              <div key={type}>
+                <div className="px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-5 h-5 bg-gray-200 rounded-md flex items-center justify-center">
+                      {React.createElement(fileIcons[type] || FileIcon, {
+                        className: "h-3 w-3 text-gray-600"
+                      })}
                     </div>
+                    <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                      {type.toUpperCase()}
+                    </h4>
+                    <Badge variant="outline" className="text-xs bg-white border-gray-300">
+                      {groupSources.length}
+                    </Badge>
                   </div>
-                  {groupSources.map((source: Source) => (
-                    <SourceItem
-                      key={`source-${source.id}-${source.file_id || source.upload_file_id}`}
-                      source={source}
-                      onToggle={() => toggleSource(source.id)}
-                      onPreview={() => handlePreviewFile(source)}
-                      getSourceTooltip={getSourceTooltip}
-                      getPrincipleFileIcon={getPrincipleFileIcon}
-                      renderFileStatus={renderFileStatus}
-                    />
-                  ))}
-                </motion.div>
-              ))}
-            </motion.div>
-          ) : (
-            // Ungrouped rendering with unified styling
-            <motion.div
-              key="ungrouped"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              {(processedSources as Source[]).map((source: Source) => (
-                <SourceItem
-                  key={`source-${source.id}-${source.file_id || source.upload_file_id}`}
-                  source={source}
-                  onToggle={() => toggleSource(source.id)}
-                  onPreview={() => handlePreviewFile(source)}
-                  getSourceTooltip={getSourceTooltip}
-                  getPrincipleFileIcon={getPrincipleFileIcon}
-                  renderFileStatus={renderFileStatus}
-                />
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                </div>
+                {groupSources.map((source: Source) => (
+                  <SourceItem
+                    key={`source-${source.id}-${source.file_id || source.upload_file_id}`}
+                    source={source}
+                    onToggle={() => toggleSource(source.id)}
+                    onPreview={() => handlePreviewFile(source)}
+                    getSourceTooltip={getSourceTooltip}
+                    getPrincipleFileIcon={getPrincipleFileIcon}
+                    renderFileStatus={renderFileStatus}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : (
+          // Ungrouped rendering with unified styling
+          <div>
+            {(processedSources as Source[]).map((source: Source) => (
+              <SourceItem
+                key={`source-${source.id}-${source.file_id || source.upload_file_id}`}
+                source={source}
+                onToggle={() => toggleSource(source.id)}
+                onPreview={() => handlePreviewFile(source)}
+                getSourceTooltip={getSourceTooltip}
+                getPrincipleFileIcon={getPrincipleFileIcon}
+                renderFileStatus={renderFileStatus}
+              />
+            ))}
+          </div>
+        )}
         
         {/* Empty/Loading States */}
         {!isLoading && sources.length === 0 && (
