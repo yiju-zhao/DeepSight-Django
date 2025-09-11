@@ -109,16 +109,21 @@ class NotebookListSerializer(serializers.ModelSerializer):
     Used in list views where full detail is not needed for performance.
     """
     
-    item_count = serializers.SerializerMethodField()
+    source_count = serializers.SerializerMethodField()
+    knowledge_item_count = serializers.SerializerMethodField()
     
     class Meta:
         model = Notebook
-        fields = ["id", "name", "description", "created_at", "item_count"]
-        read_only_fields = ["id", "created_at", "item_count"]
+        fields = ["id", "name", "description", "created_at", "updated_at", "source_count", "knowledge_item_count"]
+        read_only_fields = ["id", "created_at", "updated_at", "source_count", "knowledge_item_count"]
     
-    def get_item_count(self, obj):
-        """Get total count of items in the notebook."""
+    def get_source_count(self, obj):
+        """Get total count of sources in the notebook."""
         return obj.knowledge_base_items.count()
+    
+    def get_knowledge_item_count(self, obj):
+        """Get count of processed items in the notebook."""
+        return obj.knowledge_base_items.filter(parsing_status='done').count()
 
 
 class NotebookCreateSerializer(serializers.ModelSerializer):
