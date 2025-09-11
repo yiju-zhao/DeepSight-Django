@@ -222,6 +222,8 @@ OPENAI_PROJECT = os.getenv('OPENAI_PROJECT')
 MINIMAX_GROUP_ID = os.getenv('MINIMAX_GROUP_ID')
 MINIMAX_API_KEY = os.getenv('MINIMAX_API_KEY')
 
+MINERU_BASE_URL = os.getenv("MINERU_BASE_URL")
+
 # Create logs directory if it doesn't exist
 LOGS_DIR = BASE_DIR / 'logs'
 LOGS_DIR.mkdir(exist_ok=True)

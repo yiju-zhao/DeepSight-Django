@@ -2,31 +2,47 @@
 Processors package for the notebooks module.
 
 This package contains all processing logic for different types of content:
-- file_processors.py: New file type specific processors
-  
 - media_processors.py: Media processing utilities
-- upload_processor.py: Legacy upload processor (moved from utils)
-- url_extractor.py: Legacy URL extractor (moved from utils)
+- upload_processor.py: Main upload processor with comprehensive file handling
+- url_extractor.py: URL extractor (moved from utils)
 """
 
-# New focused processors
-from .file_processors import FileProcessor
+# Media processors
 from .media_processors import MediaProcessor
 
-# Legacy processors (moved from utils)
+# Main upload processor (refactored and cleaned)
 try:
     from .upload_processor import UploadProcessor
 except ImportError:
     UploadProcessor = None
 
+# Supporting service modules
+try:
+    from .file_type_processors import FileTypeProcessors
+    from .device_manager import DeviceManager
+    from .transcription_service import TranscriptionService
+    from .caption_service import CaptionService
+    from .minio_post_processor import MinIOPostProcessor
+except ImportError:
+    FileTypeProcessors = None
+    DeviceManager = None
+    TranscriptionService = None
+    CaptionService = None
+    MinIOPostProcessor = None
+
+# Legacy processors (moved from utils)
 try:
     from .url_extractor import URLExtractor
 except ImportError:
     URLExtractor = None
 
 __all__ = [
-    'FileProcessor',
     'MediaProcessor',
     'UploadProcessor',
+    'FileTypeProcessors',
+    'DeviceManager', 
+    'TranscriptionService',
+    'CaptionService',
+    'MinIOPostProcessor',
     'URLExtractor'
 ] 

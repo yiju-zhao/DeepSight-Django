@@ -12,7 +12,6 @@ from rest_framework import status
 
 from ..models import KnowledgeBaseItem, BatchJob, BatchJobItem
 from ..processors.upload_processor import UploadProcessor
-from ..processors import FileProcessor
 from core.services import NotebookBaseService
 
 logger = logging.getLogger(__name__)
@@ -23,9 +22,7 @@ class FileService(NotebookBaseService):
     
     def __init__(self):
         super().__init__()
-        # Use new focused file processor
-        self.file_processor = FileProcessor()
-        # Keep original upload processor for full pipeline
+        # Use upload processor for all file processing
         self.upload_processor = UploadProcessor()
     
     def perform_action(self, **kwargs):
@@ -211,7 +208,7 @@ class FileService(NotebookBaseService):
         Returns:
             Processing result dictionary
         """
-        return async_to_sync(self.file_processor.process_file_by_type)(file_path, file_metadata)
+        return async_to_sync(self.upload_processor._process_file_by_type)(file_path, file_metadata)
 
     def validate_file_upload(self, serializer) -> tuple:
         """
