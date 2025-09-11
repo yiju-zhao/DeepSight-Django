@@ -50,8 +50,8 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     closeTab,
   } = useSessionChat(notebookId);
 
-  // Get parsed files to check availability
-  const { data: parsedFilesData } = useParsedFiles(notebookId, { limit: 1 });
+  // Get parsed files to check availability (reuse the main query from SourcesList)
+  const { data: parsedFilesData } = useParsedFiles(notebookId);
 
   // Check if files are available for chat
   const hasFiles = React.useMemo(() => {
