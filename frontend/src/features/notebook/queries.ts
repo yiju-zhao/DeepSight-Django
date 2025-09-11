@@ -36,11 +36,12 @@ export const notebookQueries = {
 };
 
 // Notebook Queries
-export const useNotebooks = (params?: GetNotebooksParams) => {
+export const useNotebooks = (params?: GetNotebooksParams, enabled: boolean = true) => {
   return useQuery({
     queryKey: notebookQueries.list(params),
     queryFn: () => notebooksApi.getAll(params),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled,
+    staleTime: 0, // Disable stale time temporarily to force refetch
     gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
   });
 };

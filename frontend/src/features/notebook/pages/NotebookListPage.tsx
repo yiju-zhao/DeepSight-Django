@@ -23,7 +23,7 @@ export default function NotebookListPage() {
   // Map UI sort order to API ordering parameter
   const ordering = sortOrder === 'recent' ? '-created_at' : 'created_at';
 
-  const { data: notebooksResponse, isLoading: loading, error: listError } = useNotebooks({ ordering });
+  const { data: notebooksResponse, isLoading: loading, error: listError } = useNotebooks({ ordering }, isAuthenticated && authChecked);
   const createMutation = useCreateNotebook();
   const deleteMutation = useDeleteNotebook();
 
