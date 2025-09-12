@@ -26,6 +26,7 @@ dspy_ai==2.4.9
 crewai
 crewai-tools
 litellm
+faster-whisper
 
 # Search and Retrieval
 tavily-python
@@ -38,10 +39,10 @@ duckduckgo_search
 ragflow-sdk
 
 # Document Processing
-PyPDF2
-PyMuPDF1
-trafilatura
-marker-pdf==1.7.5
+PyPDF
+PyMuPDF
+# trafilatura
+# marker-pdf==1.7.5
 python-magic
 
 # Image Processing

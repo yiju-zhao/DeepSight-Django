@@ -792,7 +792,7 @@ class FileViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-    @action(detail=True, methods=['get'], url_path='status/stream')
+    @action(detail=True, methods=['get', 'options'], url_path='status/stream', renderer_classes=[])
     def status_stream(self, request, notebook_pk=None, pk=None):
         """
         Get streaming file processing status updates.
@@ -803,6 +803,14 @@ class FileViewSet(viewsets.ModelViewSet):
         import json
         import time
         
+        # Handle CORS preflight requests
+        if request.method == 'OPTIONS':
+            response = HttpResponse()
+            response['Access-Control-Allow-Origin'] = '*'
+            response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
+            response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            return response
+        
         def generate_status_stream():
             try:
                 file_item = self.get_object()
@@ -811,9 +819,9 @@ class FileViewSet(viewsets.ModelViewSet):
                 for _ in range(60):  # Max 60 iterations (5 minutes)
                     file_item.refresh_from_db()
                     
-                    status_data = {
-                        "id": str(file_item.id),
-                        "status": file_item.processing_status,
+                    file_status_data = {
+                        "file_id": str(file_item.id),
+                        "status": "done" if file_item.processing_status == "completed" else file_item.processing_status,
                         "title": file_item.title,
                         "content_type": file_item.content_type,
                         "created_at": file_item.created_at.isoformat(),
@@ -822,17 +830,28 @@ class FileViewSet(viewsets.ModelViewSet):
                         "metadata": file_item.metadata or {}
                     }
                     
-                    yield f"data: {json.dumps(status_data)}\n\n"
+                    sse_message = {
+                        "type": "file_status",
+                        "data": file_status_data
+                    }
+                    
+                    yield f"data: {json.dumps(sse_message)}\n\n"
                     
                     # Stop streaming if processing is complete or failed
                     if file_item.processing_status in ['completed', 'failed', 'error']:
+                        # Send close message
+                        close_message = {"type": "close"}
+                        yield f"data: {json.dumps(close_message)}\n\n"
                         break
                         
                     time.sleep(5)  # Wait 5 seconds between updates
                     
             except Exception as e:
-                error_data = {"error": "Failed to stream status", "details": str(e)}
-                yield f"data: {json.dumps(error_data)}\n\n"
+                error_message = {
+                    "type": "error",
+                    "message": f"Failed to stream status: {str(e)}"
+                }
+                yield f"data: {json.dumps(error_message)}\n\n"
         
         try:
             response = StreamingHttpResponse(
@@ -841,6 +860,9 @@ class FileViewSet(viewsets.ModelViewSet):
             )
             response['Cache-Control'] = 'no-cache'
             response['Connection'] = 'keep-alive'
+            response['Access-Control-Allow-Origin'] = '*'
+            response['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+            response['Access-Control-Allow-Methods'] = 'GET, OPTIONS'
             return response
             
         except Exception as e:
