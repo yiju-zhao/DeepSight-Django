@@ -18,6 +18,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.core.exceptions import ValidationError
 
 from rest_framework import viewsets, permissions, status, filters, authentication, serializers
 from rest_framework.decorators import action
@@ -402,7 +403,23 @@ class FileStatusSSEView(View):
     def get(self, request, notebook_id: str, file_id: str):
         try:
             notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_id)
-            file_item = get_object_or_404(KnowledgeBaseItem.objects.filter(notebook=notebook), pk=file_id)
+            
+            # Handle both upload IDs and UUID file IDs
+            import re
+            is_uuid = re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', file_id, re.IGNORECASE)
+            
+            if is_uuid:
+                # It's a UUID, look up by primary key
+                file_item = get_object_or_404(KnowledgeBaseItem.objects.filter(notebook=notebook), pk=file_id)
+            else:
+                # It's an upload ID, look up by title or create a placeholder response
+                try:
+                    file_item = KnowledgeBaseItem.objects.filter(notebook=notebook, title__icontains=file_id).first()
+                    if not file_item:
+                        # Return a "not found yet" SSE stream for upload IDs that haven't been processed
+                        return self._generate_upload_pending_stream(file_id)
+                except Exception:
+                    return self._generate_upload_pending_stream(file_id)
 
             response = StreamingHttpResponse(
                 self.generate_file_status_stream(file_item), content_type="text/event-stream"
@@ -466,6 +483,23 @@ class FileStatusSSEView(View):
             "processing_status": file_item.processing_status,
             "metadata": file_item.metadata or {},
         }
+
+    def _generate_upload_pending_stream(self, upload_id: str):
+        """Generate SSE stream for upload IDs that haven't been processed yet"""
+        def generate_pending_stream():
+            # Send a few "processing" messages then close
+            for i in range(3):
+                yield f"data: {json.dumps({'type': 'file_status', 'data': {'file_id': upload_id, 'status': 'processing', 'title': f'Upload {upload_id}', 'updated_at': None}})}\n\n"
+                time.sleep(1)
+            # Send close message
+            yield f"data: {json.dumps({'type': 'close', 'message': 'Upload not found'})}\n\n"
+        
+        response = StreamingHttpResponse(generate_pending_stream(), content_type="text/event-stream")
+        response["Cache-Control"] = "no-cache"
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
+        response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        return response
 
 
 class NotebookFilesSSEView(View):

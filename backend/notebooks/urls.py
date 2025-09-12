@@ -43,7 +43,7 @@ urlpatterns = [
 
     # SSE endpoints
     path(
-        'notebooks/<uuid:notebook_id>/files/<uuid:file_id>/status/stream/',
+        'notebooks/<uuid:notebook_id>/files/<str:file_id>/status/stream/',
         FileStatusSSEView.as_view(),
         name='file-status-stream',
     ),
