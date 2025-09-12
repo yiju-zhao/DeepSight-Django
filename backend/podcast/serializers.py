@@ -66,6 +66,30 @@ class NotebookPodcastCreateSerializer(serializers.Serializer):
         return value
 
 
+class PodcastCreateSerializer(serializers.Serializer):
+    """Canonical create serializer: accepts notebook id in payload."""
+    notebook = serializers.UUIDField(help_text="Notebook ID associated with this job")
+    source_file_ids = serializers.ListField(
+        child=serializers.CharField(),
+        help_text="List of source file IDs from the notebook to generate podcast from",
+    )
+    title = serializers.CharField(
+        max_length=200,
+        default="Generated Podcast",
+        help_text="Title for the generated podcast",
+    )
+    description = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        help_text="Description for the generated podcast",
+    )
+
+    def validate_source_file_ids(self, value):
+        if not value:
+            raise serializers.ValidationError("At least one source file ID is required")
+        return value
+
+
 class PodcastListSerializer(serializers.ModelSerializer):
     job_id = serializers.UUIDField(source='id', read_only=True)
     audio_url = serializers.SerializerMethodField()

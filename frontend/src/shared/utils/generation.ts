@@ -266,8 +266,8 @@ export const createFormData = (config: any): FormData => {
 export const downloadFile = async (fileId: string, filename: string, notebookId: string, type: 'report' | 'podcast'): Promise<void> => {
   try {
     const endpoint = type === 'report'
-      ? `/notebooks/${notebookId}/report-jobs/${fileId}/download/`
-      : `/notebooks/${notebookId}/podcast-jobs/${fileId}/download/`;
+      ? `/reports/jobs/${fileId}/download/`
+      : `/podcasts/jobs/${fileId}/download/`;
     
     const blob = await new ApiClient().downloadFile(endpoint);
     const url = window.URL.createObjectURL(blob);

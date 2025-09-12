@@ -18,7 +18,7 @@ class StudioService {
 
   async getAvailableModels(): Promise<{ providers: string[]; retrievers: string[]; time_ranges: string[]; }> {
     try {
-      const response = await httpClient.get('/notebooks/reports/models/');
+      const response = await httpClient.get('/reports/models/');
       return {
         providers: response.model_providers || ['openai', 'google'],
         retrievers: response.retrievers || ['tavily', 'brave', 'serper', 'you', 'bing', 'duckduckgo', 'searxng'],
@@ -39,7 +39,7 @@ class StudioService {
       throw new Error('notebookId is required for report generation');
     }
     
-    return httpClient.post(`/notebooks/${notebookId}/report-jobs/`, config);
+    return httpClient.post(`/reports/jobs/`, { ...config, notebook: notebookId });
   }
 
   async generateReportWithSourceIds(requestData: any, notebookId: string): Promise<any> {
@@ -47,22 +47,22 @@ class StudioService {
       throw new Error('notebookId is required for report generation');
     }
     
-    return httpClient.post(`/notebooks/${notebookId}/report-jobs/`, requestData);
+    return httpClient.post(`/reports/jobs/`, { ...requestData, notebook: notebookId });
   }
 
   async listReportJobs(notebookId: string): Promise<{ jobs: any[]; }> {
-    const response = await httpClient.get(`/notebooks/${notebookId}/report-jobs/`);
+    const response = await httpClient.get(`/reports/jobs/?notebook=${encodeURIComponent(notebookId)}`);
     return { 
       jobs: response.reports || response.jobs || response || []
     };
   }
 
   async getReportContent(jobId: string, notebookId: string): Promise<any> {
-    return httpClient.get(`/notebooks/${notebookId}/report-jobs/${jobId}/content/`);
+    return httpClient.get(`/reports/jobs/${jobId}/content/`);
   }
 
   async getReportStatus(jobId: string, notebookId: string): Promise<any> {
-    return httpClient.get(`/notebooks/${notebookId}/report-jobs/${jobId}/`);
+    return httpClient.get(`/reports/jobs/${jobId}/`);
   }
 
   async listReportFiles(jobId: string, notebookId: string): Promise<any> {
@@ -70,7 +70,7 @@ class StudioService {
       throw new Error('notebookId is required for listing report files');
     }
     
-    return httpClient.get(`/notebooks/${notebookId}/report-jobs/${jobId}/files/`);
+    return httpClient.get(`/reports/jobs/${jobId}/files/`);
   }
 
   async downloadReportFile(jobId: string, notebookId: string, filename: string | null = null): Promise<Blob> {
@@ -82,7 +82,7 @@ class StudioService {
       throw new Error('jobId is required for downloading report files');
     }
     
-    let url = `/notebooks/${notebookId}/report-jobs/${jobId}/download/`;
+    let url = `/reports/jobs/${jobId}/download/`;
     if (filename) {
       url += `?filename=${encodeURIComponent(filename)}`;
     }
@@ -151,7 +151,7 @@ class StudioService {
       throw new Error('notebookId is required for downloading report PDF');
     }
     
-    const url = `/notebooks/${notebookId}/report-jobs/${jobId}/download-pdf/`;
+    const url = `/reports/jobs/${jobId}/download-pdf/`;
     
     const response = await fetch(`${httpClient.baseUrl}${url}`, {
       method: 'GET',
@@ -197,7 +197,7 @@ class StudioService {
       throw new Error('notebookId is required for cancelling report jobs');
     }
     
-    return httpClient.post(`/notebooks/${notebookId}/report-jobs/${jobId}/cancel/`);
+    return httpClient.post(`/reports/jobs/${jobId}/cancel/`);
   }
 
   async deleteReport(jobId: string, notebookId: string): Promise<any> {
@@ -205,7 +205,7 @@ class StudioService {
       throw new Error('notebookId is required for deleting report');
     }
     
-    return httpClient.delete(`/notebooks/${notebookId}/report-jobs/${jobId}/`);
+    return httpClient.delete(`/reports/jobs/${jobId}/`);
   }
 
   async updateReport(jobId: string, notebookId: string, content: string): Promise<any> {
@@ -217,7 +217,7 @@ class StudioService {
       throw new Error('content is required for updating report');
     }
     
-    return httpClient.put(`/notebooks/${notebookId}/report-jobs/${jobId}/`, { content });
+    return httpClient.put(`/reports/jobs/${jobId}/`, { content });
   }
 
   async getReportJobStatus(jobId: string, notebookId: string): Promise<any> {
@@ -225,7 +225,7 @@ class StudioService {
       throw new Error('notebookId is required for getting report job status');
     }
     
-    return httpClient.get(`/notebooks/${notebookId}/report-jobs/${jobId}/`);
+    return httpClient.get(`/reports/jobs/${jobId}/`);
   }
 
   getReportJobStatusStreamUrl(jobId: string, notebookId: string): string {
@@ -233,7 +233,7 @@ class StudioService {
       throw new Error('notebookId is required for report job status stream');
     }
     
-    return `${httpClient.baseUrl}/notebooks/${notebookId}/report-jobs/${jobId}/stream/`;
+    return `${httpClient.baseUrl}/reports/jobs/${jobId}/stream/`;
   }
 
   // ─── PODCASTS ────────────────────────────────────────────────────────────
@@ -243,7 +243,9 @@ class StudioService {
       throw new Error('notebookId is required for podcast generation');
     }
     
-    return httpClient.post(`/notebooks/${notebookId}/podcast-jobs/`, formData);
+    // Send notebook id in body for canonical endpoint
+    formData.append('notebook', notebookId);
+    return httpClient.post(`/podcasts/jobs/`, formData);
   }
 
   async listPodcastJobs(notebookId: string): Promise<{ jobs: any[]; }> {
@@ -251,7 +253,7 @@ class StudioService {
       throw new Error('notebookId is required for listing podcast jobs');
     }
     
-    const response = await httpClient.get(`/notebooks/${notebookId}/podcast-jobs/`);
+    const response = await httpClient.get(`/podcasts/jobs/?notebook=${encodeURIComponent(notebookId)}`);
     return { 
       jobs: response.results || response || []
     };
@@ -262,7 +264,7 @@ class StudioService {
       throw new Error('notebookId is required for cancelling podcast jobs');
     }
     
-    return httpClient.post(`/notebooks/${notebookId}/podcast-jobs/${jobId}/cancel/`);
+    return httpClient.post(`/podcasts/jobs/${jobId}/cancel/`);
   }
 
   async getPodcastJobStatus(jobId: string, notebookId: string): Promise<any> {
@@ -270,7 +272,7 @@ class StudioService {
       throw new Error('notebookId is required for getting podcast job status');
     }
     
-    return httpClient.get(`/notebooks/${notebookId}/podcast-jobs/${jobId}/`);
+    return httpClient.get(`/podcasts/jobs/${jobId}/`);
   }
 
   async downloadPodcastAudio(jobId: string, notebookId: string): Promise<Blob> {
@@ -278,7 +280,7 @@ class StudioService {
       throw new Error('notebookId is required for downloading podcast audio');
     }
     
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/podcast-jobs/${jobId}/audio/`, {
+    const response = await fetch(`${httpClient.baseUrl}/podcasts/jobs/${jobId}/audio/`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -316,7 +318,7 @@ class StudioService {
       throw new Error('notebookId is required for deleting podcast');
     }
     
-    return httpClient.delete(`/notebooks/${notebookId}/podcast-jobs/${jobId}/`);
+    return httpClient.delete(`/podcasts/jobs/${jobId}/`);
   }
 
   getPodcastJobStatusStreamUrl(jobId: string, notebookId: string): string {
@@ -324,7 +326,7 @@ class StudioService {
       throw new Error('notebookId is required for podcast job status stream');
     }
     
-    return `${httpClient.baseUrl}/notebooks/${notebookId}/podcast-jobs/${jobId}/stream/`;
+    return `${httpClient.baseUrl}/podcasts/jobs/${jobId}/stream/`;
   }
 }
 

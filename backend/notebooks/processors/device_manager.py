@@ -97,16 +97,3 @@ class DeviceManager:
             os.environ["TORCH_DEVICE"] = "cpu"
             self.log_operation("cpu_device_setup", "Configured environment for CPU processing")
 
-    def get_whisper_device(self) -> str:
-        """
-        Detect and return the appropriate device for Whisper model inference.
-        Note: faster-whisper only supports CUDA and CPU, not MPS.
-        """
-        try:
-            import torch
-            if torch.cuda.is_available():
-                return "cuda"
-            # Skip MPS for faster-whisper as it's not supported
-        except ImportError:
-            pass
-        return "cpu"

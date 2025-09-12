@@ -61,8 +61,11 @@ class UploadProcessor:
         self.file_type_processors = None  # Lazy initialization
         self.minio_post_processor = None  # Lazy initialization
 
-        # Initialize whisper model lazily
-        self._whisper_model = None
+        # Initialize Xinference settings
+        self.xinference_url = os.getenv('XINFERENCE_URL', 'http://localhost:9997')
+        self.model_uid = os.getenv('XINFERENCE_WHISPER_MODEL_UID', 'whisper-large-v3-turbo')
+        self._xinference_client = None
+        self._xinference_model = None
         
         # MinerU API configuration - use Django settings if available
         if mineru_base_url is None:
@@ -91,7 +94,8 @@ class UploadProcessor:
         if self.file_type_processors is None:
             self.file_type_processors = FileTypeProcessors(
                 mineru_base_url=self.mineru_base_url,
-                whisper_model=self.whisper_model,
+                xinference_url=self.xinference_url,
+                model_uid=self.model_uid,
                 logger=self.logger
             )
         return self.file_type_processors
@@ -119,36 +123,32 @@ class UploadProcessor:
         return processor.check_mineru_health()
 
     
-    @property
-    def whisper_model(self):
-        """Lazy load faster-whisper model."""
-        if self._whisper_model is None:
+    def _get_xinference_client(self):
+        """Get or create Xinference client."""
+        if not self._xinference_client:
             try:
-                # Suppress known semaphore tracker warnings on macOS
-                import sys
-                import warnings
-                if sys.platform == "darwin":  # macOS
-                    warnings.filterwarnings("ignore", message=".*semaphore_tracker.*", category=UserWarning)
-                
-                import torch
-                from faster_whisper import WhisperModel, BatchedInferencePipeline
-                
-                device = self.device_manager.get_whisper_device()
-                compute_type = "float16" if device == "cuda" else "int8"  # Use int8 for CPU to save memory
-                
-                self.log_operation("faster_whisper_device_selected", f"Selected device: {device} (faster-whisper only supports CUDA and CPU)")
-                
-                self._whisper_model = WhisperModel("large-v3-turbo", device=device, compute_type=compute_type)
-                # Create batched model for better performance
-                self._batched_model = BatchedInferencePipeline(model=self._whisper_model)
-                
-                self.log_operation("faster_whisper_model_loaded", f"Loaded faster-whisper model on {device} with {compute_type} precision")
-                
-            except ImportError as e:
-                self.log_operation("faster_whisper_import_error", f"faster-whisper not available: {e}", "warning")
-                self._whisper_model = None
-                self._batched_model = None
-        return getattr(self, '_batched_model', None)
+                from xinference.client import Client
+                self._xinference_client = Client(self.xinference_url)
+                self.log_operation("xinference_client_connected", f"Connected to Xinference at {self.xinference_url}")
+            except Exception as e:
+                self.log_operation("xinference_client_error", f"Failed to connect to Xinference: {e}", "error")
+                self._xinference_client = False
+        return self._xinference_client
+    
+    def _get_xinference_model(self):
+        """Get or create Xinference model."""
+        if not self._xinference_model:
+            try:
+                client = self._get_xinference_client()
+                if client:
+                    self._xinference_model = client.get_model(self.model_uid)
+                    self.log_operation("xinference_model_loaded", f"Loaded Xinference model {self.model_uid}")
+                else:
+                    self._xinference_model = False
+            except Exception as e:
+                self.log_operation("xinference_model_error", f"Failed to load Xinference model: {e}", "error")
+                self._xinference_model = False
+        return self._xinference_model
 
     def get_upload_status(
         self, upload_file_id: str, user_pk: int = None

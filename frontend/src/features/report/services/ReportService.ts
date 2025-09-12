@@ -34,11 +34,9 @@ export class ReportService implements IReportService {
 
   async getReports(filters?: ReportFilters): Promise<Report[]> {
     try {
-      let endpoint = '/reports/';
-      
-      // If notebookId is provided, get reports for that notebook
+      let endpoint = '/reports/jobs/';
       if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/report-jobs/`;
+        endpoint = `/reports/jobs/?notebook=${encodeURIComponent(this.notebookId)}`;
       }
 
       // Add query parameters for filters
@@ -69,11 +67,7 @@ export class ReportService implements IReportService {
 
   async getReport(id: string): Promise<Report> {
     try {
-      let endpoint = `/reports/${id}/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/report-jobs/${id}/`;
-      }
+      const endpoint = `/reports/jobs/${id}/`;
 
       const response = await this.api.get(endpoint);
       return response;
@@ -85,11 +79,7 @@ export class ReportService implements IReportService {
 
   async getReportContent(id: string): Promise<ReportContent> {
     try {
-      let endpoint = `/reports/${id}/content/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/report-jobs/${id}/content/`;
-      }
+      const endpoint = `/reports/jobs/${id}/content/`;
 
       const response = await this.api.get(endpoint);
       return response;
@@ -101,14 +91,9 @@ export class ReportService implements IReportService {
 
   async generateReport(config: ReportGenerationRequest): Promise<ReportGenerationResponse> {
     try {
-      let endpoint = '/reports/';
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/report-jobs/`;
-        config.notebook_id = this.notebookId;
-      }
-
-      const response = await this.api.post(endpoint, config);
+      const endpoint = '/reports/jobs/';
+      const payload = this.notebookId ? { ...config, notebook: this.notebookId } : config;
+      const response = await this.api.post(endpoint, payload);
       return response;
     } catch (error) {
       console.error('Failed to generate report:', error);
@@ -118,12 +103,7 @@ export class ReportService implements IReportService {
 
   async cancelReport(id: string): Promise<void> {
     try {
-      let endpoint = `/reports/${id}/cancel/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/report-jobs/${id}/cancel/`;
-      }
-
+      const endpoint = `/reports/jobs/${id}/cancel/`;
       await this.api.post(endpoint);
     } catch (error) {
       console.error('Failed to cancel report:', error);
@@ -133,12 +113,7 @@ export class ReportService implements IReportService {
 
   async deleteReport(id: string): Promise<void> {
     try {
-      let endpoint = `/reports/${id}/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/report-jobs/${id}/`;
-      }
-
+      const endpoint = `/reports/jobs/${id}/`;
       await this.api.delete(endpoint);
     } catch (error) {
       console.error('Failed to delete report:', error);
@@ -148,11 +123,7 @@ export class ReportService implements IReportService {
 
   async downloadReport(id: string, filename?: string): Promise<void> {
     try {
-      let endpoint = `/reports/${id}/download/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/report-jobs/${id}/download/`;
-      }
+      const endpoint = `/reports/jobs/${id}/download/`;
 
       const blob = await this.api.downloadFile(endpoint);
       const url = window.URL.createObjectURL(blob);

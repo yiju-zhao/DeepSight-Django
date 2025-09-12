@@ -179,6 +179,9 @@ class ReportCreateSerializer(serializers.ModelSerializer):
 class ReportGenerationRequestSerializer(serializers.Serializer):
     """Serializer for report generation requests (similar to FastAPI model)."""
 
+    # Canonical create support: accept notebook id in payload (validated in view)
+    notebook = serializers.UUIDField(required=False, allow_null=True)
+
     # Basic settings
     topic = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=500)
     article_title = serializers.CharField(required=False, allow_blank=True, max_length=255, default="Research Report")

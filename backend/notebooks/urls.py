@@ -1,53 +1,62 @@
-# notebooks/urls.py
+"""
+Notebooks App URL Configuration (canonical).
+
+Exposes notebook endpoints under `/api/v1/` via the project router inclusion.
+This module wires DRF routers and extra endpoints directly to avoid nested
+`api/` subpackages.
+"""
 
 from django.urls import path, include
-from django.views.decorators.csrf import csrf_exempt
+from rest_framework.routers import DefaultRouter
+from rest_framework_nested import routers
 
-# Import views from podcast and reports apps
-from podcast import views as podcast_views
-from reports import views as report_views
+# Import ViewSets from notebooks.views package
+from .views import (
+    NotebookViewSet,
+    FileViewSet,
+    KnowledgeBaseViewSet,
+    BatchJobViewSet,
+    SessionChatViewSet,
+    SessionAgentInfoView,
+    FileStatusSSEView,
+    NotebookFilesSSEView,
+)
+
+# App namespace
+app_name = 'notebooks'
+
+# Routers
+router = DefaultRouter()
+router.register(r'notebooks', NotebookViewSet, basename='notebook')
+
+notebooks_router = routers.NestedDefaultRouter(router, r'notebooks', lookup='notebook')
+notebooks_router.register(r'files', FileViewSet, basename='notebook-files')
+notebooks_router.register(r'chat/sessions', SessionChatViewSet, basename='notebook-chat-sessions')
+notebooks_router.register(r'knowledge', KnowledgeBaseViewSet, basename='notebook-knowledge')
+notebooks_router.register(r'batches', BatchJobViewSet, basename='notebook-batches')
 
 urlpatterns = [
-    # API v1 - Primary API endpoints (new structure)
-    path("", include("notebooks.api.v1.urls")),
+    # Main router URLs - /api/v1/notebooks/
+    path('', include(router.urls)),
+    # Nested URLs - /api/v1/notebooks/{id}/...
+    path('', include(notebooks_router.urls)),
 
-    # ===============================
-    # PODCAST ENDPOINTS
-    # ===============================
-    path("<uuid:notebook_id>/podcast-jobs/", podcast_views.NotebookPodcastListCreateView.as_view(), name="notebook-podcast-jobs"),
-    path("<uuid:notebook_id>/podcast-jobs/<str:job_id>/", podcast_views.NotebookPodcastDetailView.as_view(), name="notebook-podcast-job-detail"),
-    path("<uuid:notebook_id>/podcast-jobs/<str:job_id>/cancel/", podcast_views.NotebookPodcastCancelView.as_view(), name="notebook-podcast-job-cancel"),
-    path("<uuid:notebook_id>/podcast-jobs/<str:job_id>/audio/", podcast_views.NotebookPodcastAudioView.as_view(), name="notebook-podcast-job-audio"),
-    path("<uuid:notebook_id>/podcast-jobs/<str:job_id>/download/", podcast_views.NotebookPodcastDownloadView.as_view(), name="notebook-podcast-job-download"),
-    
-    # Stream endpoint for podcast job status updates
+    # SSE endpoints
     path(
-        "<uuid:notebook_id>/podcast-jobs/<str:job_id>/stream/",
-        csrf_exempt(podcast_views.notebook_job_status_stream),
-        name="notebook-podcast-job-status-stream",
+        'notebooks/<uuid:notebook_id>/files/<uuid:file_id>/status/stream/',
+        FileStatusSSEView.as_view(),
+        name='file-status-stream',
+    ),
+    path(
+        'notebooks/<uuid:notebook_id>/files/stream/',
+        NotebookFilesSSEView.as_view(),
+        name='notebook-files-stream',
     ),
 
-    # ===============================
-    # REPORTS ENDPOINTS
-    # ===============================
-    path("<uuid:notebook_id>/report-jobs/", report_views.NotebookReportListCreateView.as_view(), name="notebook-reports"),
-    path("<uuid:notebook_id>/report-jobs/<str:job_id>/", report_views.NotebookReportDetailView.as_view(), name="notebook-report-detail"),
-    path("<uuid:notebook_id>/report-jobs/<str:job_id>/cancel/", report_views.NotebookReportCancelView.as_view(), name="notebook-report-cancel"),
-    path("<uuid:notebook_id>/report-jobs/<str:job_id>/download/", report_views.NotebookReportDownloadView.as_view(), name="notebook-report-download"),
-    path("<uuid:notebook_id>/report-jobs/<str:job_id>/download-pdf/", report_views.NotebookReportPdfDownloadView.as_view(), name="notebook-report-pdf-download"),
-    path("<uuid:notebook_id>/report-jobs/<str:job_id>/files/", report_views.NotebookReportFilesView.as_view(), name="notebook-report-files"),
-    path("<uuid:notebook_id>/report-jobs/<str:job_id>/content/", report_views.NotebookReportContentView.as_view(), name="notebook-report-content"),
-    
-    # Stream endpoint for report job status updates
+    # Custom endpoints
     path(
-        "<uuid:notebook_id>/report-jobs/<str:job_id>/stream/",
-        csrf_exempt(report_views.notebook_report_status_stream),
-        name="notebook-report-status-stream",
+        'notebooks/<uuid:notebook_pk>/chat/agent/',
+        SessionAgentInfoView.as_view(),
+        name='session-agent-info',
     ),
-
-    # ===============================
-    # CONFIGURATION ENDPOINTS
-    # ===============================
-    # Report models/configuration (not notebook-specific)
-    path("reports/models/", report_views.ReportModelsView.as_view(), name="report-models"),
 ]

@@ -110,7 +110,7 @@ const PodcastPage: React.FC = () => {
     
     try {
       // Directly navigate to the download endpoint, let browser handle the download
-      const downloadUrl = `${config.API_BASE_URL}/notebooks/${podcast.notebook_id}/podcast-jobs/${podcast.id}/download/`;
+      const downloadUrl = `${config.API_BASE_URL}/podcasts/jobs/${podcast.id}/download/`;
       window.open(downloadUrl, '_blank');
     } catch (error) {
       console.error('Failed to download podcast:', error);

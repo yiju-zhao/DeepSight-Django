@@ -1,32 +1,30 @@
 """
 URL configuration for backend project.
 
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
+Clean app-specific URL structure following Django best practices:
+- Each app manages its own URLs
+- Clear separation of concerns
+- Better maintainability and testing
+
+API Structure:
+- /api/v1/users/ -> User management
+- /api/v1/notebooks/ -> Notebook operations and file management
+- /api/v1/podcasts/ -> Podcast generation and management
+- /api/v1/reports/ -> Report generation and management
 """
 
 from django.contrib import admin
-from django.urls import path, include, re_path
+from django.urls import path, include
 from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-# Create the schema view
+# Create the schema view for API documentation
 schema_view = get_schema_view(
     openapi.Info(
         title="DeepSight API",
         default_version="v1",
-        description="Interactive documentation for DeepSight backend",
+        description="Interactive documentation for DeepSight backend with clean app-specific endpoints",
         contact=openapi.Contact(email="you@yourdomain.com"),
     ),
     public=True,
@@ -34,14 +32,71 @@ schema_view = get_schema_view(
 )
 
 urlpatterns = [
+    # ========================================
+    # Admin Interface
+    # ========================================
     path("admin/", admin.site.urls),
+    
+    # ========================================
+    # API v1 Endpoints (App-Specific)
+    # ========================================
+    
+    # User management
     path("api/v1/users/", include("users.urls")),
-    path("api/v1/notebooks/", include("notebooks.urls")),  # This handles notebooks/{id}/* patterns for files, podcasts, and reports
+    
+    # Notebook operations (core functionality)
+    path("api/v1/", include("notebooks.urls")),  # Handles notebooks/* patterns
+    
+    # Podcast generation and management
+    path("api/v1/podcasts/", include("podcast.urls")),
+    
+    # Report generation and management  
+    path("api/v1/reports/", include("reports.urls")),
+    
+    # ========================================
+    # API Documentation
+    # ========================================
+    
+    # Swagger UI (interactive API explorer)
     path(
         "swagger/",
         schema_view.with_ui("swagger", cache_timeout=0),
         name="schema-swagger-ui",
     ),
-    # ReDoc UI (alternative):
-    path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
+    
+    # ReDoc UI (alternative documentation format)
+    path(
+        "redoc/", 
+        schema_view.with_ui("redoc", cache_timeout=0), 
+        name="schema-redoc"
+    ),
 ]
+
+# ========================================
+# URL Pattern Documentation
+# ========================================
+
+"""
+Complete API Structure:
+
+User Management:
+- /api/v1/users/* -> User authentication, profiles, etc.
+
+Notebooks (Core):
+- /api/v1/notebooks/ -> CRUD operations, file management, knowledge base
+- /api/v1/notebooks/{id}/files/ -> File upload, processing, content access
+- /api/v1/notebooks/{id}/chat/ -> Chat sessions and messaging
+
+Podcasts:
+- /api/v1/podcasts/jobs/ -> Podcast jobs (list/create; filter with ?notebook=)
+- /api/v1/podcasts/jobs/{job_id}/ -> Job detail/cancel/audio/download/stream
+
+Reports:
+- /api/v1/reports/models/ -> Report configuration
+- /api/v1/reports/jobs/ -> Report jobs (list/create; filter with ?notebook=)
+- /api/v1/reports/jobs/{job_id}/ -> Job detail/cancel/files/content/download/stream
+
+Documentation:
+- /swagger/ -> Interactive API explorer
+- /redoc/ -> Alternative documentation format
+"""

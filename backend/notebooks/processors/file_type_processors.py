@@ -27,13 +27,14 @@ except ImportError:
 class FileTypeProcessors:
     """Handle file type specific processing logic."""
     
-    def __init__(self, mineru_base_url: str, whisper_model=None, logger=None):
+    def __init__(self, mineru_base_url: str, xinference_url: str = None, model_uid: str = None, logger=None):
         # Normalize: ensure URL has a scheme
         if not str(mineru_base_url).lower().startswith(("http://", "https://")):
             mineru_base_url = f"http://{mineru_base_url}"
         self.mineru_base_url = mineru_base_url.rstrip('/')
         self.mineru_parse_endpoint = f"{self.mineru_base_url}/file_parse"
-        self.whisper_model = whisper_model
+        self.xinference_url = xinference_url or os.getenv('XINFERENCE_URL', 'http://localhost:9997')
+        self.model_uid = model_uid or os.getenv('XINFERENCE_WHISPER_MODEL_UID', 'whisper-large-v3-turbo')
         self.logger = logger or logging.getLogger(__name__)
     
     def log_operation(self, operation: str, details: str = "", level: str = "info"):
@@ -340,22 +341,13 @@ class FileTypeProcessors:
             raise Exception(f"MinerU API call failed: {e}")
 
     async def process_audio_immediate(self, file_path: str, file_metadata: Dict) -> Dict[str, Any]:
-        """Quick audio transcription using faster-whisper."""
+        """Quick audio transcription using Xinference."""
         try:
-            if not self.whisper_model:
-                return {
-                    "content": f"Audio file '{file_metadata['filename']}' uploaded successfully. Transcription requires faster-whisper installation.",
-                    "metadata": self._get_audio_metadata(file_path),
-                    "features_available": [
-                        "audio_transcription",
-                        "speaker_diarization",
-                    ],
-                    "processing_time": "immediate",
-                }
+            # Always attempt transcription with Xinference - no pre-check needed
 
-            # Transcribe audio using the whisper model
+            # Transcribe audio using Xinference
             from ..processors.transcription_service import TranscriptionService
-            transcription_service = TranscriptionService(self.whisper_model, clean_title, self.logger)
+            transcription_service = TranscriptionService(self.xinference_url, self.model_uid, clean_title, self.logger)
             transcript_content, transcript_filename = await transcription_service.transcribe_audio_video(
                 file_path, file_metadata['filename']
             )
@@ -407,10 +399,10 @@ class FileTypeProcessors:
             cleaned_title = clean_title(base_title) if clean_title else base_title
             transcript_filename = f"{cleaned_title}.md"
 
-            if result.returncode == 0 and self.whisper_model and os.path.exists(audio_path):
+            if result.returncode == 0 and os.path.exists(audio_path):
                 try:
                     from ..processors.transcription_service import TranscriptionService
-                    transcription_service = TranscriptionService(self.whisper_model, clean_title, self.logger)
+                    transcription_service = TranscriptionService(self.xinference_url, self.model_uid, clean_title, self.logger)
                     transcript_content, _ = await transcription_service.transcribe_audio_video(
                         audio_path, file_metadata['filename']
                     )
@@ -427,7 +419,7 @@ class FileTypeProcessors:
                 if result.returncode != 0:
                     content_parts.append(f"# Video: {file_metadata['filename']}\\n\\nNo audio track found or audio extraction failed.")
                 else:
-                    content_parts.append(f"# Video: {file_metadata['filename']}\\n\\nAudio transcription requires faster-whisper installation.")
+                    content_parts.append(f"# Video: {file_metadata['filename']}\\n\\nAudio transcription service not available.")
 
             # Get video metadata and add transcript info
             video_metadata = self._get_video_metadata(file_path)

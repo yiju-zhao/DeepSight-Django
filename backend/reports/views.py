@@ -3,20 +3,20 @@ import json
 import shutil
 import logging
 import time
-import redis
 from pathlib import Path
-from typing import Optional
-from datetime import datetime
+"""
+Canonical report job views and SSE endpoints.
+"""
 
 from django.http import FileResponse, Http404, StreamingHttpResponse, HttpResponse
 from django.shortcuts import get_object_or_404
-from django.conf import settings
-from django.core.cache import cache
+
+ 
 
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.decorators import api_view, permission_classes
+ 
 
 from .models import Report
 from .serializers import (
@@ -33,37 +33,49 @@ from .core.pdf_service import PdfService
 logger = logging.getLogger(__name__)
 
 
-# Notebook-specific views
-class NotebookReportListCreateView(APIView):
-    """List and create reports for a specific notebook"""
+class ReportJobListCreateView(APIView):
+    """Canonical: List and create report jobs without notebook in the path.
+
+    - GET /api/v1/reports/jobs/?notebook=<uuid>  -> filter by notebook if provided
+    - POST /api/v1/reports/jobs/ with body {..., notebook: <uuid>} -> create
+    """
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_notebook(self, notebook_id):
-        """Get the notebook and verify user access"""
-        return get_object_or_404(
-            Notebook.objects.filter(user=self.request.user),
-            pk=notebook_id
-        )
+    @staticmethod
+    def _format_report_data(report: Report) -> dict:
+        return {
+            "job_id": report.job_id,
+            "report_id": report.id,
+            "status": report.status,
+            "progress": report.progress,
+            "title": report.article_title,
+            "article_title": report.article_title,
+            "created_at": report.created_at.isoformat(),
+            "updated_at": report.updated_at.isoformat(),
+            "error": report.error_message,
+            "has_files": bool(report.main_report_object_key),
+            "has_content": bool(report.result_content),
+        }
 
-    def get(self, request, notebook_id):
-        """List reports for a specific notebook"""
+    def get(self, request):
         try:
-            notebook = self.get_notebook(notebook_id)
-            reports = Report.objects.filter(
-                user=request.user,
-                notebooks=notebook
-            ).order_by('-created_at')
-            
-            # Calculate last modified time for caching
+            notebook_id = request.query_params.get("notebook")
+            qs = Report.objects.filter(user=request.user)
+            if notebook_id:
+                notebook = get_object_or_404(
+                    Notebook.objects.filter(user=request.user), pk=notebook_id
+                )
+                qs = qs.filter(notebooks=notebook)
+
+            reports = qs.order_by('-created_at')
+
             last_modified = None
             if reports:
                 last_modified = max(report.updated_at for report in reports)
-            
-            # Filter out phantom jobs (completed jobs without actual files)
+
             validated_reports = []
             for report in reports:
                 if report.status == Report.STATUS_COMPLETED:
-                    # Check if the job has actual files
                     if report.main_report_object_key or report.result_content:
                         validated_reports.append(self._format_report_data(report))
                     else:
@@ -71,51 +83,50 @@ class NotebookReportListCreateView(APIView):
                             f"Skipping phantom job {report.job_id} - no files found"
                         )
                 else:
-                    # Include non-completed jobs as-is
                     validated_reports.append(self._format_report_data(report))
-            
+
             response = Response({"reports": validated_reports})
-            
-            # Add caching headers
             if last_modified:
                 response['Last-Modified'] = last_modified.strftime('%a, %d %b %Y %H:%M:%S GMT')
-            
-            # Use minimal caching to ensure delete operations are immediately reflected
-            has_active_jobs = any(report.get('status') in ['pending', 'running'] for report in validated_reports)
+
+            has_active_jobs = any(r.get('status') in ['pending', 'running'] for r in validated_reports)
             cache_timeout = 2 if has_active_jobs else 5
             response['Cache-Control'] = f'max-age={cache_timeout}, must-revalidate'
-            
             return response
         except Exception as e:
-            logger.error(f"Error listing reports for notebook {notebook_id}: {e}")
-            return Response(
-                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error listing reports: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def post(self, request, notebook_id):
-        """Create a new report generation job for a specific notebook"""
+    def post(self, request):
         try:
-            notebook = self.get_notebook(notebook_id)
-            
-            # Validate input params
+            # Validate input params (plus optional notebook field)
             serializer = ReportGenerationRequestSerializer(data=request.data)
             serializer.is_valid(raise_exception=True)
 
-            # Create report job using orchestrator
+            notebook_id = serializer.validated_data.get("notebook") or request.data.get("notebook")
+            if not notebook_id:
+                return Response(
+                    {"detail": "Field 'notebook' is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_id
+            )
+
             report_data = serializer.validated_data.copy()
+            report_data.pop("notebook", None)
+
             report = report_orchestrator.create_report_job(
                 report_data, user=request.user, notebook=notebook
             )
 
-            # Queue the job for background processing
             task_result = process_report_generation.delay(report.id)
-            
-            # Store the Celery task ID for cancellation purposes
             report.celery_task_id = task_result.id
             report.save(update_fields=["celery_task_id"])
 
             logger.info(
-                f"Report generation job {report.job_id} created successfully for report {report.id} in notebook {notebook_id}"
+                f"Report job {report.job_id} created for report {report.id} (canonical)"
             )
 
             return Response(
@@ -127,63 +138,30 @@ class NotebookReportListCreateView(APIView):
                 },
                 status=status.HTTP_201_CREATED,
             )
-
         except Exception as e:
-            logger.error(f"Error creating report for notebook {notebook_id}: {e}")
-            return Response(
-                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    def _format_report_data(self, report: Report) -> dict:
-        """Format report data for listing."""
-        return {
-            "job_id": report.job_id,
-            "report_id": report.id,
-            "status": report.status,
-            "progress": report.progress,
-            "title": report.article_title,  # Add title field for frontend compatibility
-            "article_title": report.article_title,
-            "created_at": report.created_at.isoformat(),
-            "updated_at": report.updated_at.isoformat(),
-            "error": report.error_message,
-            "has_files": bool(report.main_report_object_key),
-            "has_content": bool(report.result_content),
-        }
+            logger.error(f"Error creating report (canonical): {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class NotebookReportDetailView(APIView):
-    """Get detailed information about a specific report"""
+class ReportJobDetailView(APIView):
+    """Canonical: Get or update a report job by job_id (no notebook in path)."""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_notebook_and_report(self, notebook_id, job_id):
-        """Get the notebook and report, verify user access"""
-        notebook = get_object_or_404(
-            Notebook.objects.filter(user=self.request.user),
-            pk=notebook_id
+    def _get_report(self, job_id):
+        return get_object_or_404(
+            Report.objects.filter(user=self.request.user), job_id=job_id
         )
-        report = get_object_or_404(
-            Report.objects.filter(user=self.request.user, notebooks=notebook),
-            job_id=job_id
-        )
-        return notebook, report
 
-    def get(self, request, notebook_id, job_id):
-        """Get the status of a report generation job"""
+    def get(self, request, job_id):
         try:
-            notebook, report = self.get_notebook_and_report(notebook_id, job_id)
-            
+            report = self._get_report(job_id)
             job_data = report_orchestrator.get_job_status(job_id)
-            
             if not job_data:
-                return Response(
-                    {"detail": "Job not found"}, status=status.HTTP_404_NOT_FOUND
-                )
+                return Response({"detail": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            # Return detailed status information
             response_data = {
                 "job_id": job_id,
                 "report_id": report.id,
-                "notebook_id": notebook_id,
                 "status": report.status,
                 "progress": report.progress,
                 "result": job_data.get("result"),
@@ -191,18 +169,56 @@ class NotebookReportDetailView(APIView):
                 "created_at": report.created_at.isoformat(),
                 "updated_at": report.updated_at.isoformat(),
             }
-
             return Response(response_data)
-
         except Http404:
-            return Response(
-                {"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error getting report status for {job_id}: {e}")
+            logger.error(f"Error getting report status (canonical) for {job_id}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    def put(self, request, job_id):
+        try:
+            report = self._get_report(job_id)
+            if report.status != Report.STATUS_COMPLETED:
+                return Response(
+                    {"detail": "Only completed reports can be edited"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            content = request.data.get('content')
+            if content is None:
+                return Response(
+                    {"detail": "Content field is required"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            report.result_content = content
+            report.save(update_fields=['result_content', 'updated_at'])
+
+            if report.main_report_object_key:
+                try:
+                    from notebooks.utils.file_storage import FileStorageService
+                    storage_service = FileStorageService()
+                    storage_service.save_file_content(
+                        object_key=report.main_report_object_key,
+                        content=content.encode('utf-8'),
+                        content_type='text/markdown'
+                    )
+                    logger.info(f"Updated report file for job {job_id}")
+                except Exception as e:
+                    logger.warning(f"Could not update report file for {job_id}: {e}")
+
             return Response(
-                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {
+                    "message": "Report updated successfully",
+                    "job_id": job_id,
+                    "report_id": report.id,
+                    "updated_at": report.updated_at.isoformat(),
+                }
             )
+        except Http404:
+            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error updating report (canonical) {job_id}: {e}")
+            return Response({"detail": f"Error updating report: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def put(self, request, notebook_id, job_id):
         """Update report content"""
@@ -332,26 +348,15 @@ class NotebookReportDetailView(APIView):
             )
 
 
-class NotebookReportCancelView(APIView):
-    """Cancel a running or pending report job"""
+class ReportJobCancelView(APIView):
+    """Canonical: Cancel a running or pending report job"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_notebook_and_report(self, notebook_id, job_id):
-        """Get the notebook and report, verify user access"""
-        notebook = get_object_or_404(
-            Notebook.objects.filter(user=self.request.user),
-            pk=notebook_id
-        )
-        report = get_object_or_404(
-            Report.objects.filter(user=self.request.user, notebooks=notebook),
-            job_id=job_id
-        )
-        return notebook, report
-
-    def post(self, request, notebook_id, job_id):
-        """Cancel a running or pending job"""
+    def post(self, request, job_id):
         try:
-            notebook, report = self.get_notebook_and_report(notebook_id, job_id)
+            report = get_object_or_404(
+                Report.objects.filter(user=request.user), job_id=job_id
+            )
 
             if report.status not in [Report.STATUS_PENDING, Report.STATUS_RUNNING]:
                 return Response(
@@ -359,137 +364,69 @@ class NotebookReportCancelView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            # Cancel the job
             success = report_orchestrator.cancel_report_job(job_id)
-
             if success:
                 return Response(
-                    {
-                        "message": f"Job {job_id} cancelled successfully",
-                        "job_id": job_id,
-                        "status": Report.STATUS_CANCELLED,
-                    }
+                    {"message": f"Job {job_id} cancelled successfully", "job_id": job_id, "status": Report.STATUS_CANCELLED}
                 )
             else:
-                return Response(
-                    {"detail": "Failed to cancel job"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
+                return Response({"detail": "Failed to cancel job"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Http404:
-            return Response(
-                {"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error cancelling job {job_id}: {e}")
-            return Response(
-                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error cancelling job (canonical) {job_id}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class NotebookReportDownloadView(APIView):
-    """Download generated report files"""
+class ReportJobDownloadView(APIView):
+    """Canonical: Download generated report files"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_notebook_and_report(self, notebook_id, job_id):
-        """Get the notebook and report, verify user access"""
-        notebook = get_object_or_404(
-            Notebook.objects.filter(user=self.request.user),
-            pk=notebook_id
-        )
-        report = get_object_or_404(
-            Report.objects.filter(user=self.request.user, notebooks=notebook),
-            job_id=job_id
-        )
-        return notebook, report
-
-    def get(self, request, notebook_id, job_id):
-        """Download generated report files"""
+    def get(self, request, job_id):
         try:
-            notebook, report = self.get_notebook_and_report(notebook_id, job_id)
+            report = get_object_or_404(Report.objects.filter(user=request.user), job_id=job_id)
 
             if report.status != Report.STATUS_COMPLETED:
-                return Response(
-                    {"detail": "Job is not completed yet"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return Response({"detail": "Job is not completed yet"}, status=status.HTTP_400_BAD_REQUEST)
 
             filename = request.query_params.get("filename")
-
-            # If filename is specified, check against stored metadata
             if filename:
-                # Check if filename matches the main report file
-                if (report.main_report_object_key and 
-                    report.file_metadata.get('main_report_filename') == filename):
-                    file_url = report.get_report_url(expires=86400)  # 1 day access
+                if (report.main_report_object_key and report.file_metadata.get('main_report_filename') == filename):
+                    file_url = report.get_report_url(expires=86400)
                     if file_url:
                         from django.http import HttpResponseRedirect
                         return HttpResponseRedirect(file_url)
-                
-                return Response(
-                    {"detail": "File not found"}, status=status.HTTP_404_NOT_FOUND
-                )
+                return Response({"detail": "File not found"}, status=status.HTTP_404_NOT_FOUND)
 
-            # Otherwise, return the main report file
             if report.main_report_object_key:
-                file_url = report.get_report_url(expires=86400)  # 1 day access
+                file_url = report.get_report_url(expires=86400)
                 if file_url:
                     from django.http import HttpResponseRedirect
                     return HttpResponseRedirect(file_url)
 
-            return Response(
-                {"detail": "No downloadable report files found"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
+            return Response({"detail": "No downloadable report files found"}, status=status.HTTP_404_NOT_FOUND)
         except Http404:
-            return Response(
-                {"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error downloading report for job {job_id}: {e}")
-            return Response(
-                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error downloading report (canonical) for job {job_id}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class NotebookReportPdfDownloadView(APIView):
-    """Download generated report files as PDF"""
+class ReportJobPdfDownloadView(APIView):
+    """Canonical: Download generated report files as PDF"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_notebook_and_report(self, notebook_id, job_id):
-        """Get the notebook and report, verify user access"""
-        notebook = get_object_or_404(
-            Notebook.objects.filter(user=self.request.user),
-            pk=notebook_id
-        )
-        report = get_object_or_404(
-            Report.objects.filter(user=self.request.user, notebooks=notebook),
-            job_id=job_id
-        )
-        return notebook, report
-
-    def get(self, request, notebook_id, job_id):
-        """Download generated report as PDF"""
+    def get(self, request, job_id):
         try:
-            notebook, report = self.get_notebook_and_report(notebook_id, job_id)
-
+            report = get_object_or_404(Report.objects.filter(user=request.user), job_id=job_id)
             if report.status != Report.STATUS_COMPLETED:
-                return Response(
-                    {"detail": "Job is not completed yet"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return Response({"detail": "Job is not completed yet"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Initialize PDF service
             pdf_service = PdfService()
-            
-            # Get markdown content
+
             markdown_content = None
-            
-            # Try to get content from database first
             if report.result_content:
                 markdown_content = report.result_content
-            # Fallback: read from MinIO storage
             elif report.main_report_object_key:
                 try:
                     from notebooks.utils.storage import FileStorageService
@@ -501,164 +438,91 @@ class NotebookReportPdfDownloadView(APIView):
                         markdown_content = content_bytes
                 except Exception as e:
                     logger.error(f"Error reading report file for {job_id}: {e}")
-            
-            if not markdown_content:
-                return Response(
-                    {"detail": "No report content found to convert to PDF"},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
 
-            # Generate a temporary PDF file
+            if not markdown_content:
+                return Response({"detail": "No report content found to convert to PDF"}, status=status.HTTP_404_NOT_FOUND)
+
             report_title = report.article_title or "Research Report"
             filename = f"{report_title.replace(' ', '_')}.pdf"
-            
-            # Create PDF in temporary directory since we're using MinIO storage
+
             import tempfile
             temp_dir = Path(tempfile.mkdtemp())
             pdf_path = temp_dir / filename
-            
             try:
-                # Convert markdown to PDF (now handles image downloading internally)
                 logger.info("Converting markdown to PDF with automatic image handling")
                 pdf_file_path = pdf_service.convert_markdown_to_pdf(
                     markdown_content=markdown_content,
                     output_path=str(pdf_path),
                     title=report_title,
-                    input_file_path=None  # MinIO files don't have local paths
+                    input_file_path=None
                 )
-                
-                # Return the PDF file
-                response = FileResponse(
-                    open(pdf_file_path, "rb"),
-                    as_attachment=True,
-                    filename=filename,
-                    content_type='application/pdf'
-                )
-                
-                # Clean up temporary directory
-                # Note: We can't clean up immediately due to FileResponse streaming
-                # The temp directory will be cleaned up by the OS eventually
+                response = FileResponse(open(pdf_file_path, "rb"), as_attachment=True, filename=filename, content_type='application/pdf')
                 logger.info(f"PDF generated successfully: {pdf_file_path}")
                 return response
-                
             except Exception as e:
                 logger.error(f"Error converting report to PDF for job {job_id}: {e}")
-                # Clean up temporary directory on error
-                import shutil
                 shutil.rmtree(temp_dir, ignore_errors=True)
-                
-                return Response(
-                    {"detail": f"PDF conversion failed: {str(e)}"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
-
+                return Response({"detail": f"PDF conversion failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Http404:
-            return Response(
-                {"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error downloading PDF report for job {job_id}: {e}")
-            return Response(
-                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error downloading PDF report (canonical) for job {job_id}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class NotebookReportFilesView(APIView):
-    """List all files generated for a specific report job"""
+class ReportJobFilesView(APIView):
+    """Canonical: List all files generated for a specific report job"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_notebook_and_report(self, notebook_id, job_id):
-        """Get the notebook and report, verify user access"""
-        notebook = get_object_or_404(
-            Notebook.objects.filter(user=self.request.user),
-            pk=notebook_id
-        )
-        report = get_object_or_404(
-            Report.objects.filter(user=self.request.user, notebooks=notebook),
-            job_id=job_id
-        )
-        return notebook, report
-
-    def get(self, request, notebook_id, job_id):
-        """List all files generated for a specific job"""
+    def get(self, request, job_id):
         try:
-            notebook, report = self.get_notebook_and_report(notebook_id, job_id)
-
+            report = get_object_or_404(Report.objects.filter(user=request.user), job_id=job_id)
             files = []
-
             if report.main_report_object_key:
                 try:
-                    # Return main report file info from metadata
                     metadata = report.file_metadata or {}
                     filename = metadata.get('main_report_filename', 'report.md')
                     size = metadata.get('main_report_size', 0)
                     file_type = Path(filename).suffix.lower() if filename else '.md'
-                    
                     files.append(
                         {
                             "filename": filename,
                             "size": size,
                             "type": file_type,
-                            "download_url": f"/api/notebooks/{notebook_id}/reports/{job_id}/download?filename={filename}",
+                            "download_url": f"/api/v1/reports/jobs/{job_id}/download?filename={filename}",
                         }
                     )
                 except Exception as e:
                     logger.warning(f"Error listing files for job {job_id}: {e}")
-
             return Response({"files": files})
-
         except Http404:
-            return Response(
-                {"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error listing files for job {job_id}: {e}")
-            return Response(
-                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error listing files (canonical) for job {job_id}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class NotebookReportContentView(APIView):
-    """Get the main report content as text/markdown"""
+class ReportJobContentView(APIView):
+    """Canonical: Get the main report content as text/markdown"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get_notebook_and_report(self, notebook_id, job_id):
-        """Get the notebook and report, verify user access"""
-        notebook = get_object_or_404(
-            Notebook.objects.filter(user=self.request.user),
-            pk=notebook_id
-        )
-        report = get_object_or_404(
-            Report.objects.filter(user=self.request.user, notebooks=notebook),
-            job_id=job_id
-        )
-        return notebook, report
-
-    def get(self, request, notebook_id, job_id):
-        """Get the main report content as text/markdown"""
+    def get(self, request, job_id):
         try:
-            notebook, report = self.get_notebook_and_report(notebook_id, job_id)
-
+            report = get_object_or_404(Report.objects.filter(user=request.user), job_id=job_id)
             if report.status != Report.STATUS_COMPLETED:
-                return Response(
-                    {"detail": "Job is not completed yet"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                return Response({"detail": "Job is not completed yet"}, status=status.HTTP_400_BAD_REQUEST)
 
-            # Try to get content from database first
             if report.result_content:
                 return Response(
                     {
                         "job_id": job_id,
                         "report_id": report.id,
-                        "notebook_id": notebook_id,
                         "content": report.result_content,
                         "article_title": report.article_title,
                         "generated_files": report.generated_files,
                     }
                 )
 
-            # Fallback: read from MinIO storage
             if report.main_report_object_key:
                 try:
                     from notebooks.utils.storage import FileStorageService
@@ -668,12 +532,10 @@ class NotebookReportContentView(APIView):
                         content = content_bytes.decode('utf-8')
                     else:
                         content = content_bytes
-
                     return Response(
                         {
                             "job_id": job_id,
                             "report_id": report.id,
-                            "notebook_id": notebook_id,
                             "content": content,
                             "article_title": report.article_title,
                             "generated_files": report.generated_files,
@@ -682,19 +544,12 @@ class NotebookReportContentView(APIView):
                 except Exception as e:
                     logger.error(f"Error reading report file for {job_id}: {e}")
 
-            return Response(
-                {"detail": "Report content not found"}, status=status.HTTP_404_NOT_FOUND
-            )
-
+            return Response({"detail": "Report content not found"}, status=status.HTTP_404_NOT_FOUND)
         except Http404:
-            return Response(
-                {"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error getting report content for job {job_id}: {e}")
-            return Response(
-                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+            logger.error(f"Error getting report content (canonical) for job {job_id}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ReportModelsView(APIView):
@@ -730,10 +585,11 @@ class ReportModelsView(APIView):
 # SSE endpoint (plain Django view) – avoids DRF content-negotiation 406 errors
 # ---------------------------------------------------------------------------
 
-def notebook_report_status_stream(request, notebook_id, job_id):
-    """Server-Sent Events endpoint for real-time report-job status updates."""
 
-    # Support CORS pre-flight / browsers that send OPTIONS
+
+def report_status_stream(request, job_id):
+    """Canonical SSE endpoint: real-time report-job status updates by job_id."""
+
     if request.method == "OPTIONS":
         response = HttpResponse(status=200)
         response["Access-Control-Allow-Origin"] = "*"
@@ -742,7 +598,6 @@ def notebook_report_status_stream(request, notebook_id, job_id):
         response["Access-Control-Allow-Credentials"] = "true"
         return response
 
-    # Authentication check – cannot rely on DRF decorators
     if not request.user.is_authenticated:
         response = StreamingHttpResponse(
             f"data: {json.dumps({'type': 'error', 'message': 'Authentication required'})}\n\n",
@@ -754,12 +609,7 @@ def notebook_report_status_stream(request, notebook_id, job_id):
         return response
 
     try:
-        # Verify user's access to notebook and report
-        notebook = get_object_or_404(
-            Notebook.objects.filter(user=request.user),
-            pk=notebook_id,
-        )
-        if not Report.objects.filter(job_id=job_id, user=request.user, notebooks=notebook).exists():
+        if not Report.objects.filter(job_id=job_id, user=request.user).exists():
             response = StreamingHttpResponse(
                 f"data: {json.dumps({'type': 'error', 'message': 'Report not found'})}\n\n",
                 content_type="text/event-stream",
@@ -770,17 +620,14 @@ def notebook_report_status_stream(request, notebook_id, job_id):
             return response
 
         def event_stream():
-            """Generator that yields SSE messages."""
             last_status = None
-            max_duration = 3600  # 60-minute safety limit to accommodate longer report generation
+            max_duration = 3600
             start_time = time.time()
-            poll_interval = 2  # seconds – server-side polling (DB/cache)
+            poll_interval = 2
 
             while time.time() - start_time < max_duration:
                 try:
                     status_data = report_orchestrator.get_job_status(job_id)
-
-                    # Fallback to DB if orchestrator returns nothing
                     if not status_data:
                         current_report = Report.objects.filter(job_id=job_id).first()
                         if not current_report:
@@ -788,7 +635,7 @@ def notebook_report_status_stream(request, notebook_id, job_id):
                             break
                         status_data = {
                             "job_id": job_id,
-                            "report_id": str(current_report.id),  # Convert UUID to string for JSON serialization
+                            "report_id": str(current_report.id),
                             "status": current_report.status,
                             "progress": current_report.progress,
                             "error_message": current_report.error_message,
@@ -819,9 +666,8 @@ def notebook_report_status_stream(request, notebook_id, job_id):
         response["Access-Control-Allow-Headers"] = "Cache-Control"
         response["Access-Control-Allow-Credentials"] = "true"
         return response
-
     except Exception as e:
-        logger.error(f"Error setting up SSE stream for job {job_id}: {e}")
+        logger.error(f"Error setting up SSE stream (canonical) for job {job_id}: {e}")
         response = StreamingHttpResponse(
             f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n",
             content_type="text/event-stream",

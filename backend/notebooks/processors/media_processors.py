@@ -16,7 +16,7 @@ class MediaProcessor:
     Media feature extraction service for processing videos to extract images with deduplication and captioning.
     """
 
-    def __init__(self):
+    def __init__(self, xinference_url: str = None, model_uid: str = None):
         self.service_name = "media_extractor"
         self.logger = logging.getLogger(f"{__name__}.media_extractor")
         self.supported_video_formats = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.flv', '.wmv', '.3gp', '.ogv', '.m4v'}
@@ -24,7 +24,10 @@ class MediaProcessor:
         self._clip_model = None
         self._clip_preprocess = None
         self._device = None
-        self._whisper_model = None
+        self.xinference_url = xinference_url or os.getenv('XINFERENCE_URL', 'http://localhost:9997')
+        self.model_uid = model_uid or os.getenv('XINFERENCE_WHISPER_MODEL_UID', 'whisper-large-v3-turbo')
+        self._xinference_client = None
+        self._xinference_model = None
 
     def log_operation(self, operation: str, details: str = "", level: str = "info"):
         """Log service operations with consistent formatting."""
@@ -83,19 +86,32 @@ class MediaProcessor:
         ext = Path(filename).suffix.lower()
         return ext in self.supported_video_formats or ext in self.supported_audio_formats
 
-    @property
-    def whisper_model(self):
-        """Lazy load whisper model."""
-        if self._whisper_model is None:
+    def _get_xinference_client(self):
+        """Get or create Xinference client."""
+        if not self._xinference_client:
             try:
-                import faster_whisper
-                device = self._detect_device()
-                self._whisper_model = faster_whisper.WhisperModel("large-v3-turbo", device=device)
-                self.logger.info(f"Loaded Whisper model on {device}")
-            except ImportError:
-                self.logger.warning("faster-whisper not available")
-                self._whisper_model = False
-        return self._whisper_model
+                from xinference.client import Client
+                self._xinference_client = Client(self.xinference_url)
+                self.logger.info(f"Connected to Xinference at {self.xinference_url}")
+            except Exception as e:
+                self.logger.error(f"Failed to connect to Xinference: {e}")
+                self._xinference_client = False
+        return self._xinference_client
+    
+    def _get_xinference_model(self):
+        """Get or create Xinference model."""
+        if not self._xinference_model:
+            try:
+                client = self._get_xinference_client()
+                if client:
+                    self._xinference_model = client.get_model(self.model_uid)
+                    self.logger.info(f"Loaded Xinference model {self.model_uid}")
+                else:
+                    self._xinference_model = False
+            except Exception as e:
+                self.logger.error(f"Failed to load Xinference model: {e}")
+                self._xinference_model = False
+        return self._xinference_model
 
     def _detect_device(self):
         """Detect best available device."""
@@ -130,42 +146,98 @@ class MediaProcessor:
             raise
 
     async def transcribe_audio(self, audio_path: str) -> Dict[str, Any]:
-        """Transcribe audio file using Whisper."""
+        """Transcribe audio file using Xinference."""
         try:
-            whisper_model = self.whisper_model
-            if not whisper_model:
+            xinference_model = self._get_xinference_model()
+            if not xinference_model:
                 return {
                     'transcript': '',
                     'segments': [],
-                    'metadata': {'error': 'Whisper model not available'}
+                    'metadata': {'error': 'Xinference model not available'}
                 }
 
-            # Transcribe using faster-whisper
-            segments, info = whisper_model.transcribe(audio_path)
+            # Read audio file
+            with open(audio_path, "rb") as audio_file:
+                audio_data = audio_file.read()
+            
+            # Transcribe using Xinference
+            result = xinference_model.transcriptions(audio_data)
             
             transcript = ""
             segment_list = []
             
-            for segment in segments:
-                timestamp_text = f"[{segment.start:.2f}s] {segment.text}"
-                transcript += timestamp_text + "\n"
-                
-                segment_list.append({
-                    'start': segment.start,
-                    'end': segment.end,
-                    'text': segment.text.strip(),
-                    'probability': getattr(segment, 'avg_logprob', 0)
-                })
+            # Process the result based on its structure
+            if hasattr(result, 'segments') and result.segments:
+                # If the result has segments with timestamps
+                for segment in result.segments:
+                    start_time = segment.get('start', 0)
+                    end_time = segment.get('end', 0)
+                    text = segment.get('text', '').strip()
+                    
+                    if text:
+                        timestamp_text = f"[{start_time:.2f}s] {text}"
+                        transcript += timestamp_text + "\n"
+                        
+                        segment_list.append({
+                            'start': start_time,
+                            'end': end_time,
+                            'text': text,
+                            'probability': segment.get('avg_logprob', 0)
+                        })
+            elif hasattr(result, 'text') and result.text:
+                # If the result only has text without timestamps
+                transcript = result.text.strip()
+                segment_list = [{
+                    'start': 0,
+                    'end': 0,
+                    'text': transcript,
+                    'probability': 1.0
+                }]
+            elif isinstance(result, dict):
+                # Handle different response formats
+                if 'segments' in result:
+                    for segment in result['segments']:
+                        start_time = segment.get('start', 0)
+                        end_time = segment.get('end', 0)
+                        text = segment.get('text', '').strip()
+                        
+                        if text:
+                            timestamp_text = f"[{start_time:.2f}s] {text}"
+                            transcript += timestamp_text + "\n"
+                            
+                            segment_list.append({
+                                'start': start_time,
+                                'end': end_time,
+                                'text': text,
+                                'probability': segment.get('avg_logprob', 0)
+                            })
+                elif 'text' in result:
+                    transcript = result['text'].strip()
+                    segment_list = [{
+                        'start': 0,
+                        'end': 0,
+                        'text': transcript,
+                        'probability': 1.0
+                    }]
+            else:
+                # Fallback: convert result to string
+                transcript = str(result).strip()
+                segment_list = [{
+                    'start': 0,
+                    'end': 0,
+                    'text': transcript,
+                    'probability': 1.0
+                }]
 
             return {
                 'transcript': transcript.strip(),
                 'segments': segment_list,
                 'metadata': {
-                    'duration': info.duration,
-                    'language': info.language,
-                    'language_probability': info.language_probability,
-                    'processing_method': 'faster_whisper',
-                    'model': 'base'
+                    'duration': len(segment_list) * 30,  # Estimate duration
+                    'language': 'unknown',  # Xinference may not provide this
+                    'language_probability': 1.0,
+                    'processing_method': 'xinference',
+                    'model': self.model_uid
                 }
             }
 

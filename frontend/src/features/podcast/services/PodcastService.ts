@@ -35,11 +35,9 @@ export class PodcastService implements IPodcastService {
 
   async getPodcasts(filters?: PodcastFilters): Promise<Podcast[]> {
     try {
-      let endpoint = '/podcasts/';
-      
-      // If notebookId is provided, get podcasts for that notebook
+      let endpoint = '/podcasts/jobs/';
       if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/podcast-jobs/`;
+        endpoint = `/podcasts/jobs/?notebook=${encodeURIComponent(this.notebookId)}`;
       }
 
       // Add query parameters for filters
@@ -70,11 +68,7 @@ export class PodcastService implements IPodcastService {
 
   async getPodcast(id: string): Promise<Podcast> {
     try {
-      let endpoint = `/podcasts/${id}/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/podcast-jobs/${id}/`;
-      }
+      const endpoint = `/podcasts/jobs/${id}/`;
 
       const response = await this.api.get(endpoint);
       return response;
@@ -86,11 +80,7 @@ export class PodcastService implements IPodcastService {
 
   async getPodcastAudio(id: string): Promise<PodcastAudio> {
     try {
-      let endpoint = `/podcasts/${id}/audio/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/podcast-jobs/${id}/audio/`;
-      }
+      const endpoint = `/podcasts/jobs/${id}/audio/`;
 
       const response = await this.api.get(endpoint);
       return response;
@@ -102,15 +92,8 @@ export class PodcastService implements IPodcastService {
 
   async generatePodcast(config: PodcastGenerationRequest): Promise<PodcastGenerationResponse> {
     try {
-      let endpoint = '/podcasts/';
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/podcast-jobs/`;
-        config.notebook_id = this.notebookId;
-      }
-
-      // Convert config to FormData as expected by the API
-      const formData = createFormData(config);
+      const endpoint = '/podcasts/jobs/';
+      const formData = createFormData({ ...config, notebook: this.notebookId });
       const response = await this.api.post(endpoint, formData);
       return response;
     } catch (error) {
@@ -121,12 +104,7 @@ export class PodcastService implements IPodcastService {
 
   async cancelPodcast(id: string): Promise<void> {
     try {
-      let endpoint = `/podcasts/${id}/cancel/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/podcast-jobs/${id}/cancel/`;
-      }
-
+      const endpoint = `/podcasts/jobs/${id}/cancel/`;
       await this.api.post(endpoint);
     } catch (error) {
       console.error('Failed to cancel podcast:', error);
@@ -136,12 +114,7 @@ export class PodcastService implements IPodcastService {
 
   async deletePodcast(id: string): Promise<void> {
     try {
-      let endpoint = `/podcasts/${id}/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/podcast-jobs/${id}/`;
-      }
-
+      const endpoint = `/podcasts/jobs/${id}/`;
       await this.api.delete(endpoint);
     } catch (error) {
       console.error('Failed to delete podcast:', error);
@@ -151,11 +124,7 @@ export class PodcastService implements IPodcastService {
 
   async downloadPodcast(id: string, filename?: string): Promise<void> {
     try {
-      let endpoint = `/podcasts/${id}/download/`;
-      
-      if (this.notebookId) {
-        endpoint = `/notebooks/${this.notebookId}/podcast-jobs/${id}/download/`;
-      }
+      const endpoint = `/podcasts/jobs/${id}/download/`;
 
       const blob = await this.api.downloadFile(endpoint);
       const url = window.URL.createObjectURL(blob);
@@ -300,12 +269,9 @@ export class PodcastService implements IPodcastService {
     if (podcast.audioUrl) return podcast.audioUrl;
     if (podcast.audio_file) return podcast.audio_file;
     if (podcast.audio_object_key) {
-      // Construct URL from object key using the correct endpoint
       const podcastId = podcast.id || podcast.job_id;
-      if (this.notebookId && podcastId) {
-        return `${config.API_BASE_URL}/notebooks/${this.notebookId}/podcast-jobs/${podcastId}/audio/`;
-      } else if (podcastId) {
-        return `${config.API_BASE_URL}/podcasts/${podcastId}/audio/`;
+      if (podcastId) {
+        return `${config.API_BASE_URL}/podcasts/jobs/${podcastId}/audio/`;
       }
     }
     return null;
