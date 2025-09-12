@@ -120,15 +120,8 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
       id: 'status',
       header: 'Status',
       cell: ({ row }) => (
-        <span
-          className={cn(
-            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
-            row.original.isProcessing
-              ? 'bg-yellow-100 text-yellow-800'
-              : 'bg-green-100 text-green-800'
-          )}
-        >
-          {row.original.isProcessing ? 'Processing' : 'Ready'}
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+          Ready
         </span>
       ),
     },
@@ -155,12 +148,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
                   </p>
                 )}
               </div>
-              <div
-                className={cn(
-                  'ml-3 flex-shrink-0 w-2 h-2 rounded-full',
-                  notebook.isProcessing ? 'bg-yellow-400' : 'bg-green-400'
-                )}
-              />
+              <div className="ml-3 flex-shrink-0 w-2 h-2 rounded-full bg-green-400" />
             </div>
             
             <div className="mt-4 flex items-center justify-between text-sm text-gray-500">

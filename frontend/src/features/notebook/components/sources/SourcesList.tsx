@@ -479,7 +479,13 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           </div>
           
           <div className="flex items-center space-x-2">
-            <div className="flex items-center cursor-pointer">
+            <div 
+              className="flex items-center cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
               <Checkbox
                 checked={source.selected}
                 onCheckedChange={() => onToggle(String(source.id))}
