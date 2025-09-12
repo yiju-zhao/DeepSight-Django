@@ -161,14 +161,21 @@ class FileViewSet(viewsets.ModelViewSet):
         try:
             with transaction.atomic():
                 notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
-                files = self.file_service.handle_upload(
-                    user=request.user,
+                
+                # Handle single file upload
+                file_obj = serializer.validated_data["files"][0] if serializer.validated_data.get("files") else None
+                if not file_obj:
+                    raise ValidationError("No file provided")
+                
+                upload_id = serializer.validated_data.get('upload_file_id', '')
+                result = self.file_service.handle_single_file_upload(
+                    file_obj=file_obj,
+                    upload_id=upload_id,
                     notebook=notebook,
-                    files=serializer.validated_data["files"],
-                    notes=serializer.validated_data.get("notes", ""),
+                    user=request.user,
                 )
-                data = KnowledgeBaseItemSerializer(files, many=True).data
-                return Response(data, status=status.HTTP_201_CREATED)
+                
+                return Response(result, status=result.get('status_code', status.HTTP_201_CREATED))
         except Exception as e:
             logger.exception(f"Failed to upload files: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
