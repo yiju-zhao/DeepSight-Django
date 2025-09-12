@@ -349,7 +349,7 @@ class SessionChatViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         notebook_id = self.kwargs.get("notebook_pk")
         notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
-        return ChatSession.objects.filter(notebook=notebook).order_by("-timestamp")
+        return ChatSession.objects.filter(notebook=notebook).order_by("-last_activity")
 
     @action(detail=True, methods=["post"], url_path="messages")
     def send_message(self, request, notebook_pk=None, pk=None):

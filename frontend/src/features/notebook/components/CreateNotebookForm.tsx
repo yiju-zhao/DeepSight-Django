@@ -30,6 +30,7 @@ const CreateNotebookForm: React.FC<CreateNotebookFormProps> = ({
     if (result.success) {
       setName("");
       setDescription("");
+      onCancel(); // Close the form after successful creation
     }
   };
 
