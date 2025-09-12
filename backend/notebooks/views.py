@@ -157,14 +157,17 @@ class FileViewSet(viewsets.ModelViewSet):
         return super().list(request, *args, **kwargs)
 
     def create(self, request, notebook_pk=None, *args, **kwargs):
-        serializer = FileUploadSerializer(data=request.data)
+        serializer = BatchFileUploadSerializer(data=request.data, context={'request': request, 'notebook_id': notebook_pk})
         serializer.is_valid(raise_exception=True)
         try:
             with transaction.atomic():
                 notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
                 
-                # Handle single file upload
-                file_obj = serializer.validated_data["files"][0] if serializer.validated_data.get("files") else None
+                # Handle single file upload - check both 'file' and 'files' fields
+                file_obj = serializer.validated_data.get("file")
+                if not file_obj and serializer.validated_data.get("files"):
+                    file_obj = serializer.validated_data["files"][0]
+                    
                 if not file_obj:
                     raise ValidationError("No file provided")
                 
