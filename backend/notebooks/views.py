@@ -101,7 +101,6 @@ class NotebookViewSet(viewsets.ModelViewSet):
                     created_at=timezone.now(),
                     updated_at=timezone.now(),
                 )
-                self.notebook_service.initialize_notebook(notebook)
         except Exception as e:
             logger.exception(f"Failed to create notebook: {e}")
             raise
