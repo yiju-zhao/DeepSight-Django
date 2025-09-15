@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Eye, FileText, Globe, Music, Video, File, HardDrive, Calendar, ExternalLink, Loader2, AlertCircle, RefreshCw, Trash2, Plus, ChevronLeft, CheckCircle, Clock, Upload, Link2, Youtube, Group, Presentation } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -16,14 +16,43 @@ import { config } from "@/config";
 
 const API_BASE_URL = config.API_BASE_URL;
 
+// --- MathJax support for LaTeX rendering ---
+let mathJaxLoading: Promise<void> | null = null;
+const ensureMathJax = (): Promise<void> => {
+  if (typeof window === 'undefined') return Promise.resolve();
+  const w = window as any;
+  if (w.MathJax && w.MathJax.typesetPromise) return Promise.resolve();
+  if (mathJaxLoading) return mathJaxLoading;
+
+  mathJaxLoading = new Promise<void>((resolve) => {
+    // Configure MathJax (TeX + CHTML)
+    w.MathJax = w.MathJax || {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+    };
+    const script = document.createElement('script');
+    script.id = 'mathjax-script';
+    script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js';
+    script.async = true;
+    script.onload = () => resolve();
+    document.head.appendChild(script);
+  });
+  return mathJaxLoading;
+};
+
 // Authenticated Image component for handling images with credentials
 interface AuthenticatedImageProps {
   src: string;
   alt?: string;
   title?: string;
+  notebookId?: string;
+  fileId?: string;
 }
 
-const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title }) => {
+// Simple in-memory cache for image lists per file
+const imageListCache: Record<string, any[]> = {};
+
+const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title, notebookId, fileId }) => {
   const [imgSrc, setImgSrc] = useState(src);
   const [imgError, setImgError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,40 +78,40 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       return;
     }
 
-    // If it's an API URL, fetch it with credentials and handle redirects
-    if (src.includes('/api/v1/notebooks/') && src.includes('/images/')) {
+    // If it's an API URL to an images endpoint that returns JSON, resolve to actual image URL
+    if ((src.includes('/api/v1/notebooks/') && src.includes('/images/')) || (!src.startsWith('http') && notebookId && fileId)) {
+      // Try to resolve the image by listing images for this KB item
       const fetchImageWithCredentials = async () => {
         try {
-          console.log('Fetching image with credentials:', src);
-          const response = await fetch(src, {
-            credentials: 'include',
-            headers: {
-              'Accept': 'image/*,*/*'
-            },
-            redirect: 'manual' // Handle redirects manually
-          });
-
-          // Check if response is a redirect (status 302/301)
-          if (response.status === 302 || response.status === 301) {
-            const redirectUrl = response.headers.get('location');
-            if (redirectUrl) {
-              console.log('API returned redirect to:', redirectUrl);
-              // Use the redirect URL directly (it's a pre-signed MinIO URL)
-              setImgSrc(redirectUrl);
-              setIsLoading(false);
-              return;
-            }
+          const cacheKey = `${notebookId}:${fileId}`;
+          let images = imageListCache[cacheKey];
+          if (!images) {
+            const listUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/images/`;
+            const listRes = await fetch(listUrl, { credentials: 'include', headers: { 'Accept': 'application/json' } });
+            if (!listRes.ok) throw new Error(`Failed to list images: ${listRes.status}`);
+            const listJson = await listRes.json();
+            images = listJson.images || [];
+            imageListCache[cacheKey] = images;
           }
 
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          // Extract filename from src
+          const srcName = src.split('/').pop() || src;
+          const match = images.find((img: any) =>
+            (img.original_filename && img.original_filename.includes(srcName)) ||
+            (img.image_url && img.image_url.includes(srcName)) ||
+            (img.imageUrl && img.imageUrl.includes(srcName))
+          ) || images.find((img: any) => img.image_url) ;
+
+          if (match && (match.image_url || match.imageUrl)) {
+            const resolved = match.image_url || match.imageUrl;
+            setImgSrc(resolved);
+            setIsLoading(false);
+            return;
           }
 
-          const blob = await response.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          setImgSrc(blobUrl);
+          // If not found, fall back to original src
+          setImgSrc(src);
           setIsLoading(false);
-          console.log('Image blob URL created:', blobUrl);
         } catch (error) {
           console.error('Failed to fetch image with credentials:', error);
           setImgError(true);
@@ -96,7 +125,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       setImgSrc(src);
       setIsLoading(false);
     }
-  }, [src]);
+  }, [src, notebookId, fileId]);
 
   return (
     <div className="my-4">
@@ -188,44 +217,64 @@ const processMarkdownContent = (content: string, fileId: string, notebookId: str
 // Memoized markdown content component (same as StudioPanel)
 interface MarkdownContentProps {
   content: string;
+  notebookId?: string;
+  fileId?: string;
 }
 
-const MarkdownContent = React.memo<MarkdownContentProps>(({ content }) => (
-  <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight, rehypeRaw]}
-      components={{
-        h1: ({children}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-3 border-b">{children}</h1>,
-        h2: ({children}) => <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4">{children}</h2>,
-        h3: ({children}) => <h3 className="text-xl font-medium text-gray-800 mt-6 mb-3">{children}</h3>,
-        p: ({children}) => <p className="text-gray-700 leading-relaxed mb-4">{children}</p>,
-        ul: ({children}) => <ul className="list-disc pl-6 mb-4 space-y-2">{children}</ul>,
-        ol: ({children}) => <ol className="list-decimal pl-6 mb-4 space-y-2">{children}</ol>,
-        li: ({children}) => <li className="text-gray-700">{children}</li>,
-        blockquote: ({children}) => <blockquote className="border-l-4 border-blue-200 pl-4 italic text-gray-600 my-4">{children}</blockquote>,
-        code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono text-gray-800">{children}</code>,
-        pre: ({children}) => <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4">{children}</pre>,
-        img: ({ src, alt, title, ...props }) => {
-          if (!src) return null;
-          return <AuthenticatedImage src={src} alt={alt} title={title} />;
-        },
-        a: ({href, children}) => (
-          <a 
-            href={href} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-800 underline"
-          >
-            {children}
-          </a>
-        ),
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-  </div>
-));
+const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    ensureMathJax().then(() => {
+      const w = window as any;
+      if (cancelled) return;
+      if (w.MathJax && w.MathJax.typesetPromise) {
+        // Typeset only within this container
+        w.MathJax.typesetClear?.([containerRef.current]);
+        w.MathJax.typesetPromise([containerRef.current]).catch(() => {});
+      }
+    });
+    return () => { cancelled = true; };
+  }, [content]);
+
+  return (
+    <div ref={containerRef} className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeHighlight, rehypeRaw]}
+        components={{
+          h1: ({children}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-3 border-b">{children}</h1>,
+          h2: ({children}) => <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4">{children}</h2>,
+          h3: ({children}) => <h3 className="text-xl font-medium text-gray-800 mt-6 mb-3">{children}</h3>,
+          p: ({children}) => <p className="text-gray-700 leading-relaxed mb-4">{children}</p>,
+          ul: ({children}) => <ul className="list-disc pl-6 mb-4 space-y-2">{children}</ul>,
+          ol: ({children}) => <ol className="list-decimal pl-6 mb-4 space-y-2">{children}</ol>,
+          li: ({children}) => <li className="text-gray-700">{children}</li>,
+          blockquote: ({children}) => <blockquote className="border-l-4 border-blue-200 pl-4 italic text-gray-600 my-4">{children}</blockquote>,
+          code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono text-gray-800">{children}</code>,
+          pre: ({children}) => <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4">{children}</pre>,
+          img: ({ src, alt, title, ...props }) => {
+            if (!src) return null;
+            return <AuthenticatedImage src={src} alt={alt} title={title} notebookId={notebookId} fileId={fileId} />;
+          },
+          a: ({href, children}) => (
+            <a 
+              href={href} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline break-all"
+            >
+              {children}
+            </a>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+});
 
 MarkdownContent.displayName = 'MarkdownContent';
 
@@ -458,7 +507,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         </div>
 
         <div className="bg-gray-50 rounded-lg p-6 max-h-[600px] overflow-y-auto">
-          <MarkdownContent content={processedContent} />
+          <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
         </div>
       </div>
     );
@@ -605,7 +654,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             </div>
           </div>
           <div className="p-6 max-h-[600px] overflow-y-auto">
-            <MarkdownContent content={state.preview.content} />
+            <MarkdownContent content={state.preview.content} notebookId={notebookId} fileId={source.file_id || ''} />
           </div>
         </div>
       )}
@@ -990,7 +1039,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       {/* Parsed Content Display */}
       <div className="bg-white rounded-lg border border-gray-200">
         <div className="p-6 max-h-[600px] overflow-y-auto">
-          <MarkdownContent content={processMarkdownContent(state.preview.content, source.file_id || '', notebookId, useMinIOUrls)} />
+          <MarkdownContent content={processMarkdownContent(state.preview.content, source.file_id || '', notebookId, useMinIOUrls)} notebookId={notebookId} fileId={source.file_id || ''} />
         </div>
       </div>
       </div>

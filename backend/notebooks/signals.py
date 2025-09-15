@@ -7,6 +7,7 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.core.cache import cache
 from .models import KnowledgeBaseItem
+from .utils.storage import get_storage_adapter
 
 logger = logging.getLogger(__name__)
 
@@ -68,8 +69,23 @@ def on_knowledge_base_item_saved(sender, instance, created, **kwargs):
 
 @receiver(post_delete, sender=KnowledgeBaseItem)
 def on_knowledge_base_item_deleted(sender, instance, **kwargs):
-    """Handle KnowledgeBaseItem deletion"""
+    """Handle KnowledgeBaseItem deletion and cleanup associated MinIO files."""
     try:
+        storage_adapter = get_storage_adapter()
+        
+        # Delete associated MinIO files
+        if instance.file_object_key:
+            storage_adapter.delete_file(instance.file_object_key)
+        if instance.original_file_object_key:
+            storage_adapter.delete_file(instance.original_file_object_key)
+            
+        # Delete all associated images from MinIO
+        for image in instance.images.all():
+            if image.minio_object_key:
+                storage_adapter.delete_file(image.minio_object_key)
+
+        logger.info(f"Deleted MinIO files associated with KnowledgeBaseItem {instance.id}")
+
         NotebookFileChangeNotifier.notify_file_change(
             notebook_id=instance.notebook.id,
             change_type='file_removed',
