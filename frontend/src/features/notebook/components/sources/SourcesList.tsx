@@ -759,7 +759,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           isOpen={true}
           onClose={() => onCloseModal?.('filePreview')}
           notebookId={notebookId}
-          useMinIOUrls={true}
+          useMinIOUrls={false}
         />
       );
       onOpenModal('filePreview', previewContent);
