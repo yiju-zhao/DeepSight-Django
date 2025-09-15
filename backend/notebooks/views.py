@@ -254,6 +254,24 @@ class FileViewSet(viewsets.ModelViewSet):
             logger.exception(f"Failed to get images for {pk}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=["get"], url_path=r"image/(?P<image_id>[^/]+)/inline")
+    def image_inline(self, request, notebook_pk=None, pk=None, image_id: str = None):
+        """Serve an image via API as an inline response (MinIO proxy)."""
+        item = self.get_object()
+        try:
+            from .models import KnowledgeBaseImage
+            image = get_object_or_404(KnowledgeBaseImage, id=image_id, knowledge_base_item=item)
+            content = image.get_image_content()
+            if content is None:
+                return Response({"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
+            resp = HttpResponse(content, content_type=image.content_type or 'application/octet-stream')
+            resp["Content-Disposition"] = f"inline; filename=\"{image.image_metadata.get('original_filename', 'image')}\"" if isinstance(image.image_metadata, dict) else "inline"
+            resp["X-Content-Type-Options"] = "nosniff"
+            return resp
+        except Exception as e:
+            logger.exception(f"Failed to serve inline image {image_id} for KB item {pk}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=False, methods=["post"], url_path="parse_url")
     def parse_url(self, request, notebook_pk=None):
         serializer = URLParseSerializer(data=request.data)

@@ -87,9 +87,8 @@ class KnowledgeBaseService(NotebookBaseService):
             basename_to_url: Dict[str, str] = {}
 
             for img in images:
-                url = img.get_image_url(expires=expires)
-                if not url:
-                    continue
+                # Best practice: serve via backend API proxy to avoid client MinIO dependency
+                url = f"/api/v1/notebooks/{kb_item.notebook.id}/files/{kb_item.id}/image/{img.id}/inline/"
                 original_file = None
                 original_filename = None
                 if isinstance(img.image_metadata, dict):
@@ -112,6 +111,7 @@ class KnowledgeBaseService(NotebookBaseService):
                     if isinstance(keys, list) and keys:
                         for key in keys:
                             try:
+                                # As a last resort, use direct MinIO URL
                                 url = self.minio_backend.get_file_url(key, expires=expires)
                                 if not url:
                                     continue
