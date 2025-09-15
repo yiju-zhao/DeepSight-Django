@@ -7,6 +7,8 @@ import logging
 import os
 import tempfile
 from typing import Dict, List, Optional, Any
+import re
+from urllib.parse import urlparse
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
@@ -37,7 +39,7 @@ class KnowledgeBaseService(NotebookBaseService):
         """
         pass
     
-    def get_processed_content(self, kb_item: KnowledgeBaseItem) -> str:
+    def get_processed_content(self, kb_item: KnowledgeBaseItem, expires: int = 3600) -> str:
         """
         Get processed markdown content from a knowledge base item.
         Uses only the database content field for simplified access.
@@ -52,7 +54,8 @@ class KnowledgeBaseService(NotebookBaseService):
             # Get content directly from the database content field
             if kb_item.content and kb_item.content.strip():
                 logger.debug(f"Returning content from database field for KB item {kb_item.id}")
-                return kb_item.content
+                # Replace local image paths with presigned URLs for preview rendering
+                return self._replace_local_image_paths(kb_item.content, kb_item, expires=expires)
 
             # Return empty string if no content found
             logger.info(f"No content found in database field for KB item {kb_item.id}")
@@ -61,6 +64,115 @@ class KnowledgeBaseService(NotebookBaseService):
         except Exception as e:
             logger.error(f"Error getting processed content for KB item {kb_item.id}: {e}")
             return ""
+
+    def _replace_local_image_paths(self, markdown: str, kb_item: KnowledgeBaseItem, expires: int = 3600) -> str:
+        """
+        Replace local image references in markdown with presigned MinIO URLs.
+
+        Supports both markdown image syntax and HTML <img> tags.
+        Only replaces relative/local paths (no scheme, not data:, not absolute URLs).
+        """
+        try:
+            # Quick exit if no obvious image tokens
+            if not markdown or ('![' not in markdown and '<img' not in markdown):
+                return markdown
+
+            # Build mapping from original paths and basenames to presigned URLs
+            from ..models import KnowledgeBaseImage
+            images = KnowledgeBaseImage.objects.filter(knowledge_base_item=kb_item).only(
+                'id', 'minio_object_key', 'image_metadata'
+            )
+
+            path_to_url: Dict[str, str] = {}
+            basename_to_url: Dict[str, str] = {}
+
+            for img in images:
+                url = img.get_image_url(expires=expires)
+                if not url:
+                    continue
+                original_file = None
+                original_filename = None
+                if isinstance(img.image_metadata, dict):
+                    original_file = img.image_metadata.get('original_file')
+                    original_filename = img.image_metadata.get('original_filename')
+                # Prefer full relative path match
+                if original_file:
+                    # Normalize to use forward slashes
+                    norm = original_file.replace('\\', '/')
+                    path_to_url[norm] = url
+                    # Also map basename
+                    basename_to_url[os.path.basename(norm)] = url
+                if original_filename:
+                    basename_to_url[original_filename] = url
+
+            # Fallback: derive from KnowledgeBaseItem.file_metadata['image_object_keys'] if present
+            if (not path_to_url and not basename_to_url) and isinstance(kb_item.file_metadata, dict):
+                try:
+                    keys = kb_item.file_metadata.get('image_object_keys') or []
+                    if isinstance(keys, list) and keys:
+                        for key in keys:
+                            try:
+                                url = self.minio_backend.get_file_url(key, expires=expires)
+                                if not url:
+                                    continue
+                                base = os.path.basename(str(key))
+                                if base:
+                                    basename_to_url.setdefault(base, url)
+                            except Exception:
+                                continue
+                except Exception:
+                    pass
+            if not path_to_url and not basename_to_url:
+                return markdown
+
+            # Helper to decide if url is local/relative
+            def is_local_path(p: str) -> bool:
+                parsed = urlparse(p)
+                if parsed.scheme or parsed.netloc:
+                    return False
+                # data URIs or anchors should be left alone
+                if p.startswith('data:') or p.startswith('#'):
+                    return False
+                return True
+
+            # Replace in markdown image syntax: ![alt](url)
+            md_img_pattern = re.compile(r"!\[[^\]]*\]\(([^)\s]+)(?:\s+['\"][^)]+['\"])??\)")
+
+            def md_repl(match: re.Match) -> str:
+                orig_url = match.group(1)
+                if not is_local_path(orig_url):
+                    return match.group(0)
+                norm = orig_url.replace('\\', '/')
+                new_url = path_to_url.get(norm)
+                if not new_url:
+                    new_url = basename_to_url.get(os.path.basename(norm))
+                if not new_url:
+                    return match.group(0)
+                return match.group(0).replace(orig_url, new_url)
+
+            markdown = md_img_pattern.sub(md_repl, markdown)
+
+            # Replace in HTML <img src="...">
+            html_img_pattern = re.compile(r"<img([^>]*?)src=[\"\']([^\"\']+)[\"\']([^>]*)>")
+
+            def html_repl(match: re.Match) -> str:
+                pre, src, post = match.groups()
+                if not is_local_path(src):
+                    return match.group(0)
+                norm = src.replace('\\', '/')
+                new_url = path_to_url.get(norm)
+                if not new_url:
+                    new_url = basename_to_url.get(os.path.basename(norm))
+                if not new_url:
+                    return match.group(0)
+                return f"<img{pre}src=\"{new_url}\"{post}>"
+
+            markdown = html_img_pattern.sub(html_repl, markdown)
+
+            return markdown
+        except Exception as e:
+            logger.exception(f"Error replacing image URLs for KB item {kb_item.id}: {e}")
+            return markdown
 
     def get_user_knowledge_base(self, user_id: int, notebook, content_type: str = None, limit: int = None, offset: int = None) -> Dict:
         """

@@ -181,9 +181,33 @@ def _check_batch_completion(batch_job_id: Optional[str]) -> None:
 def _handle_task_completion(kb_item: KnowledgeBaseItem, 
                           batch_item_id: str = None, batch_job_id: str = None) -> Dict[str, Any]:
     """Handle common task completion logic."""
-    # Update parsing status to done
-    kb_item.parsing_status = "done" 
-    kb_item.save(update_fields=["parsing_status"])
+    # Determine if captioning is required based on available image info
+    image_count = 0
+    try:
+        if isinstance(kb_item.file_metadata, dict):
+            image_count = int(kb_item.file_metadata.get("image_count", 0) or 0)
+    except Exception:
+        image_count = 0
+
+    if image_count > 0:
+        # Move to captioning and schedule caption generation
+        kb_item.parsing_status = "captioning"
+        kb_item.save(update_fields=["parsing_status", "updated_at"])
+
+        try:
+            from .tasks import generate_image_captions_task
+            generate_image_captions_task.delay(str(kb_item.id))
+        except Exception as e:
+            # If scheduling fails, mark as failed and record error
+            logger.error(f"Failed to schedule caption generation for KB item {kb_item.id}: {e}")
+            kb_item.parsing_status = "failed"
+            kb_item.metadata = kb_item.metadata or {}
+            kb_item.metadata["caption_schedule_error"] = str(e)
+            kb_item.save(update_fields=["parsing_status", "metadata", "updated_at"])
+    else:
+        # No images; complete immediately
+        kb_item.parsing_status = "done"
+        kb_item.save(update_fields=["parsing_status", "updated_at"])
     
     # Handle RagFlow upload only
     _handle_ragflow_upload(kb_item)
@@ -469,37 +493,50 @@ def process_file_upload_task(self, file_data: bytes, filename: str, notebook_id:
 
 @shared_task(bind=True)
 def generate_image_captions_task(self, kb_item_id: str):
-    """Generate captions for images in a knowledge base item asynchronously."""
+    """Generate captions for images in a knowledge base item asynchronously.
+
+    State handling (single-field state machine):
+    - Ensure parsing_status is 'captioning' while running
+    - On success, set parsing_status='done'
+    - On failure, set parsing_status='failed'
+    """
     kb_item = None
     try:
         kb_item = get_object_or_404(KnowledgeBaseItem, id=kb_item_id)
-        
+
+        # Move to captioning if not already in a terminal state
+        if kb_item.parsing_status not in ["captioning", "done", "failed"]:
+            kb_item.parsing_status = "captioning"
+            kb_item.save(update_fields=["parsing_status", "updated_at"])
+
         # Import caption generator utility lazily
         from .utils.image_processing.caption_generator import populate_image_captions_for_kb_item
 
         # Generate captions
         result = populate_image_captions_for_kb_item(kb_item)
-        
+
         if result.get('success'):
             logger.info(f"Successfully generated captions for KB item {kb_item_id}")
-            kb_item.file_metadata['caption_generation_status'] = 'completed'
+            kb_item.parsing_status = "done"
+            kb_item.save(update_fields=["parsing_status", "updated_at"])
             return {"success": True, "captions_generated": result.get('captions_count', 0)}
         else:
             logger.warning(f"Failed to generate captions for KB item {kb_item_id}: {result.get('error')}")
-            kb_item.file_metadata['caption_generation_status'] = 'failed'
-            kb_item.file_metadata['caption_generation_error'] = result.get('error')
+            kb_item.parsing_status = "failed"
+            # Keep error in metadata for observability
+            kb_item.metadata = kb_item.metadata or {}
+            kb_item.metadata['caption_error'] = result.get('error')
+            kb_item.save(update_fields=["parsing_status", "metadata", "updated_at"])
             return {"success": False, "error": result.get('error')}
-            
+
     except Exception as e:
         logger.error(f"Error generating captions for KB item {kb_item_id}: {e}")
         if kb_item:
-            kb_item.file_metadata['caption_generation_status'] = 'failed'
-            kb_item.file_metadata['caption_generation_error'] = str(e)
+            kb_item.parsing_status = "failed"
+            kb_item.metadata = kb_item.metadata or {}
+            kb_item.metadata['caption_error'] = str(e)
+            kb_item.save(update_fields=["parsing_status", "metadata", "updated_at"])
         raise ValidationError(f"Failed to generate captions: {str(e)}")
-    finally:
-        if kb_item:
-            kb_item.parsing_status = "done"
-            kb_item.save(update_fields=['parsing_status', 'file_metadata', 'updated_at'])
 
 
 

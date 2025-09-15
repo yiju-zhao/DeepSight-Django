@@ -272,38 +272,28 @@ class MinIOPostProcessor:
         kb_item.save()
 
     def _schedule_caption_generation(self, kb_item, image_files: list):
-        """Schedule caption generation for extracted images."""
+        """No-op scheduler: captioning orchestration moved to task completion.
+
+        We keep this method for compatibility with existing processor flow, but
+        actual scheduling is handled centrally in _handle_task_completion.
+        """
+        # Record intent and counts for observability only
         try:
-            # Mark that caption generation is needed and schedule the task
-            kb_item.file_metadata['caption_generation_status'] = 'pending'
+            if not kb_item.file_metadata:
+                kb_item.file_metadata = {}
             kb_item.file_metadata['images_requiring_captions'] = len(image_files)
             kb_item.save()
 
-            self.log_operation("mineru_caption_preparing",
-                f"Preparing to schedule caption generation for {len(image_files)} images in KB item {kb_item.id}")
-
-            # Schedule caption generation as an async task
-            try:
-                from ..tasks import generate_image_captions_task
-                # Convert UUID to string for Celery serialization
-                kb_item_id_str = str(kb_item.id)
-                task_result = generate_image_captions_task.delay(kb_item_id_str)
-
-                self.log_operation("mineru_caption_scheduling",
-                    f"Scheduled caption generation task {task_result.id} for {len(image_files)} images in KB item {kb_item_id_str}")
-            except ImportError as import_error:
-                raise Exception(f"Failed to import caption generation task: {str(import_error)}")
-            except Exception as task_error:
-                raise Exception(f"Failed to schedule Celery task: {str(task_error)}")
-
-        except Exception as caption_error:
-            # If task scheduling fails, mark caption generation as failed
-            kb_item.file_metadata['caption_generation_status'] = 'failed'
-            kb_item.file_metadata['caption_generation_error'] = str(caption_error)
-            kb_item.save()
-
-            self.log_operation("mineru_caption_scheduling_error",
-                f"Failed to schedule caption generation for KB item {kb_item.id}: {str(caption_error)}", "error")
+            self.log_operation(
+                "mineru_caption_preparing",
+                f"Caption generation deferred to completion handler for {len(image_files)} images in KB item {kb_item.id}"
+            )
+        except Exception as e:
+            self.log_operation(
+                "mineru_caption_scheduling_error",
+                f"Failed to record caption generation intent for KB item {kb_item.id}: {str(e)}",
+                "error",
+            )
 
     def _log_processing_summary(self, content_files: list, image_files: list):
         """Log summary of processing results."""

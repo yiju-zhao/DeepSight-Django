@@ -206,7 +206,14 @@ class FileViewSet(viewsets.ModelViewSet):
     def content(self, request, notebook_pk=None, pk=None):
         item = self.get_object()
         try:
-            content = self.kb_service.get_processed_content(item)
+            # Optional presigned URL expiry from querystring (seconds)
+            try:
+                expires = int(request.GET.get('expires', '0'))
+                if expires <= 0:
+                    expires = 3600
+            except Exception:
+                expires = 3600
+            content = self.kb_service.get_processed_content(item, expires=expires)
             return Response({"content": content})
         except Exception as e:
             logger.exception(f"Failed to get content for {pk}: {e}")
@@ -483,21 +490,28 @@ class FileStatusSSEView(View):
             yield f"data: {json.dumps(error_message)}\n\n"
 
     def build_status_data(self, file_item: KnowledgeBaseItem) -> Dict[str, Any]:
-        # Map model parsing_status to frontend status
+        # Map model parsing_status (single-field state machine) to frontend status
         status_mapping = {
             "queueing": "processing",
             "parsing": "processing",
+            "captioning": "processing",
             "done": "done",
             "failed": "failed",
         }
         frontend_status = status_mapping.get(file_item.parsing_status, "processing")
 
-        # Check caption generation status
-        caption_status = file_item.file_metadata.get('caption_generation_status')
-        if file_item.parsing_status == 'done' and caption_status == 'pending':
-            frontend_status = 'processing' # still processing captions
-        elif file_item.parsing_status == 'done' and caption_status == 'completed':
-            frontend_status = 'done'
+        # Derive caption status for backward-compatible UI hints
+        # - captioning -> captioning
+        # - done -> completed
+        # - failed -> failed
+        # - otherwise None
+        caption_status = None
+        if file_item.parsing_status == 'captioning':
+            caption_status = 'captioning'
+        elif file_item.parsing_status == 'done':
+            caption_status = 'completed'
+        elif file_item.parsing_status == 'failed':
+            caption_status = 'failed'
 
         return {
             "file_id": str(file_item.id),

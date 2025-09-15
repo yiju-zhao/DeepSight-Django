@@ -18,6 +18,7 @@ class KnowledgeBaseItem(BaseModel):
     PARSING_STATUS_CHOICES = [
         ("queueing", "Queueing"),
         ("parsing", "Parsing"),
+        ("captioning", "Captioning"),
         ("done", "Done"),
         ("failed", "Failed"),
     ]
