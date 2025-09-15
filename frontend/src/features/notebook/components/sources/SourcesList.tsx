@@ -171,6 +171,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         parsing_status: metadata.parsing_status,
         metadata: {
           ...metadata,
+          // Ensure preview code has a reliable extension to decide preview type
+          file_extension: metadata.file_extension || getPrincipleFileExtension(metadata),
           knowledge_item_id: metadata.id || metadata.knowledge_item_id // Use the actual ID
         },
         error_message: metadata.error_message,

@@ -460,9 +460,13 @@ class FileStatusSSEView(View):
                 status_data = self.build_status_data(file_item)
                 sse_message = {"type": "file_status", "data": status_data}
                 yield f"data: {json.dumps(sse_message)}\n\n"
-                if file_item.parsing_status in ["done", "failed"]:
+
+                parsing_done = file_item.parsing_status in ["done", "failed"]
+                caption_done = status_data.get('caption_status') in ["completed", "failed"]
+
+                if parsing_done and (not status_data.get('caption_status') or caption_done):
                     logger.info(
-                        f"File {file_item.id} processing finished with status: {file_item.parsing_status}"
+                        f"File {file_item.id} processing finished with status: {file_item.parsing_status} and caption status: {status_data.get('caption_status')}"
                     )
                     close_message = {"type": "close"}
                     yield f"data: {json.dumps(close_message)}\n\n"
@@ -487,6 +491,14 @@ class FileStatusSSEView(View):
             "failed": "failed",
         }
         frontend_status = status_mapping.get(file_item.parsing_status, "processing")
+
+        # Check caption generation status
+        caption_status = file_item.file_metadata.get('caption_generation_status')
+        if file_item.parsing_status == 'done' and caption_status == 'pending':
+            frontend_status = 'processing' # still processing captions
+        elif file_item.parsing_status == 'done' and caption_status == 'completed':
+            frontend_status = 'done'
+
         return {
             "file_id": str(file_item.id),
             "status": frontend_status,
@@ -497,6 +509,7 @@ class FileStatusSSEView(View):
             "has_content": bool(file_item.content),
             "processing_status": file_item.parsing_status,
             "metadata": file_item.metadata or {},
+            "caption_status": caption_status,
         }
 
     def _generate_upload_pending_stream(self, upload_id: str):

@@ -25,11 +25,21 @@ class SourceService {
   }
 
   async getParsedFile(fileId: string, notebookId: string): Promise<any> {
-    return httpClient.get(`/notebooks/${notebookId}/files/${fileId}/content/`);
+    const res = await httpClient.get(`/notebooks/${notebookId}/files/${fileId}/content/`);
+    // Normalize to { success, data: { content } } shape expected by callers
+    if (res && typeof res === 'object' && 'content' in res) {
+      return { success: true, data: { content: (res as any).content } };
+    }
+    return res;
   }
 
   async getFileContentWithMinIOUrls(fileId: string, notebookId: string, expires: number = 86400): Promise<any> {
-    return httpClient.get(`/notebooks/${notebookId}/files/${fileId}/content/?expires=${expires}`);
+    const res = await httpClient.get(`/notebooks/${notebookId}/files/${fileId}/content/?expires=${expires}`);
+    // Backend returns { content } even when MinIO URLs are embedded in markdown
+    if (res && typeof res === 'object' && 'content' in res) {
+      return { success: true, data: { content: (res as any).content } };
+    }
+    return res;
   }
 
   getFileRaw(fileId: string, notebookId: string): string {

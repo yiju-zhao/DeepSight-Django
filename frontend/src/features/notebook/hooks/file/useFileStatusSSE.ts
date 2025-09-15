@@ -14,6 +14,7 @@ interface FileStatusData {
   status: string;
   title: string;
   updated_at: string | null;
+  caption_status?: string;
 }
 
 export const useFileStatusSSE = (
@@ -132,13 +133,16 @@ export const useFileStatusSSE = (
             }
             
             if (parsedEvent.type === 'file_status' && parsedEvent.data) {
-              const fileData = parsedEvent.data;
+              const fileData = parsedEvent.data as FileStatusData;
 
               setStatus(fileData.status);
               
-              console.log('File status update:', fileData.status, 'for file:', fileData.file_id);
+              console.log('File status update:', fileData.status, 'for file:', fileData.file_id, 'caption_status:', fileData.caption_status);
               
-              if (fileData.status === 'done') {
+              const isParsingDone = fileData.status === 'done';
+              const isCaptioningDone = fileData.caption_status === 'completed' || fileData.caption_status === 'failed' || !fileData.caption_status;
+
+              if (isParsingDone && isCaptioningDone) {
                 processingCompletedRef.current = true;
                 
                 if (onCompleteRef.current) {
@@ -147,8 +151,7 @@ export const useFileStatusSSE = (
                 
                 if (ctrlRef.current) ctrlRef.current.abort();
                 setIsConnected(false);
-                
-              } else if (fileData.status === 'failed') {
+              } else if (fileData.status === 'failed' || fileData.caption_status === 'failed') {
                 processingCompletedRef.current = true;
                 const errorMsg = 'File processing failed';
                 

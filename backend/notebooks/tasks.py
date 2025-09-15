@@ -466,9 +466,11 @@ def process_file_upload_task(self, file_data: bytes, filename: str, notebook_id:
         raise FileProcessingError(f"Failed to process file upload: {str(e)}")
 
 
+
 @shared_task(bind=True)
 def generate_image_captions_task(self, kb_item_id: str):
     """Generate captions for images in a knowledge base item asynchronously."""
+    kb_item = None
     try:
         kb_item = get_object_or_404(KnowledgeBaseItem, id=kb_item_id)
         
@@ -480,14 +482,25 @@ def generate_image_captions_task(self, kb_item_id: str):
         
         if result.get('success'):
             logger.info(f"Successfully generated captions for KB item {kb_item_id}")
+            kb_item.file_metadata['caption_generation_status'] = 'completed'
             return {"success": True, "captions_generated": result.get('captions_count', 0)}
         else:
             logger.warning(f"Failed to generate captions for KB item {kb_item_id}: {result.get('error')}")
+            kb_item.file_metadata['caption_generation_status'] = 'failed'
+            kb_item.file_metadata['caption_generation_error'] = result.get('error')
             return {"success": False, "error": result.get('error')}
             
     except Exception as e:
         logger.error(f"Error generating captions for KB item {kb_item_id}: {e}")
+        if kb_item:
+            kb_item.file_metadata['caption_generation_status'] = 'failed'
+            kb_item.file_metadata['caption_generation_error'] = str(e)
         raise ValidationError(f"Failed to generate captions: {str(e)}")
+    finally:
+        if kb_item:
+            kb_item.parsing_status = "done"
+            kb_item.save(update_fields=['parsing_status', 'file_metadata', 'updated_at'])
+
 
 
 # ============================================================================
