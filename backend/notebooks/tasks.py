@@ -472,12 +472,11 @@ def generate_image_captions_task(self, kb_item_id: str):
     try:
         kb_item = get_object_or_404(KnowledgeBaseItem, id=kb_item_id)
         
-        # Import caption service lazily
-        from .services.caption_service import CaptionService
-        caption_service = CaptionService()
-        
+        # Import caption generator utility lazily
+        from .utils.image_processing.caption_generator import populate_image_captions_for_kb_item
+
         # Generate captions
-        result = caption_service.generate_captions_for_item(kb_item)
+        result = populate_image_captions_for_kb_item(kb_item)
         
         if result.get('success'):
             logger.info(f"Successfully generated captions for KB item {kb_item_id}")

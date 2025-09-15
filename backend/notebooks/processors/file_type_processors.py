@@ -346,7 +346,7 @@ class FileTypeProcessors:
             # Always attempt transcription with Xinference - no pre-check needed
 
             # Transcribe audio using Xinference
-            from ..processors.transcription_service import TranscriptionService
+            from ..services.transcription_service import TranscriptionService
             transcription_service = TranscriptionService(self.xinference_url, self.model_uid, clean_title, self.logger)
             transcript_content, transcript_filename = await transcription_service.transcribe_audio_video(
                 file_path, file_metadata['filename']
@@ -401,7 +401,7 @@ class FileTypeProcessors:
 
             if result.returncode == 0 and os.path.exists(audio_path):
                 try:
-                    from ..processors.transcription_service import TranscriptionService
+                    from ..services.transcription_service import TranscriptionService
                     transcription_service = TranscriptionService(self.xinference_url, self.model_uid, clean_title, self.logger)
                     transcript_content, _ = await transcription_service.transcribe_audio_video(
                         audio_path, file_metadata['filename']

@@ -6,7 +6,13 @@ import logging
 from datetime import datetime, timezone
 from typing import Dict, Any
 
-from .caption_service import CaptionService
+# Direct import of caption generator utility
+try:
+    from ..utils.image_processing.caption_generator import generate_caption_for_image
+    from reports.image_utils import extract_figure_data_from_markdown
+except ImportError:
+    generate_caption_for_image = None
+    extract_figure_data_from_markdown = None
 
 
 class MinIOPostProcessor:
@@ -15,7 +21,6 @@ class MinIOPostProcessor:
     def __init__(self, file_storage_service, logger=None):
         self.file_storage = file_storage_service
         self.logger = logger or logging.getLogger(__name__)
-        self.caption_service = CaptionService(logger)
     
     def log_operation(self, operation: str, details: str = "", level: str = "info"):
         """Log operations with consistent formatting."""
@@ -273,31 +278,31 @@ class MinIOPostProcessor:
             kb_item.file_metadata['caption_generation_status'] = 'pending'
             kb_item.file_metadata['images_requiring_captions'] = len(image_files)
             kb_item.save()
-            
-            self.log_operation("mineru_caption_preparing", 
+
+            self.log_operation("mineru_caption_preparing",
                 f"Preparing to schedule caption generation for {len(image_files)} images in KB item {kb_item.id}")
-            
+
             # Schedule caption generation as an async task
             try:
                 from ..tasks import generate_image_captions_task
                 # Convert UUID to string for Celery serialization
                 kb_item_id_str = str(kb_item.id)
                 task_result = generate_image_captions_task.delay(kb_item_id_str)
-                
-                self.log_operation("mineru_caption_scheduling", 
+
+                self.log_operation("mineru_caption_scheduling",
                     f"Scheduled caption generation task {task_result.id} for {len(image_files)} images in KB item {kb_item_id_str}")
             except ImportError as import_error:
                 raise Exception(f"Failed to import caption generation task: {str(import_error)}")
             except Exception as task_error:
                 raise Exception(f"Failed to schedule Celery task: {str(task_error)}")
-            
+
         except Exception as caption_error:
             # If task scheduling fails, mark caption generation as failed
             kb_item.file_metadata['caption_generation_status'] = 'failed'
             kb_item.file_metadata['caption_generation_error'] = str(caption_error)
             kb_item.save()
-            
-            self.log_operation("mineru_caption_scheduling_error", 
+
+            self.log_operation("mineru_caption_scheduling_error",
                 f"Failed to schedule caption generation for KB item {kb_item.id}: {str(caption_error)}", "error")
 
     def _log_processing_summary(self, content_files: list, image_files: list):

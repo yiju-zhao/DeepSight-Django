@@ -37,6 +37,7 @@ export const useFileStatusSSE = (
   const maxReconnectAttempts = 5;
   const isConnectingRef = useRef(false);
   const processingCompletedRef = useRef(false);
+  const prevFileIdRef = useRef<string | null>(null);
   
   // Store callbacks in refs to avoid recreating connections when they change
   const onCompleteRef = useRef(onComplete);
@@ -54,12 +55,13 @@ export const useFileStatusSSE = (
   }, [onError]);
 
   useEffect(() => {
+    // Reset completion flag when file ID actually changes
+    if (fileId !== prevFileIdRef.current) {
+      processingCompletedRef.current = false;
+      prevFileIdRef.current = fileId;
+    }
     currentFileIdRef.current = fileId;
     currentNotebookIdRef.current = notebookId;
-    // Reset completion flag when file ID changes
-    if (fileId !== currentFileIdRef.current) {
-      processingCompletedRef.current = false;
-    }
   }, [fileId, notebookId]);
 
   const connectEventSource = useCallback(() => {
@@ -177,20 +179,22 @@ export const useFileStatusSSE = (
           console.error('File SSE Connection error:', err);
           setIsConnected(false);
           isConnectingRef.current = false;
-          
-          if (err.name === 'AbortError') {
-            console.log('File SSE connection aborted intentionally.');
-            throw err; // Prevent reconnection
+
+          // AbortError is expected on intentional aborts and StrictMode unmounts
+          if (err && (err as any).name === 'AbortError') {
+            return; // Quietly stop without marking as error
           }
-          
+
           if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
             setConnectionError('Unable to connect to server. Please refresh the page.');
             console.error('Max reconnection attempts reached.');
-            throw err; // Prevent further retries
+            if (ctrlRef.current) ctrlRef.current.abort();
+            return; // Stop further retries gracefully
           }
 
           reconnectAttemptsRef.current++;
           setConnectionError(`Connection lost, reconnecting... (${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
+          // Returning allows fetch-event-source to manage retries
         },
         
         onclose: () => {
