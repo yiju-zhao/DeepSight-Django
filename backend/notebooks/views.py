@@ -217,11 +217,24 @@ class FileViewSet(viewsets.ModelViewSet):
         item = self.get_object()
         try:
             file_obj = self.kb_service.get_raw_file(item)
-            response = HttpResponse(file_obj["data"], content_type=file_obj["content_type"]) 
+            response = HttpResponse(file_obj["data"], content_type=file_obj["content_type"])
             response["Content-Disposition"] = f"attachment; filename=\"{file_obj['filename']}\""
             return response
         except Exception as e:
             logger.exception(f"Failed to get raw file for {pk}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["get"], url_path="inline")
+    def inline(self, request, notebook_pk=None, pk=None):
+        item = self.get_object()
+        try:
+            file_obj = self.kb_service.get_raw_file(item)
+            response = HttpResponse(file_obj["data"], content_type=file_obj["content_type"])
+            response["Content-Disposition"] = f"inline; filename=\"{file_obj['filename']}\""
+            response["X-Content-Type-Options"] = "nosniff"
+            return response
+        except Exception as e:
+            logger.exception(f"Failed to get inline file for {pk}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=True, methods=["get"], url_path="images")

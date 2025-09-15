@@ -36,6 +36,10 @@ class SourceService {
     return `${httpClient.baseUrl}/notebooks/${notebookId}/files/${fileId}/raw/`;
   }
 
+  getFileInline(fileId: string, notebookId: string): string {
+    return `${httpClient.baseUrl}/notebooks/${notebookId}/files/${fileId}/inline/`;
+  }
+
   async parseFile(file: File | File[], uploadFileId: string, notebookId: string): Promise<BatchResponse> {
     const files = Array.isArray(file) ? file : [file];
     const isBatch = Array.isArray(file);

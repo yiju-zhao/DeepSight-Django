@@ -282,11 +282,11 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     updateState({ modals: newModals });
   };
 
-  // Helper function to get raw file URL
-  const getRawFileUrl = (fileId: string) => {
-    return notebookId ? 
-      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/raw/` : 
-      `${API_BASE_URL}/files/${fileId}/raw`;
+  // Helper function to get file URL (renamed from getRawFileUrl, now uses inline for preview)
+  const getFileUrl = (fileId: string, action: 'inline' | 'raw' = 'inline') => {
+    return notebookId ?
+      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/${action}/` :
+      `${API_BASE_URL}/files/${fileId}/${action}/`;
   };
 
   useEffect(() => {

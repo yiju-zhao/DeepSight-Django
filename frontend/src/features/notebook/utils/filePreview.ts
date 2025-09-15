@@ -299,33 +299,34 @@ async function generateAudioPreview(fileId: string, metadata: FileMetadata, note
   }
   
   // Create a blob URL for the audio file to handle authentication properly
+  // Use inline endpoint to prevent forced download
   let audioUrl = null;
   try {
-    const rawUrl = notebookId ? 
-      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/raw/` : 
-      `${API_BASE_URL}/notebooks/files/${fileId}/raw/`;
-    
+    const inlineUrl = notebookId ?
+      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/inline/` :
+      `${API_BASE_URL}/notebooks/files/${fileId}/inline/`;
+
     // Fetch the audio file with credentials
-    const response = await fetch(rawUrl, {
+    const response = await fetch(inlineUrl, {
       credentials: 'include',
       headers: {
         'Accept': 'audio/*,*/*'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch audio file: ${response.status}`);
     }
-    
+
     const blob = await response.blob();
     audioUrl = URL.createObjectURL(blob);
     console.log('Audio blob URL created:', audioUrl);
   } catch (error) {
     console.error('Failed to create audio blob URL:', error);
-    // Fallback to direct URL (might not work in Chrome due to authentication issues)
-    audioUrl = notebookId ? 
-      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/raw/` : 
-      `${API_BASE_URL}/notebooks/files/${fileId}/raw/`;
+    // Fallback to direct inline URL (should work better than raw)
+    audioUrl = notebookId ?
+      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/inline/` :
+      `${API_BASE_URL}/notebooks/files/${fileId}/inline/`;
   }
   
   // Check if we have parsed transcript content
@@ -379,33 +380,34 @@ async function generateVideoPreview(fileId: string, metadata: FileMetadata, note
   }
   
   // Create a blob URL for the video file to handle authentication properly
+  // Use inline endpoint to prevent forced download
   let videoUrl = null;
   try {
-    const rawUrl = notebookId ? 
-      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/raw/` : 
-      `${API_BASE_URL}/notebooks/files/${fileId}/raw/`;
-    
+    const inlineUrl = notebookId ?
+      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/inline/` :
+      `${API_BASE_URL}/notebooks/files/${fileId}/inline/`;
+
     // Fetch the video file with credentials
-    const response = await fetch(rawUrl, {
+    const response = await fetch(inlineUrl, {
       credentials: 'include',
       headers: {
         'Accept': 'video/*,*/*'
       }
     });
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch video file: ${response.status}`);
     }
-    
+
     const blob = await response.blob();
     videoUrl = URL.createObjectURL(blob);
     console.log('Video blob URL created:', videoUrl);
   } catch (error) {
     console.error('Failed to create video blob URL:', error);
-    // Fallback to direct URL (might not work in Chrome due to authentication issues)
-    videoUrl = notebookId ? 
-      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/raw/` : 
-      `${API_BASE_URL}/notebooks/files/${fileId}/raw/`;
+    // Fallback to direct inline URL (should work better than raw)
+    videoUrl = notebookId ?
+      `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/inline/` :
+      `${API_BASE_URL}/notebooks/files/${fileId}/inline/`;
   }
   
   // Check if we have parsed transcript content
@@ -451,11 +453,11 @@ async function generateVideoPreview(fileId: string, metadata: FileMetadata, note
  * Generate PDF file preview
  */
 async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebookId: string | null = null, source: FileSource | null = null, useMinIOUrls: boolean = false): Promise<any> {
-  // Generate PDF URL - use the raw endpoint which will redirect to MinIO if enabled
-  const pdfUrl = notebookId ? 
-    `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/raw/` : 
-    `${API_BASE_URL}/notebooks/files/${fileId}/raw/`;
-  
+  // Generate PDF URL - use the inline endpoint to prevent forced download
+  const pdfUrl = notebookId ?
+    `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/inline/` :
+    `${API_BASE_URL}/notebooks/files/${fileId}/inline/`;
+
   console.log('PDF: Generated PDF URL:', pdfUrl, 'useMinIOUrls:', useMinIOUrls);
   
   // Check if we have parsed PDF content
