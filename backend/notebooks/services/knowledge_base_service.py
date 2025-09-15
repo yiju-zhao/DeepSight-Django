@@ -349,7 +349,7 @@ class KnowledgeBaseService(NotebookBaseService):
                 'count': len(image_data),
                 'knowledge_base_item_id': file_id,
             }
-            
+
         except Exception as e:
             logger.exception(f"Failed to retrieve images for KB item {file_id}: {e}")
             return {
@@ -357,6 +357,44 @@ class KnowledgeBaseService(NotebookBaseService):
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "details": {"error": str(e)},
             }
+
+    def get_images(self, kb_item: KnowledgeBaseItem) -> List[Dict[str, Any]]:
+        """Compatibility helper for views: return list of images for a KB item.
+
+        Mirrors get_knowledge_base_images but returns just the images list, as
+        expected by FileViewSet.images view.
+        """
+        try:
+            images = KnowledgeBaseImage.objects.filter(
+                knowledge_base_item=kb_item
+            ).order_by('created_at')
+
+            image_data: List[Dict[str, Any]] = []
+            for image in images:
+                image_url = image.get_image_url(expires=3600)
+                if not image_url:
+                    continue
+                original_filename = "unknown"
+                if image.image_metadata and 'original_filename' in image.image_metadata:
+                    original_filename = image.image_metadata['original_filename']
+
+                image_data.append({
+                    'id': str(image.id),
+                    'figure_id': str(image.figure_id),
+                    'name': str(image.figure_id),
+                    'image_caption': image.image_caption,
+                    'image_url': image_url,
+                    'imageUrl': image_url,
+                    'content_type': image.content_type,
+                    'file_size': image.file_size,
+                    'created_at': image.created_at.isoformat(),
+                    'original_filename': original_filename,
+                })
+
+            return image_data
+        except Exception as e:
+            logger.exception(f"Failed to retrieve images list for KB item {kb_item.id}: {e}")
+            return []
 
     def get_batch_job_status(self, batch_job_id, notebook):
         """Get status of a batch job"""
