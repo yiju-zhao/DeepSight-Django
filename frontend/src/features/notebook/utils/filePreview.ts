@@ -155,20 +155,20 @@ export async function generatePreview(source: FileSource, notebookId: string | n
     
     switch (previewType) {
       case PREVIEW_TYPES.TEXT_CONTENT:
-        return await generateTextPreview(file_id, metadata, source, useMinIOUrls);
-      
+        return await generateTextPreview(file_id, metadata, source, useMinIOUrls, notebookId);
+
       case PREVIEW_TYPES.PDF_VIEWER:
         return await generatePdfPreview(file_id, metadata, notebookId, source, useMinIOUrls);
-      
+
       case PREVIEW_TYPES.URL_INFO:
         return await generateUrlPreview(metadata);
-      
+
       case PREVIEW_TYPES.AUDIO_INFO:
         return await generateAudioPreview(file_id, metadata, notebookId);
-      
+
       case PREVIEW_TYPES.VIDEO_INFO:
         return await generateVideoPreview(file_id, metadata, notebookId);
-      
+
       case PREVIEW_TYPES.METADATA:
       default:
         return await generateMetadataPreview(metadata);
@@ -187,17 +187,20 @@ export async function generatePreview(source: FileSource, notebookId: string | n
 /**
  * Generate text content preview
  */
-async function generateTextPreview(fileId: string, metadata: FileMetadata, source: FileSource | null = null, useMinIOUrls: boolean = false): Promise<any> {
+async function generateTextPreview(fileId: string, metadata: FileMetadata, source: FileSource | null = null, useMinIOUrls: boolean = false, notebookId: string | null = null): Promise<any> {
   try {
     let content = '';
-    
+
+    // Use notebookId or fall back to 'default-notebook' for backwards compatibility
+    const targetNotebookId = notebookId || 'default-notebook';
+
     // Check if text content is stored directly in the source (for pasted text)
     if (source && source.textContent) {
       content = source.textContent;
     } else if (useMinIOUrls) {
       // Use MinIO content endpoint if available (for files with images like PPTX)
       try {
-        const response = await sourceService.getFileContentWithMinIOUrls(fileId, 'default-notebook', 86400);
+        const response = await sourceService.getFileContentWithMinIOUrls(fileId, targetNotebookId, 86400);
         if (response.success && response.data.content) {
           content = response.data.content;
           console.log('Text content: Using MinIO URLs for content with images');
@@ -207,7 +210,7 @@ async function generateTextPreview(fileId: string, metadata: FileMetadata, sourc
       } catch (minioError) {
         console.log('MinIO content not available, trying regular endpoint:', minioError);
         // Fall back to regular endpoint
-        const response = await sourceService.getParsedFile(fileId, 'default-notebook');
+        const response = await sourceService.getParsedFile(fileId, targetNotebookId);
         if (!response.success) {
           throw new Error('Failed to fetch file content');
         }
@@ -215,7 +218,7 @@ async function generateTextPreview(fileId: string, metadata: FileMetadata, sourc
       }
     } else {
       // Fetch from API for regular files
-      const response = await sourceService.getParsedFile(fileId, 'default-notebook');
+      const response = await sourceService.getParsedFile(fileId, targetNotebookId);
       if (!response.success) {
         throw new Error('Failed to fetch file content');
       }
@@ -320,9 +323,12 @@ async function generateAudioPreview(fileId: string, metadata: FileMetadata, note
   let transcriptContent = null;
   let hasTranscript = false;
   let wordCount = 0;
-  
+
+  // Use notebookId or fall back to 'default-notebook' for backwards compatibility
+  const targetNotebookId = notebookId || 'default-notebook';
+
   try {
-    const response = await sourceService.getParsedFile(fileId, 'default-notebook');
+    const response = await sourceService.getParsedFile(fileId, targetNotebookId);
     if (response.success && response.data.content) {
       transcriptContent = response.data.content;
       hasTranscript = transcriptContent.trim().length > 0;
@@ -401,9 +407,12 @@ async function generateVideoPreview(fileId: string, metadata: FileMetadata, note
   let transcriptContent = null;
   let hasTranscript = false;
   let wordCount = 0;
-  
+
+  // Use notebookId or fall back to 'default-notebook' for backwards compatibility
+  const targetNotebookId = notebookId || 'default-notebook';
+
   try {
-    const response = await sourceService.getParsedFile(fileId, 'default-notebook');
+    const response = await sourceService.getParsedFile(fileId, targetNotebookId);
     if (response.success && response.data.content) {
       transcriptContent = response.data.content;
       hasTranscript = transcriptContent.trim().length > 0;
@@ -441,13 +450,16 @@ async function generateVideoPreview(fileId: string, metadata: FileMetadata, note
  */
 async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebookId: string | null = null, source: FileSource | null = null, useMinIOUrls: boolean = false): Promise<any> {
   console.log('PDF: Generating preview for file:', fileId, 'useMinIOUrls:', useMinIOUrls);
-  
+
+  // Use notebookId or fall back to 'default-notebook' for backwards compatibility
+  const targetNotebookId = notebookId || 'default-notebook';
+
   // Check if we have parsed PDF content
   let pdfContent = null;
   let hasParsedContent = false;
   let wordCount = 0;
   let error = null;
-  
+
   try {
     // Check if content is stored directly in the source (for consistency)
     if (source && source.textContent) {
@@ -457,7 +469,7 @@ async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebo
     } else if (useMinIOUrls) {
       // Use MinIO content endpoint if available
       try {
-        const response = await sourceService.getFileContentWithMinIOUrls(fileId, 'default-notebook', 86400);
+        const response = await sourceService.getFileContentWithMinIOUrls(fileId, targetNotebookId, 86400);
         if (response.success && response.data.content) {
           pdfContent = response.data.content;
           hasParsedContent = pdfContent.trim().length > 0;
@@ -467,7 +479,7 @@ async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebo
       } catch (minioError) {
         console.log('MinIO content not available for PDF, trying regular endpoint:', minioError);
         // Fall back to regular endpoint
-        const response = await sourceService.getParsedFile(fileId, 'default-notebook');
+        const response = await sourceService.getParsedFile(fileId, targetNotebookId);
         if (response.success && response.data.content) {
           pdfContent = response.data.content;
           hasParsedContent = pdfContent.trim().length > 0;
@@ -475,7 +487,7 @@ async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebo
         }
       }
     } else {
-      const response = await sourceService.getParsedFile(fileId, 'default-notebook');
+      const response = await sourceService.getParsedFile(fileId, targetNotebookId);
       if (response.success && response.data.content) {
         pdfContent = response.data.content;
         hasParsedContent = pdfContent.trim().length > 0;
@@ -583,9 +595,12 @@ export function formatDate(dateString: string): string {
 /**
  * Fetch file content with direct MinIO URLs for images
  */
-export async function getFileContentWithMinIOUrls(fileId: string, expires: number = 86400): Promise<any> {
+export async function getFileContentWithMinIOUrls(fileId: string, expires: number = 86400, notebookId: string | null = null): Promise<any> {
   try {
-    const response = await sourceService.getFileContentWithMinIOUrls(fileId, 'default-notebook', expires);
+    // Use notebookId or fall back to 'default-notebook' for backwards compatibility
+    const targetNotebookId = notebookId || 'default-notebook';
+
+    const response = await sourceService.getFileContentWithMinIOUrls(fileId, targetNotebookId, expires);
     if (response.success) {
       return response.data;
     } else {
@@ -600,16 +615,16 @@ export async function getFileContentWithMinIOUrls(fileId: string, expires: numbe
 /**
  * Generate text content preview with MinIO URLs
  */
-export async function generateTextPreviewWithMinIOUrls(fileId: string, metadata: FileMetadata, source: FileSource | null = null): Promise<any> {
+export async function generateTextPreviewWithMinIOUrls(fileId: string, metadata: FileMetadata, source: FileSource | null = null, notebookId: string | null = null): Promise<any> {
   try {
     let content = '';
-    
+
     // Check if text content is stored directly in the source (for pasted text)
     if (source && source.textContent) {
       content = source.textContent;
     } else {
       // Fetch content with MinIO URLs from API
-      const contentData = await getFileContentWithMinIOUrls(fileId);
+      const contentData = await getFileContentWithMinIOUrls(fileId, 86400, notebookId);
       content = contentData.content || '';
     }
     
