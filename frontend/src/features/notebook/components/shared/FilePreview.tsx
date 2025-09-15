@@ -289,6 +289,7 @@ interface FilePreviewState {
   modals: {
     [key: string]: React.ReactNode;
   };
+  resolvedContent?: string | null;
 }
 
 interface FilePreviewComponentProps {
@@ -309,7 +310,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     audioLoaded: false,
     videoError: false,
     videoLoaded: false,
-    modals: {}
+    modals: {},
+    resolvedContent: null
   });
 
   // Helper function to update state
@@ -352,6 +354,68 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       }
     };
   }, [isOpen, source, notebookId, useMinIOUrls]);
+
+  // Resolve markdown image paths like images/xxx.jpg to presigned URLs
+  useEffect(() => {
+    const resolveImagesInContent = async () => {
+      try {
+        if (!state.preview?.content || !notebookId || !source?.file_id) return;
+        const content = state.preview.content as string;
+        // Quick check: only run if relative images likely present
+        if (!content.includes('images/')) {
+          updateState({ resolvedContent: null });
+          return;
+        }
+
+        const cacheKey = `${notebookId}:${source.file_id}`;
+        let images = imageListCache[cacheKey];
+        if (!images) {
+          const listUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${source.file_id}/images/`;
+          const listRes = await fetch(listUrl, { credentials: 'include', headers: { 'Accept': 'application/json' } });
+          if (!listRes.ok) throw new Error(`Failed to list images: ${listRes.status}`);
+          const listJson = await listRes.json();
+          images = listJson.images || [];
+          imageListCache[cacheKey] = images;
+        }
+
+        if (!images || images.length === 0) {
+          updateState({ resolvedContent: null });
+          return;
+        }
+
+        // Build a lookup by basename
+        const byName: Record<string, string> = {};
+        images.forEach((img: any) => {
+          const url = img.image_url || img.imageUrl;
+          const orig = img.original_filename || '';
+          const base = orig.split('/').pop();
+          if (base && url) byName[base] = url;
+        });
+
+        let replaced = content;
+        // Replace markdown image links ![alt](images/filename)
+        replaced = replaced.replace(/!\[[^\]]*\]\((?:\.?\/)?images\/(.+?)\)/g, (m, p1) => {
+          const name = String(p1).split(/[?#]/)[0].split('/').pop() || String(p1);
+          const url = byName[name];
+          return url ? m.replace(/\((?:\.?\/)?images\/(.+?)\)/, `(${url})`) : m;
+        });
+
+        // Replace HTML <img src="images/filename">
+        replaced = replaced.replace(/<img([^>]*?)src=["'](?:\.?\/)?images\/(.+?)["']([^>]*?)>/g, (m, pre, p1, post) => {
+          const name = String(p1).split(/[?#]/)[0].split('/').pop() || String(p1);
+          const url = byName[name];
+          return url ? m.replace(/src=["'][^"']+["']/, `src="${url}"`) : m;
+        });
+
+        updateState({ resolvedContent: replaced });
+      } catch (e) {
+        console.warn('Failed to resolve images in content:', e);
+        updateState({ resolvedContent: null });
+      }
+    };
+
+    resolveImagesInContent();
+  }, [state.preview?.content, notebookId, source?.file_id]);
 
   const loadPreview = async () => {
     if (!source) return;
@@ -468,7 +532,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     if (!state.preview) return null;
     
     // Debug: show processed content and image URLs
-    const processedContent = processMarkdownContent(state.preview.content, source.file_id || '', notebookId, useMinIOUrls);
+    const baseContent = state.resolvedContent || state.preview.content;
+    const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
     
     // Determine the appropriate icon based on file extension
     const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
