@@ -56,7 +56,8 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
   const [imgSrc, setImgSrc] = useState(src);
   const [imgError, setImgError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const triedFallbackRef = useRef(false);
+  
+  const createdBlobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     // If the src is a blob URL or already a data URL, use it directly
@@ -66,6 +67,27 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       return;
     }
 
+    // Helper to fetch an API inline URL with credentials and convert to blob URL
+    const fetchInlineBlob = async (inlineUrl: string) => {
+      try {
+        const absoluteUrl = inlineUrl.startsWith('/api/') ? `${window.location.origin}${inlineUrl}` : inlineUrl;
+        const res = await fetch(absoluteUrl, { credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        if (createdBlobUrlRef.current) {
+          URL.revokeObjectURL(createdBlobUrlRef.current);
+        }
+        createdBlobUrlRef.current = objUrl;
+        setImgSrc(objUrl);
+        setIsLoading(false);
+      } catch (e) {
+        console.warn('Failed to fetch inline blob:', e);
+        setImgError(true);
+        setIsLoading(false);
+      }
+    };
+
     // Check if it's a MinIO URL (pre-signed URLs with X-Amz-Signature or minio host)
     const isMinIOUrl = src.includes('X-Amz-Signature') || 
                        src.includes('X-Amz-Algorithm') ||
@@ -73,9 +95,40 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
                        (src.includes('localhost:9000'));
     
     if (isMinIOUrl) {
-      console.log('Using MinIO pre-signed URL directly (no auth needed):', src);
-      setImgSrc(src);
-      setIsLoading(false);
+      // Best practice: convert to API inline image and fetch via backend
+      (async () => {
+        try {
+          if (!notebookId || !fileId) throw new Error('Missing notebookId/fileId to resolve image');
+          const cacheKey = `${notebookId}:${fileId}`;
+          let images = imageListCache[cacheKey];
+          if (!images) {
+            const listUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/images/`;
+            const listRes = await fetch(listUrl, { credentials: 'include', headers: { 'Accept': 'application/json' } });
+            if (!listRes.ok) throw new Error(`Failed to list images: ${listRes.status}`);
+            const listJson = await listRes.json();
+            images = listJson.images || [];
+            imageListCache[cacheKey] = images;
+          }
+          const failingName = (src.split('?')[0].split('/').pop() || '').toLowerCase();
+          const matched = images.find((im: any) => (im.image_url && im.image_url.toLowerCase().includes(failingName)) || (im.original_filename && String(im.original_filename).toLowerCase().includes(failingName))) || images[0];
+          if (!matched || !matched.id) throw new Error('Unable to resolve image to inline API');
+          const apiUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/image/${matched.id}/inline/`;
+          await fetchInlineBlob(apiUrl);
+        } catch (e) {
+          console.warn('Failed to convert MinIO URL to API inline:', e);
+          setImgError(true);
+          setIsLoading(false);
+        }
+      })();
+      return;
+    }
+
+    // If it's our API inline endpoint, fetch with credentials and convert to blob URL
+    const isApiInline = src.startsWith(`${API_BASE_URL}/notebooks/`) && src.includes('/image/') && src.endsWith('/inline/');
+    const isRelativeApiInline = src.startsWith('/api/v1/notebooks/') && src.includes('/image/') && src.endsWith('/inline/');
+    if (isApiInline || isRelativeApiInline) {
+      const apiUrl = isRelativeApiInline ? `${window.location.origin}${src}` : src;
+      fetchInlineBlob(apiUrl);
       return;
     }
 
@@ -128,14 +181,24 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
     }
   }, [src, notebookId, fileId]);
 
+  // Cleanup blob URL on unmount
+  useEffect(() => {
+    return () => {
+      if (createdBlobUrlRef.current) {
+        URL.revokeObjectURL(createdBlobUrlRef.current);
+        createdBlobUrlRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <span className="my-4 inline-block w-full">
       {isLoading && (
         <span className="bg-gray-100 border border-gray-200 rounded-lg p-4 text-center text-gray-500 block">
-          <div className="flex items-center justify-center space-x-2">
+          <span className="inline-flex items-center justify-center space-x-2">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-sm">Loading image...</span>
-          </div>
+          </span>
         </span>
       )}
       
@@ -148,42 +211,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
           style={{ maxHeight: '500px' }}
           onError={(e) => {
             console.error('Image failed to load:', { src: imgSrc, alt, title });
-            // Try API proxy fallback once for MinIO URLs or localhost URLs
-            if (!triedFallbackRef.current && notebookId && fileId && (imgSrc.includes('localhost:9000') || imgSrc.includes('X-Amz-Signature'))) {
-              triedFallbackRef.current = true;
-              // Attempt to resolve matching image and use API inline endpoint
-              (async () => {
-                try {
-                  const cacheKey = `${notebookId}:${fileId}`;
-                  let images = imageListCache[cacheKey];
-                  if (!images) {
-                    const listUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/images/`;
-                    const listRes = await fetch(listUrl, { credentials: 'include', headers: { 'Accept': 'application/json' } });
-                    if (listRes.ok) {
-                      const listJson = await listRes.json();
-                      images = listJson.images || [];
-                      imageListCache[cacheKey] = images;
-                    }
-                  }
-                  if (images && images.length > 0) {
-                    const failingName = (imgSrc.split('?')[0].split('/').pop() || '').toLowerCase();
-                    const matched = images.find((im: any) => (im.image_url && im.image_url.toLowerCase().includes(failingName)) || (im.original_filename && String(im.original_filename).toLowerCase().includes(failingName))) || images[0];
-                    if (matched && matched.id) {
-                      const apiUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/image/${matched.id}/inline/`;
-                      console.log('Falling back to API inline image URL:', apiUrl);
-                      setImgSrc(apiUrl);
-                      setImgError(false);
-                      return;
-                    }
-                  }
-                } catch (err) {
-                  console.warn('Fallback to API inline image failed:', err);
-                }
-                setImgError(true);
-              })();
-            } else {
-              setImgError(true);
-            }
+            setImgError(true);
           }}
           onLoad={(e) => {
             console.log('Image loaded successfully:', { src: imgSrc, alt });
@@ -193,12 +221,12 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
 
       {!isLoading && imgError && (
         <span className="bg-gray-100 border border-gray-200 rounded-lg p-4 text-center text-gray-500 block">
-          <div className="flex items-center justify-center space-x-2">
+          <span className="inline-flex items-center justify-center space-x-2">
             <File className="h-5 w-5" />
             <span className="text-sm">Image could not be loaded</span>
-          </div>
-          {alt && <p className="text-xs mt-1 text-gray-400">{alt}</p>}
-          <p className="text-xs mt-1 text-gray-400 break-all">URL: {src}</p>
+          </span>
+          {alt && <span className="text-xs mt-1 text-gray-400 block">{alt}</span>}
+          <span className="text-xs mt-1 text-gray-400 break-all block">URL: {src}</span>
         </span>
       )}
     </span>

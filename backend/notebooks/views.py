@@ -20,6 +20,7 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.utils.http import http_date
+import hashlib
 
 from rest_framework import viewsets, permissions, status, filters, authentication, serializers
 from rest_framework.decorators import action
@@ -261,7 +262,40 @@ class FileViewSet(viewsets.ModelViewSet):
         item = self.get_object()
         try:
             from .models import KnowledgeBaseImage
+            from infrastructure.storage.adapters import get_storage_backend
             image = get_object_or_404(KnowledgeBaseImage, id=image_id, knowledge_base_item=item)
+            # Compute ETag from storage metadata or fallback to a hash of identifiers
+            storage = get_storage_backend()
+            etag_value = None
+            try:
+                meta = storage.get_file_metadata(image.minio_object_key)
+                if meta and isinstance(meta, dict):
+                    etag_value = meta.get('etag')
+            except Exception:
+                etag_value = None
+            if not etag_value:
+                base = f"{image.id}-{getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)}"
+                etag_value = hashlib.sha1(base.encode('utf-8')).hexdigest()
+            # Normalize ETag header value (quoted strong ETag)
+            etag_header = etag_value if etag_value.startswith('W/"') or etag_value.startswith('"') else f'"{etag_value}"'
+
+            # Handle If-None-Match for conditional GET
+            inm = request.headers.get('If-None-Match') or request.META.get('HTTP_IF_NONE_MATCH')
+            if inm:
+                # Normalize comparison by stripping quotes and weak validators
+                def norm(v: str) -> str:
+                    return v.strip().lstrip('W/').strip('"')
+                if norm(inm) == norm(etag_header):
+                    resp = HttpResponse(status=304)
+                    resp["ETag"] = etag_header
+                    resp["Cache-Control"] = "private, max-age=300"
+                    dt = getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)
+                    if dt:
+                        try:
+                            resp["Last-Modified"] = http_date(dt.timestamp())
+                        except Exception:
+                            pass
+                    return resp
             content = image.get_image_content()
             if content is None:
                 return Response({"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -277,6 +311,7 @@ class FileViewSet(viewsets.ModelViewSet):
                     resp["Last-Modified"] = http_date(dt.timestamp())
                 except Exception:
                     pass
+            resp["ETag"] = etag_header
             return resp
         except Exception as e:
             logger.exception(f"Failed to serve inline image {image_id} for KB item {pk}: {e}")
