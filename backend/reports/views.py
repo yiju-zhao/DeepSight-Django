@@ -61,14 +61,14 @@ class ReportJobListCreateView(APIView):
     def get(self, request):
         try:
             notebook_id = request.query_params.get("notebook")
-            qs = Report.objects.filter(user=request.user).select_related('user')
+            qs = Report.objects.filter(user=request.user)
             if notebook_id:
                 notebook = get_object_or_404(
                     Notebook.objects.filter(user=request.user), pk=notebook_id
                 )
                 qs = qs.filter(notebooks=notebook)
 
-            # Use only() to limit fields and add database-level aggregation for last_modified
+            # Use only() to limit fields for better performance
             reports = qs.only(
                 'id', 'job_id', 'status', 'progress', 'article_title', 'created_at',
                 'updated_at', 'error_message', 'main_report_object_key', 'result_content'
