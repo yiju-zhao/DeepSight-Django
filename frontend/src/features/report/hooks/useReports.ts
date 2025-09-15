@@ -96,7 +96,8 @@ export function useReport(jobId: string, options?: { enabled?: boolean }) {
     },
     enabled: (options?.enabled ?? true) && !!jobId,
     // Refresh frequently for running reports
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
+      const data = query?.state?.data as Report | undefined;
       if (data?.status === 'running' || data?.status === 'pending') {
         return 2000; // 2 seconds
       }

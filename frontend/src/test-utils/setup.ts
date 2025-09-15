@@ -3,12 +3,22 @@
  */
 
 import '@testing-library/jest-dom';
-import { afterEach, beforeEach, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
+import { server } from './test-server';
 
-// Runs a cleanup after each test case (e.g. clearing jsdom)
+// Enable MSW
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'error' });
+});
+
 afterEach(() => {
   cleanup();
+  server.resetHandlers();
+});
+
+afterAll(() => {
+  server.close();
 });
 
 // Mock window.matchMedia
@@ -39,9 +49,6 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   unobserve: vi.fn(),
   disconnect: vi.fn(),
 }));
-
-// Mock fetch for API calls
-global.fetch = vi.fn();
 
 // Mock console methods in tests
 const originalError = console.error;

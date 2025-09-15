@@ -10,6 +10,7 @@ Canonical report job views and SSE endpoints.
 
 from django.http import FileResponse, Http404, StreamingHttpResponse, HttpResponse
 from django.shortcuts import get_object_or_404
+from django.db import models
 
  
 
@@ -60,18 +61,21 @@ class ReportJobListCreateView(APIView):
     def get(self, request):
         try:
             notebook_id = request.query_params.get("notebook")
-            qs = Report.objects.filter(user=request.user)
+            qs = Report.objects.filter(user=request.user).select_related('user')
             if notebook_id:
                 notebook = get_object_or_404(
                     Notebook.objects.filter(user=request.user), pk=notebook_id
                 )
                 qs = qs.filter(notebooks=notebook)
 
-            reports = qs.order_by('-created_at')
+            # Use only() to limit fields and add database-level aggregation for last_modified
+            reports = qs.only(
+                'id', 'job_id', 'status', 'progress', 'article_title', 'created_at',
+                'updated_at', 'error_message', 'main_report_object_key', 'result_content'
+            ).order_by('-created_at')
 
-            last_modified = None
-            if reports:
-                last_modified = max(report.updated_at for report in reports)
+            # Use database aggregation instead of Python max() for better performance
+            last_modified = qs.aggregate(max_updated=models.Max('updated_at'))['max_updated']
 
             validated_reports = []
             for report in reports:
@@ -629,7 +633,10 @@ def report_status_stream(request, job_id):
                 try:
                     status_data = report_orchestrator.get_job_status(job_id)
                     if not status_data:
-                        current_report = Report.objects.filter(job_id=job_id).first()
+                        # Use only() to limit database fields for better performance
+                        current_report = Report.objects.filter(job_id=job_id).only(
+                            'id', 'job_id', 'status', 'progress', 'error_message', 'updated_at'
+                        ).first()
                         if not current_report:
                             yield f"data: {json.dumps({'type': 'error', 'message': 'Report not found'})}\n\n"
                             break

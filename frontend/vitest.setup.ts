@@ -71,10 +71,10 @@ const PerformanceObserverMock = vi.fn().mockImplementation(() => ({
 (PerformanceObserverMock as any).supportedEntryTypes = ['measure', 'navigation', 'resource'];
 global.PerformanceObserver = PerformanceObserverMock as any;
 
-// Mock fetch if not available
-if (!global.fetch) {
-  global.fetch = vi.fn();
-}
+// Mock global fetch to work around AbortController compatibility issues with MSW
+// MSW has compatibility issues with Node.js native AbortController
+const originalFetch = global.fetch;
+global.fetch = vi.fn();
 
 // Mock localStorage
 const localStorageMock = {

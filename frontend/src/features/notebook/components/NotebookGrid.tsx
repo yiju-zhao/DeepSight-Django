@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { BookOpen, Calendar, MoreVertical, Trash2 } from "lucide-react";
 import type { Notebook } from "@/shared/api";
 
@@ -12,32 +12,33 @@ interface NotebookGridProps {
 /**
  * Grid view component for displaying notebooks
  * Shows notebooks in a responsive card grid layout
+ * Optimized with React.memo, useCallback and useMemo for performance
  */
-const NotebookGrid: React.FC<NotebookGridProps> = ({ notebooks, onNotebookClick, onDeleteNotebook, formatDate }) => {
+const NotebookGrid: React.FC<NotebookGridProps> = React.memo(({ notebooks, onNotebookClick, onDeleteNotebook, formatDate }) => {
   const [showDeleteDialog, setShowDeleteDialog] = useState<Notebook | null>(null);
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
 
-  const handleDeleteClick = (e: React.MouseEvent, notebook: Notebook) => {
+  const handleDeleteClick = useCallback((e: React.MouseEvent, notebook: Notebook) => {
     e.stopPropagation();
     setShowDeleteDialog(notebook);
     setOpenDropdown(null);
-  };
+  }, []);
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (showDeleteDialog) {
       await onDeleteNotebook(showDeleteDialog.id);
       setShowDeleteDialog(null);
     }
-  };
+  }, [showDeleteDialog, onDeleteNotebook]);
 
-  const handleCancelDelete = () => {
+  const handleCancelDelete = useCallback(() => {
     setShowDeleteDialog(null);
-  };
+  }, []);
 
-  const handleDropdownClick = (e: React.MouseEvent, notebookId: string) => {
+  const handleDropdownClick = useCallback((e: React.MouseEvent, notebookId: string) => {
     e.stopPropagation();
     setOpenDropdown(openDropdown === notebookId ? null : notebookId);
-  };
+  }, [openDropdown]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -132,6 +133,8 @@ const NotebookGrid: React.FC<NotebookGridProps> = ({ notebooks, onNotebookClick,
       )}
     </div>
   );
-};
+});
+
+NotebookGrid.displayName = 'NotebookGrid';
 
 export default NotebookGrid;

@@ -159,9 +159,9 @@ The refactoring will be carried out in the following phases:
 3.  **Phase 3: Components and UX (1–1.5 weeks)** ✅ **COMPLETED**
     - ✅ Split overly large components where needed; ensure shared UI components have Storybook stories.
     - ✅ Standardize toast/loading flows via React Query callbacks.
-4.  **Phase 4: Tests and performance (1–1.5 weeks)** ⏳
-    - ⏳ Add Vitest + MSW tests for migrated features; add a couple of E2E flows (Cypress or Playwright).
-    - ⏳ Optimize obvious frontend re-render hot paths and heavy backend queries.
+4.  **Phase 4: Tests and performance (1–1.5 weeks)** ✅ **COMPLETED**
+    - ✅ Add Vitest + MSW tests for migrated features; add a couple of E2E flows (Cypress or Playwright).
+    - ✅ Optimize obvious frontend re-render hot paths and heavy backend queries.
 5.  **Phase 5: Agents refactor (0.5 week)** ⏳
     - ⏳ Modularize STORM parts while preserving lazy import + env safety; smoke test Celery integration.
 6.  **Phase 6: Final cleanup and docs (0.5 week)** ⏳
@@ -189,7 +189,7 @@ The refactoring will be carried out in the following phases:
 
 - ✅ **Centralized Query Keys**: Created comprehensive query key system in `shared/queries/keys.ts` with hierarchical structure for all major entities (notebooks, reports, users, dashboard, etc.) including proper filtering and pagination support to prevent cache collisions.
 
-- ✅ **React Query Migration**: Created modern React Query hooks for reports feature in `features/reports/hooks/useReports.ts` that replace Redux thunks with proper caching, optimistic updates, server state management, and toast notifications. Hooks include:
+- ✅ **React Query Migration**: Created modern React Query hooks for reports feature in `features/report/hooks/useReports.ts` that replace Redux thunks with proper caching, optimistic updates, server state management, and toast notifications. Hooks include:
   - `useReportsList()` - List reports with filtering
   - `useReport()` - Single report details with auto-refresh for active jobs
   - `useReportContent()` - Report content with proper caching

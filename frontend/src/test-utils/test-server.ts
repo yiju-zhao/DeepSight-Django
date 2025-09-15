@@ -104,23 +104,108 @@ const handlers = [
     });
   }),
 
-  // Reports
-  http.get(`${config.API_BASE_URL}/notebooks/:notebookId/reports/`, () => {
-    return HttpResponse.json([{
-      id: '1',
-      title: 'Test Report',
-      status: 'completed',
-      created_at: '2024-01-01T00:00:00Z',
-    }]);
+  // Reports - Updated to match new API structure
+  http.get(`${config.API_BASE_URL}/reports/jobs/`, ({ request }) => {
+    const url = new URL(request.url);
+    const notebook = url.searchParams.get('notebook');
+
+    const mockReports = [
+      {
+        job_id: 'job-1',
+        report_id: 'report-1',
+        status: 'completed',
+        progress: 'Report generated successfully',
+        title: 'Test Report',
+        article_title: 'Test Article',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T01:00:00Z',
+        has_files: true,
+        has_content: true,
+        notebook: notebook || '1',
+      },
+      {
+        job_id: 'job-2',
+        report_id: 'report-2',
+        status: 'running',
+        progress: 'Generating outline...',
+        title: 'Running Report',
+        article_title: 'Running Article',
+        created_at: '2024-01-01T02:00:00Z',
+        updated_at: '2024-01-01T02:30:00Z',
+        has_files: false,
+        has_content: false,
+        notebook: notebook || '1',
+      }
+    ];
+
+    const filteredReports = notebook
+      ? mockReports.filter(r => r.notebook === notebook)
+      : mockReports;
+
+    return HttpResponse.json({ reports: filteredReports });
   }),
 
-  http.post(`${config.API_BASE_URL}/notebooks/:notebookId/reports/`, async ({ request }) => {
+  http.get(`${config.API_BASE_URL}/reports/jobs/:jobId/`, ({ params }) => {
+    return HttpResponse.json({
+      job_id: params.jobId,
+      report_id: `report-${params.jobId}`,
+      status: params.jobId === 'job-1' ? 'completed' : 'running',
+      progress: params.jobId === 'job-1' ? 'Completed' : 'Processing...',
+      title: 'Test Report',
+      article_title: 'Test Article',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T01:00:00Z',
+      has_files: true,
+      has_content: true,
+    });
+  }),
+
+  http.get(`${config.API_BASE_URL}/reports/jobs/:jobId/content/`, ({ params }) => {
+    return HttpResponse.json({
+      job_id: params.jobId,
+      report_id: `report-${params.jobId}`,
+      content: '# Test Report\n\nThis is a test report content.',
+      article_title: 'Test Article',
+      generated_files: ['report.pdf', 'summary.docx'],
+    });
+  }),
+
+  http.post(`${config.API_BASE_URL}/reports/jobs/`, async ({ request }) => {
     const body = await request.json() as any;
     return HttpResponse.json({
-      id: '2',
-      ...(body || {}),
+      job_id: 'job-new',
+      report_id: 'report-new',
       status: 'pending',
-      created_at: new Date().toISOString(),
+      message: 'Report generation started',
+    });
+  }),
+
+  http.put(`${config.API_BASE_URL}/reports/jobs/:jobId/`, async ({ request, params }) => {
+    const body = await request.json() as any;
+    return HttpResponse.json({
+      job_id: params.jobId,
+      status: 'completed',
+      updated_at: new Date().toISOString(),
+    });
+  }),
+
+  http.delete(`${config.API_BASE_URL}/reports/jobs/:jobId/`, ({ params }) => {
+    return HttpResponse.json({ success: true });
+  }),
+
+  http.post(`${config.API_BASE_URL}/reports/jobs/:jobId/cancel/`, ({ params }) => {
+    return HttpResponse.json({
+      job_id: params.jobId,
+      status: 'cancelled',
+      message: 'Report generation cancelled',
+    });
+  }),
+
+  http.get(`${config.API_BASE_URL}/reports/models/`, () => {
+    return HttpResponse.json({
+      providers: ['openai', 'google'],
+      retrievers: ['tavily', 'brave', 'searxng'],
+      time_ranges: ['ALL', 'day', 'week', 'month', 'year'],
     });
   }),
 

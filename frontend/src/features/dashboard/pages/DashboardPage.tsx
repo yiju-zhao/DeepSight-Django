@@ -1,11 +1,12 @@
 /**
  * Refactored Dashboard Page - Now follows Single Responsibility Principle
+ * Optimized for performance with React.memo, useCallback, and useMemo
  *
  * This component is now focused on orchestration and layout, with
  * specific responsibilities delegated to focused sub-components.
  */
 
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import ReportEditor from '@/features/report/components/ReportEditor';
 
 // Import custom hooks and components
@@ -33,38 +34,38 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [language, setLanguage] = useState<'en' | 'zh'>('en');
 
-  // Event handlers
-  const handleReportSelect = (report: Report) => {
+  // Event handlers - Memoized to prevent unnecessary re-renders
+  const handleReportSelect = useCallback((report: Report) => {
     setSelectedReport(report);
-  };
+  }, []);
 
-  const handlePodcastSelect = (podcast: Podcast) => {
+  const handlePodcastSelect = useCallback((podcast: Podcast) => {
     console.log('Selected podcast:', podcast);
     // TODO: Implement podcast selection logic
-  };
+  }, []);
 
-  const handleViewModeChange = () => {
+  const handleViewModeChange = useCallback(() => {
     setViewMode(prev => prev === 'list' ? 'grid' : 'list');
-  };
+  }, []);
 
-  const handleLanguageChange = () => {
+  const handleLanguageChange = useCallback(() => {
     setLanguage(prev => prev === 'en' ? 'zh' : 'en');
-  };
+  }, []);
 
-  const handleBackToList = () => {
+  const handleBackToList = useCallback(() => {
     setSelectedReport(null);
-  };
+  }, []);
 
-  const handleDeleteReport = (report: Report) => {
+  const handleDeleteReport = useCallback((report: Report) => {
     deleteReport(report.id);
     setSelectedReport(null);
-  };
+  }, [deleteReport]);
 
-  const handleSaveReport = (report: Report, content: string) => {
+  const handleSaveReport = useCallback((report: Report, content: string) => {
     updateReport(report.id, { content });
     console.log('Saving report:', report.id, content);
     // TODO: Implement API call to save content
-  };
+  }, [updateReport]);
 
   // Loading state
   if (loading) {
@@ -99,7 +100,11 @@ export default function DashboardPage() {
     );
   }
 
-  const hasContent = reports.length > 0 || podcasts.length > 0;
+  // Memoize expensive computations
+  const hasContent = useMemo(() =>
+    reports.length > 0 || podcasts.length > 0,
+    [reports.length, podcasts.length]
+  );
 
   return (
     <div className="p-8 bg-white min-h-screen">

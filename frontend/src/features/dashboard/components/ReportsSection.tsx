@@ -1,9 +1,10 @@
 /**
  * Reports section component for the dashboard
  * Handles display of trending reports
+ * Optimized with React.memo to prevent unnecessary re-renders
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import ReportListItem from '@/features/report/components/ReportListItem';
 import { Report } from '../hooks/useDashboardData';
 
@@ -14,24 +15,27 @@ interface ReportsSectionProps {
   className?: string;
 }
 
-const ReportsSection: React.FC<ReportsSectionProps> = ({
+const ReportsSection: React.FC<ReportsSectionProps> = React.memo(({
   reports,
   onReportSelect,
   loading = false,
   className = '',
 }) => {
-  if (loading) {
-    return (
-      <div className={`mb-8 ${className}`}>
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="animate-pulse">
-              <div className="h-24 bg-gray-200 rounded-lg"></div>
-            </div>
-          ))}
-        </div>
+  // Memoize loading skeleton to prevent re-creation
+  const loadingSkeleton = useMemo(() => (
+    <div className={`mb-8 ${className}`}>
+      <div className="space-y-4">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="animate-pulse">
+            <div className="h-24 bg-gray-200 rounded-lg"></div>
+          </div>
+        ))}
       </div>
-    );
+    </div>
+  ), [className]);
+
+  if (loading) {
+    return loadingSkeleton;
   }
 
   if (reports.length === 0) {
@@ -62,6 +66,8 @@ const ReportsSection: React.FC<ReportsSectionProps> = ({
       </div>
     </div>
   );
-};
+});
+
+ReportsSection.displayName = 'ReportsSection';
 
 export default ReportsSection;

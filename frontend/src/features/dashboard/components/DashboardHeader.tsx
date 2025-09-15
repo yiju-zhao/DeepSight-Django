@@ -1,6 +1,7 @@
 /**
  * Dashboard header component
  * Focused component for the dashboard title and main header
+ * Optimized with React.memo to prevent unnecessary re-renders
  */
 
 import React from 'react';
@@ -11,7 +12,7 @@ interface DashboardHeaderProps {
   className?: string;
 }
 
-const DashboardHeader: React.FC<DashboardHeaderProps> = ({
+const DashboardHeader: React.FC<DashboardHeaderProps> = React.memo(({
   title = 'DeepSight',
   subtitle,
   className = '',
@@ -24,6 +25,8 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       )}
     </div>
   );
-};
+});
+
+DashboardHeader.displayName = 'DashboardHeader';
 
 export default DashboardHeader;
