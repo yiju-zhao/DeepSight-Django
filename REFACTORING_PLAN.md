@@ -156,9 +156,9 @@ The refactoring will be carried out in the following phases:
 2.  **Phase 2: Frontend API + state (1.5–2 weeks)** ✅ **COMPLETED**
     - ✅ Consolidate to `src/shared/api/client.ts` and remove duplicate clients.
     - ✅ Introduce centralized query keys and migrate the `reports` feature from thunks to React Query (handle downloads/streams properly).
-3.  **Phase 3: Components and UX (1–1.5 weeks)** ⏳
-    - ⏳ Split overly large components where needed; ensure shared UI components have Storybook stories.
-    - ⏳ Standardize toast/loading flows via React Query callbacks.
+3.  **Phase 3: Components and UX (1–1.5 weeks)** ✅ **COMPLETED**
+    - ✅ Split overly large components where needed; ensure shared UI components have Storybook stories.
+    - ✅ Standardize toast/loading flows via React Query callbacks.
 4.  **Phase 4: Tests and performance (1–1.5 weeks)** ⏳
     - ⏳ Add Vitest + MSW tests for migrated features; add a couple of E2E flows (Cypress or Playwright).
     - ⏳ Optimize obvious frontend re-render hot paths and heavy backend queries.
@@ -195,6 +195,34 @@ The refactoring will be carried out in the following phases:
   - `useReportContent()` - Report content with proper caching
   - `useCreateReport()`, `useUpdateReport()`, `useCancelReport()`, `useDeleteReport()` - Mutations with cache invalidation
   - `useReportsUtils()` - Cache utilities and helpers
+
+**Phase 3 Progress (Components and UX):**
+
+- ✅ **Component Decomposition**: Successfully broke down the large `DashboardPage` component into focused, reusable components:
+  - `DashboardHeader` - Handles title and subtitle display
+  - `ReportsSection` - Manages trending reports display with loading states
+  - `PodcastsSection` - Handles podcast listing with empty states
+  - `DashboardActions` - Floating action buttons with accessibility
+  - `EmptyState` - Reusable empty state component with customizable content
+  - `LoadingState` - Consistent loading UI component
+  - `useDashboardData` - Custom hook that consolidates all data fetching logic
+
+- ✅ **Storybook Stories**: Created comprehensive Storybook documentation for shared UI components:
+  - `Button.stories.tsx` - All variants, sizes, states, and use cases
+  - `Alert.stories.tsx` - Different alert types with icons and layouts
+  - `Badge.stories.tsx` - Status badges, categories, and size variations
+  - `LoadingSpinner.stories.tsx` - Loading states and integration examples
+
+- ✅ **Standardized Notifications**: Built comprehensive notification system that integrates seamlessly with React Query:
+  - `notifications.ts` - Centralized notification utilities for all operation types (success, error, info)
+  - `operationCallbacks` - Pre-configured callbacks for common CRUD operations
+  - Updated `useReports` hooks to use standardized notifications instead of custom toast implementations
+  - Consistent error handling and success messaging across the application
+
+- ✅ **Custom Hooks**: Created reusable hooks that encapsulate complex component logic:
+  - `useFileUploader` - Complete file upload management with validation, progress tracking, and error handling
+  - `useJobStatus` - Background job monitoring with polling, auto-refresh, and status updates
+  - Existing `useNotebookOperations` - Comprehensive notebook CRUD operations with React Query integration
 
 ## Notes & Risks
 

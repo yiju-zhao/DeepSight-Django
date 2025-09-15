@@ -8,7 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/shared/api/client';
 import { queryKeys, queryInvalidations } from '@/shared/queries/keys';
-import { toast } from 'sonner';
+import { notifications, operationCallbacks } from '@/shared/utils/notifications';
 
 // Types
 export interface Report {
@@ -149,9 +149,7 @@ export function useCreateReport() {
       return apiClient.post('/reports/jobs/', data);
     },
     onSuccess: (data, variables) => {
-      toast.success('Report generation started', {
-        description: `Job ${data.job_id} has been queued`,
-      });
+      notifications.info.queued('Report generation');
 
       // Invalidate and refetch report lists
       queryInvalidations.invalidateReportLists().forEach(key => {
@@ -165,11 +163,9 @@ export function useCreateReport() {
         });
       }
     },
-    onError: (error) => {
-      toast.error('Failed to create report', {
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-      });
-    },
+    ...operationCallbacks.create('report', {
+      error: 'Failed to start report generation',
+    }),
   });
 }
 
@@ -184,18 +180,14 @@ export function useUpdateReport() {
       return apiClient.put(`/reports/jobs/${jobId}/`, { content });
     },
     onSuccess: (data, variables) => {
-      toast.success('Report updated successfully');
+      notifications.success.updated('Report');
 
       // Invalidate related queries
       queryInvalidations.invalidateReport(variables.jobId).forEach(key => {
         queryClient.invalidateQueries({ queryKey: key });
       });
     },
-    onError: (error) => {
-      toast.error('Failed to update report', {
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-      });
-    },
+    ...operationCallbacks.update('report'),
   });
 }
 
@@ -210,7 +202,7 @@ export function useCancelReport() {
       return apiClient.post(`/reports/jobs/${jobId}/cancel/`);
     },
     onSuccess: (data, jobId) => {
-      toast.success('Report cancelled successfully');
+      notifications.info.cancelled('Report');
 
       // Invalidate related queries
       queryInvalidations.invalidateReport(jobId).forEach(key => {
@@ -221,9 +213,7 @@ export function useCancelReport() {
       });
     },
     onError: (error) => {
-      toast.error('Failed to cancel report', {
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-      });
+      notifications.error.generic(error instanceof Error ? error.message : 'Failed to cancel report');
     },
   });
 }
@@ -239,7 +229,7 @@ export function useDeleteReport() {
       return apiClient.delete(`/reports/jobs/${jobId}/`);
     },
     onSuccess: (data, jobId) => {
-      toast.success('Report deleted successfully');
+      notifications.success.deleted('Report');
 
       // Remove from cache and invalidate lists
       queryClient.removeQueries({ queryKey: queryKeys.reports.detail(jobId) });
@@ -247,11 +237,7 @@ export function useDeleteReport() {
         queryClient.invalidateQueries({ queryKey: key });
       });
     },
-    onError: (error) => {
-      toast.error('Failed to delete report', {
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-      });
-    },
+    ...operationCallbacks.delete('report'),
   });
 }
 
