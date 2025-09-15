@@ -37,6 +37,39 @@ class KnowledgeBaseService(NotebookBaseService):
         """
         pass
     
+    def get_processed_content(self, kb_item: KnowledgeBaseItem) -> str:
+        """
+        Get processed markdown content from a knowledge base item.
+
+        Args:
+            kb_item: KnowledgeBaseItem instance
+
+        Returns:
+            Processed content as string
+        """
+        try:
+            # First try to get content from the database field
+            if kb_item.content and kb_item.content.strip():
+                logger.info(f"Returning content from database field for KB item {kb_item.id}")
+                return kb_item.content
+
+            # If no content in database field, try using the model manager
+            try:
+                content = KnowledgeBaseItem.objects.get_content(str(kb_item.id), kb_item.notebook.user.pk)
+                if content and content.strip():
+                    logger.info(f"Returning content from model manager for KB item {kb_item.id}")
+                    return content
+            except Exception as manager_error:
+                logger.warning(f"Model manager failed for KB item {kb_item.id}: {manager_error}")
+
+            # If still no content, return empty string
+            logger.warning(f"No processed content found for KB item {kb_item.id}")
+            return ""
+
+        except Exception as e:
+            logger.error(f"Error getting processed content for KB item {kb_item.id}: {e}")
+            return ""
+
     def get_user_knowledge_base(self, user_id: int, notebook, content_type: str = None, limit: int = None, offset: int = None) -> Dict:
         """
         Get knowledge base items for this specific notebook.

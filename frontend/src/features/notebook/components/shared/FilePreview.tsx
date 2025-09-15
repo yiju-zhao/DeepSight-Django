@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { X, Eye, FileText, Globe, Music, Video, File, HardDrive, Calendar, ExternalLink, Loader2, AlertCircle, RefreshCw, Trash2, Plus, ChevronLeft, CheckCircle, Clock, Upload, Link2, Youtube, Group, Presentation } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -10,7 +9,7 @@ import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
 import "highlight.js/styles/github.css";
 import GallerySection from "@/features/notebook/components/shared/GallerySection";
-import { Source, PreviewState, VideoErrorEvent, FileSource } from '@/shared/types';
+import { Source, PreviewState, FileSource } from '@/shared/types';
 
 // API Base URL for raw file access
 import { config } from "@/config";
@@ -946,7 +945,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
               <FileText className="h-5 w-5 text-white" />
             </div>
             <div className="flex-1">
-              <h4 className="text-base font-semibold text-gray-900 mb-3">PDF Document</h4>
+              <h4 className="text-base font-semibold text-gray-900 mb-3">PDF Document (Parsed Content)</h4>
               {/* Document Stats - aligned with title */}
               <div className="flex flex-wrap gap-2 -ml-1">
                 <Badge variant="secondary">
@@ -960,47 +959,29 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
               </div>
             </div>
           </div>
-          <div className="flex items-center h-full pt-2">
+          <div className="flex items-center gap-2 h-full pt-2">
             <Button
               size="sm"
-              variant="default"
+              variant="outline"
               onClick={async () => {
                 try {
-                  if (!state.preview?.pdfUrl) return;
-                  console.log('Opening PDF with URL:', state.preview.pdfUrl);
-                  
-                  // Open PDF in browser instead of downloading
-                  const response = await fetch(state.preview.pdfUrl, {
-                    credentials: 'include'
-                  });
-                  
-                  if (!response.ok) {
-                    throw new Error(`Failed to load PDF: ${response.status}`);
+                  if (!source.file_id || !notebookId) {
+                    console.error('Missing file ID or notebook ID for download');
+                    return;
                   }
-                  
-                  const blob = await response.blob();
-                  // Create blob with explicit PDF MIME type
-                  const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-                  const url = window.URL.createObjectURL(pdfBlob);
-                  
-                  // Open PDF in new tab/window
-                  window.open(url, '_blank');
-                  
-                  // Clean up the blob URL after a short delay
-                  setTimeout(() => {
-                    window.URL.revokeObjectURL(url);
-                  }, 1000);
-                  
+                  // Use raw endpoint to force download
+                  const downloadUrl = getFileUrl(source.file_id, 'raw');
+                  console.log('Downloading PDF with URL:', downloadUrl);
+                  window.open(downloadUrl, '_blank');
                 } catch (error) {
-                  console.error('PDF open failed:', error);
-                  // Fallback to opening URL directly
-                  window.open(state.preview?.pdfUrl, '_blank');
+                  console.error('PDF download failed:', error);
+                  alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
               }}
               className="text-xs font-medium"
             >
-              <ExternalLink className="h-3 w-3 mr-1.5" />
-              Open PDF
+              <HardDrive className="h-3 w-3 mr-1.5" />
+              Download PDF
             </Button>
           </div>
         </div>
@@ -1030,7 +1011,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             </div>
             <div className="flex-1">
               <h4 className="text-sm font-medium text-gray-900">PDF Document</h4>
-              <p className="text-xs text-gray-600">Content extraction unavailable</p>
+              <p className="text-xs text-gray-600">Parsed content not available - processing may be in progress</p>
             </div>
           </div>
           <Button
@@ -1038,41 +1019,23 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             variant="default"
             onClick={async () => {
               try {
-                if (!state.preview?.pdfUrl) return;
-                console.log('Opening PDF with URL:', state.preview.pdfUrl);
-                
-                // Open PDF in browser instead of downloading
-                const response = await fetch(state.preview.pdfUrl, {
-                  credentials: 'include'
-                });
-                
-                if (!response.ok) {
-                  throw new Error(`Failed to load PDF: ${response.status}`);
+                if (!source.file_id || !notebookId) {
+                  console.error('Missing file ID or notebook ID for download');
+                  return;
                 }
-                
-                const blob = await response.blob();
-                // Create blob with explicit PDF MIME type
-                const pdfBlob = new Blob([blob], { type: 'application/pdf' });
-                const url = window.URL.createObjectURL(pdfBlob);
-                
-                // Open PDF in new tab/window
-                window.open(url, '_blank');
-                
-                // Clean up the blob URL after a short delay
-                setTimeout(() => {
-                  window.URL.revokeObjectURL(url);
-                }, 1000);
-                
+                // Use raw endpoint to force download
+                const downloadUrl = getFileUrl(source.file_id, 'raw');
+                console.log('Downloading PDF with URL:', downloadUrl);
+                window.open(downloadUrl, '_blank');
               } catch (error) {
-                console.error('PDF open failed:', error);
-                // Fallback to opening URL directly
-                window.open(state.preview?.pdfUrl, '_blank');
+                console.error('PDF download failed:', error);
+                alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
               }
             }}
             className="text-xs"
           >
-            <ExternalLink className="h-3 w-3 mr-1" />
-            Open PDF
+            <HardDrive className="h-3 w-3 mr-1" />
+            Download PDF
           </Button>
         </div>
         

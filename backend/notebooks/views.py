@@ -460,9 +460,9 @@ class FileStatusSSEView(View):
                 status_data = self.build_status_data(file_item)
                 sse_message = {"type": "file_status", "data": status_data}
                 yield f"data: {json.dumps(sse_message)}\n\n"
-                if file_item.processing_status in ["completed", "failed", "error"]:
+                if file_item.parsing_status in ["done", "failed"]:
                     logger.info(
-                        f"File {file_item.id} processing finished with status: {file_item.processing_status}"
+                        f"File {file_item.id} processing finished with status: {file_item.parsing_status}"
                     )
                     close_message = {"type": "close"}
                     yield f"data: {json.dumps(close_message)}\n\n"
@@ -479,15 +479,14 @@ class FileStatusSSEView(View):
             yield f"data: {json.dumps(error_message)}\n\n"
 
     def build_status_data(self, file_item: KnowledgeBaseItem) -> Dict[str, Any]:
+        # Map model parsing_status to frontend status
         status_mapping = {
-            "processing": "processing",
-            "completed": "done",
+            "queueing": "processing",
+            "parsing": "processing",
+            "done": "done",
             "failed": "failed",
-            "error": "failed",
-            "queued": "processing",
-            "pending": "processing",
         }
-        frontend_status = status_mapping.get(file_item.processing_status, file_item.processing_status)
+        frontend_status = status_mapping.get(file_item.parsing_status, "processing")
         return {
             "file_id": str(file_item.id),
             "status": frontend_status,
@@ -496,7 +495,7 @@ class FileStatusSSEView(View):
             "created_at": file_item.created_at.isoformat() if file_item.created_at else None,
             "updated_at": file_item.updated_at.isoformat() if file_item.updated_at else None,
             "has_content": bool(file_item.content),
-            "processing_status": file_item.processing_status,
+            "processing_status": file_item.parsing_status,
             "metadata": file_item.metadata or {},
         }
 

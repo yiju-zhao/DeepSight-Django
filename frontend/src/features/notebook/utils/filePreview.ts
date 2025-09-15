@@ -18,19 +18,6 @@ interface FileMetadata {
   [key: string]: any;
 }
 
-interface FilePreviewOptions {
-  showThumbnail?: boolean;
-  maxTextLength?: number;
-}
-
-interface VideoFormat {
-  [key: string]: string;
-}
-
-interface AudioFormat {
-  [key: string]: string;
-}
-
 interface FileSource {
   metadata: FileMetadata;
   file_id: string;
@@ -453,12 +440,7 @@ async function generateVideoPreview(fileId: string, metadata: FileMetadata, note
  * Generate PDF file preview
  */
 async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebookId: string | null = null, source: FileSource | null = null, useMinIOUrls: boolean = false): Promise<any> {
-  // Generate PDF URL - use the inline endpoint to prevent forced download
-  const pdfUrl = notebookId ?
-    `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/inline/` :
-    `${API_BASE_URL}/notebooks/files/${fileId}/inline/`;
-
-  console.log('PDF: Generated PDF URL:', pdfUrl, 'useMinIOUrls:', useMinIOUrls);
+  console.log('PDF: Generating preview for file:', fileId, 'useMinIOUrls:', useMinIOUrls);
   
   // Check if we have parsed PDF content
   let pdfContent = null;
@@ -518,7 +500,6 @@ async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebo
       format: 'PDF',
       uploadedAt: metadata.upload_timestamp,
       pageCount: metadata.page_count || 'Unknown',
-      pdfUrl: pdfUrl,
       fileId: fileId,
       usesMinIOUrls: useMinIOUrls
     };
@@ -532,7 +513,6 @@ async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebo
       format: 'PDF',
       uploadedAt: metadata.upload_timestamp,
       pageCount: metadata.page_count || 'Unknown',
-      pdfUrl: pdfUrl,
       fileId: fileId,
       error: error,
       usesMinIOUrls: useMinIOUrls
