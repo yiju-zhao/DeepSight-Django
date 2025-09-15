@@ -1,98 +1,108 @@
 """
-Real-time event signals for notebook file changes
+Signals for notebooks app: ensure MinIO objects are deleted when DB rows are removed.
+
+Best practice: collect object keys in pre_delete and perform deletions after
+the database transaction commits (transaction.on_commit) to avoid deleting
+files when a transaction is rolled back.
 """
+
 import logging
-import threading
-from django.db.models.signals import post_save, post_delete
+from typing import List, Set
+
+from django.db import transaction
+from django.db.models.signals import pre_delete
 from django.dispatch import receiver
-from django.core.cache import cache
-from .models import KnowledgeBaseItem
-from .utils.storage import get_storage_adapter
+
+from .models import KnowledgeBaseItem, KnowledgeBaseImage
+from infrastructure.storage.adapters import get_storage_backend
+
 
 logger = logging.getLogger(__name__)
 
-# Thread-local storage for SSE event broadcasting
-_thread_local = threading.local()
 
-class NotebookFileChangeNotifier:
-    """Manages real-time notifications for notebook file changes"""
-    
-    @staticmethod
-    def notify_file_change(notebook_id, change_type, file_data=None):
-        """Notify SSE streams about file changes"""
-        cache_key = f"notebook_file_changes_{notebook_id}"
-        
-        # Store change event in cache with timestamp
-        import time
-        change_event = {
-            'type': change_type,
-            'timestamp': time.time(),
-            'file_data': file_data,
-            'notebook_id': str(notebook_id)
-        }
-        
-        # Store in cache for SSE streams to pick up
-        cache.set(cache_key, change_event, timeout=30)  # 30 second timeout
-        logger.info(f"File change notification: {change_type} for notebook {notebook_id}")
+def _delete_object_keys_after_commit(keys: List[str]) -> None:
+    """Schedule deletion of MinIO object keys after the current transaction commits."""
+    # Deduplicate and filter falsy keys
+    key_set: Set[str] = {k for k in keys if k}
+    if not key_set:
+        return
 
+    def _do_delete():
+        storage = get_storage_backend()
+        deleted = 0
+        for key in key_set:
+            try:
+                if storage.delete_file(key):
+                    deleted += 1
+                else:
+                    logger.warning(f"Storage delete returned False for key: {key}")
+            except Exception as e:
+                logger.error(f"Failed to delete object key {key}: {e}")
+        logger.info(f"Deleted {deleted}/{len(key_set)} MinIO objects for KB cleanup")
 
-@receiver(post_save, sender=KnowledgeBaseItem)
-def on_knowledge_base_item_saved(sender, instance, created, **kwargs):
-    """Handle KnowledgeBaseItem creation and status changes"""
+    # Ensure deletion runs only after a successful commit
     try:
-        if created:
-            # New file added to notebook
-            NotebookFileChangeNotifier.notify_file_change(
-                notebook_id=instance.notebook.id,
-                change_type='file_added',
-                file_data={
-                    'file_id': str(instance.id),
-                    'title': instance.title,
-                    'status': instance.parsing_status
-                }
-            )
-        else:
-            # Check if processing status changed
-            update_fields = kwargs.get('update_fields') or []
-            if 'parsing_status' in update_fields or not update_fields:
-                NotebookFileChangeNotifier.notify_file_change(
-                    notebook_id=instance.notebook.id,
-                    change_type='file_status_updated',
-                    file_data={
-                        'file_id': str(instance.id),
-                        'title': instance.title,
-                        'status': instance.parsing_status
-                    }
-                )
+        transaction.on_commit(_do_delete)
+    except Exception:
+        # If no transaction is in progress, run immediately
+        _do_delete()
+
+
+@receiver(pre_delete, sender=KnowledgeBaseImage)
+def delete_image_file_on_pre_delete(sender, instance: KnowledgeBaseImage, using, **kwargs):
+    """Delete the image file from MinIO when a KnowledgeBaseImage row is deleted."""
+    try:
+        keys: List[str] = []
+        if instance.minio_object_key:
+            keys.append(instance.minio_object_key)
+        _delete_object_keys_after_commit(keys)
     except Exception as e:
-        logger.error(f"Error in knowledge_base_item post_save signal: {e}")
+        logger.error(f"Error scheduling image file deletion for {instance.id}: {e}")
 
-@receiver(post_delete, sender=KnowledgeBaseItem)
-def on_knowledge_base_item_deleted(sender, instance, **kwargs):
-    """Handle KnowledgeBaseItem deletion and cleanup associated MinIO files."""
+
+@receiver(pre_delete, sender=KnowledgeBaseItem)
+def delete_kb_files_on_pre_delete(sender, instance: KnowledgeBaseItem, using, **kwargs):
+    """Delete all MinIO files related to a KnowledgeBaseItem when it is deleted.
+
+    Includes:
+      - processed content file (file_object_key)
+      - original uploaded file (original_file_object_key)
+      - any additional content files recorded in file_metadata (mineru_extraction)
+      - image files are handled by KnowledgeBaseImage signal; we also sweep any
+        image keys present in metadata as a safety net
+    """
     try:
-        storage_adapter = get_storage_adapter()
-        
-        # Delete associated MinIO files
+        keys: List[str] = []
+
+        # Primary files
         if instance.file_object_key:
-            storage_adapter.delete_file(instance.file_object_key)
+            keys.append(instance.file_object_key)
         if instance.original_file_object_key:
-            storage_adapter.delete_file(instance.original_file_object_key)
-            
-        # Delete all associated images from MinIO
-        for image in instance.images.all():
-            if image.minio_object_key:
-                storage_adapter.delete_file(image.minio_object_key)
+            keys.append(instance.original_file_object_key)
 
-        logger.info(f"Deleted MinIO files associated with KnowledgeBaseItem {instance.id}")
+        # Sweep metadata for any stored object keys
+        fm = instance.file_metadata if isinstance(instance.file_metadata, dict) else {}
+        if fm:
+            # Known list of image keys
+            image_keys = fm.get('image_object_keys') or []
+            if isinstance(image_keys, list):
+                keys.extend([str(k) for k in image_keys if k])
 
-        NotebookFileChangeNotifier.notify_file_change(
-            notebook_id=instance.notebook.id,
-            change_type='file_removed',
-            file_data={
-                'file_id': str(instance.id),
-                'title': instance.title
-            }
-        )
+            # MinerU extraction may store content_files and image_files with object_key
+            mineru = fm.get('mineru_extraction') or {}
+            if isinstance(mineru, dict):
+                for group in ('content_files', 'image_files'):
+                    files = mineru.get(group) or []
+                    if isinstance(files, list):
+                        for ent in files:
+                            try:
+                                obj_key = ent.get('object_key')
+                                if obj_key:
+                                    keys.append(str(obj_key))
+                            except Exception:
+                                continue
+
+        _delete_object_keys_after_commit(keys)
     except Exception as e:
-        logger.error(f"Error in knowledge_base_item post_delete signal: {e}")
+        logger.error(f"Error scheduling KB item file deletions for {instance.id}: {e}")
+

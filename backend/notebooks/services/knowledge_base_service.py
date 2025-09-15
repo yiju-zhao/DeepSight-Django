@@ -104,24 +104,6 @@ class KnowledgeBaseService(NotebookBaseService):
                 if original_filename:
                     basename_to_url[original_filename] = url
 
-            # Fallback: derive from KnowledgeBaseItem.file_metadata['image_object_keys'] if present
-            if (not path_to_url and not basename_to_url) and isinstance(kb_item.file_metadata, dict):
-                try:
-                    keys = kb_item.file_metadata.get('image_object_keys') or []
-                    if isinstance(keys, list) and keys:
-                        for key in keys:
-                            try:
-                                # As a last resort, use direct MinIO URL
-                                url = self.minio_backend.get_file_url(key, expires=expires)
-                                if not url:
-                                    continue
-                                base = os.path.basename(str(key))
-                                if base:
-                                    basename_to_url.setdefault(base, url)
-                            except Exception:
-                                continue
-                except Exception:
-                    pass
             if not path_to_url and not basename_to_url:
                 return markdown
 

@@ -19,6 +19,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.core.exceptions import ValidationError
+from django.utils.http import http_date
 
 from rest_framework import viewsets, permissions, status, filters, authentication, serializers
 from rest_framework.decorators import action
@@ -267,6 +268,15 @@ class FileViewSet(viewsets.ModelViewSet):
             resp = HttpResponse(content, content_type=image.content_type or 'application/octet-stream')
             resp["Content-Disposition"] = f"inline; filename=\"{image.image_metadata.get('original_filename', 'image')}\"" if isinstance(image.image_metadata, dict) else "inline"
             resp["X-Content-Type-Options"] = "nosniff"
+            # Add short-lived caching to reduce repeated loads
+            resp["Cache-Control"] = "private, max-age=300"
+            # Use updated_at or created_at for Last-Modified
+            dt = getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)
+            if dt:
+                try:
+                    resp["Last-Modified"] = http_date(dt.timestamp())
+                except Exception:
+                    pass
             return resp
         except Exception as e:
             logger.exception(f"Failed to serve inline image {image_id} for KB item {pk}: {e}")
