@@ -157,7 +157,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       const data = parsedFilesResponse.results || [];
       
       const parsedSources = data.map((metadata: FileMetadata) => ({
-        id: metadata.id || metadata.file_id || 'unknown', // Use the actual ID from API response
+        id: metadata.id || 'unknown', // Use the actual ID from API response
         name: generatePrincipleTitle(metadata),
         title: generatePrincipleTitle(metadata),
         authors: generatePrincipleFileDescription(metadata),
@@ -165,7 +165,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         selected: false,
         type: "parsed" as const,
         createdAt: metadata.upload_timestamp || new Date().toISOString(),
-        file_id: metadata.file_id,
+        // For API v1, the file identifier for content/inline/raw endpoints is the KnowledgeBaseItem primary key
+        file_id: metadata.id,
         upload_file_id: metadata.upload_file_id,
         parsing_status: metadata.parsing_status,
         metadata: {
