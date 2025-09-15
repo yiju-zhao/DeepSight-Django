@@ -1,0 +1,12 @@
+# Development tools
+black
+ruff
+pre-commit
+mypy
+django-stubs
+types-requests
+types-redis
+pytest
+pytest-django
+pytest-cov
+factory-boy

@@ -1,4 +1,4 @@
-import httpClient from "@/shared/utils/httpClient";
+import { apiClient } from "@/shared/api/client";
 import type {
   ChatSession,
   CreateSessionRequest,
@@ -23,7 +23,7 @@ class SessionChatService {
    * Create a new chat session
    */
   async createSession(notebookId: string, request: CreateSessionRequest = {}): Promise<CreateSessionResponse> {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/sessions/`, {
+    const response = await fetch(`${apiClient.baseUrl}/notebooks/${notebookId}/chat/sessions/`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -45,7 +45,7 @@ class SessionChatService {
    * List all chat sessions for a notebook
    */
   async listSessions(notebookId: string, includeClosed: boolean = false): Promise<ListSessionsResponse> {
-    const url = `${httpClient.baseUrl}/notebooks/${notebookId}/chat/sessions/?include_closed=${includeClosed}`;
+    const url = `${apiClient.baseUrl}/notebooks/${notebookId}/chat/sessions/?include_closed=${includeClosed}`;
     const response = await fetch(url, {
       credentials: 'include',
     });
@@ -61,7 +61,7 @@ class SessionChatService {
    * Get details of a specific session including messages
    */
   async getSession(notebookId: string, sessionId: string): Promise<SessionDetailsResponse> {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/`, {
+    const response = await fetch(`${apiClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/`, {
       credentials: 'include',
     });
 
@@ -76,7 +76,7 @@ class SessionChatService {
    * Close/delete a chat session
    */
   async closeSession(notebookId: string, sessionId: string): Promise<CloseSessionResponse> {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/`, {
+    const response = await fetch(`${apiClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/`, {
       method: 'DELETE',
       credentials: 'include',
       headers: {
@@ -100,7 +100,7 @@ class SessionChatService {
     sessionId: string, 
     request: UpdateSessionTitleRequest
   ): Promise<UpdateSessionTitleResponse> {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/`, {
+    const response = await fetch(`${apiClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/`, {
       method: 'PATCH',
       credentials: 'include',
       headers: {
@@ -128,7 +128,7 @@ class SessionChatService {
     sessionId: string, 
     message: string
   ): Promise<Response> {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/messages/`, {
+    const response = await fetch(`${apiClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/messages/`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -150,7 +150,7 @@ class SessionChatService {
    * Get message history for a session
    */
   async getSessionMessages(notebookId: string, sessionId: string) {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/messages/`, {
+    const response = await fetch(`${apiClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/messages/`, {
       credentials: 'include',
     });
 
@@ -180,7 +180,7 @@ class SessionChatService {
    * Get agent info for the notebook
    */
   async getAgentInfo(notebookId: string) {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/agent/`, {
+    const response = await fetch(`${apiClient.baseUrl}/notebooks/${notebookId}/chat/agent/`, {
       credentials: 'include',
     });
 
@@ -267,7 +267,7 @@ class SessionChatService {
    * Clean up inactive sessions (utility method)
    */
   async cleanupInactiveSessions(notebookId: string, maxAgeHours: number = 24) {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/sessions/cleanup/`, {
+    const response = await fetch(`${apiClient.baseUrl}/notebooks/${notebookId}/chat/sessions/cleanup/`, {
       method: 'POST',
       credentials: 'include',
       headers: {
@@ -292,7 +292,7 @@ class SessionChatService {
     sessionId: string, 
     format: 'json' | 'txt' | 'csv' = 'json'
   ): Promise<Blob> {
-    const response = await fetch(`${httpClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/export/?format=${format}`, {
+    const response = await fetch(`${apiClient.baseUrl}/notebooks/${notebookId}/chat/sessions/${sessionId}/export/?format=${format}`, {
       credentials: 'include',
     });
     

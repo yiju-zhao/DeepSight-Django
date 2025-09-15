@@ -4,6 +4,7 @@ from django.db import models
 from django.conf import settings
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
+from .managers import ReportManager, ReportImageManager
 
 
 class Report(models.Model):
@@ -225,6 +226,9 @@ class Report(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Custom manager
+    objects = ReportManager()
+
     class Meta:
         ordering = ["-created_at"]
         indexes = [
@@ -352,7 +356,10 @@ class ReportImage(models.Model):
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
+    # Custom manager
+    objects = ReportImageManager()
+
     class Meta:
         ordering = ["report", "created_at"]
         verbose_name = "Report Image"

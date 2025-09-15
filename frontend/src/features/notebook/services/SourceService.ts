@@ -1,4 +1,4 @@
-import httpClient from "@/shared/utils/httpClient";
+import { apiClient } from "@/shared/api/client";
 
 interface ListOptions {
   limit?: number;
@@ -21,11 +21,11 @@ class SourceService {
   // ─── FILES ────────────────────────────────────────────────────────────────
 
   async listParsedFiles(notebookId: string, { limit = 50, offset = 0 }: ListOptions = {}): Promise<any> {
-    return httpClient.get(`/notebooks/${notebookId}/files/?limit=${limit}&offset=${offset}`);
+    return apiClient.get(`/notebooks/${notebookId}/files/`, { params: { limit, offset } });
   }
 
   async getParsedFile(fileId: string, notebookId: string): Promise<any> {
-    const res = await httpClient.get(`/notebooks/${notebookId}/files/${fileId}/content/`);
+    const res = await apiClient.get(`/notebooks/${notebookId}/files/${fileId}/content/`);
     // Normalize to { success, data: { content } } shape expected by callers
     if (res && typeof res === 'object' && 'content' in res) {
       return { success: true, data: { content: (res as any).content } };
@@ -34,7 +34,7 @@ class SourceService {
   }
 
   async getFileContentWithMinIOUrls(fileId: string, notebookId: string, expires: number = 86400): Promise<any> {
-    const res = await httpClient.get(`/notebooks/${notebookId}/files/${fileId}/content/?expires=${expires}`);
+    const res = await apiClient.get(`/notebooks/${notebookId}/files/${fileId}/content/`, { params: { expires } });
     // Backend returns { content } even when MinIO URLs are embedded in markdown
     if (res && typeof res === 'object' && 'content' in res) {
       return { success: true, data: { content: (res as any).content } };
@@ -43,11 +43,11 @@ class SourceService {
   }
 
   getFileRaw(fileId: string, notebookId: string): string {
-    return `${httpClient.baseUrl}/notebooks/${notebookId}/files/${fileId}/raw/`;
+    return `${(apiClient as any).baseUrl}/notebooks/${notebookId}/files/${fileId}/raw/`;
   }
 
   getFileInline(fileId: string, notebookId: string): string {
-    return `${httpClient.baseUrl}/notebooks/${notebookId}/files/${fileId}/inline/`;
+    return `${(apiClient as any).baseUrl}/notebooks/${notebookId}/files/${fileId}/inline/`;
   }
 
   async parseFile(file: File | File[], uploadFileId: string, notebookId: string): Promise<BatchResponse> {
@@ -64,7 +64,7 @@ class SourceService {
     
     if (uploadFileId) form.append('upload_file_id', uploadFileId);
 
-    const response = await httpClient.post(`/notebooks/${notebookId}/files/`, form);
+    const response = await apiClient.post(`/notebooks/${notebookId}/files/`, form);
     
     return {
       ...response,
@@ -74,19 +74,19 @@ class SourceService {
   }
 
   async deleteFile(fileId: string, notebookId: string): Promise<any> {
-    return httpClient.delete(`/notebooks/${notebookId}/files/${fileId}/`);
+    return apiClient.delete(`/notebooks/${notebookId}/files/${fileId}/`);
   }
 
   async deleteFileByUploadId(uploadFileId: string, notebookId: string): Promise<any> {
-    return httpClient.delete(`/notebooks/${notebookId}/files/${uploadFileId}/`);
+    return apiClient.delete(`/notebooks/${notebookId}/files/${uploadFileId}/`);
   }
 
   async deleteParsedFile(fileId: string, notebookId: string): Promise<any> {
-    return httpClient.delete(`/notebooks/${notebookId}/files/${fileId}/`);
+    return apiClient.delete(`/notebooks/${notebookId}/files/${fileId}/`);
   }
 
   async getUrlParsingStatus(uploadUrlId: string, notebookId: string): Promise<any> {
-    return httpClient.get(`/notebooks/${notebookId}/files/${uploadUrlId}/status/`);
+    return apiClient.get(`/notebooks/${notebookId}/files/${uploadUrlId}/status/`);
   }
 
   // ─── KNOWLEDGE BASE ───────────────────────────────────────────────────────
@@ -96,24 +96,24 @@ class SourceService {
     if (content_type) {
       url += `&content_type=${content_type}`;
     }
-    return httpClient.get(url);
+    return apiClient.get(url);
   }
 
   async linkKnowledgeBaseItem(notebookId: string, knowledgeBaseItemId: string, notes: string = ''): Promise<any> {
-    return httpClient.post(`/notebooks/${notebookId}/knowledge/`, {
+    return apiClient.post(`/notebooks/${notebookId}/knowledge/`, {
       knowledge_base_item_id: knowledgeBaseItemId,
       notes: notes
     });
   }
 
   async deleteKnowledgeBaseItem(notebookId: string, knowledgeBaseItemId: string): Promise<any> {
-    return httpClient.delete(`/notebooks/${notebookId}/knowledge/${knowledgeBaseItemId}/`);
+    return apiClient.delete(`/notebooks/${notebookId}/knowledge/${knowledgeBaseItemId}/`);
   }
 
   // ─── STATUS ───────────────────────────────────────────────────────────────
 
   async getStatus(uploadFileId: string, notebookId: string): Promise<any> {
-    return httpClient.get(`/notebooks/${notebookId}/files/${uploadFileId}/status/`);
+    return apiClient.get(`/notebooks/${notebookId}/files/${uploadFileId}/status/`);
   }
 
   // ─── URL PARSING ─────────────────────────────────────────────────────────
@@ -134,7 +134,7 @@ class SourceService {
     
     if (uploadFileId) body.upload_url_id = uploadFileId;
 
-    const response = await httpClient.post(`/notebooks/${notebookId}/files/parse_url/`, body);
+    const response = await apiClient.post(`/notebooks/${notebookId}/files/parse_url/`, body);
     
     return {
       ...response,
@@ -160,7 +160,7 @@ class SourceService {
     
     if (uploadFileId) body.upload_url_id = uploadFileId;
 
-    const response = await httpClient.post(`/notebooks/${notebookId}/files/parse_url_with_media/`, body);
+    const response = await apiClient.post(`/notebooks/${notebookId}/files/parse_url_with_media/`, body);
     
     return {
       ...response,
@@ -186,7 +186,7 @@ class SourceService {
     
     if (uploadFileId) body.upload_url_id = uploadFileId;
 
-    const response = await httpClient.post(`/notebooks/${notebookId}/files/parse_document_url/`, body);
+    const response = await apiClient.post(`/notebooks/${notebookId}/files/parse_document_url/`, body);
     
     return {
       ...response,
@@ -198,7 +198,7 @@ class SourceService {
   // ─── BATCH OPERATIONS ────────────────────────────────────────────────────
 
   async getBatchJobStatus(notebookId: string, batchJobId: string): Promise<any> {
-    return httpClient.get(`/notebooks/${notebookId}/batches/${batchJobId}/`);
+    return apiClient.get(`/notebooks/${notebookId}/batches/${batchJobId}/`);
   }
 
   // Note: Video image extraction endpoint needs to be implemented on backend
