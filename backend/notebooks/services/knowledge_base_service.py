@@ -40,6 +40,7 @@ class KnowledgeBaseService(NotebookBaseService):
     def get_processed_content(self, kb_item: KnowledgeBaseItem) -> str:
         """
         Get processed markdown content from a knowledge base item.
+        Uses only the database content field for simplified access.
 
         Args:
             kb_item: KnowledgeBaseItem instance
@@ -48,22 +49,13 @@ class KnowledgeBaseService(NotebookBaseService):
             Processed content as string
         """
         try:
-            # First try to get content from the database field
+            # Get content directly from the database content field
             if kb_item.content and kb_item.content.strip():
-                logger.info(f"Returning content from database field for KB item {kb_item.id}")
+                logger.debug(f"Returning content from database field for KB item {kb_item.id}")
                 return kb_item.content
 
-            # If no content in database field, try using the model manager
-            try:
-                content = KnowledgeBaseItem.objects.get_content(str(kb_item.id), kb_item.notebook.user.pk)
-                if content and content.strip():
-                    logger.info(f"Returning content from model manager for KB item {kb_item.id}")
-                    return content
-            except Exception as manager_error:
-                logger.warning(f"Model manager failed for KB item {kb_item.id}: {manager_error}")
-
-            # If still no content, return empty string
-            logger.warning(f"No processed content found for KB item {kb_item.id}")
+            # Return empty string if no content found
+            logger.info(f"No content found in database field for KB item {kb_item.id}")
             return ""
 
         except Exception as e:
@@ -668,12 +660,13 @@ class KnowledgeBaseService(NotebookBaseService):
             return False
     
     def _get_markdown_content(self, kb_item):
-        """Get markdown content from knowledge base item using model manager."""
+        """Get markdown content from knowledge base item using database field."""
         try:
-            # Use the model manager to get content
-            content = KnowledgeBaseItem.objects.get_content(str(kb_item.id), kb_item.notebook.user.pk)
-            return content
-            
+            # Get content directly from database field
+            if kb_item.content and kb_item.content.strip():
+                return kb_item.content
+            return None
+
         except Exception as e:
             logger.error(f"Error getting markdown content for KB item {kb_item.id}: {e}")
             return None

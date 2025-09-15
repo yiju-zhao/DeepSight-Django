@@ -163,33 +163,6 @@ class KnowledgeBaseItemManager(models.Manager):
             updated_at=timezone.now()
         )
     
-    def get_content(self, item_id, user_id):
-        """
-        Get content for a knowledge base item with user verification.
-        Maintained for backward compatibility.
-        """
-        try:
-            from django.contrib.auth import get_user_model
-            from ..utils.storage_adapter import get_storage_adapter
-            
-            User = get_user_model()
-            user = User.objects.get(id=user_id)
-            
-            # Security: Find knowledge base item through user's notebooks
-            item = self.select_related('notebook').get(
-                id=item_id, 
-                notebook__user=user
-            )
-            
-            # Use storage adapter to get content
-            storage_adapter = get_storage_adapter()
-            content = storage_adapter.get_file_content(item_id, user_id=user_id)
-            
-            return content
-            
-        except Exception as e:
-            logger.error(f"Failed to get content for KB item {item_id}: {e}")
-            return None
 
 
 class BatchJobQuerySet(models.QuerySet):

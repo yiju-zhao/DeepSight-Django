@@ -295,11 +295,12 @@ def populate_image_captions_for_kb_item(kb_item, markdown_content=None):
 
 
 def _get_markdown_content_for_captions(kb_item):
-    """Get markdown content from knowledge base item."""
+    """Get markdown content from knowledge base item using database field."""
     try:
-        from ...models import KnowledgeBaseItem
-        content = KnowledgeBaseItem.objects.get_content(str(kb_item.id), kb_item.notebook.user.pk)
-        return content
+        # Get content directly from database field
+        if kb_item.content and kb_item.content.strip():
+            return kb_item.content
+        return None
     except Exception as e:
         logger.error(f"Error getting markdown content for KB item {kb_item.id}: {e}")
         return None

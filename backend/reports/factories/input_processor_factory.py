@@ -48,13 +48,15 @@ class KnowledgeBaseInputProcessor(InputProcessorInterface):
                     # Store file ID for figure data combination
                     input_data["selected_file_ids"].append(f"f_{file_id}")
                     
-                    # Get file content using the model manager for consistency
-                    content = KnowledgeBaseItem.objects.get_content(file_id, user_id)
-                    
-                    if content:
-                        # Get metadata from knowledge base item
-                        try:
-                            kb_item = KnowledgeBaseItem.objects.get(id=file_id)
+                    # Get file content directly from database
+                    try:
+                        kb_item = KnowledgeBaseItem.objects.select_related('notebook').get(
+                            id=file_id,
+                            notebook__user_id=user_id
+                        )
+                        content = kb_item.content if kb_item.content and kb_item.content.strip() else None
+
+                        if content:
                             filename = kb_item.title or f"file_{file_id}"
                             content_type = getattr(kb_item, 'content_type', 'unknown')
                             # Get original file extension and MIME type from MinIO metadata
@@ -78,12 +80,12 @@ class KnowledgeBaseInputProcessor(InputProcessorInterface):
                             # All files are treated as text files (no more caption file separation)
                             input_data["text_files"].append(file_data)
                             logger.info(f"Loaded text file: {filename} (ID: {file_id})")
-                                
-                        except KnowledgeBaseItem.DoesNotExist:
-                            logger.warning(f"Knowledge base item not found for ID: {file_id}")
-                            continue
-                    else:
-                        logger.warning(f"No content found for file ID: {file_id}")
+                        else:
+                            logger.warning(f"No content found for file ID: {file_id}")
+
+                    except KnowledgeBaseItem.DoesNotExist:
+                        logger.warning(f"Knowledge base item not found for ID: {file_id}")
+                        continue
                         
                 except Exception as e:
                     logger.warning(f"Failed to process file ID {file_id}: {e}")

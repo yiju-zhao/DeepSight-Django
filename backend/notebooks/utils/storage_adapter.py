@@ -84,5 +84,5 @@ class EnhancedFileStorageService(FileStorageService):
     Enhanced file storage service with additional methods needed by views.
     """
     
-    # Content retrieval methods moved to KnowledgeBaseItemManager.
-    # Use KnowledgeBaseItem.objects.get_content() and .get_content_with_minio_urls() instead. 
+    # Content retrieval is now done directly from database content field.
+    # Use kb_item.content to access stored content. 
