@@ -32,7 +32,7 @@ const ensureMathJax = (): Promise<void> => {
     };
     const script = document.createElement('script');
     script.id = 'mathjax-script';
-    script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js';
+    script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js';
     script.async = true;
     script.onload = () => resolve();
     document.head.appendChild(script);
