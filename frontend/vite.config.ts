@@ -239,7 +239,8 @@ export default defineConfig({
   ],
   
   server: {
-    https: process.env.VITE_HTTPS === 'true',
+    // Enable HTTPS for dev server to avoid insecure blob URL warnings
+    https: true,
     host: '0.0.0.0',
     port: 5173,
 

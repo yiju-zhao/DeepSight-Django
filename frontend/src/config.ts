@@ -36,7 +36,10 @@ const getConfig = (): Config => {
 
 export const config: AppConfig = {
   // @ts-ignore - Vite handles import.meta.env at build time
-  API_BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
+  // Default to current origin to inherit HTTPS/HTTP scheme and host
+  API_BASE_URL:
+    import.meta.env.VITE_API_BASE_URL ||
+    (typeof window !== 'undefined' ? `${window.location.origin}/api/v1` : 'http://localhost:8000/api/v1'),
   // Feature flags
   // @ts-ignore - Vite handles import.meta.env at build time
   USE_MINIO_URLS: import.meta.env.VITE_USE_MINIO_URLS === 'true' || true, // Enable MinIO URLs by default for testing
