@@ -803,12 +803,13 @@ class KnowledgeBaseService(NotebookBaseService):
             logger.error(f"Error getting markdown content for KB item {kb_item.id}: {e}")
             return None
 
-    def get_raw_file(self, kb_item: KnowledgeBaseItem) -> Dict[str, Any]:
+    def get_raw_file(self, kb_item: KnowledgeBaseItem, user_id: int = None) -> Dict[str, Any]:
         """
         Get the raw file data for a knowledge base item for download.
 
         Args:
             kb_item: KnowledgeBaseItem instance
+            user_id: User ID for file access permissions
 
         Returns:
             Dict containing file data, content type, and filename
@@ -817,10 +818,14 @@ class KnowledgeBaseService(NotebookBaseService):
             Exception: If file cannot be retrieved
         """
         try:
+            # Default to notebook owner if no user_id provided
+            if user_id is None:
+                user_id = kb_item.notebook.user.id
+
             # Try to get original file first
             if kb_item.original_file_object_key:
                 storage = self.storage_adapter
-                file_data = storage.get_file_content(kb_item.original_file_object_key)
+                file_data = storage.get_file_content(kb_item.original_file_object_key, user_id)
 
                 # Get filename from metadata or generate from title
                 filename = kb_item.title
@@ -848,7 +853,7 @@ class KnowledgeBaseService(NotebookBaseService):
             # If no original file, try processed file
             elif kb_item.file_object_key:
                 storage = self.storage_adapter
-                file_data = storage.get_file_content(kb_item.file_object_key)
+                file_data = storage.get_file_content(kb_item.file_object_key, user_id)
 
                 filename = f"{kb_item.title}.txt"  # Processed files are usually text
                 content_type = 'text/plain'

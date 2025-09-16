@@ -245,7 +245,7 @@ class FileViewSet(viewsets.ModelViewSet):
     def raw(self, request, notebook_pk=None, pk=None):
         item = self.get_object()
         try:
-            file_obj = self.kb_service.get_raw_file(item)
+            file_obj = self.kb_service.get_raw_file(item, request.user.id)
             response = HttpResponse(file_obj["data"], content_type=file_obj["content_type"])
             response["Content-Disposition"] = f"attachment; filename=\"{file_obj['filename']}\""
             return response
@@ -257,7 +257,7 @@ class FileViewSet(viewsets.ModelViewSet):
     def inline(self, request, notebook_pk=None, pk=None):
         item = self.get_object()
         try:
-            file_obj = self.kb_service.get_raw_file(item)
+            file_obj = self.kb_service.get_raw_file(item, request.user.id)
             response = HttpResponse(file_obj["data"], content_type=file_obj["content_type"])
             response["Content-Disposition"] = f"inline; filename=\"{file_obj['filename']}\""
             response["X-Content-Type-Options"] = "nosniff"
