@@ -171,6 +171,10 @@ class FileViewSet(viewsets.ModelViewSet):
         self.kb_service = KnowledgeBaseService()
 
     def get_queryset(self):
+        # Guard against schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return KnowledgeBaseItem.objects.none()
+
         notebook_id = self.kwargs.get("notebook_pk") or self.kwargs.get("notebook_id")
         notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
         return KnowledgeBaseItem.objects.filter(notebook=notebook).order_by("-created_at")
@@ -461,6 +465,10 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         self.chat_service = ChatService()
 
     def get_queryset(self):
+        # Guard against schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return ChatSession.objects.none()
+
         notebook_id = self.kwargs.get("notebook_pk")
         notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
         return ChatSession.objects.filter(notebook=notebook).order_by("-last_activity")
