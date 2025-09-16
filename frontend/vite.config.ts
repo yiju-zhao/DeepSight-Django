@@ -189,14 +189,6 @@ const addTransformIndexHtml: PluginOption = {
           injectTo: 'head',
         },
         {
-          tag: 'meta',
-          attrs: {
-            'http-equiv': 'Content-Security-Policy-Report-Only',
-            content: ""
-          },
-          injectTo: 'head',
-        },
-        {
           tag: 'script',
           attrs: { type: 'module' },
           children: runtimeErrorHandler,
@@ -274,8 +266,6 @@ export default defineConfig({
       'Cross-Origin-Opener-Policy': 'unsafe-none',
       // Completely permissive CSP - allows HTTP blob URLs and downloads
       'Content-Security-Policy': "default-src * blob: data: 'unsafe-inline' 'unsafe-eval'; object-src * blob: data:; media-src * blob: data: http:; img-src * blob: data: http:; connect-src * blob: data: http:;",
-      // Allow mixed content (HTTP resources on HTTP page)
-      'Content-Security-Policy-Report-Only': '',
     },
     allowedHosts: true,
   },

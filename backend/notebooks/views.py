@@ -420,6 +420,10 @@ class KnowledgeBaseViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["content_type", "parsing_status"]
 
     def get_queryset(self):
+        # Guard against schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return KnowledgeBaseItem.objects.none()
+
         notebook_id = self.kwargs.get("notebook_pk") or self.kwargs.get("notebook_id")
         return KnowledgeBaseItem.objects.filter(
             notebook__id=notebook_id, notebook__user=self.request.user
@@ -431,6 +435,10 @@ class BatchJobViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsNotebookOwner]
 
     def get_queryset(self):
+        # Guard against schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return BatchJob.objects.none()
+
         notebook_id = self.kwargs.get("notebook_pk") or self.kwargs.get("notebook_id")
         return BatchJob.objects.filter(
             notebook__id=notebook_id, notebook__user=self.request.user
