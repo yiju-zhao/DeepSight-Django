@@ -433,9 +433,9 @@ class ReportJobPdfDownloadView(APIView):
                 markdown_content = report.result_content
             elif report.main_report_object_key:
                 try:
-                    from notebooks.utils.storage import FileStorageService
-                    storage_service = FileStorageService()
-                    content_bytes = storage_service.get_file_content(report.main_report_object_key, user_id=request.user.id)
+                    from infrastructure.storage.adapters import get_storage_adapter
+                    storage_adapter = get_storage_adapter()
+                    content_bytes = storage_adapter.get_file_content(report.main_report_object_key, str(request.user.id))
                     if isinstance(content_bytes, bytes):
                         markdown_content = content_bytes.decode('utf-8')
                     else:
@@ -529,9 +529,9 @@ class ReportJobContentView(APIView):
 
             if report.main_report_object_key:
                 try:
-                    from notebooks.utils.storage import FileStorageService
-                    storage_service = FileStorageService()
-                    content_bytes = storage_service.get_file_content(report.main_report_object_key, user_id=request.user.id)
+                    from infrastructure.storage.adapters import get_storage_adapter
+                    storage_adapter = get_storage_adapter()
+                    content_bytes = storage_adapter.get_file_content(report.main_report_object_key, str(request.user.id))
                     if isinstance(content_bytes, bytes):
                         content = content_bytes.decode('utf-8')
                     else:

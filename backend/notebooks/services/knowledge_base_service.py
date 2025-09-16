@@ -15,7 +15,8 @@ from django.core.exceptions import ValidationError
 from rest_framework import status
 
 from ..models import KnowledgeBaseItem, BatchJob, KnowledgeBaseImage
-from ..utils.storage import get_storage_adapter, get_minio_backend
+from ..utils.storage import get_minio_backend
+from infrastructure.storage.adapters import get_storage_adapter
 from core.services import NotebookBaseService
 
 logger = logging.getLogger(__name__)
@@ -824,8 +825,8 @@ class KnowledgeBaseService(NotebookBaseService):
 
             # Try to get original file first
             if kb_item.original_file_object_key:
-                storage = self.storage_adapter
-                file_data = storage.get_file_content(kb_item.original_file_object_key, user_id)
+                # Use infrastructure storage adapter for direct MinIO access
+                file_data = self.storage_adapter.get_file_content(kb_item.original_file_object_key, str(user_id))
 
                 # Get filename from metadata or generate from title
                 filename = kb_item.title
@@ -852,8 +853,8 @@ class KnowledgeBaseService(NotebookBaseService):
 
             # If no original file, try processed file
             elif kb_item.file_object_key:
-                storage = self.storage_adapter
-                file_data = storage.get_file_content(kb_item.file_object_key, user_id)
+                # Use infrastructure storage adapter for direct MinIO access
+                file_data = self.storage_adapter.get_file_content(kb_item.file_object_key, str(user_id))
 
                 filename = f"{kb_item.title}.txt"  # Processed files are usually text
                 content_type = 'text/plain'

@@ -389,7 +389,7 @@ class ReportImage(models.Model):
             try:
                 from notebooks.utils.storage import get_minio_backend
                 backend = get_minio_backend()
-                return backend.get_file_content(self.report_figure_minio_object_key)
+                return backend.get_file(self.report_figure_minio_object_key)
             except Exception:
                 return None
         return None
