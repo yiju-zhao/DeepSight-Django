@@ -5,8 +5,10 @@ import { Badge } from "@/shared/components/ui/badge";
 import { generatePreview, supportsPreview, PREVIEW_TYPES, formatDate, getVideoMimeType, getAudioMimeType, generateTextPreviewWithMinIOUrls } from "@/features/notebook/utils/filePreview";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
+import rehypeMathjax from "rehype-mathjax";
 import "highlight.js/styles/github.css";
 import GallerySection from "@/features/notebook/components/shared/GallerySection";
 import { Source, PreviewState, FileSource } from '@/shared/types';
@@ -27,14 +29,33 @@ const ensureMathJax = (): Promise<void> => {
   mathJaxLoading = new Promise<void>((resolve) => {
     // Configure MathJax (TeX + CHTML)
     w.MathJax = w.MathJax || {
-      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']], displayMath: [['$$', '$$'], ['\\[', '\\]']] },
-      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']],
+        displayMath: [['$$', '$$'], ['\\[', '\\]']],
+        processEscapes: true,
+        processEnvironments: true,
+        processRefs: true,
+        packages: {'[+]': ['base', 'ams', 'newcommand', 'configmacros', 'action']}
+      },
+      options: {
+        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+        ignoreHtmlClass: 'tex2jax_ignore',
+        processHtmlClass: 'tex2jax_process'
+      },
+      startup: {
+        ready: () => {
+          w.MathJax.startup.defaultReady();
+          w.MathJax.startup.promise.then(() => {
+            resolve();
+          });
+        }
+      }
     };
     const script = document.createElement('script');
     script.id = 'mathjax-script';
     script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js';
     script.async = true;
-    script.onload = () => resolve();
+    script.onerror = () => resolve(); // Continue even if script fails to load
     document.head.appendChild(script);
   });
   return mathJaxLoading;
@@ -290,23 +311,35 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
 
   useEffect(() => {
     let cancelled = false;
-    ensureMathJax().then(() => {
-      const w = window as any;
-      if (cancelled) return;
-      if (w.MathJax && w.MathJax.typesetPromise) {
-        // Typeset only within this container
-        w.MathJax.typesetClear?.([containerRef.current]);
-        w.MathJax.typesetPromise([containerRef.current]).catch(() => {});
-      }
-    });
-    return () => { cancelled = true; };
+
+    // Ensure MathJax is loaded for rehype-mathjax
+    const timer = setTimeout(() => {
+      ensureMathJax().then(() => {
+        if (cancelled) return;
+        // rehype-mathjax will handle the rendering, but we ensure MathJax is available
+        const w = window as any;
+        if (w.MathJax && w.MathJax.typesetPromise && containerRef.current) {
+          // Let rehype-mathjax handle most of the work, but re-typeset if needed
+          w.MathJax.typesetPromise([containerRef.current]).catch((err: any) => {
+            console.warn('MathJax typeset error:', err);
+          });
+        }
+      }).catch((err) => {
+        console.warn('MathJax loading error:', err);
+      });
+    }, 50);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [content]);
 
   return (
-    <div ref={containerRef} className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
+    <div ref={containerRef} className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 tex2jax_process">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight, rehypeRaw]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeHighlight, rehypeRaw, rehypeMathjax]}
         components={{
           h1: ({children}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-3 border-b">{children}</h1>,
           h2: ({children}) => <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4">{children}</h2>,
