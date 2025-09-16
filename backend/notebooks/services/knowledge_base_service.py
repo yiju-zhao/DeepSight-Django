@@ -803,6 +803,80 @@ class KnowledgeBaseService(NotebookBaseService):
             logger.error(f"Error getting markdown content for KB item {kb_item.id}: {e}")
             return None
 
+    def get_raw_file(self, kb_item: KnowledgeBaseItem) -> Dict[str, Any]:
+        """
+        Get the raw file data for a knowledge base item for download.
+
+        Args:
+            kb_item: KnowledgeBaseItem instance
+
+        Returns:
+            Dict containing file data, content type, and filename
+
+        Raises:
+            Exception: If file cannot be retrieved
+        """
+        try:
+            # Try to get original file first
+            if kb_item.original_file_object_key:
+                storage = self.storage_adapter
+                file_data = storage.get_file_content(kb_item.original_file_object_key)
+
+                # Get filename from metadata or generate from title
+                filename = kb_item.title
+                if kb_item.file_metadata and isinstance(kb_item.file_metadata, dict):
+                    filename = kb_item.file_metadata.get('original_filename', kb_item.title)
+
+                # Ensure filename has proper extension
+                if not '.' in filename and kb_item.file_metadata:
+                    file_ext = kb_item.file_metadata.get('file_extension', '')
+                    if file_ext and not file_ext.startswith('.'):
+                        file_ext = f'.{file_ext}'
+                    filename = f"{filename}{file_ext}"
+
+                # Determine content type
+                content_type = 'application/octet-stream'  # Default fallback
+                if kb_item.file_metadata and isinstance(kb_item.file_metadata, dict):
+                    content_type = kb_item.file_metadata.get('content_type', content_type)
+
+                return {
+                    "data": file_data,
+                    "content_type": content_type,
+                    "filename": filename
+                }
+
+            # If no original file, try processed file
+            elif kb_item.file_object_key:
+                storage = self.storage_adapter
+                file_data = storage.get_file_content(kb_item.file_object_key)
+
+                filename = f"{kb_item.title}.txt"  # Processed files are usually text
+                content_type = 'text/plain'
+
+                return {
+                    "data": file_data,
+                    "content_type": content_type,
+                    "filename": filename
+                }
+
+            # If no files in storage, return content as text file
+            elif kb_item.content:
+                content_bytes = kb_item.content.encode('utf-8')
+                filename = f"{kb_item.title}.txt"
+
+                return {
+                    "data": content_bytes,
+                    "content_type": 'text/plain; charset=utf-8',
+                    "filename": filename
+                }
+
+            else:
+                raise Exception("No file content available for download")
+
+        except Exception as e:
+            logger.exception(f"Failed to get raw file for KB item {kb_item.id}: {e}")
+            raise Exception(f"Failed to retrieve file: {str(e)}")
+
     def _extract_figure_data_from_content(self, content):
         """Extract figure data from markdown content using a temporary file."""
         try:
