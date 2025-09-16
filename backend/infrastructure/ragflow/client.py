@@ -120,7 +120,7 @@ class RagFlowClient:
             dataset_config = {
                 'name': name,
                 'description': description,
-                'chunk_method': getattr(settings, 'RAGFLOW_DEFAULT_CHUNK_METHOD', 'deepdoc'),
+                'chunk_method': getattr(settings, 'RAGFLOW_DEFAULT_CHUNK_METHOD', 'naive'),
                 'embedding_model': getattr(settings, 'RAGFLOW_DEFAULT_EMBEDDING_MODEL', 'text-embedding-3-large@OpenAI'),
                 **kwargs
             }
