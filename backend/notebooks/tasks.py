@@ -144,12 +144,37 @@ def upload_to_ragflow_task(self, kb_item_id: str):
         )
 
         if upload_result and upload_result.get('id'):
-            logger.info(f"Successfully uploaded processed file for KB item {kb_item.id} to RagFlow: {upload_result.get('id')}")
+            document_id = upload_result.get('id')
+            logger.info(f"Successfully uploaded processed file for KB item {kb_item.id} to RagFlow: {document_id}")
+
             # Store the RagFlow document ID in the knowledge base item metadata
             kb_item.metadata = kb_item.metadata or {}
-            kb_item.metadata['ragflow_document_id'] = upload_result.get('id')
+            kb_item.metadata['ragflow_document_id'] = document_id
             kb_item.save(update_fields=['metadata'])
-            return {"success": True, "ragflow_document_id": upload_result.get('id')}
+
+            # Trigger document parsing after successful upload
+            try:
+                parse_result = ragflow_client.parse_documents(
+                    dataset_id=kb_item.notebook.ragflow_dataset_id,
+                    document_ids=[document_id]
+                )
+
+                if parse_result:
+                    logger.info(f"Successfully triggered parsing for RagFlow document {document_id}")
+                    kb_item.metadata['ragflow_parsing_triggered'] = True
+                    kb_item.save(update_fields=['metadata'])
+                else:
+                    logger.warning(f"Failed to trigger parsing for RagFlow document {document_id}")
+                    kb_item.metadata['ragflow_parsing_error'] = "Failed to trigger parsing"
+                    kb_item.save(update_fields=['metadata'])
+
+            except Exception as parse_error:
+                logger.error(f"Error triggering parsing for RagFlow document {document_id}: {parse_error}")
+                kb_item.metadata['ragflow_parsing_error'] = str(parse_error)
+                kb_item.save(update_fields=['metadata'])
+                # Don't fail the main task if parsing trigger fails
+
+            return {"success": True, "ragflow_document_id": document_id, "parsing_triggered": parse_result}
         else:
             logger.warning(f"Failed to upload processed file for KB item {kb_item.id} to RagFlow")
             return {"success": False, "error": "Upload failed - no document ID returned"}
