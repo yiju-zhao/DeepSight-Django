@@ -181,6 +181,22 @@ const addTransformIndexHtml: PluginOption = {
       html,
       tags: [
         {
+          tag: 'meta',
+          attrs: {
+            'http-equiv': 'Content-Security-Policy',
+            content: "default-src * blob: data: 'unsafe-inline' 'unsafe-eval'; object-src * blob: data:; media-src * blob: data: http:; img-src * blob: data: http:;"
+          },
+          injectTo: 'head',
+        },
+        {
+          tag: 'meta',
+          attrs: {
+            'http-equiv': 'Content-Security-Policy-Report-Only',
+            content: ""
+          },
+          injectTo: 'head',
+        },
+        {
           tag: 'script',
           attrs: { type: 'module' },
           children: runtimeErrorHandler,
@@ -239,8 +255,8 @@ export default defineConfig({
   ],
   
   server: {
-    // Enable HTTPS for dev server to avoid insecure blob URL warnings
-    https: true,
+    // Force HTTP for development - no HTTPS
+    https: false,
     host: '0.0.0.0',
     port: 5173,
 
@@ -253,11 +269,13 @@ export default defineConfig({
     },
     cors: true,
     headers: {
-      // More permissive headers for development
+      // Allow all origins and disable security policies for development
       'Cross-Origin-Embedder-Policy': 'unsafe-none',
       'Cross-Origin-Opener-Policy': 'unsafe-none',
-      // Very permissive CSP for development - allows everything including blob URLs
-      'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline' blob: data:; img-src * data: blob: 'unsafe-inline'; media-src * blob: data:;",
+      // Completely permissive CSP - allows HTTP blob URLs and downloads
+      'Content-Security-Policy': "default-src * blob: data: 'unsafe-inline' 'unsafe-eval'; object-src * blob: data:; media-src * blob: data: http:; img-src * blob: data: http:; connect-src * blob: data: http:;",
+      // Allow mixed content (HTTP resources on HTTP page)
+      'Content-Security-Policy-Report-Only': '',
     },
     allowedHosts: true,
   },
