@@ -113,7 +113,7 @@ export const Priority: Story = {
         High Priority
       </>
     ),
-  ),
+  },
 };
 
 // Number badges

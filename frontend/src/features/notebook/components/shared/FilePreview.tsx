@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Eye, FileText, Globe, Music, Video, File, HardDrive, Calendar, ExternalLink, Loader2, AlertCircle, RefreshCw, Trash2, Plus, ChevronLeft, CheckCircle, Clock, Upload, Link2, Youtube, Group, Presentation } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
-import { generatePreview, supportsPreview, PREVIEW_TYPES, formatDate, getVideoMimeType, getAudioMimeType, generateTextPreviewWithMinIOUrls } from "@/features/notebook/utils/filePreview";
+import { supportsPreview, PREVIEW_TYPES, formatDate, getVideoMimeType, getAudioMimeType, generateTextPreviewWithMinIOUrls } from "@/features/notebook/utils/filePreview";
 import { createSecureBlob, downloadFileSecurely, createBlobManager } from "@/features/notebook/utils/storageUtils";
+import { useFilePreview } from "@/features/notebook/queries";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -84,7 +85,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
         try {
           if (!notebookId || !fileId) throw new Error('Missing notebookId/fileId to resolve image');
           const cacheKey = `${notebookId}:${fileId}`;
-          let images = imageListCache[cacheKey];
+          let images: any[] = imageListCache[cacheKey];
           if (!images) {
             const listUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/images/`;
             const listRes = await fetch(listUrl, { credentials: 'include', headers: { 'Accept': 'application/json' } });
@@ -94,10 +95,12 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
             imageListCache[cacheKey] = images;
           }
           const failingName = (src.split('?')[0].split('/').pop() || '').toLowerCase();
-          const matched = images.find((im: any) => (im.image_url && im.image_url.toLowerCase().includes(failingName)) || (im.original_filename && String(im.original_filename).toLowerCase().includes(failingName))) || images[0];
-          if (!matched || !matched.id) throw new Error('Unable to resolve image to inline API');
-          const apiUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/image/${matched.id}/inline/`;
-          await fetchInlineBlob(apiUrl);
+          if (images) {
+            const matched = images.find((im: any) => (im.image_url && im.image_url.toLowerCase().includes(failingName)) || (im.original_filename && String(im.original_filename).toLowerCase().includes(failingName))) || images[0];
+            if (!matched || !matched.id) throw new Error('Unable to resolve image to inline API');
+            const apiUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/image/${matched.id}/inline/`;
+            await fetchInlineBlob(apiUrl);
+          }
         } catch (e) {
           console.warn('Failed to convert MinIO URL to API inline:', e);
           setImgError(true);
@@ -122,7 +125,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       const fetchImageWithCredentials = async () => {
         try {
           const cacheKey = `${notebookId}:${fileId}`;
-          let images = imageListCache[cacheKey];
+          let images: any[] = imageListCache[cacheKey];
           if (!images) {
             const listUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/images/`;
             const listRes = await fetch(listUrl, { credentials: 'include', headers: { 'Accept': 'application/json' } });
@@ -134,17 +137,19 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
 
           // Extract filename from src
           const srcName = src.split('/').pop() || src;
-          const match = images.find((img: any) =>
-            (img.original_filename && img.original_filename.includes(srcName)) ||
-            (img.image_url && img.image_url.includes(srcName)) ||
-            (img.imageUrl && img.imageUrl.includes(srcName))
-          ) || images.find((img: any) => img.image_url) ;
+          if (images) {
+            const match = images.find((img: any) =>
+              (img.original_filename && img.original_filename.includes(srcName)) ||
+              (img.image_url && img.image_url.includes(srcName)) ||
+              (img.imageUrl && img.imageUrl.includes(srcName))
+            ) || images.find((img: any) => img.image_url) ;
 
-          if (match && (match.image_url || match.imageUrl)) {
-            const resolved = match.image_url || match.imageUrl;
-            setImgSrc(resolved);
-            setIsLoading(false);
-            return;
+            if (match && (match.image_url || match.imageUrl)) {
+              const resolved = match.image_url || match.imageUrl;
+              setImgSrc(resolved);
+              setIsLoading(false);
+              return;
+            }
           }
 
           // If not found, fall back to original src
@@ -351,9 +356,6 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
 MarkdownContent.displayName = 'MarkdownContent';
 
 interface FilePreviewState {
-  preview: PreviewState | null;
-  isLoading: boolean;
-  error: string | null;
   audioError: boolean;
   audioLoaded: boolean;
   videoError: boolean;
@@ -373,11 +375,21 @@ interface FilePreviewComponentProps {
 }
 
 const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onClose, notebookId, useMinIOUrls = false }) => {
-  // Consolidate all state into a single object to avoid hook order issues
+  // Use TanStack Query for data fetching with automatic deduplication and caching
+  const {
+    data: preview,
+    isLoading,
+    error,
+    refetch
+  } = useFilePreview(
+    source,
+    notebookId,
+    useMinIOUrls,
+    isOpen && !!source && !!source.metadata?.file_extension && supportsPreview(source.metadata.file_extension, source.metadata)
+  );
+
+  // Simplified state for UI-only concerns
   const [state, setState] = useState<FilePreviewState>({
-    preview: null,
-    isLoading: false,
-    error: null,
     audioError: false,
     audioLoaded: false,
     videoError: false,
@@ -414,23 +426,22 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       `${API_BASE_URL}/files/${fileId}/${action}/`;
   };
 
+  // Cleanup function to revoke blob URLs when component unmounts or closes
   useEffect(() => {
-    if (isOpen && source && source.metadata?.file_extension && supportsPreview(source.metadata.file_extension, source.metadata)) {
-      loadPreview();
+    if (!isOpen) {
+      blobManager.cleanup();
     }
-    
-    // Cleanup function to revoke blob URLs
     return () => {
       blobManager.cleanup();
     };
-  }, [isOpen, source, notebookId, useMinIOUrls]);
+  }, [isOpen, blobManager]);
 
   // Resolve markdown image paths like images/xxx.jpg to presigned URLs
   useEffect(() => {
     const resolveImagesInContent = async () => {
       try {
-        if (!state.preview?.content || !notebookId || !source?.file_id) return;
-        const content = state.preview.content as string;
+        if (!preview?.content || !notebookId || !source?.file_id) return;
+        const content = preview.content as string;
         // Quick check: only run if relative images likely present
         if (!content.includes('images/')) {
           updateState({ resolvedContent: null });
@@ -485,45 +496,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     };
 
     resolveImagesInContent();
-  }, [state.preview?.content, notebookId, source?.file_id]);
+  }, [preview?.content, notebookId, source?.file_id]);
 
-  const loadPreview = async () => {
-    if (!source) return;
-    
-    console.log('FilePreview: Loading preview for source:', source);
-    console.log('FilePreview: Notebook ID:', notebookId, 'Use MinIO URLs:', useMinIOUrls);
-    
-    updateState({
-      isLoading: true,
-      error: null,
-      audioError: false,
-      audioLoaded: false,
-      videoError: false,
-      videoLoaded: false
-    });
-    
-    try {
-      let previewData;
-      
-      // Check if we should use MinIO URLs for text content (but NOT for PDFs)
-      if (useMinIOUrls && source.metadata?.file_extension && source.file_id && source.metadata &&
-          ['.md', '.txt', '.ppt', '.pptx', '.doc', '.docx'].includes(source.metadata.file_extension.toLowerCase())) {
-        console.log('FilePreview: Using MinIO URLs for text preview generation');
-        const fileSource: FileSource = source as FileSource;
-        previewData = await generateTextPreviewWithMinIOUrls(source.file_id, source.metadata, fileSource, notebookId);
-      } else {
-        console.log('FilePreview: Using regular preview generation');
-        // Pass useMinIOUrls flag to generatePreview so PDFs and other files can use MinIO URLs properly
-        previewData = await generatePreview(source as FileSource, notebookId, useMinIOUrls);
-      }
-      
-      console.log('FilePreview: Preview data loaded:', previewData);
-      updateState({ preview: previewData, isLoading: false });
-    } catch (err) {
-      console.error('FilePreview: Error loading preview:', err);
-      updateState({ error: err instanceof Error ? err.message : 'Unknown error', isLoading: false });
-    }
-  };
 
   const getPreviewIcon = (type: string) => {
     switch (type) {
@@ -546,7 +520,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   };
 
   const renderPreviewContent = () => {
-    if (state.isLoading) {
+    if (isLoading) {
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
@@ -557,19 +531,28 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       );
     }
 
-    if (state.error) {
+    if (error) {
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <File className="h-12 w-12 text-gray-300 mx-auto mb-4" />
             <p className="text-red-600 mb-2">Preview Error</p>
-            <p className="text-gray-500 text-sm">{state.error}</p>
+            <p className="text-gray-500 text-sm">{error?.message || 'Unknown error'}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              className="mt-3"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
           </div>
         </div>
       );
     }
 
-    if (!state.preview) {
+    if (!preview) {
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
@@ -580,10 +563,10 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       );
     }
 
-    switch (state.preview.type) {
+    switch (preview.type) {
       case PREVIEW_TYPES.TEXT_CONTENT:
         // Check if this is a PDF with parsed content
-        return state.preview.isPdfPreview ? renderPdfContentPreview() : renderTextPreview();
+        return preview.isPdfPreview ? renderPdfContentPreview() : renderTextPreview();
       case PREVIEW_TYPES.URL_INFO:
         return renderUrlPreview();
       case PREVIEW_TYPES.AUDIO_INFO:
@@ -592,51 +575,51 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         return renderVideoPreview();
       case PREVIEW_TYPES.METADATA:
         // Check if this is a PDF that failed to load content
-        return state.preview.isPdfPreview ? renderPdfMetadataPreview() : renderMetadataPreview();
+        return preview.isPdfPreview ? renderPdfMetadataPreview() : renderMetadataPreview();
       default:
         return renderMetadataPreview();
     }
   };
 
   const renderTextPreview = () => {
-    if (!state.preview) return null;
+    if (!preview) return null;
     
     // Debug: show processed content and image URLs
-    const baseContent = state.resolvedContent || state.preview.content;
+    const baseContent = state.resolvedContent || preview.content;
     const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
-    
+
     // Determine the appropriate icon based on file extension
     const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
     const isPresentation = ['.ppt', '.pptx'].includes(fileExt);
     const IconComponent = isPresentation ? Presentation : FileText;
     const iconColor = isPresentation ? 'text-orange-500' : 'text-blue-500';
-    
+
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-2 mb-4">
           <IconComponent className={`h-5 w-5 ${iconColor}`} />
-          <h3 className="font-medium text-gray-900">{state.preview.title}</h3>
+          <h3 className="font-medium text-gray-900">{preview.title}</h3>
         </div>
-        
-        
+
+
         <div className="flex flex-wrap gap-2 mb-4">
           <Badge variant="secondary">
             <HardDrive className="h-3 w-3 mr-1" />
-            {state.preview.wordCount} words
+            {preview.wordCount} words
           </Badge>
           <Badge variant="secondary">
             <FileText className="h-3 w-3 mr-1" />
-            {state.preview.lines || 0} lines
+            {preview.lines || 0} lines
           </Badge>
-          {state.preview.fileSize && (
+          {preview.fileSize && (
             <Badge variant="secondary">
               <HardDrive className="h-3 w-3 mr-1" />
-              {state.preview.fileSize}
+              {preview.fileSize}
             </Badge>
           )}
-          {state.preview.format && (
+          {preview.format && (
             <Badge variant="secondary">
-              {state.preview.format}
+              {preview.format}
             </Badge>
           )}
         </div>
@@ -649,33 +632,33 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   };
 
   const renderUrlPreview = () => {
-    if (!state.preview) return null;
+    if (!preview) return null;
     
     return (
       <div className="space-y-4">
         <div className="flex items-center space-x-2 mb-4">
           <Globe className="h-5 w-5 text-green-500" />
-          <h3 className="font-medium text-gray-900">{state.preview.title}</h3>
+          <h3 className="font-medium text-gray-900">{preview.title}</h3>
         </div>
         
         <div className="flex flex-wrap gap-2 mb-4">
           <Badge variant="secondary">
-            {state.preview.processingType === 'media' ? 'Media' : 'Website'}
+            {preview.processingType === 'media' ? 'Media' : 'Website'}
           </Badge>
           <Badge variant="secondary">
             <HardDrive className="h-3 w-3 mr-1" />
-            {Math.round((state.preview.contentLength || 0) / 1000)}k chars
+            {Math.round((preview.contentLength || 0) / 1000)}k chars
           </Badge>
-          {state.preview.extractedAt && (
+          {preview.extractedAt && (
             <Badge variant="secondary">
               <Calendar className="h-3 w-3 mr-1" />
-              {formatDate(state.preview.extractedAt)}
+              {formatDate(preview.extractedAt)}
             </Badge>
           )}
-          {state.preview.domain && (
+          {preview.domain && (
             <Badge variant="secondary">
               <Globe className="h-3 w-3 mr-1" />
-              {state.preview.domain}
+              {preview.domain}
             </Badge>
           )}
         </div>
@@ -686,19 +669,19 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             <Button
               size="sm"
               variant="outline"
-              onClick={() => window.open(state.preview?.url, '_blank')}
+              onClick={() => window.open(preview?.url, '_blank')}
               className="h-6 px-2 text-xs"
             >
               <ExternalLink className="h-3 w-3 mr-1" />
               Open
             </Button>
           </div>
-          <p className="text-sm text-blue-600 break-all">{state.preview?.url}</p>
+          <p className="text-sm text-blue-600 break-all">{preview?.url}</p>
           
-          {state.preview?.content && (
+          {preview?.content && (
             <div className="mt-4">
               <span className="text-sm font-medium text-gray-700">Description:</span>
-              <p className="text-sm text-gray-600 mt-1">{state.preview?.content}</p>
+              <p className="text-sm text-gray-600 mt-1">{preview?.content}</p>
             </div>
           )}
         </div>
@@ -707,7 +690,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   };
 
   const renderAudioPreview = () => {
-    if (!state.preview) return null;
+    if (!preview) return null;
     
     return (
       <div className="space-y-6">
@@ -748,13 +731,13 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
           }}
         >
           <source 
-            src={state.preview.audioUrl} 
-            type={getAudioMimeType(state.preview.format)} 
+            src={preview.audioUrl} 
+            type={getAudioMimeType(preview.format)} 
           />
           {/* Fallback source with generic MIME type */}
           <source 
-            src={state.preview.audioUrl} 
-            type={`audio/${state.preview.format.toLowerCase()}`} 
+            src={preview.audioUrl} 
+            type={`audio/${preview.format.toLowerCase()}`} 
           />
           Your browser does not support the audio element.
         </audio>
@@ -767,7 +750,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       </div>
       
       {/* Transcript Content Display */}
-      {state.preview.hasTranscript && (
+      {preview.hasTranscript && (
         <div className="bg-white rounded-lg border border-gray-200">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between">
@@ -781,7 +764,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                   <div className="flex flex-wrap gap-2 mt-2 -ml-1">
                     <Badge variant="secondary">
                       <FileText className="h-3 w-3 mr-1" />
-                      {state.preview.wordCount} words
+                      {preview.wordCount} words
                     </Badge>
                   </div>
                 </div>
@@ -789,7 +772,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             </div>
           </div>
           <div className="p-6 max-h-[600px] overflow-y-auto">
-            <MarkdownContent content={state.preview.content} notebookId={notebookId} fileId={source.file_id || ''} />
+            <MarkdownContent content={preview.content} notebookId={notebookId} fileId={source.file_id || ''} />
           </div>
         </div>
       )}
@@ -800,28 +783,28 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="text-sm font-medium text-gray-700">Format:</span>
-            <p className="text-sm text-gray-600">{state.preview.format}</p>
+            <p className="text-sm text-gray-600">{preview.format}</p>
           </div>
           <div>
             <span className="text-sm font-medium text-gray-700">File Size:</span>
-            <p className="text-sm text-gray-600">{state.preview.fileSize}</p>
+            <p className="text-sm text-gray-600">{preview.fileSize}</p>
           </div>
-          {state.preview.duration !== 'Unknown' && (
+          {preview.duration !== 'Unknown' && (
             <div>
               <span className="text-sm font-medium text-gray-700">Duration:</span>
-              <p className="text-sm text-gray-600">{state.preview.duration}</p>
+              <p className="text-sm text-gray-600">{preview.duration}</p>
             </div>
           )}
-          {state.preview.sampleRate !== 'Unknown' && (
+          {preview.sampleRate !== 'Unknown' && (
             <div>
               <span className="text-sm font-medium text-gray-700">Sample Rate:</span>
-              <p className="text-sm text-gray-600">{state.preview.sampleRate}</p>
+              <p className="text-sm text-gray-600">{preview.sampleRate}</p>
             </div>
           )}
-          {state.preview.language && state.preview.language !== 'Unknown' && (
+          {preview.language && preview.language !== 'Unknown' && (
             <div>
               <span className="text-sm font-medium text-gray-700">Language:</span>
-              <p className="text-sm text-gray-600 capitalize">{state.preview.language}</p>
+              <p className="text-sm text-gray-600 capitalize">{preview.language}</p>
             </div>
           )}
         </div>
@@ -831,7 +814,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   };
 
   const renderVideoPreview = () => {
-    if (!state.preview) return null;
+    if (!preview) return null;
     
     // Format-specific compatibility info
     const getFormatCompatibility = (format: string) => {
@@ -882,7 +865,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       };
     };
 
-    const compatibility = getFormatCompatibility(state.preview.format);
+    const compatibility = getFormatCompatibility(preview.format);
     const isUnsupported = compatibility.supported === false;
 
     return (
@@ -913,12 +896,12 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
               variant={isUnsupported ? "default" : "outline"}
               onClick={async () => {
                 try {
-                  if (!state.preview?.videoUrl) return;
+                  if (!preview?.videoUrl) return;
                   // Use downloadFileSecurely utility
-                  const title = state.preview?.title || 'video';
+                  const title = preview?.title || 'video';
                   const cleanTitle = title.replace(/\.[^/.]+$/, ''); // Remove any existing extension
-                  const filename = `${cleanTitle}.${state.preview?.format?.toLowerCase()}`;
-                  await downloadFileSecurely(state.preview.videoUrl, filename);
+                  const filename = `${cleanTitle}.${preview?.format?.toLowerCase()}`;
+                  await downloadFileSecurely(preview.videoUrl, filename);
                 } catch (error) {
                   console.error('Download failed:', error);
                 }
@@ -978,7 +961,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                     networkState: videoElement.networkState,
                     readyState: videoElement.readyState,
                     src: videoElement.src,
-                    format: state.preview?.format
+                    format: preview?.format
                   });
                   updateState({ videoError: true });
                 }}
@@ -990,13 +973,13 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                 }}
               >
                 <source 
-                  src={state.preview.videoUrl} 
-                  type={getVideoMimeType(state.preview.format)} 
+                  src={preview.videoUrl} 
+                  type={getVideoMimeType(preview.format)} 
                 />
                 {/* Fallback source with generic MIME type */}
                 <source 
-                  src={state.preview.videoUrl} 
-                  type={`video/${state.preview.format.toLowerCase()}`} 
+                  src={preview.videoUrl} 
+                  type={`video/${preview.format.toLowerCase()}`} 
                 />
                 Your browser does not support the video element.
               </video>
@@ -1018,7 +1001,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => window.open(state.preview?.videoUrl, '_blank')}
+                          onClick={() => window.open(preview?.videoUrl, '_blank')}
                           className="text-xs bg-white hover:bg-gray-50"
                         >
                           <HardDrive className="h-3 w-3 mr-1" />
@@ -1053,7 +1036,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         {source.file_id && <GallerySection videoFileId={source.file_id} notebookId={notebookId} onOpenModal={openModal} onCloseModal={closeModal} />}
 
         {/* Transcript Content Display */}
-        {state.preview.hasTranscript && (
+        {preview.hasTranscript && (
           <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg p-4 border border-slate-200">
             <div className="flex items-center space-x-3 mb-3">
               <div className="w-10 h-10 bg-slate-500 rounded-full flex items-center justify-center">
@@ -1061,11 +1044,11 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
               </div>
               <div className="flex-1">
                 <h4 className="text-sm font-medium text-gray-900">Video Transcript</h4>
-                <p className="text-xs text-gray-600">{state.preview.wordCount} words</p>
+                <p className="text-xs text-gray-600">{preview.wordCount} words</p>
               </div>
             </div>
             <div className="bg-white rounded-lg p-4 max-h-[400px] overflow-y-auto">
-              <MarkdownContent content={state.preview.content} />
+              <MarkdownContent content={preview.content} />
             </div>
           </div>
         )}
@@ -1076,28 +1059,28 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
           <div className="grid grid-cols-2 gap-4">
             <div>
               <span className="text-sm font-medium text-gray-700">Format:</span>
-              <p className="text-sm text-gray-600">{state.preview.format}</p>
+              <p className="text-sm text-gray-600">{preview.format}</p>
             </div>
             <div>
               <span className="text-sm font-medium text-gray-700">File Size:</span>
-              <p className="text-sm text-gray-600">{state.preview.fileSize}</p>
+              <p className="text-sm text-gray-600">{preview.fileSize}</p>
             </div>
-            {state.preview.duration !== 'Unknown' && (
+            {preview.duration !== 'Unknown' && (
               <div>
                 <span className="text-sm font-medium text-gray-700">Duration:</span>
-                <p className="text-sm text-gray-600">{state.preview.duration}</p>
+                <p className="text-sm text-gray-600">{preview.duration}</p>
               </div>
             )}
-            {state.preview.resolution !== 'Unknown' && (
+            {preview.resolution !== 'Unknown' && (
               <div>
                 <span className="text-sm font-medium text-gray-700">Resolution:</span>
-                <p className="text-sm text-gray-600">{state.preview.resolution}</p>
+                <p className="text-sm text-gray-600">{preview.resolution}</p>
               </div>
             )}
-            {state.preview.language && state.preview.language !== 'Unknown' && (
+            {preview.language && preview.language !== 'Unknown' && (
               <div>
                 <span className="text-sm font-medium text-gray-700">Language:</span>
-                <p className="text-sm text-gray-600 capitalize">{state.preview.language}</p>
+                <p className="text-sm text-gray-600 capitalize">{preview.language}</p>
               </div>
             )}
           </div>
@@ -1107,7 +1090,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   };
 
   const renderPdfContentPreview = () => {
-    if (!state.preview) return null;
+    if (!preview) return null;
     
     return (
       <div className="space-y-6">
@@ -1124,11 +1107,11 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
               <div className="flex flex-wrap gap-2 -ml-1">
                 <Badge variant="secondary">
                   <FileText className="h-3 w-3 mr-1" />
-                  {state.preview.wordCount} words
+                  {preview.wordCount} words
                 </Badge>
                 <Badge variant="secondary">
                   <HardDrive className="h-3 w-3 mr-1" />
-                  {state.preview.fileSize}
+                  {preview.fileSize}
                 </Badge>
               </div>
             </div>
@@ -1211,7 +1194,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       {/* Parsed Content Display */}
       <div className="bg-white rounded-lg border border-gray-200">
         <div className="p-6 max-h-[600px] overflow-y-auto">
-          <MarkdownContent content={processMarkdownContent(state.preview.content, source.file_id || '', notebookId, useMinIOUrls)} notebookId={notebookId} fileId={source.file_id || ''} />
+          <MarkdownContent content={processMarkdownContent(preview.content, source.file_id || '', notebookId, useMinIOUrls)} notebookId={notebookId} fileId={source.file_id || ''} />
         </div>
       </div>
       </div>
@@ -1219,7 +1202,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   };
 
   const renderPdfMetadataPreview = () => {
-    if (!state.preview) return null;
+    if (!preview) return null;
     
     return (
     <div className="space-y-6">
@@ -1309,7 +1292,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
           <p className="text-sm text-yellow-800">
-            {state.preview.error || "PDF content could not be extracted. Click 'Open PDF' to view the original document."}
+            {preview.error || "PDF content could not be extracted. Click 'Open PDF' to view the original document."}
           </p>
         </div>
       </div>
@@ -1320,22 +1303,22 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="text-sm font-medium text-gray-700">Format:</span>
-            <p className="text-sm text-gray-600">{state.preview.format}</p>
+            <p className="text-sm text-gray-600">{preview.format}</p>
           </div>
           <div>
             <span className="text-sm font-medium text-gray-700">File Size:</span>
-            <p className="text-sm text-gray-600">{state.preview.fileSize}</p>
+            <p className="text-sm text-gray-600">{preview.fileSize}</p>
           </div>
-          {state.preview.pageCount !== 'Unknown' && (
+          {preview.pageCount !== 'Unknown' && (
             <div>
               <span className="text-sm font-medium text-gray-700">Pages:</span>
-              <p className="text-sm text-gray-600">{state.preview.pageCount}</p>
+              <p className="text-sm text-gray-600">{preview.pageCount}</p>
             </div>
           )}
-          {state.preview.uploadedAt && (
+          {preview.uploadedAt && (
             <div>
               <span className="text-sm font-medium text-gray-700">Uploaded:</span>
-              <p className="text-sm text-gray-600">{formatDate(state.preview.uploadedAt)}</p>
+              <p className="text-sm text-gray-600">{formatDate(preview.uploadedAt)}</p>
             </div>
           )}
         </div>
@@ -1345,7 +1328,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   };
 
   const renderMetadataPreview = () => {
-    if (!state.preview) return null;
+    if (!preview) return null;
     
     return (
       <div className="space-y-6">
@@ -1358,29 +1341,29 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         <div className="grid grid-cols-2 gap-4">
           <div>
             <span className="text-sm font-medium text-gray-700">Format:</span>
-            <p className="text-sm text-gray-600">{state.preview.format}</p>
+            <p className="text-sm text-gray-600">{preview.format}</p>
           </div>
           <div>
             <span className="text-sm font-medium text-gray-700">File Size:</span>
-            <p className="text-sm text-gray-600">{state.preview.fileSize}</p>
+            <p className="text-sm text-gray-600">{preview.fileSize}</p>
           </div>
           <div>
             <span className="text-sm font-medium text-gray-700">Status:</span>
-            <p className="text-sm text-gray-600 capitalize">{state.preview.processingStatus}</p>
+            <p className="text-sm text-gray-600 capitalize">{preview.processingStatus}</p>
           </div>
-          {state.preview.uploadedAt && (
+          {preview.uploadedAt && (
             <div>
               <span className="text-sm font-medium text-gray-700">Uploaded:</span>
-              <p className="text-sm text-gray-600">{formatDate(state.preview.uploadedAt)}</p>
+              <p className="text-sm text-gray-600">{formatDate(preview.uploadedAt)}</p>
             </div>
           )}
         </div>
         
-        {state.preview.featuresAvailable && state.preview.featuresAvailable.length > 0 && (
+        {preview.featuresAvailable && preview.featuresAvailable.length > 0 && (
           <div className="mt-4">
             <span className="text-sm font-medium text-gray-700">Available Features:</span>
             <div className="flex flex-wrap gap-1 mt-1">
-              {state.preview.featuresAvailable.map((feature: string) => (
+              {preview.featuresAvailable.map((feature: string) => (
                 <Badge key={feature} variant="outline" className="text-xs">
                   {feature}
                 </Badge>
@@ -1407,7 +1390,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          {state.preview && React.createElement(getPreviewIcon(state.preview.type), {
+          {preview && React.createElement(getPreviewIcon(preview.type), {
             className: "h-6 w-6 text-gray-700"
           })}
           <div>

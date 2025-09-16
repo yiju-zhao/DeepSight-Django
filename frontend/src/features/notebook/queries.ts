@@ -31,8 +31,12 @@ export const notebookQueries = {
   chat: (notebookId: string) => [...notebookQueries.detail(notebookId), 'chat'] as const,
   chatHistory: (notebookId: string) => [...notebookQueries.chat(notebookId), 'history'] as const,
   
-  knowledgeBase: (notebookId: string) => 
+  knowledgeBase: (notebookId: string) =>
     [...notebookQueries.detail(notebookId), 'knowledge-base'] as const,
+
+  // File Preview Queries
+  filePreview: (sourceId: string, notebookId: string, useMinIOUrls?: boolean) =>
+    [...notebookQueries.detail(notebookId), 'file-preview', sourceId, { useMinIOUrls }] as const,
 };
 
 // Notebook Queries
@@ -304,5 +308,42 @@ export const useSearchKnowledgeBase = (notebookId: string, query: string) => {
     queryFn: () => notebooksApi.knowledgeBase.searchItems(notebookId, query),
     enabled: !!notebookId && query.length > 2,
     staleTime: 2 * 60 * 1000,
+  });
+};
+
+// File Preview Queries
+export const useFilePreview = (
+  source: any,
+  notebookId: string,
+  useMinIOUrls: boolean = false,
+  enabled: boolean = true
+) => {
+  return useQuery({
+    queryKey: notebookQueries.filePreview(source?.id || source?.file_id, notebookId, useMinIOUrls),
+    queryFn: async () => {
+      if (!source?.metadata?.file_extension) {
+        throw new Error('No file extension found in source metadata');
+      }
+
+      const { generatePreview, supportsPreview } = await import('@/features/notebook/utils/filePreview');
+
+      if (!supportsPreview(source.metadata.file_extension, source.metadata)) {
+        throw new Error(`Preview not supported for file type: ${source.metadata.file_extension}`);
+      }
+
+      return generatePreview(source, notebookId, useMinIOUrls);
+    },
+    enabled: enabled && !!source && !!source.metadata?.file_extension && !!notebookId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - preview data doesn't change often
+    gcTime: 10 * 60 * 1000, // 10 minutes cache time
+    retry: (failureCount, error) => {
+      // Don't retry if it's an unsupported file type
+      if (error?.message?.includes('Preview not supported')) {
+        return false;
+      }
+      // Retry up to 2 times for other errors
+      return failureCount < 2;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000), // Exponential backoff
   });
 };
