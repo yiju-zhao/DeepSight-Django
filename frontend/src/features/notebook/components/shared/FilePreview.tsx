@@ -1144,7 +1144,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                     return;
                   }
 
-                  const pdfUrl = getFileUrl(source.file_id, 'raw');
+                  const pdfUrl = getFileUrl(source.file_id, 'inline');
                   console.log('Opening PDF with URL:', pdfUrl);
 
                   // Try direct URL first (works best for authenticated endpoints)
@@ -1245,7 +1245,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                   return;
                 }
 
-                const pdfUrl = getFileUrl(source.file_id, 'raw');
+                const pdfUrl = getFileUrl(source.file_id, 'inline');
                 console.log('Opening PDF with URL:', pdfUrl);
 
                 // Try direct URL first (works best for authenticated endpoints)
