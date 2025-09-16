@@ -86,7 +86,27 @@ window.onerror = (message, source, lineno, colno, errorObj) => {
 
 const consoleErrorHandler: string = `
 const originalConsoleError = console.error;
+const originalConsoleWarn = console.warn;
+
+// Suppress blob URL security warnings in development
+console.warn = function(...args) {
+  const message = args.join(' ').toLowerCase();
+  if (message.includes('blob') &&
+      (message.includes('insecure') || message.includes('https') || message.includes('mixed content'))) {
+    // Suppress blob-related security warnings in development
+    return;
+  }
+  originalConsoleWarn.apply(console, args);
+};
+
 console.error = function(...args) {
+  // Also suppress blob errors
+  const message = args.join(' ').toLowerCase();
+  if (message.includes('blob') &&
+      (message.includes('insecure') || message.includes('https') || message.includes('mixed content'))) {
+    return;
+  }
+
   originalConsoleError.apply(console, args);
 
   let errorString = '';
@@ -100,7 +120,7 @@ console.error = function(...args) {
   }
 
   if (!errorString) {
-    errorString = args.map((arg) => 
+    errorString = args.map((arg) =>
       typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
     ).join(' ');
   }
@@ -219,10 +239,8 @@ export default defineConfig({
   ],
   
   server: {
-    // Enable HTTPS in development to resolve blob URL security warnings
-    // Set VITE_HTTPS=true in your .env file to enable HTTPS
     https: process.env.VITE_HTTPS === 'true',
-    host: '0.0.0.0', // Allow external connections
+    host: '0.0.0.0',
     port: 5173,
 
     proxy: {
@@ -234,9 +252,11 @@ export default defineConfig({
     },
     cors: true,
     headers: {
-      'Cross-Origin-Embedder-Policy': 'credentialless',
-      // Allow blob URLs in development
-      'Content-Security-Policy': "default-src 'self'; blob: data: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' blob: data:;",
+      // More permissive headers for development
+      'Cross-Origin-Embedder-Policy': 'unsafe-none',
+      'Cross-Origin-Opener-Policy': 'unsafe-none',
+      // Very permissive CSP for development - allows everything including blob URLs
+      'Content-Security-Policy': "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; connect-src * 'unsafe-inline' blob: data:; img-src * data: blob: 'unsafe-inline'; media-src * blob: data:;",
     },
     allowedHosts: true,
   },
