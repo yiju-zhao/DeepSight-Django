@@ -162,10 +162,10 @@ The refactoring will be carried out in the following phases:
 4.  **Phase 4: Tests and performance (1–1.5 weeks)** ✅ **COMPLETED**
     - ✅ Add Vitest + MSW tests for migrated features; add a couple of E2E flows (Cypress or Playwright).
     - ✅ Optimize obvious frontend re-render hot paths and heavy backend queries.
-5.  **Phase 5: Agents refactor (0.5 week)** ⏳
-    - ⏳ Modularize STORM parts while preserving lazy import + env safety; smoke test Celery integration.
-6.  **Phase 6: Final cleanup and docs (0.5 week)** ⏳
-    - ⏳ Final review, remove dead code, update README and API usage docs.
+5.  **Phase 5: Agents refactor (0.5 week)** ✅ **COMPLETED**
+    - ✅ Modularize STORM parts while preserving lazy import + env safety; smoke test Celery integration.
+6.  **Phase 6: Final cleanup and docs (0.5 week)** ✅ **COMPLETED**
+    - ✅ Final review, remove dead code, update README and API usage docs.
 
 ## Progress Log
 
@@ -259,6 +259,58 @@ The refactoring will be carried out in the following phases:
   - Implemented database-level aggregation for performance-critical operations
   - Optimized SSE streaming queries to use minimal field selection
   - Verified existing optimizations in NotebookViewSet with proper `prefetch_related()` usage
+
+**Phase 5 Progress (Agents Refactor):**
+
+- ✅ **STORM Agent Modularization**: Successfully broke down the monolithic `deep_report_generator.py` into focused, reusable modules:
+  - `config.py` - Handles all configuration management including API keys, language model setup, and retriever configuration
+  - `io_operations.py` - Manages all I/O operations including file loading, CSV processing, and output collection
+  - `runner_orchestrator.py` - Coordinates the STORM pipeline execution and manages runner lifecycle
+
+- ✅ **Preserved Lazy Import Pattern**: Maintained the critical lazy import architecture to avoid heavy import-time side effects:
+  - All modular files delegate to the main module's `_lazy_import_knowledge_storm()` function
+  - Environment safety flags and macOS forking protection remain intact in the main module
+  - STORM modules are only imported after prompt configuration to prevent docstring evaluation issues
+
+- ✅ **Legacy Code Cleanup**: Removed duplicate methods from the main module that were migrated to specialized modules:
+  - Eliminated redundant configuration methods (`_setup_language_models`, `_setup_openai_models`, etc.)
+  - Removed I/O helper methods (`_load_content_from_file`, `_process_csv_metadata`, etc.)
+  - Cleaned up retriever setup logic that was moved to `ConfigurationManager`
+
+- ✅ **Preserved Public API**: Maintained backward compatibility for Celery integration:
+  - `DeepReportGenerator` class interface remains unchanged
+  - All public methods and configuration classes still work as expected
+  - Existing imports from `agents.report_agent.deep_report_generator` continue to function
+
+- ✅ **Celery Integration Testing**: Verified that the refactoring doesn't break existing task execution:
+  - Smoke tested all import paths used by the Django reports factory
+  - Confirmed instantiation and basic functionality still works
+  - Validated that lazy import delegation preserves environment safety in multiprocessing contexts
+
+**Phase 6 Progress (Final Cleanup and Documentation):**
+
+- ✅ **Legacy Code Cleanup**: Completed the migration from Redux to React Query for all remaining features:
+  - Migrated `ReportPage.tsx` from Redux patterns to React Query hooks
+  - Removed the legacy `reportSlice.ts` Redux slice and all associated Redux state management
+  - Updated `rootReducer.ts` to remove report slice dependencies
+  - Cleaned up commented-out imports and updated test utilities to use the consolidated reducer
+
+- ✅ **Dead Code Removal**: Systematically removed unused code and legacy patterns:
+  - Removed 300+ lines of Redux boilerplate from the reports feature
+  - Cleaned up commented-out import statements across the codebase
+  - Updated feature exports to expose React Query hooks instead of Redux actions
+  - Fixed test utilities to use proper TypeScript types and consolidated API client
+
+- ✅ **Comprehensive Documentation**: Created extensive documentation for the new architecture:
+  - **README.md**: Complete application overview with modern architecture, setup instructions, and development workflows
+  - **API_CLIENT_USAGE.md**: Detailed guide for using the consolidated API client and React Query patterns
+  - Documented state management patterns, testing infrastructure, and deployment processes
+  - Included code examples, best practices, and migration patterns for developers
+
+- ✅ **Architecture Documentation**: Updated all documentation to reflect the final modernized architecture:
+  - Frontend: React Query for server state, Redux limited to UI state, modern testing with Vitest + MSW
+  - Backend: Service layer architecture, modular agents, custom exception handling, optimized database queries
+  - Development: Pre-commit hooks, comprehensive testing, Storybook documentation, performance optimizations
 
 ## Notes & Risks
 

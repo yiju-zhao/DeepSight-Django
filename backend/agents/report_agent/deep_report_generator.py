@@ -238,444 +238,6 @@ class DeepReportGenerator:
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
 
-    def _load_api_keys(self):
-        """Load API keys from secrets.toml file."""
-        try:
-            load_api_key(toml_file_path=self.secrets_path)
-        except Exception as e:
-            self.logger.error(f"Failed to load API keys: {e}")
-            raise
-
-    def _setup_language_models(
-        self, config: ReportGenerationConfig
-    ) -> STORMWikiLMConfigs:
-        """Setup language model configurations based on provider."""
-        lm_configs = STORMWikiLMConfigs()
-
-        if config.model_provider == ModelProvider.GOOGLE:
-            return self._setup_google_models(config, lm_configs)
-        elif config.model_provider == ModelProvider.OPENAI:
-            return self._setup_openai_models(config, lm_configs)
-        else:
-            raise ValueError(f"Unsupported model provider: {config.model_provider}")
-
-    def _setup_openai_models(
-        self, config: ReportGenerationConfig, lm_configs: STORMWikiLMConfigs
-    ) -> STORMWikiLMConfigs:
-        """Setup OpenAI language models."""
-        openai_kwargs = {
-            "api_key": os.getenv("OPENAI_API_KEY"),
-            "temperature": config.temperature,
-            "top_p": config.top_p,
-        }
-
-        # Check if OPENAI_API_KEY is loaded
-        if not openai_kwargs["api_key"]:
-            raise ValueError(
-                "OPENAI_API_KEY not found. Please set it in secrets.toml or environment variables."
-            )
-
-        # Model names for OpenAI
-        conversation_model_name = "gpt-4.1-mini"
-        outline_gen_model_name = "gpt-4.1"
-        generation_model_name = "gpt-4.1"
-        conceptualize_model_name = "gpt-4.1-nano"
-
-        # Configure OpenAI language models
-        conv_simulator_lm = OpenAIModel(
-            model=conversation_model_name, max_tokens=500, **openai_kwargs
-        )
-        question_asker_lm = OpenAIModel(
-            model=conversation_model_name, max_tokens=500, **openai_kwargs
-        )
-        outline_gen_lm = OpenAIModel(
-            model=outline_gen_model_name, max_tokens=5000, **openai_kwargs
-        )
-        article_gen_lm = OpenAIModel(
-            model=generation_model_name, max_tokens=3000, **openai_kwargs
-        )
-        article_polish_lm = OpenAIModel(
-            model=generation_model_name, max_tokens=20000, **openai_kwargs
-        )
-        topic_improver_lm = OpenAIModel(
-            model=generation_model_name, max_tokens=500, **openai_kwargs
-        )
-
-        lm_configs.set_conv_simulator_lm(conv_simulator_lm)
-        lm_configs.set_question_asker_lm(question_asker_lm)
-        lm_configs.set_outline_gen_lm(outline_gen_lm)
-        lm_configs.set_article_gen_lm(article_gen_lm)
-        lm_configs.set_article_polish_lm(article_polish_lm)
-        lm_configs.set_topic_improver_lm(topic_improver_lm)
-
-        return lm_configs
-
-    def _setup_google_models(
-        self, config: ReportGenerationConfig, lm_configs: STORMWikiLMConfigs
-    ) -> STORMWikiLMConfigs:
-        """Setup Google/Gemini language models."""
-        gemini_kwargs = {
-            "api_key": os.getenv("GOOGLE_API_KEY"),
-            "temperature": config.temperature,
-            "top_p": config.top_p,
-        }
-
-        # Check if GOOGLE_API_KEY is loaded
-        if not gemini_kwargs["api_key"]:
-            raise ValueError(
-                "GOOGLE_API_KEY not found. Please set it in secrets.toml or environment variables."
-            )
-
-        # Model names for Google/Gemini
-        conversation_model_name = "models/gemini-2.5-flash-lite-preview-06-17"
-        outline_gen_model_name = "models/gemini-2.5-flash"
-        generation_model_name = "models/gemini-2.5-flash"
-        polish_model_name = "gemini-2.5-pro"
-        topic_improver_model_name = "gemini-2.5-pro"
-
-        # Configure Google Gemini-based language models
-        conv_simulator_lm = GoogleModel(
-            model=conversation_model_name, max_tokens=500, **gemini_kwargs
-        )
-        question_asker_lm = GoogleModel(
-            model=conversation_model_name, max_tokens=500, **gemini_kwargs
-        )
-        outline_gen_lm = GoogleModel(
-            model=outline_gen_model_name, max_tokens=3000, **gemini_kwargs
-        )
-        article_gen_lm = GoogleModel(
-            model=generation_model_name, max_tokens=3000, **gemini_kwargs
-        )
-        article_polish_lm = GoogleModel(
-            model=polish_model_name, max_tokens=30000, **gemini_kwargs
-        )
-        topic_improver_lm = GoogleModel(
-            model=topic_improver_model_name, max_tokens=500, **gemini_kwargs
-        )
-
-        lm_configs.set_conv_simulator_lm(conv_simulator_lm)
-        lm_configs.set_question_asker_lm(question_asker_lm)
-        lm_configs.set_outline_gen_lm(outline_gen_lm)
-        lm_configs.set_article_gen_lm(article_gen_lm)
-        lm_configs.set_article_polish_lm(article_polish_lm)
-        lm_configs.set_topic_improver_lm(topic_improver_lm)
-
-        return lm_configs
-
-    def _setup_retriever(
-        self, config: ReportGenerationConfig, engine_args: STORMWikiRunnerArguments
-    ):
-        """Setup the retrieval model based on the configured retriever type."""
-        time_range = config.time_range.value if config.time_range else None
-
-        # Determine domains to include based on configuration
-        domains_to_include = None
-        if config.whitelist_domains:
-            domains_to_include = config.whitelist_domains
-        elif config.include_domains:
-            # Use predefined whitelisted domains when include_domains is True but no specific domains provided
-            domains_to_include = get_whitelisted_domains()
-
-        if config.retriever == RetrieverType.TAVILY:
-            return TavilySearchRM(
-                tavily_search_api_key=os.getenv("TAVILY_API_KEY"),
-                k=engine_args.search_top_k,
-                include_raw_content=False,
-                include_answer=False,
-                time_range=time_range,
-                search_depth=config.search_depth,
-                chunks_per_source=3,
-                include_domains=domains_to_include,
-                is_valid_source=is_valid_source,
-            )
-        elif config.retriever == RetrieverType.BRAVE:
-            return BraveRM(
-                brave_search_api_key=os.getenv("BRAVE_API_KEY"),
-                k=engine_args.search_top_k,
-                time_range=time_range,
-                include_domains=domains_to_include,
-                is_valid_source=is_valid_source,
-            )
-        elif config.retriever == RetrieverType.SERPER:
-            serper_api_key = os.getenv("SERPER_API_KEY")
-            if not serper_api_key:
-                raise ValueError(
-                    "SERPER_API_KEY not found. Please set it in secrets.toml or environment variables."
-                )
-
-            query_params = {
-                "autocorrect": True,
-                "num": engine_args.search_top_k,
-                "page": 1,
-            }
-            return SerperRM(
-                serper_search_api_key=serper_api_key, query_params=query_params
-            )
-        elif config.retriever == RetrieverType.YOU:
-            return YouRM(
-                ydc_api_key=os.getenv("YDC_API_KEY"),
-                k=engine_args.search_top_k,
-                is_valid_source=is_valid_source,
-            )
-        elif config.retriever == RetrieverType.BING:
-            return BingSearch(
-                bing_search_api_key=os.getenv("BING_SEARCH_API_KEY"),
-                k=engine_args.search_top_k,
-                is_valid_source=is_valid_source,
-            )
-        elif config.retriever == RetrieverType.DUCKDUCKGO:
-            return DuckDuckGoSearchRM(
-                k=engine_args.search_top_k,
-                is_valid_source=is_valid_source,
-            )
-        elif config.retriever == RetrieverType.SEARXNG:
-            return SearXNG(
-                searxng_api_url=os.getenv("searxng_api_url"),
-                k=engine_args.search_top_k,
-                time_range=time_range,
-                is_valid_source=is_valid_source,
-            )
-        elif config.retriever == RetrieverType.AZURE_AI_SEARCH:
-            return AzureAISearch(
-                azure_ai_search_api_key=os.getenv("AZURE_AI_SEARCH_API_KEY"),
-                azure_ai_search_endpoint=os.getenv("AZURE_AI_SEARCH_ENDPOINT"),
-                azure_ai_search_index=os.getenv("AZURE_AI_SEARCH_INDEX"),
-                k=engine_args.search_top_k,
-                is_valid_source=is_valid_source,
-            )
-        else:
-            raise ValueError(
-                f"Unsupported retriever: {config.retriever}. "
-                f"Supported retrievers: {', '.join([r.value for r in RetrieverType])}"
-            )
-
-    def _load_content_from_file(self, file_path: str) -> Optional[str]:
-        """Load content from a .txt or .md file and clean it."""
-        if not os.path.exists(file_path):
-            self.logger.warning(f"File not found: {file_path}")
-            return None
-        if file_path.endswith((".txt", ".md")):
-            try:
-                raw_content = FileIOHelper.load_str(file_path)
-                cleaned_content = clean_paper_content(raw_content)
-                return cleaned_content
-            except Exception as e:
-                self.logger.error(
-                    f"Error reading or cleaning text file {file_path}: {e}"
-                )
-                return None
-        else:
-            self.logger.warning(
-                f"Unsupported file type: {file_path}. Please use .txt or .md."
-            )
-            return None
-
-    def _load_structured_data(self, path: str) -> Union[str, List[str], None]:
-        """Load structured data from a given path and clean paper content."""
-        if os.path.isdir(path):
-            all_contents = []
-            self.logger.info(
-                f"Loading and cleaning structured data from directory: {path}"
-            )
-            for filename in os.listdir(path):
-                file_path = os.path.join(path, filename)
-                if os.path.isfile(file_path) and file_path.endswith((".txt", ".md")):
-                    content = self._load_content_from_file(file_path)
-                    if content:
-                        all_contents.append(content)
-            return all_contents if all_contents else None
-        elif os.path.isfile(path):
-            self.logger.info(f"Loading and cleaning structured data from file: {path}")
-            return self._load_content_from_file(path)
-        else:
-            self.logger.info(
-                f"Path '{path}' is not a file or directory. Treating as direct content and cleaning."
-            )
-            return clean_paper_content(path)
-
-    def _process_csv_metadata(
-        self, config: ReportGenerationConfig
-    ) -> tuple[str, Optional[str], Optional[Union[str, List[str]]]]:
-        """Process CSV metadata and return article title, speakers, and text input."""
-        article_title = config.article_title
-        speakers = None
-        text_input = None
-
-        if not config.csv_path:
-            return article_title, speakers, text_input
-
-        try:
-            df_orig = pd.read_csv(config.csv_path)
-            df = df_orig.copy()
-            df_for_description_extraction = df_orig.copy()
-
-            session_code_filter_applied_and_matched = False
-            date_filter_applied_and_matched = False
-
-            # Session Code Filter (non-interactive for API use)
-            if config.csv_session_code:
-                df_session_filtered = df[df["Session Code"] == config.csv_session_code]
-                if not df_session_filtered.empty:
-                    df = df_session_filtered
-                    df_for_description_extraction = df.copy()
-                    article_title = df["Title"].iloc[0]
-                    speakers = (
-                        df["Speakers"].iloc[0]
-                        if "Speakers" in df.columns and pd.notna(df["Speakers"].iloc[0])
-                        else None
-                    )
-                    self.logger.info(
-                        f"Filtered by Session Code. Using article title: {article_title}"
-                    )
-                    session_code_filter_applied_and_matched = True
-                else:
-                    self.logger.info(
-                        f"Session Code {config.csv_session_code} not found. Proceeding without session code filter."
-                    )
-
-            # Date Filter (non-interactive for API use)
-            if config.csv_date_filter:
-                try:
-                    target_date = datetime.strptime(
-                        config.csv_date_filter, "%Y-%m-%d"
-                    ).date()
-                    current_year = datetime.now().year
-
-                    def convert_date_format(date_str):
-                        try:
-                            dt_obj = pd.to_datetime(date_str).date()
-                            return dt_obj.strftime("%Y-%m-%d")
-                        except ValueError:
-                            try:
-                                dt_obj = datetime.strptime(
-                                    str(date_str).split(", ")[1], "%B %d"
-                                ).date()
-                                return dt_obj.replace(year=current_year).strftime(
-                                    "%Y-%m-%d"
-                                )
-                            except Exception:
-                                return None
-
-                    df["Formatted Date"] = (
-                        df["Date"].astype(str).apply(convert_date_format)
-                    )
-                    df_date_filtered = df[
-                        df["Formatted Date"] == target_date.strftime("%Y-%m-%d")
-                    ]
-
-                    if not df_date_filtered.empty:
-                        df = df_date_filtered
-                        df_for_description_extraction = df.copy()
-
-                        if not session_code_filter_applied_and_matched:
-                            article_title = (
-                                df_date_filtered["Title"].iloc[0]
-                                if "Title" in df_date_filtered.columns
-                                else config.article_title
-                            )
-                            speakers = (
-                                df_date_filtered["Speakers"].iloc[0]
-                                if "Speakers" in df_date_filtered.columns
-                                and pd.notna(df_date_filtered["Speakers"].iloc[0])
-                                else None
-                            )
-                            self.logger.info(
-                                f"Using article title from date filter: {article_title}"
-                            )
-                        else:
-                            self.logger.info(
-                                "Date filter further refined CSV data. Title/speakers already set by session code filter."
-                            )
-                        date_filter_applied_and_matched = True
-
-                        # Check if text should be sourced from this date-filtered data
-                        if (
-                            not config.text_input
-                            and not config.csv_path
-                            and text_input is None
-                        ):
-                            descriptions = df_date_filtered["Description"].tolist()
-                            cleaned_descriptions = [
-                                clean_paper_content(desc)
-                                for desc in descriptions
-                                if pd.notna(desc)
-                            ]
-                            if cleaned_descriptions:
-                                if len(cleaned_descriptions) == 1:
-                                    text_input = cleaned_descriptions[0]
-                                else:
-                                    text_input = cleaned_descriptions
-                                self.logger.info(
-                                    f"Extracted {len(cleaned_descriptions)} descriptions for date {config.csv_date_filter} to be used as text input."
-                                )
-                    else:
-                        self.logger.info(
-                            f"No entries found for date {config.csv_date_filter}. Previous filters (if any) remain."
-                        )
-                except ValueError as ve:
-                    self.logger.error(
-                        f"Invalid date format: {ve}. Please use YYYY-MM-DD. Skipping date filter."
-                    )
-
-            # Core logic for text input from Description if not otherwise provided
-            if (
-                not config.text_input
-                and not config.csv_path
-                and text_input is None
-            ):
-                if (
-                    "Description" in df_for_description_extraction.columns
-                    and not df_for_description_extraction.empty
-                ):
-                    descriptions_from_csv = df_for_description_extraction[
-                        "Description"
-                    ].tolist()
-                    cleaned_descriptions_from_csv = [
-                        clean_paper_content(desc)
-                        for desc in descriptions_from_csv
-                        if pd.notna(desc)
-                    ]
-                    if cleaned_descriptions_from_csv:
-                        if len(cleaned_descriptions_from_csv) == 1:
-                            text_input = cleaned_descriptions_from_csv[0]
-                        else:
-                            text_input = cleaned_descriptions_from_csv
-                        self.logger.info(
-                            f"Used 'Description' column from CSV as text_input ({len(cleaned_descriptions_from_csv)} items)"
-                        )
-
-                        # Set title and speakers from first row
-                        if not df_for_description_extraction.empty:
-                            if (
-                                not session_code_filter_applied_and_matched
-                                and not date_filter_applied_and_matched
-                            ):
-                                article_title = (
-                                    df_for_description_extraction["Title"].iloc[0]
-                                    if "Title" in df_for_description_extraction.columns
-                                    else config.article_title
-                                )
-                                speakers = (
-                                    df_for_description_extraction["Speakers"].iloc[0]
-                                    if "Speakers"
-                                    in df_for_description_extraction.columns
-                                    and pd.notna(
-                                        df_for_description_extraction["Speakers"].iloc[
-                                            0
-                                        ]
-                                    )
-                                    else None
-                                )
-                                self.logger.info(
-                                    f"Using article title/speakers from CSV: {article_title}"
-                                )
-
-        except Exception as e:
-            self.logger.error(
-                f"Error processing CSV file: {e}. Using default title: {article_title}"
-            )
-
-        return article_title, speakers, text_input
 
 
     def generate_report(self, config: ReportGenerationConfig) -> ReportGenerationResult:
@@ -688,245 +250,104 @@ class DeepReportGenerator:
             ReportGenerationResult with success status and generated files
         """
         processing_logs = []
-        generated_files = []
 
         try:
+            # Import modular components
+            from .config import ConfigurationManager
+            from .io_operations import IOManager
+            from .runner_orchestrator import RunnerOrchestrator
+
+            # Initialize managers
+            config_manager = ConfigurationManager(self.secrets_path)
+            io_manager = IOManager()
+            orchestrator = RunnerOrchestrator()
+
             # Store report_id for use in filename generation
             self.report_id = config.report_id
-            
-            # Configure prompts based on the configuration
-            configure_prompts(config.prompt_type)
-            processing_logs.append(
-                f"Prompts configured for {config.prompt_type.value} type"
-            )
 
-            # Perform lazy import of knowledge_storm now that prompts are configured
+            # Configure prompts and perform lazy import
+            configure_prompts(config.prompt_type)
+            processing_logs.append(f"Prompts configured for {config.prompt_type.value} type")
             _lazy_import_knowledge_storm()
 
-            # Load API keys (requires knowledge_storm.utils.load_api_key)
-            self._load_api_keys()
+            # Load API keys
+            config_manager.load_api_keys()
             processing_logs.append("API keys loaded successfully")
 
             # Validate inputs
-            if (
-                not config.topic
-                and not config.text_input
-                and not config.csv_path
-                and not config.caption_files
-            ):
+            if (not config.topic and not config.text_input and
+                not config.csv_path and not config.caption_files):
                 raise ValueError(
                     "Either a topic, text input, CSV file, or caption files must be provided."
                 )
 
             # Setup language models and configurations
-            lm_configs = self._setup_language_models(config)
-            processing_logs.append(
-                f"Language models configured for {config.model_provider}"
-            )
+            lm_configs = config_manager.setup_language_models(config)
+            processing_logs.append(f"Language models configured for {config.model_provider}")
 
-            # Set up engine arguments
-            engine_args = STORMWikiRunnerArguments(
-                output_dir=config.output_dir,
-                article_title=config.article_title,
-                max_conv_turn=config.max_conv_turn,
-                max_perspective=config.max_perspective,
-                search_top_k=config.search_top_k,
-                initial_retrieval_k=config.initial_retrieval_k,
-                final_context_k=config.final_context_k,
-                max_thread_num=config.max_thread_num,
-                recent_content_only=config.time_range is not None,
-                reranker_threshold=config.reranker_threshold,
-                time_range=config.time_range.value if config.time_range else None,
-                text_input=config.text_input,
-                report_id=config.report_id,
-            )
+            # Create engine arguments
+            engine_args = orchestrator.create_engine_arguments(config)
 
             # Setup retriever
-            rm = self._setup_retriever(config, engine_args)
+            rm = config_manager.setup_retriever(config, engine_args)
             processing_logs.append(f"Retriever configured: {config.retriever}")
 
-            # Initialize STORM Wiki runner
-            runner = STORMWikiRunner(engine_args, lm_configs, rm)
-            runner.author_json = config.author_json
-
-            # Pass selected_files_paths and user_id for image path fixing
-            if config.selected_files_paths:
-                runner.selected_files_paths = config.selected_files_paths
-            if config.user_id:
-                runner.user_id = config.user_id
-
             # Process CSV metadata
-            article_title, speakers, csv_text_input = self._process_csv_metadata(
-                config
-            )
+            article_title, speakers, csv_text_input = io_manager.process_csv_metadata(config)
             processing_logs.append("CSV metadata processed")
 
-            # Use text_input directly if provided, otherwise use CSV text input
-            if config.text_input:
-                # text_input is already consolidated from the input processor
-                runner.text_input = config.text_input
-                processing_logs.append("Text input loaded")
-            elif csv_text_input:
-                runner.text_input = csv_text_input
-                processing_logs.append("CSV text input loaded as text input")
-            
-            runner.speakers = speakers
-            runner.article_title = article_title
+            # Setup output directory
+            article_output_dir = io_manager.setup_output_directory(config, article_title)
 
-            # Validate that we have content to work with
-            if not config.topic and not runner.text_input:
-                raise ValueError(
-                    "Either a topic or text input must be provided for report generation."
-                )
+            # Initialize and configure runner
+            runner = orchestrator.initialize_runner(engine_args, lm_configs, rm, config)
 
-            # Set article directory name (but don't create subfolder - use output_dir directly)
-            folder_name = truncate_filename(
-                article_title.replace(" ", "_").replace("/", "_")
+            # Configure runner content
+            content_logs = orchestrator.configure_runner_content(
+                runner, config, article_title, speakers, csv_text_input, article_output_dir
             )
+            processing_logs.extend(content_logs)
+
+            # Validate runner content
+            orchestrator.validate_runner_content(config, runner)
+
+            # Set article directory name
+            folder_name = truncate_filename(article_title.replace(" ", "_").replace("/", "_"))
             runner.article_dir_name = folder_name
 
-            # Use output directory directly without creating subfolder
-            article_output_dir = config.output_dir
-            os.makedirs(article_output_dir, exist_ok=True)
-            runner.storm_article_generation.query_logger = QueryLogger(
-                article_output_dir
-            )
-
-            # Handle figure data if provided
-            if hasattr(config, 'figure_data') and config.figure_data:
-                runner.figure_data = config.figure_data
-                processing_logs.append(f"Figure data loaded: {len(config.figure_data)} figures")
-
             # Log processing information
-            if config.topic:
-                if runner.text_input:
-                    self.logger.info(
-                        f"Topic and text input provided. The topic ('{config.topic}') will be improved using the text input."
-                    )
-                else:
-                    self.logger.info(
-                        f"Only topic ('{config.topic}') provided. Using the provided topic for improvement/guidance."
-                    )
-            else:
-                self.logger.info(
-                    "Text input provided (no topic). Key technology or innovations will be extracted from the text input to form a topic."
-                )
+            orchestrator.log_processing_information(config, runner)
 
             # Execute the pipeline
-            runner.run(
-                user_input=config.topic,
-                do_research=config.do_research,
-                do_generate_outline=config.do_generate_outline,
-                do_generate_article=config.do_generate_article,
-                do_polish_article=config.do_polish_article,
-                remove_duplicate=config.remove_duplicate,
-                old_outline_path=config.old_outline_path,
-                skip_rewrite_outline=config.skip_rewrite_outline,
-            )
+            pipeline_logs = orchestrator.execute_pipeline(runner, config)
+            processing_logs.extend(pipeline_logs)
 
-            runner.is_polishing_complete = True
-            runner.post_run()
-            runner.summary()
-            processing_logs.append("Report generation completed")
+            # Collect generated files
+            generated_files = io_manager.collect_generated_files(article_output_dir)
 
-            # Collect all files from the output directory
-            import glob
-            all_files = glob.glob(os.path.join(article_output_dir, "*"))
-            # Filter to only include files (not directories) and common report file types
-            generated_files.extend([
-                f for f in all_files 
-                if os.path.isfile(f) and any(f.endswith(ext) for ext in 
-                    ['.md', '.txt', '.json', '.jsonl', '.html', '.pdf', '.csv'])
-            ])
-            
-            self.logger.info(f"Collected {len(generated_files)} files from output directory: {[os.path.basename(f) for f in generated_files]}")
-            
-            # Also collect the basic storm files specifically (for backwards compatibility)
-            basic_storm_files = [
-                os.path.join(article_output_dir, "storm_gen_outline.txt"),
-                os.path.join(article_output_dir, "storm_gen_article.md"),
-                os.path.join(article_output_dir, "storm_gen_article_polished.md"),
-            ]
-            # Add any basic files that weren't already collected
-            for f in basic_storm_files:
-                if f not in generated_files and os.path.exists(f):
-                    generated_files.append(f)
-
-            # Store the final processed report content for Django FileField storage
-            # The actual file will be created by job_service.py using Django FileField
-            final_report_content = None
-            if config.post_processing:
-                polished_article_path = os.path.join(
-                    article_output_dir, "storm_gen_article_polished.md"
-                )
-                if os.path.exists(polished_article_path):
-                    # Apply full post-processing (image paths + citations removal + etc.)
-                    if config.selected_files_paths:
-                        # Storm files already have image path fixing, but we need to apply it again
-                        # plus other post-processing for the final Report content
-                        with open(polished_article_path, "r", encoding="utf-8") as f:
-                            content = f.read()
-
-
-                        # Apply other post-processing (citations, captions, placeholders)
-                        from agents.report_agent.utils.post_processing import (
-                            remove_citations,
-                            remove_captions,
-                            remove_figure_placeholders,
-                        )
-
-                        content = remove_citations(content, True)
-                        content = remove_captions(content, True)
-                        content = remove_figure_placeholders(content, True)
-
-                        final_report_content = content
-                        processing_logs.append(
-                            "Full post-processing applied to Report content"
-                        )
-                    else:
-                        # No image path fixing needed, just apply traditional post-processing
-                        import tempfile
-                        with tempfile.NamedTemporaryFile(mode='w+', suffix='.md', delete=False) as temp_file:
-                            process_file(
-                                polished_article_path, temp_file.name, config.post_processing
-                            )
-                            with open(temp_file.name, 'r', encoding='utf-8') as f:
-                                final_report_content = f.read()
-                            os.unlink(temp_file.name)
-                        processing_logs.append(
-                            "Traditional post-processing applied to Report content"
-                        )
-
-                    processing_logs.append(
-                        "Generated final Report content (will be stored via Django FileField)"
-                    )
+            # Process final report content
+            final_report_content = io_manager.process_final_report_content(config, article_output_dir)
+            if final_report_content:
+                processing_logs.append("Final report content processed")
             else:
-                processing_logs.append(
-                    "Post-processing disabled: Only storm_gen_article.md and storm_gen_article_polished.md generated"
-                )
+                processing_logs.append("Post-processing disabled or no content to process")
 
-            # Use generated article title if available, otherwise use original
-            final_article_title = getattr(runner, 'generated_article_title', None) or article_title
-            
-            # Create report_{id}.md file with the final content
-            if final_report_content and config.report_id:
-                report_file_path = os.path.join(article_output_dir, f"report_{config.report_id}.md")
-                try:
-                    with open(report_file_path, 'w', encoding='utf-8') as f:
-                        f.write(final_report_content)
-                    generated_files.append(report_file_path)
-                    self.logger.info(f"Created report_{config.report_id}.md file")
-                except Exception as e:
-                    self.logger.warning(f"Failed to create report_{config.report_id}.md file: {e}")
-            
+            # Create report file if needed
+            report_file_path = io_manager.create_report_file(config, article_output_dir, final_report_content)
+            if report_file_path:
+                generated_files.append(report_file_path)
+
+            # Extract final metadata
+            metadata = orchestrator.extract_final_metadata(runner, article_title)
+
             return ReportGenerationResult(
                 success=True,
-                article_title=final_article_title,
+                article_title=metadata['final_article_title'],
                 output_directory=article_output_dir,
-                generated_files=[f for f in generated_files if os.path.exists(f)],
+                generated_files=generated_files,
                 processing_logs=processing_logs,
                 report_content=final_report_content,
-                generated_topic=getattr(runner, 'generated_topic', None),
+                generated_topic=metadata['generated_topic'],
             )
 
         except Exception as e:

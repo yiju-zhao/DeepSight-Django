@@ -1,58 +1,75 @@
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch } from '@/app/store';
-import { 
-  fetchReports, 
-  selectFilteredReports, 
-  selectReportLoading, 
-  selectReportError,
-  selectViewMode,
-  selectSortOrder,
-  selectSearchTerm,
-  selectFilters,
-  selectReportStats,
-  setSearchTerm,
-  setSortOrder,
-  setViewMode,
-  setFilters,
-  clearError
-} from "@/features/report/reportSlice";
+import React, { useState, useMemo } from 'react';
+import { useReportsList, useDeleteReport } from '@/features/report/hooks/useReports';
 import ReportList from "@/features/report/components/ReportList";
 import ReportFilters from "@/features/report/components/ReportFilters";
 import ReportStats from "@/features/report/components/ReportStats";
 import ReportDetail from "@/features/report/components/ReportDetail";
-import { Report } from "@/features/report/types/type";
+import { Report, ReportFilters as ReportFiltersType } from "@/features/report/types/type";
 
 const ReportPage: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const reports = useSelector(selectFilteredReports);
-  const isLoading = useSelector(selectReportLoading);
-  const error = useSelector(selectReportError);
-  const viewMode = useSelector(selectViewMode);
-  const sortOrder = useSelector(selectSortOrder);
-  const searchTerm = useSelector(selectSearchTerm);
-  const filters = useSelector(selectFilters);
-  const stats = useSelector(selectReportStats);
-
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState<'recent' | 'oldest' | 'title'>('recent');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [filters, setFilters] = useState<ReportFiltersType>({});
 
-  useEffect(() => {
-    dispatch(fetchReports(filters));
-  }, [dispatch, filters]);
+  // Fetch reports using React Query
+  const { data: reports = [], isLoading, error } = useReportsList(undefined, {
+    filters,
+    staleTime: 30000, // Consider data fresh for 30 seconds
+  });
 
-  useEffect(() => {
-    if (error) {
-      // Auto-clear error after 5 seconds
-      const timer = setTimeout(() => {
-        dispatch(clearError());
-      }, 5000);
-      return () => clearTimeout(timer);
+  // Delete mutation
+  const deleteReportMutation = useDeleteReport();
+
+  // Calculate stats from reports
+  const stats = useMemo(() => ({
+    total: reports.length,
+    completed: reports.filter((r: Report) => r.status === 'completed').length,
+    failed: reports.filter((r: Report) => r.status === 'failed').length,
+    pending: reports.filter((r: Report) => r.status === 'pending').length,
+    running: reports.filter((r: Report) => r.status === 'running').length,
+    cancelled: reports.filter((r: Report) => r.status === 'cancelled').length,
+  }), [reports]);
+
+  // Filter and sort reports
+  const filteredReports = useMemo(() => {
+    let filtered = reports;
+
+    // Apply search filter
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      filtered = filtered.filter((report: Report) =>
+        report.title?.toLowerCase().includes(searchLower) ||
+        report.topic?.toLowerCase().includes(searchLower) ||
+        report.content?.toLowerCase().includes(searchLower)
+      );
     }
-    
-    // Always return a cleanup function (even if it does nothing)
-    return () => {};
-  }, [error, dispatch]);
+
+    // Apply other filters
+    if (filters.status) {
+      filtered = filtered.filter((report: Report) => report.status === filters.status);
+    }
+    if (filters.model_provider) {
+      filtered = filtered.filter((report: Report) => report.model_provider === filters.model_provider);
+    }
+    if (filters.notebook_id) {
+      filtered = filtered.filter((report: Report) => report.notebook_id === filters.notebook_id);
+    }
+
+    // Apply sorting
+    switch (sortOrder) {
+      case 'recent':
+        return filtered.sort((a: Report, b: Report) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      case 'oldest':
+        return filtered.sort((a: Report, b: Report) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      case 'title':
+        return filtered.sort((a: Report, b: Report) => (a.title || '').localeCompare(b.title || ''));
+      default:
+        return filtered;
+    }
+  }, [reports, searchTerm, filters, sortOrder]);
 
   const handleSelectReport = (report: Report) => {
     setSelectedReport(report);
@@ -65,19 +82,19 @@ const ReportPage: React.FC = () => {
   };
 
   const handleSearchChange = (term: string) => {
-    dispatch(setSearchTerm(term));
+    setSearchTerm(term);
   };
 
   const handleSortChange = (order: 'recent' | 'oldest' | 'title') => {
-    dispatch(setSortOrder(order));
+    setSortOrder(order);
   };
 
   const handleViewModeChange = (mode: 'grid' | 'list') => {
-    dispatch(setViewMode(mode));
+    setViewMode(mode);
   };
 
-  const handleFiltersChange = (newFilters: any) => {
-    dispatch(setFilters(newFilters));
+  const handleFiltersChange = (newFilters: ReportFiltersType) => {
+    setFilters(newFilters);
   };
 
   const handleDownloadReport = (report: Report) => {
@@ -85,9 +102,12 @@ const ReportPage: React.FC = () => {
     console.log('Downloading report:', report.id);
   };
 
-  const handleDeleteReport = (report: Report) => {
-    // This would be implemented with the delete action
-    console.log('Deleting report:', report.id);
+  const handleDeleteReport = async (report: Report) => {
+    try {
+      await deleteReportMutation.mutateAsync(report.id);
+    } catch (error) {
+      console.error('Failed to delete report:', error);
+    }
   };
 
   const handleEditReport = (report: Report) => {
@@ -131,7 +151,7 @@ const ReportPage: React.FC = () => {
             onFiltersChange={handleFiltersChange}
             stats={stats}
           />
-          
+
           {/* Search and View Controls */}
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1 max-w-md">
@@ -143,7 +163,7 @@ const ReportPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
+
             <div className="flex items-center gap-4">
               {/* Sort Order */}
               <select
@@ -161,8 +181,8 @@ const ReportPage: React.FC = () => {
                 <button
                   onClick={() => handleViewModeChange('grid')}
                   className={`px-3 py-2 ${
-                    viewMode === 'grid' 
-                      ? 'bg-blue-500 text-white' 
+                    viewMode === 'grid'
+                      ? 'bg-blue-500 text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   } rounded-l-md`}
                 >
@@ -171,8 +191,8 @@ const ReportPage: React.FC = () => {
                 <button
                   onClick={() => handleViewModeChange('list')}
                   className={`px-3 py-2 ${
-                    viewMode === 'list' 
-                      ? 'bg-blue-500 text-white' 
+                    viewMode === 'list'
+                      ? 'bg-blue-500 text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   } rounded-r-md`}
                 >
@@ -193,7 +213,7 @@ const ReportPage: React.FC = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm text-red-800">{error}</p>
+                <p className="text-sm text-red-800">{error instanceof Error ? error.message : 'An error occurred'}</p>
               </div>
             </div>
           </div>
@@ -202,7 +222,7 @@ const ReportPage: React.FC = () => {
         {/* Reports List */}
         <div className="bg-white rounded-lg shadow">
           <ReportList
-            reports={reports}
+            reports={filteredReports}
             isLoading={isLoading}
             onSelectReport={handleSelectReport}
             onDownloadReport={handleDownloadReport}
@@ -214,14 +234,14 @@ const ReportPage: React.FC = () => {
         </div>
 
         {/* Empty State */}
-        {!isLoading && reports.length === 0 && (
+        {!isLoading && filteredReports.length === 0 && (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900">No reports found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || Object.keys(filters).length > 0 
+              {searchTerm || Object.keys(filters).length > 0
                 ? 'Try adjusting your search or filters.'
                 : 'Get started by creating your first research report.'
               }
