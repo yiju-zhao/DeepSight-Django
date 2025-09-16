@@ -85,8 +85,8 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
         try {
           if (!notebookId || !fileId) throw new Error('Missing notebookId/fileId to resolve image');
           const cacheKey = `${notebookId}:${fileId}`;
-          let images: any[] = imageListCache[cacheKey];
-          if (!images) {
+          let images: any[] = imageListCache[cacheKey] || [];
+          if (images.length === 0) {
             const listUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/images/`;
             const listRes = await fetch(listUrl, { credentials: 'include', headers: { 'Accept': 'application/json' } });
             if (!listRes.ok) throw new Error(`Failed to list images: ${listRes.status}`);
@@ -125,8 +125,8 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       const fetchImageWithCredentials = async () => {
         try {
           const cacheKey = `${notebookId}:${fileId}`;
-          let images: any[] = imageListCache[cacheKey];
-          if (!images) {
+          let images: any[] = imageListCache[cacheKey] || [];
+          if (images.length === 0) {
             const listUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/images/`;
             const listRes = await fetch(listUrl, { credentials: 'include', headers: { 'Accept': 'application/json' } });
             if (!listRes.ok) throw new Error(`Failed to list images: ${listRes.status}`);
@@ -237,7 +237,7 @@ const processMarkdownContent = (content: string, fileId: string, notebookId: str
   
   // Legacy processing for API URLs
   // Pattern to match markdown image syntax: ![alt text](image_path)
-  const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
+  const imagePattern = /!\\\[([^\\]*)\\\]\(([^)]+)\)/g;
   
   return content.replace(imagePattern, (match: string, altText: string, imagePath: string) => {
     console.log('Processing image:', { altText, imagePath });
@@ -278,10 +278,10 @@ interface MarkdownContentProps {
 const preprocessLatex = (content: string): string => {
   // Fix double superscripts like b^{\prime}^{...} -> {b'}^{...}
   // This handles the specific case: b^{\prime}^{\frac{|D|-2}{|D|}}
-  content = content.replace(/([a-zA-Z])\s*\^\s*\{\s*\\prime\s*\}\s*\^\s*\{([^}]+)\}/g, '{$1\'}^{$2}');
+  content = content.replace(/([a-zA-Z])\s*\^\s*\{\s*\\prime\s*\}\s*\^\s*\{([^}]+)\}/g, '{$1\prime}^{$2}');
 
   // Also handle cases without braces around prime
-  content = content.replace(/([a-zA-Z])\s*\^\s*\\prime\s*\^\s*\{([^}]+)\}/g, '{$1\'}^{$2}');
+  content = content.replace(/([a-zA-Z])\s*\^\s*\\prime\s*\^\s*\{([^}]+)\}/g, '{$1\prime}^{$2}');
 
   // Fix absolute value notation |D| to use proper LaTeX
   content = content.replace(/\|\s*([^|]+)\s*\|/g, '\\abs{$1}');
@@ -316,7 +316,7 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
               "\\QQ": "\\mathbb{Q}",
               "\\hdots": "\\cdot\\cdot\\cdot",
               "\\abs": "\\left|#1\\right|",
-              "\\norm": "\\left\\|#1\\right\\|"
+              "\\norm": "\\left\\|#1\\right\|"
             }
           }]
         ]}
@@ -449,8 +449,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         }
 
         const cacheKey = `${notebookId}:${source.file_id}`;
-        let images = imageListCache[cacheKey];
-        if (!images) {
+        let images: any[] = imageListCache[cacheKey] || [];
+        if (images.length === 0) {
           const listUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${source.file_id}/images/`;
           const listRes = await fetch(listUrl, { credentials: 'include', headers: { 'Accept': 'application/json' } });
           if (!listRes.ok) throw new Error(`Failed to list images: ${listRes.status}`);
@@ -475,7 +475,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
         let replaced = content;
         // Replace markdown image links ![alt](images/filename)
-        replaced = replaced.replace(/!\[[^\]]*\]\((?:\.?\/)?images\/(.+?)\)/g, (m, p1) => {
+        replaced = replaced.replace(/!\[[^\\]*\]\((?:\.?\/)?images\/(.+?)\)/g, (m, p1) => {
           const name = String(p1).split(/[?#]/)[0].split('/').pop() || String(p1);
           const url = byName[name];
           return url ? m.replace(/\((?:\.?\/)?images\/(.+?)\)/, `(${url})`) : m;
@@ -1032,7 +1032,6 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
           )}
         </div>
         
-        {/* Gallery (Image Extraction) */}
         {source.file_id && <GallerySection videoFileId={source.file_id} notebookId={notebookId} onOpenModal={openModal} onCloseModal={closeModal} />}
 
         {/* Transcript Content Display */}

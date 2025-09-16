@@ -149,21 +149,6 @@ export function useCreateReport() {
     mutationFn: async (data: ReportGenerationRequest): Promise<CreateReportResponse> => {
       return apiClient.post('/reports/jobs/', data);
     },
-    onSuccess: (data, variables) => {
-      notifications.info.queued('Report generation');
-
-      // Invalidate and refetch report lists
-      queryInvalidations.invalidateReportLists().forEach(key => {
-        queryClient.invalidateQueries({ queryKey: key });
-      });
-
-      // If notebook-specific, also invalidate that notebook's reports
-      if (variables.notebook) {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.reports.list({ notebook: variables.notebook })
-        });
-      }
-    },
     ...operationCallbacks.create('report', {
       error: 'Failed to start report generation',
     }),
@@ -179,14 +164,6 @@ export function useUpdateReport() {
   return useMutation({
     mutationFn: async ({ jobId, content }: { jobId: string; content: string }) => {
       return apiClient.put(`/reports/jobs/${jobId}/`, { content });
-    },
-    onSuccess: (data, variables) => {
-      notifications.success.updated('Report');
-
-      // Invalidate related queries
-      queryInvalidations.invalidateReport(variables.jobId).forEach(key => {
-        queryClient.invalidateQueries({ queryKey: key });
-      });
     },
     ...operationCallbacks.update('report'),
   });

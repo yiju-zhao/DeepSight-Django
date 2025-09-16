@@ -1,5 +1,10 @@
 import { apiClient } from "@/shared/api/client";
 
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+  return match?.[2] ? decodeURIComponent(match[2]) : null;
+}
+
 interface GenerationConfig {
   model?: string;
   temperature?: number;
@@ -89,7 +94,7 @@ class StudioService {
     
     let response;
     try {
-      response = await fetch(`${apiClient.baseUrl}${url}`, {
+      response = await fetch(`${apiClient.getBaseUrl()}${url}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -153,7 +158,7 @@ class StudioService {
     
     const url = `/reports/jobs/${jobId}/download-pdf/`;
     
-    const response = await fetch(`${apiClient.baseUrl}${url}`, {
+    const response = await fetch(`${apiClient.getBaseUrl()}${url}`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -233,7 +238,7 @@ class StudioService {
       throw new Error('notebookId is required for report job status stream');
     }
     
-    return `${apiClient.baseUrl}/reports/jobs/${jobId}/stream/`;
+    return `${apiClient.getBaseUrl()}/reports/jobs/${jobId}/stream/`;
   }
 
   // ─── PODCASTS ────────────────────────────────────────────────────────────
@@ -280,7 +285,7 @@ class StudioService {
       throw new Error('notebookId is required for downloading podcast audio');
     }
     
-    const response = await fetch(`${apiClient.baseUrl}/podcasts/jobs/${jobId}/audio/`, {
+    const response = await fetch(`${apiClient.getBaseUrl()}/podcasts/jobs/${jobId}/audio/`, {
       method: 'GET',
       credentials: 'include',
       headers: {
@@ -326,7 +331,7 @@ class StudioService {
       throw new Error('notebookId is required for podcast job status stream');
     }
     
-    return `${apiClient.baseUrl}/podcasts/jobs/${jobId}/stream/`;
+    return `${apiClient.getBaseUrl()}/podcasts/jobs/${jobId}/stream/`;
   }
 }
 

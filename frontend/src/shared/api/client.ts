@@ -18,6 +18,10 @@ export class ApiClient {
     this.baseUrl = baseUrl;
   }
 
+  public getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
   private buildUrl(
     endpoint: string,
     params?: Record<string, any>
