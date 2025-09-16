@@ -97,33 +97,61 @@ def upload_to_ragflow_task(self, kb_item_id: str):
         # Fetch the KB item from database to ensure we have the latest content
         kb_item = KnowledgeBaseItem.objects.select_related('notebook').get(id=kb_item_id)
 
-        if not kb_item.content:
-            logger.warning(f"KB item {kb_item.id} has no content to upload to RagFlow")
-            return {"success": False, "error": "No content to upload"}
+        # Check if we have a processed file in MinIO to upload
+        if not kb_item.file_object_key:
+            logger.warning(f"KB item {kb_item.id} has no processed file to upload to RagFlow")
+            return {"success": False, "error": "No processed file available for upload"}
 
         from infrastructure.ragflow.client import get_ragflow_client
+        from infrastructure.storage.adapters import get_storage_adapter
+
         ragflow_client = get_ragflow_client()
+        storage_adapter = get_storage_adapter()
 
         # Upload to RagFlow - we need the notebook's RagFlow dataset ID
         if not kb_item.notebook.ragflow_dataset_id:
             logger.warning(f"No RagFlow dataset ID found for notebook {kb_item.notebook.id}")
             return {"success": False, "error": "No RagFlow dataset ID configured"}
 
-        upload_result = ragflow_client.upload_document(
+        # Get the processed markdown file content from MinIO
+        try:
+            file_content = storage_adapter.get_file_content(
+                kb_item.file_object_key,
+                str(kb_item.notebook.user_id)
+            )
+
+            # Determine filename - prefer original filename with .md extension
+            filename = kb_item.title
+            if kb_item.file_metadata and isinstance(kb_item.file_metadata, dict):
+                original_filename = kb_item.file_metadata.get('original_filename', kb_item.title)
+                # Convert to .md extension for RagFlow
+                if '.' in original_filename:
+                    filename = original_filename.rsplit('.', 1)[0] + '.md'
+                else:
+                    filename = original_filename + '.md'
+            elif not filename.endswith('.md'):
+                filename = filename + '.md'
+
+        except Exception as storage_error:
+            error_msg = f"Failed to retrieve processed file from storage: {storage_error}"
+            logger.error(error_msg)
+            return {"success": False, "error": error_msg}
+
+        upload_result = ragflow_client.upload_document_file(
             dataset_id=kb_item.notebook.ragflow_dataset_id,
-            content=kb_item.content,
-            display_name=kb_item.title
+            file_content=file_content,
+            filename=filename
         )
 
         if upload_result and upload_result.get('id'):
-            logger.info(f"Successfully uploaded KB item {kb_item.id} to RagFlow: {upload_result.get('id')}")
+            logger.info(f"Successfully uploaded processed file for KB item {kb_item.id} to RagFlow: {upload_result.get('id')}")
             # Store the RagFlow document ID in the knowledge base item metadata
             kb_item.metadata = kb_item.metadata or {}
             kb_item.metadata['ragflow_document_id'] = upload_result.get('id')
             kb_item.save(update_fields=['metadata'])
             return {"success": True, "ragflow_document_id": upload_result.get('id')}
         else:
-            logger.warning(f"Failed to upload KB item {kb_item.id} to RagFlow")
+            logger.warning(f"Failed to upload processed file for KB item {kb_item.id} to RagFlow")
             return {"success": False, "error": "Upload failed - no document ID returned"}
 
     except KnowledgeBaseItem.DoesNotExist:

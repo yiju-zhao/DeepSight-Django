@@ -199,54 +199,106 @@ class RagFlowClient:
     def upload_document(self, dataset_id: str, content: str, display_name: str) -> Dict:
         """
         Upload a document to a RagFlow dataset.
-        
+
         Args:
             dataset_id: Target dataset ID
             content: Document content (markdown text)
             display_name: Display name for the document
-            
+
         Returns:
             Dict containing document information
-            
+
         Raises:
             RagFlowDocumentError: If upload fails
         """
         try:
             logger.info(f"Uploading document '{display_name}' to dataset {dataset_id}")
-            
+
             # Get the dataset
             datasets = self.client.list_datasets(id=dataset_id)
             if not datasets:
                 raise RagFlowDocumentError(f"Dataset {dataset_id} not found")
-            
+
             dataset = datasets[0]
-            
+
             # Prepare document for upload
             document_data = [{
                 'display_name': display_name,
                 'blob': content.encode('utf-8')
             }]
-            
+
             def _upload():
                 uploaded_docs = dataset.upload_documents(document_data)
                 return uploaded_docs[0] if uploaded_docs else None
-            
+
             document = self._retry_on_failure(_upload)
-            
+
             if not document:
                 raise RagFlowDocumentError("Document upload returned no result")
-            
+
             logger.info(f"Document uploaded successfully: {document.id}")
-            
+
             return {
                 'id': document.id,
                 'name': display_name,
                 'status': 'uploaded'
             }
-            
+
         except Exception as e:
             logger.error(f"Failed to upload document '{display_name}' to dataset '{dataset_id}': {e}")
             raise RagFlowDocumentError(f"Failed to upload document: {e}")
+
+    def upload_document_file(self, dataset_id: str, file_content: bytes, filename: str) -> Dict:
+        """
+        Upload a file to a RagFlow dataset using file content from storage.
+
+        Args:
+            dataset_id: Target dataset ID
+            file_content: File content as bytes
+            filename: Name of the file (with extension)
+
+        Returns:
+            Dict containing document information
+
+        Raises:
+            RagFlowDocumentError: If upload fails
+        """
+        try:
+            logger.info(f"Uploading file '{filename}' to dataset {dataset_id}")
+
+            # Get the dataset
+            datasets = self.client.list_datasets(id=dataset_id)
+            if not datasets:
+                raise RagFlowDocumentError(f"Dataset {dataset_id} not found")
+
+            dataset = datasets[0]
+
+            # Prepare document for upload - use file content directly
+            document_data = [{
+                'display_name': filename,
+                'blob': file_content
+            }]
+
+            def _upload():
+                uploaded_docs = dataset.upload_documents(document_data)
+                return uploaded_docs[0] if uploaded_docs else None
+
+            document = self._retry_on_failure(_upload)
+
+            if not document:
+                raise RagFlowDocumentError("Document upload returned no result")
+
+            logger.info(f"File uploaded successfully: {document.id}")
+
+            return {
+                'id': document.id,
+                'name': filename,
+                'status': 'uploaded'
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to upload file '{filename}' to dataset '{dataset_id}': {e}")
+            raise RagFlowDocumentError(f"Failed to upload file: {e}")
     
     def delete_document(self, dataset_id: str, document_id: str) -> bool:
         """
