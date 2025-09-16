@@ -25,7 +25,7 @@ def generate_unique_filename(original_filename: str, user_id: str = None) -> str
     unique_name = f"{uuid.uuid4()}{file_ext}"
     
     if user_id:
-        return f"users/{user_id}/{unique_name}"
+        return f"{user_id}/{unique_name}"
     else:
         return f"shared/{unique_name}"
 

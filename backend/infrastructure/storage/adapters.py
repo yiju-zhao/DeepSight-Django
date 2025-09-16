@@ -92,7 +92,7 @@ class StorageAdapter:
         """
         try:
             # If user_id is provided, verify the file belongs to the user
-            if user_id and not object_key.startswith(f'users/{user_id}/'):
+            if user_id and not object_key.startswith(f'{user_id}/'):
                 self.logger.warning(f"Access denied: user {user_id} attempted to access {object_key}")
                 return None
             
@@ -131,7 +131,7 @@ class StorageAdapter:
         """
         try:
             # Verify the file belongs to the user
-            if not object_key.startswith(f'users/{user_id}/'):
+            if not object_key.startswith(f'{user_id}/'):
                 self.logger.warning(f"Delete denied: user {user_id} attempted to delete {object_key}")
                 return False
             
