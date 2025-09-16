@@ -235,6 +235,8 @@ export default defineConfig({
     cors: true,
     headers: {
       'Cross-Origin-Embedder-Policy': 'credentialless',
+      // Allow blob URLs in development
+      'Content-Security-Policy': "default-src 'self'; blob: data: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' blob: data:;",
     },
     allowedHosts: true,
   },

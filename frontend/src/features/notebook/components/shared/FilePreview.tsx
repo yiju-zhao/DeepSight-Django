@@ -3,6 +3,7 @@ import { X, Eye, FileText, Globe, Music, Video, File, HardDrive, Calendar, Exter
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { generatePreview, supportsPreview, PREVIEW_TYPES, formatDate, getVideoMimeType, getAudioMimeType, generateTextPreviewWithMinIOUrls } from "@/features/notebook/utils/filePreview";
+import { createSecureBlob, downloadFileSecurely, createBlobManager } from "@/features/notebook/utils/storageUtils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -21,6 +22,7 @@ import { config } from "@/config";
 const API_BASE_URL = config.API_BASE_URL;
 
 // Math rendering is handled by KaTeX via rehype-katex plugin - no manual setup needed
+
 
 // Authenticated Image component for handling images with credentials
 interface AuthenticatedImageProps {
@@ -56,12 +58,12 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
         const res = await fetch(absoluteUrl, { credentials: 'include' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const blob = await res.blob();
-        const objUrl = URL.createObjectURL(blob);
+        const result = createSecureBlob([blob]);
         if (createdBlobUrlRef.current) {
           URL.revokeObjectURL(createdBlobUrlRef.current);
         }
-        createdBlobUrlRef.current = objUrl;
-        setImgSrc(objUrl);
+        createdBlobUrlRef.current = result.url;
+        setImgSrc(result.url);
         setIsLoading(false);
       } catch (e) {
         console.warn('Failed to fetch inline blob:', e);
@@ -384,6 +386,9 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     resolvedContent: null
   });
 
+  // Create blob manager for automatic cleanup
+  const blobManager = React.useMemo(() => createBlobManager(), []);
+
   // Helper function to update state
   const updateState = (updates: Partial<FilePreviewState>) => {
     setState(prevState => ({ ...prevState, ...updates }));
@@ -416,12 +421,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     
     // Cleanup function to revoke blob URLs
     return () => {
-      if (state.preview?.audioUrl && state.preview.audioUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(state.preview.audioUrl);
-      }
-      if (state.preview?.videoUrl && state.preview.videoUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(state.preview.videoUrl);
-      }
+      blobManager.cleanup();
     };
   }, [isOpen, source, notebookId, useMinIOUrls]);
 
@@ -914,21 +914,11 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
               onClick={async () => {
                 try {
                   if (!state.preview?.videoUrl) return;
-                  const response = await fetch(state.preview.videoUrl, {
-                    credentials: 'include'
-                  });
-                  const blob = await response.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.href = url;
-                  // Remove existing extension if present before adding the format extension
+                  // Use downloadFileSecurely utility
                   const title = state.preview?.title || 'video';
                   const cleanTitle = title.replace(/\.[^/.]+$/, ''); // Remove any existing extension
-                  link.download = `${cleanTitle}.${state.preview?.format?.toLowerCase()}`;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  window.URL.revokeObjectURL(url);
+                  const filename = `${cleanTitle}.${state.preview?.format?.toLowerCase()}`;
+                  await downloadFileSecurely(state.preview.videoUrl, filename);
                 } catch (error) {
                   console.error('Download failed:', error);
                 }
@@ -1166,29 +1156,12 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                   }
 
-                  const blob = await response.blob();
-                  const url = window.URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.href = url;
-
-                  // Extract filename from content-disposition or use default
-                  const contentDisposition = response.headers.get('Content-Disposition');
+                  // Use downloadFileSecurely utility
                   let filename = 'document.pdf';
-                  if (contentDisposition) {
-                    const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                    if (filenameMatch) {
-                      filename = filenameMatch[1];
-                    }
-                  } else if (source.title) {
-                    // Use source title as fallback
+                  if (source.title) {
                     filename = source.title.endsWith('.pdf') ? source.title : `${source.title}.pdf`;
                   }
-
-                  link.download = filename;
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
-                  window.URL.revokeObjectURL(url);
+                  await downloadFileSecurely(downloadUrl, filename);
                 } catch (error) {
                   console.error('PDF download failed:', error);
                   alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1252,29 +1225,12 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                   throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-
-                // Extract filename from content-disposition or use default
-                const contentDisposition = response.headers.get('Content-Disposition');
+                // Use downloadFileSecurely utility
                 let filename = 'document.pdf';
-                if (contentDisposition) {
-                  const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-                  if (filenameMatch) {
-                    filename = filenameMatch[1];
-                  }
-                } else if (source.title) {
-                  // Use source title as fallback
+                if (source.title) {
                   filename = source.title.endsWith('.pdf') ? source.title : `${source.title}.pdf`;
                 }
-
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                window.URL.revokeObjectURL(url);
+                await downloadFileSecurely(downloadUrl, filename);
               } catch (error) {
                 console.error('PDF download failed:', error);
                 alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1375,15 +1331,10 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
   // Clean up blob URLs when component closes
   useEffect(() => {
-    if (!isOpen && state.preview) {
-      if (state.preview.audioUrl && state.preview.audioUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(state.preview.audioUrl);
-      }
-      if (state.preview.videoUrl && state.preview.videoUrl.startsWith('blob:')) {
-        URL.revokeObjectURL(state.preview.videoUrl);
-      }
+    if (!isOpen) {
+      blobManager.cleanup();
     }
-  }, [isOpen, state.preview]);
+  }, [isOpen, blobManager]);
 
   if (!isOpen) return null;
 
