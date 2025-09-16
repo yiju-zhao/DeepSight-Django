@@ -144,8 +144,9 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Individual file status update handler - updates specific file in sources array
   const updateFileStatus = useCallback((fileId: string, newStatus: string) => {
-    setSources(prev => prev.map(source => 
-      source.file_id === fileId 
+    console.log(`Updating file ${fileId} status to: ${newStatus}`);
+    setSources(prev => prev.map(source =>
+      source.file_id === fileId
         ? { ...source, parsing_status: newStatus as Source['parsing_status'] }
         : source
     ));
@@ -191,7 +192,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     return sources.filter(source =>
       source.file_id &&
       source.parsing_status &&
-      ['uploading', 'queueing', 'parsing'].includes(source.parsing_status)
+      ['uploading', 'queueing', 'parsing', 'captioning'].includes(source.parsing_status)
     );
   }, [sources]);
 
@@ -653,7 +654,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   const renderFileStatus = (source: Source): React.ReactNode => {
     const isProcessing =
       source.parsing_status &&
-      ['queueing', 'uploading', 'parsing'].includes(source.parsing_status);
+      ['queueing', 'uploading', 'parsing', 'captioning'].includes(source.parsing_status);
     const isFailed = source.parsing_status === 'failed' || source.parsing_status === 'error';
     
     // Check if this is a file with images and caption generation status
@@ -681,6 +682,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               ? 'Parsing...'
               : source.parsing_status === 'queueing'
               ? 'Queued...'
+              : source.parsing_status === 'captioning'
+              ? 'Generating captions...'
               : 'Processing...'}
           </span>
       </div>
@@ -830,19 +833,19 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               <RefreshCw className="h-4 w-4 animate-spin text-gray-400" />
             )}
             {(() => {
-              const processingCount = sources.filter(s => 
-                s.parsing_status && ['queueing', 'parsing'].includes(s.parsing_status)
+              const processingCount = sources.filter(s =>
+                s.parsing_status && ['queueing', 'parsing', 'captioning'].includes(s.parsing_status)
               ).length;
-              
+
               if (processingCount > 0) {
                 return (
-                  <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" 
+                  <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"
                        title={`${processingCount} files processing - SSE listening for completion`} />
                 );
               }
-              
+
               return (
-                <div className="h-2 w-2 bg-green-500 rounded-full" 
+                <div className="h-2 w-2 bg-green-500 rounded-full"
                      title="All files processed - SSE ready" />
               );
             })()}

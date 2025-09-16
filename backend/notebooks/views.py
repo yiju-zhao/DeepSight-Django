@@ -573,15 +573,9 @@ class FileStatusSSEView(View):
             yield f"data: {json.dumps(error_message)}\n\n"
 
     def build_status_data(self, file_item: KnowledgeBaseItem) -> Dict[str, Any]:
-        # Map model parsing_status (single-field state machine) to frontend status
-        status_mapping = {
-            "queueing": "processing",
-            "parsing": "processing",
-            "captioning": "processing",
-            "done": "done",
-            "failed": "failed",
-        }
-        frontend_status = status_mapping.get(file_item.parsing_status, "processing")
+        # Use the raw parsing_status for frontend consistency
+        # Frontend expects: "queueing", "parsing", "captioning", "done", "failed"
+        raw_status = file_item.parsing_status or "queueing"
 
         # Derive caption status for backward-compatible UI hints
         # - captioning -> captioning
@@ -598,13 +592,13 @@ class FileStatusSSEView(View):
 
         return {
             "file_id": str(file_item.id),
-            "status": frontend_status,
+            "status": raw_status,  # Send raw status for frontend consistency
             "title": file_item.title,
             "content_type": file_item.content_type,
             "created_at": file_item.created_at.isoformat() if file_item.created_at else None,
             "updated_at": file_item.updated_at.isoformat() if file_item.updated_at else None,
             "has_content": bool(file_item.content),
-            "processing_status": file_item.parsing_status,
+            "processing_status": raw_status,  # Also include in processing_status for compatibility
             "metadata": file_item.metadata or {},
             "caption_status": caption_status,
         }
