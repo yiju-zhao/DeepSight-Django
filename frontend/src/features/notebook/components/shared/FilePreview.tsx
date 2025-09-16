@@ -274,22 +274,7 @@ interface MarkdownContentProps {
   fileId?: string;
 }
 
-// Simple LaTeX cleaner - only fix the most critical escaping issues
-const cleanLatex = (content: string): string => {
-  return content
-    // Fix double backslashes (most common issue)
-    .replace(/\\\\/g, '\\')
-    // Fix escaped braces
-    .replace(/\\\{/g, '{')
-    .replace(/\\\}/g, '}')
-    // Clean up extra spaces around math delimiters
-    .replace(/\$\s+/g, '$')
-    .replace(/\s+\$/g, '$')
-    // Fix escaped absolute value bars
-    .replace(/\\abs\{([^}]+)\s*\\\}/g, '\\abs{$1}');
-};
-
-// Math renderer component using react-katex
+// Math renderer component using react-katex - no preprocessing
 interface MathRendererProps {
   children: React.ReactNode;
   inline?: boolean;
@@ -298,11 +283,6 @@ interface MathRendererProps {
 const MathRenderer: React.FC<MathRendererProps> = ({ children, inline = false }) => {
   const content = children?.toString() || '';
 
-  // Skip if not math content
-  if (!content || (!content.includes('\\') && !content.includes('_') && !content.includes('^'))) {
-    return <>{children}</>;
-  }
-
   try {
     if (inline) {
       return (
@@ -310,15 +290,6 @@ const MathRenderer: React.FC<MathRendererProps> = ({ children, inline = false })
           math={content}
           errorColor="#cc0000"
           throwOnError={false}
-          macros={{
-            '\\abs': '\\left|#1\\right|',
-            '\\pmb': '\\boldsymbol{#1}',
-            '\\RR': '\\mathbb{R}',
-            '\\NN': '\\mathbb{N}',
-            '\\CC': '\\mathbb{C}',
-            '\\ZZ': '\\mathbb{Z}',
-            '\\QQ': '\\mathbb{Q}',
-          }}
         />
       );
     } else {
@@ -327,15 +298,6 @@ const MathRenderer: React.FC<MathRendererProps> = ({ children, inline = false })
           math={content}
           errorColor="#cc0000"
           throwOnError={false}
-          macros={{
-            '\\abs': '\\left|#1\\right|',
-            '\\pmb': '\\boldsymbol{#1}',
-            '\\RR': '\\mathbb{R}',
-            '\\NN': '\\mathbb{N}',
-            '\\CC': '\\mathbb{C}',
-            '\\ZZ': '\\mathbb{Z}',
-            '\\QQ': '\\mathbb{Q}',
-          }}
         />
       );
     }
@@ -346,7 +308,6 @@ const MathRenderer: React.FC<MathRendererProps> = ({ children, inline = false })
 };
 
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
-  const processedContent = cleanLatex(content);
 
   return (
     <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
@@ -383,7 +344,7 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
           inlineMath: ({children}) => <MathRenderer inline>{children}</MathRenderer>,
         }}
       >
-        {processedContent}
+        {content}
       </ReactMarkdown>
     </div>
   );
