@@ -113,6 +113,21 @@ class NotebookViewSet(viewsets.ModelViewSet):
             logger.exception(f"Failed to create notebook: {e}")
             raise
 
+    def perform_destroy(self, instance):
+        """
+        Use the service layer to delete notebook with RAGFlow cleanup.
+        """
+        try:
+            # Use service layer for proper RAGFlow cleanup
+            stats = self.notebook_service.delete_notebook(
+                notebook_id=str(instance.id),
+                user=self.request.user
+            )
+            logger.info(f"Notebook {instance.id} deleted successfully with stats: {stats}")
+        except Exception as e:
+            logger.exception(f"Failed to delete notebook {instance.id}: {e}")
+            raise
+
     @action(detail=True, methods=["get"], url_path="stats")
     def stats(self, request, pk=None):
         notebook = self.get_object()
