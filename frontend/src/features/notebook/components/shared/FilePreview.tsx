@@ -10,7 +10,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
-import rehypeKatex from "rehype-katex";
+import { InlineMath, BlockMath } from 'react-katex';
 import "highlight.js/styles/github.css";
 import "katex/dist/katex.min.css";
 import "../../styles/math.css";
@@ -237,7 +237,7 @@ const processMarkdownContent = (content: string, fileId: string, notebookId: str
   
   // Legacy processing for API URLs
   // Pattern to match markdown image syntax: ![alt text](image_path)
-  const imagePattern = /!\\\[([^\\]*)\\\]\(([^)]+)\)/g;
+  const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
   
   return content.replace(imagePattern, (match: string, altText: string, imagePath: string) => {
     console.log('Processing image:', { altText, imagePath });
@@ -274,52 +274,85 @@ interface MarkdownContentProps {
   fileId?: string;
 }
 
-// Preprocess LaTeX to fix common syntax issues
-const preprocessLatex = (content: string): string => {
-  // Fix double superscripts like b^{\prime}^{...} -> {b'}^{...}
-  // This handles the specific case: b^{\prime}^{\frac{|D|-2}{|D|}}
-  content = content.replace(/([a-zA-Z])\s*\^\s*\{\s*\\prime\s*\}\s*\^\s*\{([^}]+)\}/g, '{$1\prime}^{$2}');
+// Simple LaTeX cleaner - only fix the most critical escaping issues
+const cleanLatex = (content: string): string => {
+  return content
+    // Fix double backslashes (most common issue)
+    .replace(/\\\\/g, '\\')
+    // Fix escaped braces
+    .replace(/\\\{/g, '{')
+    .replace(/\\\}/g, '}')
+    // Clean up extra spaces around math delimiters
+    .replace(/\$\s+/g, '$')
+    .replace(/\s+\$/g, '$')
+    // Fix escaped absolute value bars
+    .replace(/\\abs\{([^}]+)\s*\\\}/g, '\\abs{$1}');
+};
 
-  // Also handle cases without braces around prime
-  content = content.replace(/([a-zA-Z])\s*\^\s*\\prime\s*\^\s*\{([^}]+)\}/g, '{$1\prime}^{$2}');
+// Math renderer component using react-katex
+interface MathRendererProps {
+  children: React.ReactNode;
+  inline?: boolean;
+}
 
-  // Fix absolute value notation |D| to use proper LaTeX
-  content = content.replace(/\|\s*([^|]+)\s*\|/g, '\\abs{$1}');
+const MathRenderer: React.FC<MathRendererProps> = ({ children, inline = false }) => {
+  const content = children?.toString() || '';
 
-  return content;
+  // Skip if not math content
+  if (!content || (!content.includes('\\') && !content.includes('_') && !content.includes('^'))) {
+    return <>{children}</>;
+  }
+
+  try {
+    if (inline) {
+      return (
+        <InlineMath
+          math={content}
+          errorColor="#cc0000"
+          throwOnError={false}
+          macros={{
+            '\\abs': '\\left|#1\\right|',
+            '\\pmb': '\\boldsymbol{#1}',
+            '\\RR': '\\mathbb{R}',
+            '\\NN': '\\mathbb{N}',
+            '\\CC': '\\mathbb{C}',
+            '\\ZZ': '\\mathbb{Z}',
+            '\\QQ': '\\mathbb{Q}',
+          }}
+        />
+      );
+    } else {
+      return (
+        <BlockMath
+          math={content}
+          errorColor="#cc0000"
+          throwOnError={false}
+          macros={{
+            '\\abs': '\\left|#1\\right|',
+            '\\pmb': '\\boldsymbol{#1}',
+            '\\RR': '\\mathbb{R}',
+            '\\NN': '\\mathbb{N}',
+            '\\CC': '\\mathbb{C}',
+            '\\ZZ': '\\mathbb{Z}',
+            '\\QQ': '\\mathbb{Q}',
+          }}
+        />
+      );
+    }
+  } catch (error) {
+    console.warn('Math rendering error:', error);
+    return <span style={{ color: '#cc0000' }}>[Math Error: {content}]</span>;
+  }
 };
 
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
-  const processedContent = preprocessLatex(content);
+  const processedContent = cleanLatex(content);
 
   return (
     <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[
-          rehypeHighlight,
-          rehypeRaw,
-          [rehypeKatex, {
-            strict: 'ignore',
-            errorColor: '#cc0000',
-            throwOnError: false,
-            trust: true,
-            fleqn: false,
-            leqno: false,
-            maxSize: Infinity,
-            maxExpand: 1000,
-            macros: {
-              "\\RR": "\\mathbb{R}",
-              "\\NN": "\\mathbb{N}",
-              "\\CC": "\\mathbb{C}",
-              "\\ZZ": "\\mathbb{Z}",
-              "\\QQ": "\\mathbb{Q}",
-              "\\hdots": "\\cdot\\cdot\\cdot",
-              "\\abs": "\\left|#1\\right|",
-              "\\norm": "\\left\\|#1\\right\|"
-            }
-          }]
-        ]}
+        rehypePlugins={[rehypeHighlight, rehypeRaw]}
         components={{
           h1: ({children}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-3 border-b">{children}</h1>,
           h2: ({children}) => <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4">{children}</h2>,
@@ -336,15 +369,18 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
             return <AuthenticatedImage src={src} alt={alt} title={title} notebookId={notebookId} fileId={fileId} />;
           },
           a: ({href, children}) => (
-            <a 
-              href={href} 
-              target="_blank" 
+            <a
+              href={href}
+              target="_blank"
               rel="noopener noreferrer"
               className="text-blue-600 hover:text-blue-800 underline break-all"
             >
               {children}
             </a>
           ),
+          // Custom math renderers using react-katex
+          math: ({children}) => <MathRenderer>{children}</MathRenderer>,
+          inlineMath: ({children}) => <MathRenderer inline>{children}</MathRenderer>,
         }}
       >
         {processedContent}
