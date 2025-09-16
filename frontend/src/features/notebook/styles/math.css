@@ -1,0 +1,43 @@
+/* Math rendering optimizations for KaTeX */
+.prose .katex {
+  font-size: 1.1em;
+  line-height: 1.2;
+}
+
+.prose .katex-display {
+  margin: 1.5em 0;
+  text-align: center;
+}
+
+.prose .katex-display .katex {
+  text-align: left;
+  display: inline-block;
+}
+
+/* Fix prose integration */
+.prose .katex-display {
+  @apply my-6;
+}
+
+.prose .katex-inline {
+  @apply mx-1;
+}
+
+/* Error styling for invalid LaTeX */
+.prose .katex-error {
+  color: #cc0000;
+  border-bottom: 1px solid #cc0000;
+}
+
+/* Responsive math */
+@media (max-width: 640px) {
+  .prose .katex {
+    font-size: 1em;
+  }
+
+  .prose .katex-display {
+    overflow-x: auto;
+    text-align: left;
+    padding: 0 1rem;
+  }
+}

@@ -8,8 +8,10 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
-import rehypeMathjax from "rehype-mathjax";
+import rehypeKatex from "rehype-katex";
 import "highlight.js/styles/github.css";
+import "katex/dist/katex.min.css";
+import "../../styles/math.css";
 import GallerySection from "@/features/notebook/components/shared/GallerySection";
 import { Source, PreviewState, FileSource } from '@/shared/types';
 
@@ -18,48 +20,7 @@ import { config } from "@/config";
 
 const API_BASE_URL = config.API_BASE_URL;
 
-// --- MathJax support for LaTeX rendering ---
-let mathJaxLoading: Promise<void> | null = null;
-const ensureMathJax = (): Promise<void> => {
-  if (typeof window === 'undefined') return Promise.resolve();
-  const w = window as any;
-  if (w.MathJax && w.MathJax.typesetPromise) return Promise.resolve();
-  if (mathJaxLoading) return mathJaxLoading;
-
-  mathJaxLoading = new Promise<void>((resolve) => {
-    // Configure MathJax (TeX + CHTML)
-    w.MathJax = w.MathJax || {
-      tex: {
-        inlineMath: [['$', '$'], ['\\(', '\\)']],
-        displayMath: [['$$', '$$'], ['\\[', '\\]']],
-        processEscapes: true,
-        processEnvironments: true,
-        processRefs: true,
-        packages: {'[+]': ['base', 'ams', 'newcommand', 'configmacros', 'action']}
-      },
-      options: {
-        skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
-        ignoreHtmlClass: 'tex2jax_ignore',
-        processHtmlClass: 'tex2jax_process'
-      },
-      startup: {
-        ready: () => {
-          w.MathJax.startup.defaultReady();
-          w.MathJax.startup.promise.then(() => {
-            resolve();
-          });
-        }
-      }
-    };
-    const script = document.createElement('script');
-    script.id = 'mathjax-script';
-    script.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js';
-    script.async = true;
-    script.onerror = () => resolve(); // Continue even if script fails to load
-    document.head.appendChild(script);
-  });
-  return mathJaxLoading;
-};
+// Math rendering is handled by KaTeX via rehype-katex plugin - no manual setup needed
 
 // Authenticated Image component for handling images with credentials
 interface AuthenticatedImageProps {
@@ -307,39 +268,29 @@ interface MarkdownContentProps {
 }
 
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    // Ensure MathJax is loaded for rehype-mathjax
-    const timer = setTimeout(() => {
-      ensureMathJax().then(() => {
-        if (cancelled) return;
-        // rehype-mathjax will handle the rendering, but we ensure MathJax is available
-        const w = window as any;
-        if (w.MathJax && w.MathJax.typesetPromise && containerRef.current) {
-          // Let rehype-mathjax handle most of the work, but re-typeset if needed
-          w.MathJax.typesetPromise([containerRef.current]).catch((err: any) => {
-            console.warn('MathJax typeset error:', err);
-          });
-        }
-      }).catch((err) => {
-        console.warn('MathJax loading error:', err);
-      });
-    }, 50);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [content]);
-
   return (
-    <div ref={containerRef} className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 tex2jax_process">
+    <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeHighlight, rehypeRaw, rehypeMathjax]}
+        rehypePlugins={[
+          rehypeHighlight,
+          rehypeRaw,
+          [rehypeKatex, {
+            strict: false,
+            errorColor: '#cc0000',
+            throwOnError: false,
+            trust: true,
+            macros: {
+              "\\RR": "\\mathbb{R}",
+              "\\NN": "\\mathbb{N}",
+              "\\CC": "\\mathbb{C}",
+              "\\ZZ": "\\mathbb{Z}",
+              "\\QQ": "\\mathbb{Q}",
+              "\\omega": "\\omega",
+              "\\Omega": "\\Omega"
+            }
+          }]
+        ]}
         components={{
           h1: ({children}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-3 border-b">{children}</h1>,
           h2: ({children}) => <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4">{children}</h2>,
