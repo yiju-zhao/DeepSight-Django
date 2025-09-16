@@ -287,7 +287,8 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
               "\\NN": "\\mathbb{N}",
               "\\CC": "\\mathbb{C}",
               "\\ZZ": "\\mathbb{Z}",
-              "\\QQ": "\\mathbb{Q}"
+              "\\QQ": "\\mathbb{Q}",
+              "\\hdots": "\\cdot\\cdot\\cdot"
             }
           }]
         ]}
