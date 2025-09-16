@@ -10,7 +10,7 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
-import { InlineMath, BlockMath } from 'react-katex';
+import rehypeKatex from "rehype-katex";
 import "highlight.js/styles/github.css";
 import "katex/dist/katex.min.css";
 import "../../styles/math.css";
@@ -274,38 +274,6 @@ interface MarkdownContentProps {
   fileId?: string;
 }
 
-// Math renderer component using react-katex - no preprocessing
-interface MathRendererProps {
-  children: React.ReactNode;
-  inline?: boolean;
-}
-
-const MathRenderer: React.FC<MathRendererProps> = ({ children, inline = false }) => {
-  const content = children?.toString() || '';
-
-  try {
-    if (inline) {
-      return (
-        <InlineMath
-          math={content}
-          errorColor="#cc0000"
-          throwOnError={false}
-        />
-      );
-    } else {
-      return (
-        <BlockMath
-          math={content}
-          errorColor="#cc0000"
-          throwOnError={false}
-        />
-      );
-    }
-  } catch (error) {
-    console.warn('Math rendering error:', error);
-    return <span style={{ color: '#cc0000' }}>[Math Error: {content}]</span>;
-  }
-};
 
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
 
@@ -313,7 +281,25 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
     <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeHighlight, rehypeRaw]}
+        rehypePlugins={[
+          rehypeHighlight,
+          rehypeRaw,
+          [rehypeKatex, {
+            strict: false,
+            throwOnError: false,
+            errorColor: '#cc0000',
+            trust: true,
+            macros: {
+              '\\abs': '\\left|#1\\right|',
+              '\\pmb': '\\boldsymbol{#1}',
+              '\\RR': '\\mathbb{R}',
+              '\\NN': '\\mathbb{N}',
+              '\\CC': '\\mathbb{C}',
+              '\\ZZ': '\\mathbb{Z}',
+              '\\QQ': '\\mathbb{Q}',
+            }
+          }]
+        ]}
         components={{
           h1: ({children}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-3 border-b">{children}</h1>,
           h2: ({children}) => <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4">{children}</h2>,
@@ -339,9 +325,6 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
               {children}
             </a>
           ),
-          // Custom math renderers using react-katex
-          math: ({children}) => <MathRenderer>{children}</MathRenderer>,
-          inlineMath: ({children}) => <MathRenderer inline>{children}</MathRenderer>,
         }}
       >
         {content}
