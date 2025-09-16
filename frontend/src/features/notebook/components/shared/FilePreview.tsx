@@ -1143,11 +1143,28 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                     console.error('Missing file ID or notebook ID for PDF view');
                     return;
                   }
-                  // Use raw endpoint to open PDF in new tab
+
                   const pdfUrl = getFileUrl(source.file_id, 'raw');
                   console.log('Opening PDF with URL:', pdfUrl);
 
-                  // Create a secure blob and open in new tab
+                  // Try direct URL first (works best for authenticated endpoints)
+                  try {
+                    // Test if the URL is accessible
+                    const testResponse = await fetch(pdfUrl, {
+                      method: 'HEAD',
+                      credentials: 'include'
+                    });
+
+                    if (testResponse.ok) {
+                      // Direct URL works - open it directly
+                      window.open(pdfUrl, '_blank');
+                      return;
+                    }
+                  } catch (directError) {
+                    console.log('Direct URL failed, trying blob approach:', directError);
+                  }
+
+                  // Fallback: Create blob URL
                   const response = await fetch(pdfUrl, {
                     credentials: 'include'
                   });
@@ -1157,10 +1174,26 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                   }
 
                   const blob = await response.blob();
+
+                  // Verify it's actually a PDF
+                  if (!blob.type.includes('pdf') && blob.size > 0) {
+                    console.warn('Response may not be a PDF:', blob.type);
+                  }
+
                   const result = createSecureBlob([blob], { type: 'application/pdf' });
 
-                  // Open PDF in new tab
-                  window.open(result.url, '_blank');
+                  // Open blob URL in new tab
+                  const newTab = window.open(result.url, '_blank');
+
+                  if (!newTab) {
+                    throw new Error('Popup blocked - please allow popups for this site');
+                  }
+
+                  // Clean up blob URL after a delay
+                  setTimeout(() => {
+                    result.revoke();
+                  }, 5000);
+
                 } catch (error) {
                   console.error('PDF open failed:', error);
                   alert(`Failed to open PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1211,11 +1244,28 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                   console.error('Missing file ID or notebook ID for PDF view');
                   return;
                 }
-                // Use raw endpoint to open PDF in new tab
+
                 const pdfUrl = getFileUrl(source.file_id, 'raw');
                 console.log('Opening PDF with URL:', pdfUrl);
 
-                // Create a secure blob and open in new tab
+                // Try direct URL first (works best for authenticated endpoints)
+                try {
+                  // Test if the URL is accessible
+                  const testResponse = await fetch(pdfUrl, {
+                    method: 'HEAD',
+                    credentials: 'include'
+                  });
+
+                  if (testResponse.ok) {
+                    // Direct URL works - open it directly
+                    window.open(pdfUrl, '_blank');
+                    return;
+                  }
+                } catch (directError) {
+                  console.log('Direct URL failed, trying blob approach:', directError);
+                }
+
+                // Fallback: Create blob URL
                 const response = await fetch(pdfUrl, {
                   credentials: 'include'
                 });
@@ -1225,10 +1275,26 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                 }
 
                 const blob = await response.blob();
+
+                // Verify it's actually a PDF
+                if (!blob.type.includes('pdf') && blob.size > 0) {
+                  console.warn('Response may not be a PDF:', blob.type);
+                }
+
                 const result = createSecureBlob([blob], { type: 'application/pdf' });
 
-                // Open PDF in new tab
-                window.open(result.url, '_blank');
+                // Open blob URL in new tab
+                const newTab = window.open(result.url, '_blank');
+
+                if (!newTab) {
+                  throw new Error('Popup blocked - please allow popups for this site');
+                }
+
+                // Clean up blob URL after a delay
+                setTimeout(() => {
+                  result.revoke();
+                }, 5000);
+
               } catch (error) {
                 console.error('PDF open failed:', error);
                 alert(`Failed to open PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
