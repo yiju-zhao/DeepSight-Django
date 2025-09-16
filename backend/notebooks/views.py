@@ -98,12 +98,17 @@ class NotebookViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         try:
-            with transaction.atomic():
-                notebook = serializer.save(
-                    user=self.request.user,
-                    created_at=timezone.now(),
-                    updated_at=timezone.now(),
-                )
+            # Use the service layer to create notebook with RAGFlow integration
+            validated_data = serializer.validated_data
+            notebook = self.notebook_service.create_notebook(
+                user=self.request.user,
+                name=validated_data['name'],
+                description=validated_data.get('description', '')
+            )
+
+            # Update the serializer's instance with the created notebook
+            serializer.instance = notebook
+
         except Exception as e:
             logger.exception(f"Failed to create notebook: {e}")
             raise

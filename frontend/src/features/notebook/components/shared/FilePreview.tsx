@@ -1147,10 +1147,42 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                     console.error('Missing file ID or notebook ID for download');
                     return;
                   }
-                  // Use raw endpoint to force download
+                  // Use raw endpoint to force download with credentials
                   const downloadUrl = getFileUrl(source.file_id, 'raw');
                   console.log('Downloading PDF with URL:', downloadUrl);
-                  window.open(downloadUrl, '_blank');
+
+                  // Use fetch with credentials instead of window.open to ensure authentication
+                  const response = await fetch(downloadUrl, {
+                    credentials: 'include'
+                  });
+
+                  if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                  }
+
+                  const blob = await response.blob();
+                  const url = window.URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+
+                  // Extract filename from content-disposition or use default
+                  const contentDisposition = response.headers.get('Content-Disposition');
+                  let filename = 'document.pdf';
+                  if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                    if (filenameMatch) {
+                      filename = filenameMatch[1];
+                    }
+                  } else if (source.title) {
+                    // Use source title as fallback
+                    filename = source.title.endsWith('.pdf') ? source.title : `${source.title}.pdf`;
+                  }
+
+                  link.download = filename;
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  window.URL.revokeObjectURL(url);
                 } catch (error) {
                   console.error('PDF download failed:', error);
                   alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -1201,10 +1233,42 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                   console.error('Missing file ID or notebook ID for download');
                   return;
                 }
-                // Use raw endpoint to force download
+                // Use raw endpoint to force download with credentials
                 const downloadUrl = getFileUrl(source.file_id, 'raw');
                 console.log('Downloading PDF with URL:', downloadUrl);
-                window.open(downloadUrl, '_blank');
+
+                // Use fetch with credentials instead of window.open to ensure authentication
+                const response = await fetch(downloadUrl, {
+                  credentials: 'include'
+                });
+
+                if (!response.ok) {
+                  throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+
+                // Extract filename from content-disposition or use default
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = 'document.pdf';
+                if (contentDisposition) {
+                  const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                  if (filenameMatch) {
+                    filename = filenameMatch[1];
+                  }
+                } else if (source.title) {
+                  // Use source title as fallback
+                  filename = source.title.endsWith('.pdf') ? source.title : `${source.title}.pdf`;
+                }
+
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                window.URL.revokeObjectURL(url);
               } catch (error) {
                 console.error('PDF download failed:', error);
                 alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
