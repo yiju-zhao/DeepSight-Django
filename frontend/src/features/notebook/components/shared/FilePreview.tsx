@@ -1140,15 +1140,15 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
               onClick={async () => {
                 try {
                   if (!source.file_id || !notebookId) {
-                    console.error('Missing file ID or notebook ID for download');
+                    console.error('Missing file ID or notebook ID for PDF view');
                     return;
                   }
-                  // Use raw endpoint to force download with credentials
-                  const downloadUrl = getFileUrl(source.file_id, 'raw');
-                  console.log('Downloading PDF with URL:', downloadUrl);
+                  // Use raw endpoint to open PDF in new tab
+                  const pdfUrl = getFileUrl(source.file_id, 'raw');
+                  console.log('Opening PDF with URL:', pdfUrl);
 
-                  // Use fetch with credentials instead of window.open to ensure authentication
-                  const response = await fetch(downloadUrl, {
+                  // Create a secure blob and open in new tab
+                  const response = await fetch(pdfUrl, {
                     credentials: 'include'
                   });
 
@@ -1156,21 +1156,20 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                   }
 
-                  // Use downloadFileSecurely utility
-                  let filename = 'document.pdf';
-                  if (source.title) {
-                    filename = source.title.endsWith('.pdf') ? source.title : `${source.title}.pdf`;
-                  }
-                  await downloadFileSecurely(downloadUrl, filename);
+                  const blob = await response.blob();
+                  const result = createSecureBlob([blob], { type: 'application/pdf' });
+
+                  // Open PDF in new tab
+                  window.open(result.url, '_blank');
                 } catch (error) {
-                  console.error('PDF download failed:', error);
-                  alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                  console.error('PDF open failed:', error);
+                  alert(`Failed to open PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
                 }
               }}
               className="text-xs font-medium"
             >
-              <HardDrive className="h-3 w-3 mr-1.5" />
-              Download PDF
+              <FileText className="h-3 w-3 mr-1.5" />
+              Open PDF
             </Button>
           </div>
         </div>
@@ -1209,15 +1208,15 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             onClick={async () => {
               try {
                 if (!source.file_id || !notebookId) {
-                  console.error('Missing file ID or notebook ID for download');
+                  console.error('Missing file ID or notebook ID for PDF view');
                   return;
                 }
-                // Use raw endpoint to force download with credentials
-                const downloadUrl = getFileUrl(source.file_id, 'raw');
-                console.log('Downloading PDF with URL:', downloadUrl);
+                // Use raw endpoint to open PDF in new tab
+                const pdfUrl = getFileUrl(source.file_id, 'raw');
+                console.log('Opening PDF with URL:', pdfUrl);
 
-                // Use fetch with credentials instead of window.open to ensure authentication
-                const response = await fetch(downloadUrl, {
+                // Create a secure blob and open in new tab
+                const response = await fetch(pdfUrl, {
                   credentials: 'include'
                 });
 
@@ -1225,27 +1224,26 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                   throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
-                // Use downloadFileSecurely utility
-                let filename = 'document.pdf';
-                if (source.title) {
-                  filename = source.title.endsWith('.pdf') ? source.title : `${source.title}.pdf`;
-                }
-                await downloadFileSecurely(downloadUrl, filename);
+                const blob = await response.blob();
+                const result = createSecureBlob([blob], { type: 'application/pdf' });
+
+                // Open PDF in new tab
+                window.open(result.url, '_blank');
               } catch (error) {
-                console.error('PDF download failed:', error);
-                alert(`Failed to download PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                console.error('PDF open failed:', error);
+                alert(`Failed to open PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
               }
             }}
             className="text-xs"
           >
-            <HardDrive className="h-3 w-3 mr-1" />
-            Download PDF
+            <FileText className="h-3 w-3 mr-1" />
+            Open PDF
           </Button>
         </div>
         
         <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
           <p className="text-sm text-yellow-800">
-            {state.preview.error || "PDF content could not be extracted. Click 'Download' to view the original document."}
+            {state.preview.error || "PDF content could not be extracted. Click 'Open PDF' to view the original document."}
           </p>
         </div>
       </div>
