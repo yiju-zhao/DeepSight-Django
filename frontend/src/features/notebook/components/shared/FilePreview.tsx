@@ -276,18 +276,18 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
           rehypeHighlight,
           rehypeRaw,
           [rehypeKatex, {
-            strict: false,
+            strict: 'ignore',
             errorColor: '#cc0000',
             throwOnError: false,
             trust: true,
+            fleqn: false,
+            leqno: false,
             macros: {
               "\\RR": "\\mathbb{R}",
               "\\NN": "\\mathbb{N}",
               "\\CC": "\\mathbb{C}",
               "\\ZZ": "\\mathbb{Z}",
-              "\\QQ": "\\mathbb{Q}",
-              "\\omega": "\\omega",
-              "\\Omega": "\\Omega"
+              "\\QQ": "\\mathbb{Q}"
             }
           }]
         ]}
