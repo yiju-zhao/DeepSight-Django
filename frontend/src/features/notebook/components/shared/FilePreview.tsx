@@ -267,7 +267,24 @@ interface MarkdownContentProps {
   fileId?: string;
 }
 
+// Preprocess LaTeX to fix common syntax issues
+const preprocessLatex = (content: string): string => {
+  // Fix double superscripts like b^{\prime}^{...} -> {b'}^{...}
+  // This handles the specific case: b^{\prime}^{\frac{|D|-2}{|D|}}
+  content = content.replace(/([a-zA-Z])\s*\^\s*\{\s*\\prime\s*\}\s*\^\s*\{([^}]+)\}/g, '{$1\'}^{$2}');
+
+  // Also handle cases without braces around prime
+  content = content.replace(/([a-zA-Z])\s*\^\s*\\prime\s*\^\s*\{([^}]+)\}/g, '{$1\'}^{$2}');
+
+  // Fix absolute value notation |D| to use proper LaTeX
+  content = content.replace(/\|\s*([^|]+)\s*\|/g, '\\abs{$1}');
+
+  return content;
+};
+
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
+  const processedContent = preprocessLatex(content);
+
   return (
     <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
       <ReactMarkdown
@@ -282,13 +299,17 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
             trust: true,
             fleqn: false,
             leqno: false,
+            maxSize: Infinity,
+            maxExpand: 1000,
             macros: {
               "\\RR": "\\mathbb{R}",
               "\\NN": "\\mathbb{N}",
               "\\CC": "\\mathbb{C}",
               "\\ZZ": "\\mathbb{Z}",
               "\\QQ": "\\mathbb{Q}",
-              "\\hdots": "\\cdot\\cdot\\cdot"
+              "\\hdots": "\\cdot\\cdot\\cdot",
+              "\\abs": "\\left|#1\\right|",
+              "\\norm": "\\left\\|#1\\right\\|"
             }
           }]
         ]}
@@ -319,7 +340,7 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
           ),
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );
