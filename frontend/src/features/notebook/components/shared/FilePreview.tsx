@@ -292,6 +292,7 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
             macros: {
               '\\abs': '\\left|#1\\right|',
               '\\pmb': '\\boldsymbol{#1}',
+              '\\hdots': '\\cdots',
               '\\RR': '\\mathbb{R}',
               '\\NN': '\\mathbb{N}',
               '\\CC': '\\mathbb{C}',
