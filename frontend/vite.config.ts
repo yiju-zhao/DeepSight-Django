@@ -219,6 +219,12 @@ export default defineConfig({
   ],
   
   server: {
+    // Enable HTTPS in development to resolve blob URL security warnings
+    // Set VITE_HTTPS=true in your .env file to enable HTTPS
+    https: process.env.VITE_HTTPS === 'true',
+    host: '0.0.0.0', // Allow external connections
+    port: 5173,
+
     proxy: {
       '/api': {
         target: process.env.VITE_BACKEND_URL || 'http://localhost:8000',
