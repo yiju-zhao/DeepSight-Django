@@ -988,7 +988,8 @@ class URLExtractor:
                 file=django_file,
                 upload_file_id=upload_url_id,
                 user_pk=user_id,
-                notebook_id=notebook_id
+                notebook_id=notebook_id,
+                upload_to_ragflow=True
             )
             
             # Log the result structure for debugging
@@ -1022,11 +1023,12 @@ class URLExtractor:
             
             # Process the file using upload processor to update existing KB item
             result = await self.upload_processor.process_upload(
-                django_file, 
+                django_file,
                 upload_file_id=uuid4().hex,
                 user_pk=user_id,
                 notebook_id=notebook_id,
-                kb_item_id=kb_item_id  # Update existing item
+                kb_item_id=kb_item_id,  # Update existing item
+                upload_to_ragflow=True
             )
             
             # The upload processor will have updated the KB item content

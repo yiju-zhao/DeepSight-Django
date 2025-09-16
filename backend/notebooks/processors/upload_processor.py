@@ -228,6 +228,7 @@ class UploadProcessor:
         user_pk: Optional[int] = None,
         notebook_id: Optional[int] = None,
         kb_item_id: Optional[str] = None,
+        upload_to_ragflow: bool = False,
     ) -> Dict[str, Any]:
         """Main entry point for immediate file processing with MinIO storage."""
         temp_path = None
@@ -356,7 +357,11 @@ class UploadProcessor:
                 post_processor = self._init_minio_post_processor()
                 post_process_sync = sync_to_async(post_processor.post_process_mineru_extraction, thread_sensitive=False)
                 await post_process_sync(file_id, processing_result['marker_extraction_result'])
-            
+
+            # Handle RagFlow upload if requested
+            if upload_to_ragflow:
+                await self._handle_ragflow_upload_async(file_id, file_metadata)
+
             # Update final status
             if upload_file_id:
                 self._update_upload_status(
@@ -435,6 +440,58 @@ class UploadProcessor:
                 "save_file_error", f"File: {file.name}, error: {str(e)}", "error"
             )
             raise
+
+    async def _handle_ragflow_upload_async(self, file_id: str, file_metadata: Dict[str, Any]) -> None:
+        """Handle RagFlow upload for immediate processing."""
+        try:
+            # Import models inside method to avoid circular imports
+            from ..models import KnowledgeBaseItem
+            from asgiref.sync import sync_to_async
+
+            # Get the KB item to access content and dataset ID
+            get_kb_item_sync = sync_to_async(KnowledgeBaseItem.objects.get, thread_sensitive=False)
+            kb_item = await get_kb_item_sync(id=file_id)
+
+            # Check if notebook has RagFlow dataset ID
+            dataset_id = kb_item.notebook.ragflow_dataset_id
+            if not dataset_id:
+                self.log_operation("ragflow_upload_skipped", f"No RagFlow dataset ID for notebook {kb_item.notebook.id}", "warning")
+                return
+
+            # Check if content is available
+            if not kb_item.content:
+                self.log_operation("ragflow_upload_skipped", f"No content available for KB item {file_id}", "warning")
+                return
+
+            # Upload to RagFlow
+            from infrastructure.ragflow.client import get_ragflow_client
+            ragflow_client_sync = sync_to_async(get_ragflow_client, thread_sensitive=False)
+            ragflow_client = await ragflow_client_sync()
+
+            # Prepare display name from metadata
+            display_name = file_metadata.get("original_filename") or kb_item.title or "document.md"
+
+            upload_document_sync = sync_to_async(ragflow_client.upload_document, thread_sensitive=False)
+            upload_result = await upload_document_sync(
+                dataset_id=dataset_id,
+                content=kb_item.content,
+                display_name=display_name
+            )
+
+            if upload_result and upload_result.get('id'):
+                # Store RagFlow document ID in KB item metadata
+                kb_item.metadata = kb_item.metadata or {}
+                kb_item.metadata['ragflow_document_id'] = upload_result.get('id')
+
+                save_kb_item_sync = sync_to_async(kb_item.save, thread_sensitive=False)
+                await save_kb_item_sync(update_fields=['metadata'])
+
+                self.log_operation("ragflow_upload_success", f"Uploaded KB item {file_id} to RagFlow: {upload_result.get('id')}")
+            else:
+                self.log_operation("ragflow_upload_failed", f"Failed to upload KB item {file_id} to RagFlow - no document ID returned", "error")
+
+        except Exception as e:
+            self.log_operation("ragflow_upload_error", f"Error uploading KB item {file_id} to RagFlow: {e}", "error")
 
 
 # Global singleton instance
