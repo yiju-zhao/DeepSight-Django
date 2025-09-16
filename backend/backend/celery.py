@@ -40,6 +40,7 @@ app.conf.update(
         "notebooks.tasks.process_url_media_task": {"queue": "notebook_processing"},
         "notebooks.tasks.process_url_document_task": {"queue": "notebook_processing"},
         "notebooks.tasks.process_file_upload_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.upload_to_ragflow_task": {"queue": "notebook_processing"},
         "notebooks.tasks.generate_image_captions_task": {"queue": "notebook_processing"},
         "notebooks.tasks.test_caption_generation_task": {"queue": "notebook_processing"},
     },

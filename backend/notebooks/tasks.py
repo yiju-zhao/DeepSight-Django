@@ -79,45 +79,61 @@ def _get_or_create_knowledge_item(kb_item_id: str = None, notebook: Notebook = N
     )
 
 
-def _handle_ragflow_upload(kb_item: KnowledgeBaseItem) -> bool:
+@shared_task(bind=True)
+def upload_to_ragflow_task(self, kb_item_id: str):
     """
-    Handle RagFlow upload logic.
-    
+    Separate task to handle RagFlow upload.
+
+    This task is chained after file processing to ensure the KB item content
+    is fully saved to the database before attempting the upload.
+
+    Args:
+        kb_item_id: ID of the KnowledgeBaseItem to upload to RagFlow
+
     Returns:
-        bool: True if upload was successful, False otherwise
+        dict: Upload result with success status
     """
-    if not kb_item.content:
-        logger.warning(f"KB item {kb_item.id} has no content to upload to RagFlow")
-        return False
-    
     try:
+        # Fetch the KB item from database to ensure we have the latest content
+        kb_item = KnowledgeBaseItem.objects.select_related('notebook').get(id=kb_item_id)
+
+        if not kb_item.content:
+            logger.warning(f"KB item {kb_item.id} has no content to upload to RagFlow")
+            return {"success": False, "error": "No content to upload"}
+
         from infrastructure.ragflow.client import get_ragflow_client
         ragflow_client = get_ragflow_client()
-        
+
         # Upload to RagFlow - we need the notebook's RagFlow dataset ID
-        if kb_item.notebook.ragflow_dataset_id:
-            upload_result = ragflow_client.upload_document(
-                dataset_id=kb_item.notebook.ragflow_dataset_id,
-                content=kb_item.content,
-                display_name=kb_item.title
-            )
-        else:
+        if not kb_item.notebook.ragflow_dataset_id:
             logger.warning(f"No RagFlow dataset ID found for notebook {kb_item.notebook.id}")
-            return False
+            return {"success": False, "error": "No RagFlow dataset ID configured"}
+
+        upload_result = ragflow_client.upload_document(
+            dataset_id=kb_item.notebook.ragflow_dataset_id,
+            content=kb_item.content,
+            display_name=kb_item.title
+        )
+
         if upload_result and upload_result.get('id'):
             logger.info(f"Successfully uploaded KB item {kb_item.id} to RagFlow: {upload_result.get('id')}")
             # Store the RagFlow document ID in the knowledge base item metadata
             kb_item.metadata = kb_item.metadata or {}
             kb_item.metadata['ragflow_document_id'] = upload_result.get('id')
             kb_item.save(update_fields=['metadata'])
-            return True
+            return {"success": True, "ragflow_document_id": upload_result.get('id')}
         else:
             logger.warning(f"Failed to upload KB item {kb_item.id} to RagFlow")
-            return False
-        
+            return {"success": False, "error": "Upload failed - no document ID returned"}
+
+    except KnowledgeBaseItem.DoesNotExist:
+        error_msg = f"KB item {kb_item_id} not found"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
     except Exception as ragflow_error:
-        logger.error(f"RagFlow upload error for KB item {kb_item.id}: {ragflow_error}")
-        return False
+        error_msg = f"RagFlow upload error for KB item {kb_item_id}: {ragflow_error}"
+        logger.error(error_msg)
+        return {"success": False, "error": str(ragflow_error)}
 
 
 
@@ -209,8 +225,13 @@ def _handle_task_completion(kb_item: KnowledgeBaseItem,
         kb_item.parsing_status = "done"
         kb_item.save(update_fields=["parsing_status", "updated_at"])
     
-    # Handle RagFlow upload only
-    _handle_ragflow_upload(kb_item)
+    # Chain RagFlow upload task to ensure content is fully saved
+    try:
+        upload_to_ragflow_task.delay(str(kb_item.id))
+        logger.info(f"Chained RagFlow upload task for KB item {kb_item.id}")
+    except Exception as e:
+        logger.error(f"Failed to chain RagFlow upload task for KB item {kb_item.id}: {e}")
+        # Don't fail the main task if chaining fails
     
     # Update batch status
     _update_batch_item_status(batch_item_id, 'completed', result_data={"file_id": str(kb_item.id)})

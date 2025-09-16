@@ -10,6 +10,7 @@ from ..models import Notebook, BatchJob, BatchJobItem
 from ..tasks import (
     process_url_task,
     process_file_upload_task,
+    upload_to_ragflow_task,
     _check_batch_completion,
     cleanup_old_batch_jobs
 )
