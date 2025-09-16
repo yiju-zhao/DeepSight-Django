@@ -1139,12 +1139,12 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
               variant="outline"
               onClick={async () => {
                 try {
-                  if (!source.file_id || !notebookId) {
+                  if (!source.id || !notebookId) {
                     console.error('Missing file ID or notebook ID for PDF view');
                     return;
                   }
 
-                  const pdfUrl = getFileUrl(source.file_id, 'inline');
+                  const pdfUrl = getFileUrl(source.id, 'inline');
                   console.log('Opening PDF with URL:', pdfUrl);
 
                   // Try direct URL first (works best for authenticated endpoints)
@@ -1240,12 +1240,12 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             variant="default"
             onClick={async () => {
               try {
-                if (!source.file_id || !notebookId) {
+                if (!source.id || !notebookId) {
                   console.error('Missing file ID or notebook ID for PDF view');
                   return;
                 }
 
-                const pdfUrl = getFileUrl(source.file_id, 'inline');
+                const pdfUrl = getFileUrl(source.id, 'inline');
                 console.log('Opening PDF with URL:', pdfUrl);
 
                 // Try direct URL first (works best for authenticated endpoints)
