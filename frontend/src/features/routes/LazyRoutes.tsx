@@ -31,6 +31,11 @@ export const ConferencePage = createLazyRoute(
   'Conference'
 );
 
+export const ConferenceDashboard = createLazyRoute(
+  () => import("@/features/conference/pages/ConferenceDashboard"),
+  'Conference Dashboard'
+);
+
 export const ReportPage = createLazyRoute(
   () => import("@/features/report/pages/ReportPage"),
   'Reports'
@@ -59,11 +64,12 @@ export const SignupPage = createLazyRoute(
 // Export all lazy routes for preloading
 export const lazyRoutes = [
   HomePage,
-  DatasetPage, 
+  DatasetPage,
   NotebookListPage,
   DeepdivePage,
   DashboardPage,
   ConferencePage,
+  ConferenceDashboard,
   ReportPage,
   PodcastPage,
   OrganizationPage,

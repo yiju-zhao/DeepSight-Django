@@ -1,4 +1,8 @@
 // Dashboard components index
-// This file will export dashboard-specific components when they are created
-
-export {};  // Placeholder export to prevent empty file errors
+export { default as DashboardHeader } from './DashboardHeader';
+export { default as ReportsSection } from './ReportsSection';
+export { default as PodcastsSection } from './PodcastsSection';
+export { default as ConferenceSection } from './ConferenceSection';
+export { default as DashboardActions } from './DashboardActions';
+export { default as EmptyState } from './EmptyState';
+export { default as LoadingState } from './LoadingState';

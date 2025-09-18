@@ -19,6 +19,9 @@ class Venue(models.Model):
     def __str__(self):
         return self.name
 
+    class Meta:
+        ordering = ['name']
+
 
 class Instance(models.Model):
     instance_id = models.AutoField(primary_key=True)
@@ -32,6 +35,13 @@ class Instance(models.Model):
 
     def __str__(self):
         return f"{self.venue.name} {self.year}"
+
+    class Meta:
+        ordering = ['-year', 'venue__name']
+        indexes = [
+            models.Index(fields=['venue', 'year']),
+            models.Index(fields=['year']),
+        ]
 
 
 class Publication(models.Model):
@@ -72,10 +82,19 @@ class Publication(models.Model):
         null=True,
         help_text="PDF file stored in MinIO",
     )
-    
+
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        ordering = ['title']
+        indexes = [
+            models.Index(fields=['instance']),
+            models.Index(fields=['instance', 'research_topic']),
+            models.Index(fields=['session']),
+            models.Index(fields=['rating']),
+        ]
 
 
 class Event(models.Model):
@@ -91,3 +110,6 @@ class Event(models.Model):
 
     def __str__(self):
         return self.title
+
+    class Meta:
+        ordering = ['session_id', 'title']

@@ -7,6 +7,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ReportEditor from '@/features/report/components/ReportEditor';
 
 // Import custom hooks and components
@@ -14,11 +15,14 @@ import { useDashboardData, Report, Podcast } from '../hooks/useDashboardData';
 import DashboardHeader from '../components/DashboardHeader';
 import ReportsSection from '../components/ReportsSection';
 import PodcastsSection from '../components/PodcastsSection';
+import ConferenceSection from '../components/ConferenceSection';
 import DashboardActions from '../components/DashboardActions';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
+
   // Centralized data management
   const {
     reports,
@@ -67,6 +71,10 @@ export default function DashboardPage() {
     // TODO: Implement API call to save content
   }, [updateReport]);
 
+  const handleNavigateToConferences = useCallback(() => {
+    navigate('/conferences/dashboard');
+  }, [navigate]);
+
   // Loading state
   if (loading) {
     return <LoadingState />;
@@ -110,7 +118,10 @@ export default function DashboardPage() {
     <div className="p-8 bg-white min-h-screen">
       <DashboardHeader />
 
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Conference Analytics Section - Always show */}
+        <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
+
         {hasContent ? (
           <>
             <ReportsSection

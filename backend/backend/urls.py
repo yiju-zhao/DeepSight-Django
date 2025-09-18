@@ -11,6 +11,7 @@ API Structure:
 - /api/v1/notebooks/ -> Notebook operations and file management
 - /api/v1/podcasts/ -> Podcast generation and management
 - /api/v1/reports/ -> Report generation and management
+- /api/v1/conferences/ -> Conference data and analytics
 """
 
 from django.contrib import admin
@@ -50,8 +51,11 @@ urlpatterns = [
     # Podcast generation and management
     path("api/v1/podcasts/", include("podcast.urls")),
     
-    # Report generation and management  
+    # Report generation and management
     path("api/v1/reports/", include("reports.urls")),
+
+    # Conference data and analytics
+    path("api/v1/conferences/", include("conferences.urls")),
     
     # ========================================
     # API Documentation
@@ -95,6 +99,14 @@ Reports:
 - /api/v1/reports/models/ -> Report configuration
 - /api/v1/reports/jobs/ -> Report jobs (list/create; filter with ?notebook=)
 - /api/v1/reports/jobs/{job_id}/ -> Job detail/cancel/files/content/download/stream
+
+Conferences:
+- /api/v1/conferences/venues/ -> Venue CRUD operations
+- /api/v1/conferences/instances/ -> Conference instances (filter with ?venue=)
+- /api/v1/conferences/publications/ -> Publications (filter with ?instance=)
+- /api/v1/conferences/events/ -> Conference events (filter with ?instance=)
+- /api/v1/conferences/dashboard/dashboard/ -> Dashboard analytics
+- /api/v1/conferences/dashboard/overview/ -> Conferences overview
 
 Documentation:
 - /swagger/ -> Interactive API explorer

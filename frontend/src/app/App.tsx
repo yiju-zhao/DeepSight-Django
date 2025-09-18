@@ -15,6 +15,7 @@ import {
   DeepdivePage,
   DashboardPage,
   ConferencePage,
+  ConferenceDashboard,
   ReportPage,
   PodcastPage,
   OrganizationPage,
@@ -68,6 +69,14 @@ function AppRoutes() {
         } 
       />
       <Route path="/conference" element={<ConferencePage.Component />} />
+      <Route
+        path="/conferences/dashboard"
+        element={
+          <PrivateRoute>
+            <ConferenceDashboard.Component />
+          </PrivateRoute>
+        }
+      />
       <Route path="/report" element={<ReportPage.Component />} />
       <Route path="/podcast" element={<PodcastPage.Component />} />
       <Route path="/organization" element={<OrganizationPage.Component />} />
