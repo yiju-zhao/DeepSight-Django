@@ -8,11 +8,10 @@ def publication_file_path(instance, filename):
     """
     venue   = instance.instance.venue.name.replace(" ", "_")
     year    = instance.instance.year
-    pid     = instance.publication_id or "new"
+    pid     = instance.id or "new"
     return f"publications/{venue}/{year}/{pid}/{filename}"
 
 class Venue(models.Model):
-    id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=255)
     type = models.CharField(max_length=255)
     description = models.TextField()
@@ -36,40 +35,56 @@ class Instance(models.Model):
 
 
 class Publication(models.Model):
-    publication_id = models.AutoField(primary_key=True)
+    # Primary key and relationships
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     instance = models.ForeignKey(Instance, on_delete=models.CASCADE, related_name='publications')
+
+    # Core publication information
     title = models.CharField(max_length=255)
     authors = models.CharField(max_length=255)
-    orgnizations = models.CharField(max_length=255)
-    publish_date = models.DateField()
+    aff = models.CharField(max_length=255)
+    aff_unique = models.CharField(max_length=500, blank=True, null=True)
+    aff_country_unique = models.CharField(max_length=255, blank=True, null=True)
+    author_position = models.CharField(max_length=500, blank=True, null=True)
+    author_homepage = models.CharField(max_length=1000, blank=True, null=True)
+    abstract = models.TextField()
     summary = models.TextField()
+    session = models.CharField(max_length=255, blank=True, null=True)
+    rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
+
+    # Publication metadata
     keywords = models.CharField(max_length=500)
     research_topic = models.CharField(max_length=500)
-    abstract       = models.TextField()
+    tag = models.CharField(max_length=255)
 
+    # External identifiers and links
+    external_id = models.CharField(max_length=255, blank=True, null=True)
+    doi = models.CharField(max_length=255)
+    pdf_url = models.CharField(max_length=255)
+    github = models.URLField(blank=True, null=True)
+    site = models.URLField(blank=True, null=True)
+
+    # File storage
     raw_file = models.FileField(
         upload_to=publication_file_path,
-        storage=S3Boto3Storage(),    # uses your MinIO‐configured S3 backend
+        storage=S3Boto3Storage(),
         blank=True,
         null=True,
         help_text="PDF file stored in MinIO",
     )
-
-    tag      = models.CharField(max_length=255)
-    doi      = models.CharField(max_length=255)
-    pdf_url  = models.CharField(max_length=255)
+    
 
     def __str__(self):
         return self.title
 
 
-class Session(models.Model):
-    event_id = models.AutoField(primary_key=True)
+class Event(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session_id = models.IntegerField()
-    instance = models.ForeignKey(Instance, on_delete=models.CASCADE, related_name='sessions')
-    publication = models.ForeignKey(Publication, on_delete=models.SET_NULL, null=True, blank=True, related_name='sessions')
+    instance = models.ForeignKey(Instance, on_delete=models.CASCADE, related_name='events')
     title = models.CharField(max_length=255)
     description = models.TextField()
+    abstract = models.TextField()
     transcript = models.TextField()
     expert_view = models.TextField()
     ai_analysis = models.TextField()
