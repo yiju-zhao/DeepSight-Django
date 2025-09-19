@@ -24,7 +24,7 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
   return (
     <header className="flex-shrink-0 relative z-10">
       <div className="px-3 pt-4 pb-2 md:px-4 lg:px-5 flex justify-between items-center">
-        <div className="flex items-center space-x-4 ml-16">{/* Add left margin for navigation button */}
+        <div className="flex items-center space-x-4">
           {/* Back Button */}
           {showBackButton && (
             <button
