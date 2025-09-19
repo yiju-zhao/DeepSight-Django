@@ -182,10 +182,12 @@ export default function ConferenceDashboard() {
                         </div>
                       </div>
                       <div className="text-sm text-gray-600 mb-2">{instance.venue.type}</div>
-                      <div className="flex items-center text-xs text-gray-500">
-                        <MapPin className="w-3 h-3 mr-1" />
-                        Conference Instance #{instance.instance_id}
-                      </div>
+                      {instance.location && (
+                        <div className="flex items-center text-xs text-gray-500">
+                          <MapPin className="w-3 h-3 mr-1" />
+                          {instance.location}
+                        </div>
+                      )}
                     </button>
                   ))}
                 </div>
