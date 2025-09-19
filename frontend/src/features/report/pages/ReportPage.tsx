@@ -5,6 +5,7 @@ import ReportFilters from "@/features/report/components/ReportFilters";
 import ReportStats from "@/features/report/components/ReportStats";
 import ReportDetail from "@/features/report/components/ReportDetail";
 import { Report, ReportFilters as ReportFiltersType } from "@/features/report/types/type";
+import { Report as QueryReport } from "@/features/report/hooks/useReports";
 
 const ReportPage: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -15,22 +16,25 @@ const ReportPage: React.FC = () => {
   const [filters, setFilters] = useState<ReportFiltersType>({});
 
   // Fetch reports using React Query
-  const { data: reports = [], isLoading, error } = useReportsList(undefined, {
-    filters,
-    staleTime: 30000, // Consider data fresh for 30 seconds
+  const { data: reportsResponse, isLoading, error } = useReportsList(undefined, {
+    enabled: true,
+    refetchInterval: 5000, // Refresh every 5 seconds for active jobs
   });
+
+  // Extract reports array from response
+  const reports = reportsResponse?.reports || [];
 
   // Delete mutation
   const deleteReportMutation = useDeleteReport();
 
-  // Calculate stats from reports
+  // Calculate stats from reports (QueryReport type from API)
   const stats = useMemo(() => ({
     total: reports.length,
-    completed: reports.filter((r: Report) => r.status === 'completed').length,
-    failed: reports.filter((r: Report) => r.status === 'failed').length,
-    pending: reports.filter((r: Report) => r.status === 'pending').length,
-    running: reports.filter((r: Report) => r.status === 'running').length,
-    cancelled: reports.filter((r: Report) => r.status === 'cancelled').length,
+    completed: reports.filter((r: QueryReport) => r.status === 'completed').length,
+    failed: reports.filter((r: QueryReport) => r.status === 'failed').length,
+    pending: reports.filter((r: QueryReport) => r.status === 'pending').length,
+    running: reports.filter((r: QueryReport) => r.status === 'running').length,
+    cancelled: reports.filter((r: QueryReport) => r.status === 'cancelled').length,
   }), [reports]);
 
   // Filter and sort reports

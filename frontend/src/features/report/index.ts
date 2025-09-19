@@ -9,7 +9,27 @@ export {
   ReportListItem,
   ReportStats as ReportStatsComponent
 } from './components';
-// export { default as reportSlice } from './reportSlice'; // REMOVED - Now using React Query
-export * from './hooks/useReports'; // Export React Query hooks
+
+// Export React Query hooks with specific names to avoid conflicts
+export {
+  useReportsList,
+  useReport,
+  useReportContent,
+  useReportModels,
+  useCreateReport,
+  useUpdateReport,
+  useCancelReport,
+  useDeleteReport,
+  useReportsUtils,
+  // Export types with 'Query' suffix to distinguish from legacy types
+  type Report as QueryReport,
+  type ReportListResponse,
+  type ReportContentResponse,
+  type ReportGenerationRequest as QueryReportGenerationRequest,
+  type CreateReportResponse,
+} from './hooks/useReports';
+
 export * from './services/ReportService';
+
+// Export legacy types (these will be the main ones used in the app)
 export * from './types/type';

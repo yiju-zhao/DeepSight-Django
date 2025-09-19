@@ -66,19 +66,47 @@ export interface OrganizationsOverview {
 // =====================================================================
 
 /**
+ * Helper function to check if data is an array of reports
+ */
+function isReportArray(data: any): data is Report[] {
+  return Array.isArray(data);
+}
+
+/**
+ * Helper function to check if data is an array of podcasts
+ */
+function isPodcastArray(data: any): data is Podcast[] {
+  return Array.isArray(data);
+}
+
+/**
  * Hook to fetch reports list
  */
 export function useReports(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.reports.list(),
     queryFn: async (): Promise<Report[]> => {
-      return apiClient.get('/reports/jobs/');
+      const response = await apiClient.get('/reports/jobs/');
+
+      // Handle different response formats
+      if (Array.isArray(response)) {
+        return response;
+      }
+      // If response has a reports property, use that
+      if (response && typeof response === 'object' && 'reports' in response) {
+        return (response as any).reports || [];
+      }
+      // Default to empty array
+      return [];
     },
     enabled: options?.enabled ?? true,
     // Auto-refresh when there are active jobs
     refetchInterval: (query) => {
-      const data = query?.state?.data as Report[] | undefined;
-      const hasActiveJobs = data?.some(report =>
+      const data = query?.state?.data;
+      if (!isReportArray(data)) {
+        return false;
+      }
+      const hasActiveJobs = data.some(report =>
         report.status === 'running' || report.status === 'pending'
       );
       return hasActiveJobs ? 5000 : false; // 5 seconds for active jobs
@@ -94,13 +122,27 @@ export function usePodcasts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.podcasts.list(),
     queryFn: async (): Promise<Podcast[]> => {
-      return apiClient.get('/podcasts/jobs/');
+      const response = await apiClient.get('/podcasts/jobs/');
+
+      // Handle different response formats
+      if (Array.isArray(response)) {
+        return response;
+      }
+      // If response has a podcasts property, use that
+      if (response && typeof response === 'object' && 'podcasts' in response) {
+        return (response as any).podcasts || [];
+      }
+      // Default to empty array
+      return [];
     },
     enabled: options?.enabled ?? true,
     // Auto-refresh when there are active jobs
     refetchInterval: (query) => {
-      const data = query?.state?.data as Podcast[] | undefined;
-      const hasActiveJobs = data?.some(podcast =>
+      const data = query?.state?.data;
+      if (!isPodcastArray(data)) {
+        return false;
+      }
+      const hasActiveJobs = data.some(podcast =>
         podcast.status === 'generating' || podcast.status === 'pending'
       );
       return hasActiveJobs ? 5000 : false; // 5 seconds for active jobs
@@ -153,12 +195,25 @@ export function useDashboardData(options?: { enabled?: boolean }) {
       {
         queryKey: queryKeys.reports.list(),
         queryFn: async (): Promise<Report[]> => {
-          return apiClient.get('/reports/jobs/');
+          const response = await apiClient.get('/reports/jobs/');
+          // Handle different response formats
+          if (Array.isArray(response)) {
+            return response;
+          }
+          // If response has a reports property, use that
+          if (response && typeof response === 'object' && 'reports' in response) {
+            return (response as any).reports || [];
+          }
+          // Default to empty array
+          return [];
         },
         enabled: options?.enabled ?? true,
         refetchInterval: (query: any) => {
-          const data = query?.state?.data as Report[] | undefined;
-          const hasActiveJobs = data?.some(report =>
+          const data = query?.state?.data;
+          if (!isReportArray(data)) {
+            return false;
+          }
+          const hasActiveJobs = data.some(report =>
             report.status === 'running' || report.status === 'pending'
           );
           return hasActiveJobs ? 5000 : false;
@@ -168,12 +223,25 @@ export function useDashboardData(options?: { enabled?: boolean }) {
       {
         queryKey: queryKeys.podcasts.list(),
         queryFn: async (): Promise<Podcast[]> => {
-          return apiClient.get('/podcasts/jobs/');
+          const response = await apiClient.get('/podcasts/jobs/');
+          // Handle different response formats
+          if (Array.isArray(response)) {
+            return response;
+          }
+          // If response has a podcasts property, use that
+          if (response && typeof response === 'object' && 'podcasts' in response) {
+            return (response as any).podcasts || [];
+          }
+          // Default to empty array
+          return [];
         },
         enabled: options?.enabled ?? true,
         refetchInterval: (query: any) => {
-          const data = query?.state?.data as Podcast[] | undefined;
-          const hasActiveJobs = data?.some(podcast =>
+          const data = query?.state?.data;
+          if (!isPodcastArray(data)) {
+            return false;
+          }
+          const hasActiveJobs = data.some(podcast =>
             podcast.status === 'generating' || podcast.status === 'pending'
           );
           return hasActiveJobs ? 5000 : false;

@@ -215,7 +215,10 @@ export function useDeleteReport() {
         queryClient.invalidateQueries({ queryKey: key });
       });
     },
-    ...operationCallbacks.delete('report'),
+    // Don't spread operationCallbacks.delete() as it also has onSuccess
+    onError: (error) => {
+      notifications.error.generic(error instanceof Error ? error.message : 'Failed to delete report');
+    },
   });
 }
 

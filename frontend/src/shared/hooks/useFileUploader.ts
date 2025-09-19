@@ -65,7 +65,7 @@ export function useFileUploader(options: FileUploadOptions = {}) {
       }
       if (type.includes('*')) {
         const baseType = type.split('/')[0];
-        return file.type.startsWith(baseType);
+        return baseType ? file.type.startsWith(baseType) : false;
       }
       return file.type === type;
     });
@@ -89,6 +89,8 @@ export function useFileUploader(options: FileUploadOptions = {}) {
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      if (!file) continue; // Skip if file is undefined
+
       const error = validateFile(file);
 
       if (error) {

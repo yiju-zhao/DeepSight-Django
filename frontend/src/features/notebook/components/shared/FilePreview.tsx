@@ -94,7 +94,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
             images = listJson.images || [];
             imageListCache[cacheKey] = images;
           }
-          const failingName = (src.split('?')[0].split('/').pop() || '').toLowerCase();
+          const failingName = (src.split('?')[0]?.split('/').pop() || '').toLowerCase();
           if (images) {
             const matched = images.find((im: any) => (im.image_url && im.image_url.toLowerCase().includes(failingName)) || (im.original_filename && String(im.original_filename).toLowerCase().includes(failingName))) || images[0];
             if (!matched || !matched.id) throw new Error('Unable to resolve image to inline API');
@@ -457,14 +457,14 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         let replaced = content;
         // Replace markdown image links ![alt](images/filename)
         replaced = replaced.replace(/!\[[^\\]*\]\((?:\.?\/)?images\/(.+?)\)/g, (m, p1) => {
-          const name = String(p1).split(/[?#]/)[0].split('/').pop() || String(p1);
+          const name = String(p1).split(/[?#]/)[0]?.split('/').pop() || String(p1);
           const url = byName[name];
           return url ? m.replace(/\((?:\.?\/)?images\/(.+?)\)/, `(${url})`) : m;
         });
 
         // Replace HTML <img src="images/filename">
         replaced = replaced.replace(/<img([^>]*?)src=["'](?:\.?\/)?images\/(.+?)["']([^>]*?)>/g, (m, pre, p1, post) => {
-          const name = String(p1).split(/[?#]/)[0].split('/').pop() || String(p1);
+          const name = String(p1).split(/[?#]/)[0]?.split('/').pop() || String(p1);
           const url = byName[name];
           return url ? m.replace(/src=["'][^"']+["']/, `src="${url}"`) : m;
         });
