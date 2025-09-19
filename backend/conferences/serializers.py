@@ -2,6 +2,32 @@ from rest_framework import serializers
 from .models import Venue, Instance, Publication, Event
 
 
+class CommaSeparatedField(serializers.Field):
+    """Custom field that splits comma-separated values into a list"""
+
+    def __init__(self, max_items=None, **kwargs):
+        self.max_items = max_items
+        super().__init__(**kwargs)
+
+    def to_representation(self, value):
+        if not value:
+            return []
+
+        # Split by comma and filter out empty strings
+        items = [item.strip() for item in value.split(',') if item.strip()]
+
+        # Apply max_items limit if specified
+        if self.max_items is not None:
+            items = items[:self.max_items]
+
+        return items
+
+    def to_internal_value(self, data):
+        if isinstance(data, list):
+            return ','.join(str(item).strip() for item in data if str(item).strip())
+        return str(data) if data else ''
+
+
 class VenueSerializer(serializers.ModelSerializer):
     """Serializer for Venue model"""
     class Meta:
@@ -45,13 +71,20 @@ class PublicationTableSerializer(serializers.ModelSerializer):
     instance_year = serializers.IntegerField(source='instance.year', read_only=True)
     venue_name = serializers.CharField(source='instance.venue.name', read_only=True)
 
+    # Use custom fields for comma-separated values
+    authors_list = CommaSeparatedField(source='authors', read_only=True)
+    countries_list = CommaSeparatedField(source='aff_country_unique', read_only=True)
+    keywords_list = CommaSeparatedField(source='keywords', read_only=True)
+
     class Meta:
         model = Publication
         fields = [
             'id', 'title', 'authors', 'rating', 'research_topic',
             'session', 'aff_unique', 'aff_country_unique',
             'keywords', 'pdf_url', 'github', 'site',
-            'instance_year', 'venue_name'
+            'instance_year', 'venue_name',
+            # Add the new split fields
+            'authors_list', 'countries_list', 'keywords_list'
         ]
 
 

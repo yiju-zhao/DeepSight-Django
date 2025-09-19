@@ -144,21 +144,57 @@ export function PublicationsTable({
                         {publication.title}
                       </div>
                       <div className="text-xs text-gray-600 line-clamp-2">
-                        {publication.keywords.split(',').slice(0, 3).join(', ')}
+                        {publication.keywords_list ?
+                          publication.keywords_list.slice(0, 3).join(', ') :
+                          publication.keywords.split(',').slice(0, 3).join(', ')
+                        }
                       </div>
                     </div>
                   </td>
 
                   <td className="py-4 px-4">
-                    <div className="space-y-1">
-                      <div className="text-sm text-gray-900 line-clamp-2">
-                        {publication.authors.split(',').slice(0, 3).join(', ')}
-                        {publication.authors.split(',').length > 3 && '...'}
+                    <div className="space-y-2">
+                      <div className="text-sm text-gray-900">
+                        {publication.authors_list ? (
+                          <>
+                            {publication.authors_list.slice(0, 3).map((author, index) => (
+                              <span key={index} className="inline-block">
+                                {author}
+                                {index < Math.min(publication.authors_list!.length - 1, 2) && ', '}
+                              </span>
+                            ))}
+                            {publication.authors_list.length > 3 && (
+                              <span className="text-gray-500"> +{publication.authors_list.length - 3} more</span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            {publication.authors.split(',').slice(0, 3).join(', ')}
+                            {publication.authors.split(',').length > 3 && '...'}
+                          </>
+                        )}
                       </div>
-                      {publication.aff_country_unique && (
-                        <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                          {publication.aff_country_unique}
-                        </span>
+                      {(publication.countries_list || publication.aff_country_unique) && (
+                        <div className="flex flex-wrap gap-1">
+                          {publication.countries_list ? (
+                            <>
+                              {publication.countries_list.slice(0, 3).map((country, index) => (
+                                <span key={index} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                  {country}
+                                </span>
+                              ))}
+                              {publication.countries_list.length > 3 && (
+                                <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                                  +{publication.countries_list.length - 3}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                              {publication.aff_country_unique}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   </td>
