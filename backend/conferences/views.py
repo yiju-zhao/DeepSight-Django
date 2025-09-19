@@ -14,6 +14,8 @@ from .serializers import (
     VenueSerializer, InstanceSerializer, PublicationSerializer,
     EventSerializer
 )
+from .services import publication_data_service
+from .utils import split_comma_values
 
 
 class StandardPageNumberPagination(PageNumberPagination):
@@ -78,17 +80,8 @@ class OverviewViewSet(viewsets.ViewSet):
     """ViewSet for dashboard analytics and overview"""
     permission_classes = [IsAuthenticated]
 
-    def _split_comma_values(self, field_value):
-        """Helper to split comma-separated values and filter out blanks"""
-        if not field_value:
-            return []
-        return [item.strip() for item in field_value.split(',') if item.strip()]
-
-    def _split_semicolon_values(self, field_value):
-        """Helper to split semicolon-separated values and filter out blanks"""
-        if not field_value:
-            return []
-        return [item.strip() for item in field_value.split(';') if item.strip()]
+    # Removed: _split_comma_values and _split_semicolon_values methods
+    # Now using centralized text_splitting_service
 
     def _get_publications_queryset(self, venue=None, year=None, instance_id=None):
         """Get filtered publications queryset"""
@@ -110,45 +103,19 @@ class OverviewViewSet(viewsets.ViewSet):
         """Calculate KPI metrics"""
         total_publications = publications.count()
 
-        # Count unique authors (handle comma-separated)
-        all_authors = []
-        for pub in publications:
-            if pub.authors:
-                all_authors.extend(self._split_comma_values(pub.authors))
-        unique_authors = len(set(all_authors))
+        # Use service for aggregation processing
+        aggregation_data = publication_data_service.process_publications_for_aggregation(publications)
 
-        # Count unique affiliations (handle semicolon-separated values)
-        all_affiliations = set()
-        for pub in publications:
-            if pub.aff_unique:
-                affiliations = self._split_semicolon_values(pub.aff_unique)
-                all_affiliations.update(affiliations)
-        unique_affiliations = len(all_affiliations)
-
-        # Count unique countries (handle comma-separated values)
-        all_countries = set()
-        for pub in publications:
-            if pub.aff_country_unique:
-                countries = self._split_comma_values(pub.aff_country_unique)
-                all_countries.update(countries)
-        unique_countries = len(all_countries)
+        unique_authors = aggregation_data['unique_authors']
+        unique_affiliations = aggregation_data['unique_affiliations']
+        unique_countries = aggregation_data['unique_countries']
 
         # Average rating
         avg_rating = publications.aggregate(Avg('rating'))['rating__avg'] or 0
 
-        # Top regions (countries) - use comma-separated aff_country_unique
-        region_counts = Counter()
-        for pub in publications:
-            if pub.aff_country_unique:
-                countries = self._split_comma_values(pub.aff_country_unique)
-                region_counts.update(countries)
-
-        # Top organizations (affiliations) - use semicolon-separated aff_unique
-        organization_counts = Counter()
-        for pub in publications:
-            if pub.aff_unique:
-                affiliations = self._split_semicolon_values(pub.aff_unique)
-                organization_counts.update(affiliations)
+        # Use aggregation data for counts
+        region_counts = Counter(aggregation_data['all_countries'])
+        organization_counts = Counter(aggregation_data['all_affiliations'])
 
         # Resource counts
         resource_counts = {
@@ -173,26 +140,13 @@ class OverviewViewSet(viewsets.ViewSet):
         # Research topics
         topics = Counter(pub.research_topic for pub in publications if pub.research_topic)
 
-        # Top affiliations
-        top_affiliations = Counter()
-        for pub in publications:
-            if pub.aff_unique:
-                affiliations = self._split_semicolon_values(pub.aff_unique)
-                top_affiliations.update(affiliations)
+        # Use service for processing publications data
+        aggregation_data = publication_data_service.process_publications_for_aggregation(publications)
 
-        # Top countries
-        top_countries = Counter()
-        for pub in publications:
-            if pub.aff_country_unique:
-                countries = self._split_comma_values(pub.aff_country_unique)
-                top_countries.update(countries)
-
-        # Top keywords
-        top_keywords = Counter()
-        for pub in publications:
-            if pub.keywords:
-                keywords = self._split_semicolon_values(pub.keywords)
-                top_keywords.update(keywords)
+        # Top affiliations, countries, and keywords from aggregated data
+        top_affiliations = Counter(aggregation_data['all_affiliations'])
+        top_countries = Counter(aggregation_data['all_countries'])
+        top_keywords = Counter(aggregation_data['all_keywords'])
 
         # Ratings histogram
         ratings = [pub.rating for pub in publications if pub.rating is not None]
@@ -201,11 +155,11 @@ class OverviewViewSet(viewsets.ViewSet):
         # Session types
         session_types = Counter(pub.session for pub in publications if pub.session)
 
-        # Author positions
+        # Author positions (comma-separated)
         author_positions = Counter()
         for pub in publications:
             if pub.author_position:
-                positions = self._split_comma_values(pub.author_position)
+                positions = split_comma_values(pub.author_position)
                 author_positions.update(positions)
 
         return {

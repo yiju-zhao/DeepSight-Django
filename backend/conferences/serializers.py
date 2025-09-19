@@ -1,31 +1,6 @@
 from rest_framework import serializers
 from .models import Venue, Instance, Publication, Event
-
-
-class CommaSeparatedField(serializers.Field):
-    """Custom field that splits comma-separated values into a list"""
-
-    def __init__(self, max_items=None, **kwargs):
-        self.max_items = max_items
-        super().__init__(**kwargs)
-
-    def to_representation(self, value):
-        if not value:
-            return []
-
-        # Split by comma and filter out empty strings
-        items = [item.strip() for item in value.split(',') if item.strip()]
-
-        # Apply max_items limit if specified
-        if self.max_items is not None:
-            items = items[:self.max_items]
-
-        return items
-
-    def to_internal_value(self, data):
-        if isinstance(data, list):
-            return ','.join(str(item).strip() for item in data if str(item).strip())
-        return str(data) if data else ''
+from .utils import split_comma_values, split_semicolon_values
 
 
 class VenueSerializer(serializers.ModelSerializer):
@@ -71,10 +46,10 @@ class PublicationTableSerializer(serializers.ModelSerializer):
     instance_year = serializers.IntegerField(source='instance.year', read_only=True)
     venue_name = serializers.CharField(source='instance.venue.name', read_only=True)
 
-    # Use custom fields for comma-separated values
-    authors_list = CommaSeparatedField(source='authors', read_only=True)
-    countries_list = CommaSeparatedField(source='aff_country_unique', read_only=True)
-    keywords_list = CommaSeparatedField(source='keywords', read_only=True)
+    # Split fields using service layer
+    authors_list = serializers.SerializerMethodField()
+    countries_list = serializers.SerializerMethodField()
+    keywords_list = serializers.SerializerMethodField()
 
     class Meta:
         model = Publication
@@ -86,6 +61,18 @@ class PublicationTableSerializer(serializers.ModelSerializer):
             # Add the new split fields
             'authors_list', 'countries_list', 'keywords_list'
         ]
+
+    def get_authors_list(self, obj):
+        """Get split list of authors using utils"""
+        return split_comma_values(obj.authors)
+
+    def get_countries_list(self, obj):
+        """Get split list of countries using utils"""
+        return split_comma_values(obj.aff_country_unique)
+
+    def get_keywords_list(self, obj):
+        """Get split list of keywords using utils"""
+        return split_semicolon_values(obj.keywords)
 
 
 class EventSerializer(serializers.ModelSerializer):
