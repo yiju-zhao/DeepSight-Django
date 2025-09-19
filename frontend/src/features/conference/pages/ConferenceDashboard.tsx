@@ -92,17 +92,22 @@ export default function ConferenceDashboard() {
   const { data: overviewData } = useOverview();
 
   // Auto-scroll to dashboard content when a conference is selected
-  useEffect(() => {
-    if (matchingInstance && dashboardContentRef.current) {
+  const scrollToDashboard = () => {
+    if (dashboardContentRef.current) {
       // Small delay to ensure the content is rendered
-      const timer = setTimeout(() => {
+      setTimeout(() => {
         dashboardContentRef.current?.scrollIntoView({
           behavior: 'smooth',
           block: 'start'
         });
       }, 300);
+    }
+  };
 
-      return () => clearTimeout(timer);
+  // Auto-scroll when matchingInstance changes (new selection)
+  useEffect(() => {
+    if (matchingInstance) {
+      scrollToDashboard();
     }
   }, [matchingInstance]);
 
@@ -126,6 +131,9 @@ export default function ConferenceDashboard() {
       setSelectedYear(instance.year);
       setSelectedInstance(instanceId);
       setCurrentPage(1);
+
+      // Always scroll to dashboard when an instance is clicked, even if it's already selected
+      setTimeout(() => scrollToDashboard(), 100);
     }
   };
 
