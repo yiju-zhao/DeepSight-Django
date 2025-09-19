@@ -35,7 +35,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-open on hover near left edge
+  // Auto-open on hover near left edge with intelligent closing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       const isNearLeftEdge = e.clientX <= 20;
@@ -43,7 +43,10 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
 
       if (isNearLeftEdge && !isOpen) {
         setIsOpen(true);
-        setShowHint(false); // Hide hint when user discovers navigation
+        setShowHint(false);
+      } else if (isOpen && e.clientX > 320) {
+        // Auto-close when mouse moves away from navigation area
+        setIsOpen(false);
       }
     };
 
@@ -212,10 +215,6 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
               exit={{ x: -320 }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               className="fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-50 overflow-y-auto"
-              onMouseLeave={() => {
-                // Auto-close when mouse leaves sidebar (with small delay)
-                setTimeout(() => setIsOpen(false), 300);
-              }}
               onMouseEnter={() => {
                 // Keep open when hovering sidebar
                 setIsOpen(true);
@@ -231,12 +230,6 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
                       <p className="text-sm text-gray-600">AI Research Platform</p>
                     </div>
                   </div>
-                  <div className="mt-4 text-xs text-gray-500 bg-blue-50/50 rounded-lg p-3">
-                    <div className="flex items-center space-x-2">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                      <span>Hover navigation - move away to close</span>
-                    </div>
-                  </div>
                 </div>
 
                 {/* Navigation Items */}
@@ -246,21 +239,9 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
 
                 {/* Footer */}
                 <div className="mt-12 pt-6 border-t border-gray-200">
-                  <div className="space-y-3">
-                    <div className="text-xs text-gray-500">
-                      <div className="flex items-center space-x-2 mb-1">
-                        <div className="w-1 h-1 bg-green-500 rounded-full"></div>
-                        <span>Modern hover navigation</span>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-1 h-1 bg-blue-500 rounded-full"></div>
-                        <span>Intelligent auto-close</span>
-                      </div>
-                    </div>
-                    <p className="text-xs text-gray-400">
-                      © 2024 DeepSight. All rights reserved.
-                    </p>
-                  </div>
+                  <p className="text-xs text-gray-400">
+                    © 2024 DeepSight. All rights reserved.
+                  </p>
                 </div>
               </div>
             </motion.div>
