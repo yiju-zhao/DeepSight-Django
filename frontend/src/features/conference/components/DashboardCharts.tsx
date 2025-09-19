@@ -140,50 +140,41 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
 
       </div>
 
-      {/* Popular Keywords - Enhanced Word Cloud */}
+      {/* Popular Keywords - Optimized Word Cloud */}
       <div className="bg-white rounded-lg shadow-sm border p-8">
         <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Popular Keywords</h3>
-        <div className="flex flex-wrap justify-center items-center gap-4 min-h-[300px]">
-          {data.top_keywords.slice(0, 30).map((keyword) => {
+        <div className="flex flex-wrap justify-center items-center gap-2 min-h-[300px] relative">
+          {data.top_keywords.slice(0, 30).map((keyword, index) => {
             const maxCount = Math.max(...data.top_keywords.map(k => k.count));
             const minCount = Math.min(...data.top_keywords.map(k => k.count));
             const ratio = (keyword.count - minCount) / (maxCount - minCount || 1);
 
-            // More dynamic font sizing (12px to 32px)
-            const fontSize = 14 + (ratio * 20);
+            // Enhanced font sizing (16px to 48px for better visibility)
+            const fontSize = 16 + (ratio * 32);
 
-            // Random but consistent positioning and color
+            // Color selection based on keyword characteristics
             const colorIndex = keyword.name.length % COLORS.length;
             const color = COLORS[colorIndex];
 
-            // Different opacity based on count
-            const opacity = 0.7 + (ratio * 0.3);
+            // Position larger keywords more centrally
+            const isLargeKeyword = ratio > 0.6;
+            const zIndex = Math.floor(ratio * 10);
 
             return (
-              <div
+              <span
                 key={keyword.name}
-                className="inline-block m-1 px-3 py-2 rounded-full bg-gradient-to-r hover:scale-110 transition-all duration-300 cursor-pointer"
+                className="inline-block m-1 hover:scale-110 transition-all duration-300 cursor-pointer font-bold"
                 style={{
-                  background: `linear-gradient(45deg, ${color}20, ${color}40)`,
-                  border: `2px solid ${color}`,
-                  opacity: opacity
+                  fontSize: `${fontSize}px`,
+                  color: color,
+                  textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
+                  zIndex: zIndex,
+                  order: isLargeKeyword ? -Math.floor(ratio * 100) : index
                 }}
                 title={`${keyword.name}: ${keyword.count} publications`}
               >
-                <span
-                  className="font-bold whitespace-nowrap"
-                  style={{
-                    fontSize: `${fontSize}px`,
-                    color: color,
-                    textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
-                  }}
-                >
-                  {keyword.name}
-                </span>
-                <span className="ml-2 text-xs text-gray-600 font-medium">
-                  {keyword.count}
-                </span>
-              </div>
+                {keyword.name}
+              </span>
             );
           })}
         </div>
