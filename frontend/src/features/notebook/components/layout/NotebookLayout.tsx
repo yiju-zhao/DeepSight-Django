@@ -5,7 +5,6 @@ import { Toaster } from "@/shared/components/ui/toaster";
 import { Button } from "@/shared/components/ui/button";
 import { LAYOUT_RATIOS, COLORS, SHADOWS, RESPONSIVE_PANELS, PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
 import NotebookHeader from "@/features/notebook/components/layout/NotebookHeader";
-import SidebarMenu from "@/features/notebook/components/layout/SidebarMenu";
 
 interface ModalState {
   isOpen: boolean;
@@ -45,7 +44,6 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 }) => {
   const [isSourcesCollapsed, setIsSourcesCollapsed] = useState(false);
   const [isStudioExpanded, setIsStudioExpanded] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const sourcesListRef = useRef<any>(null);
   const selectionChangeCallbackRef = useRef<(() => void) | null>(null);
 
@@ -103,17 +101,9 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   return (
     <div className="h-screen bg-gradient-to-br from-gray-200 to-gray-300 flex flex-col relative overflow-hidden">
-      {/* Sidebar Menu */}
-      <SidebarMenu 
-        isOpen={menuOpen} 
-        onClose={() => setMenuOpen(false)}
-        currentPath="/deepdive"
-      />
-
       {/* Header */}
-      <NotebookHeader 
+      <NotebookHeader
         notebookTitle={notebookTitle}
-        onMenuToggle={() => setMenuOpen(true)}
       />
 
       {/* Main Content */}

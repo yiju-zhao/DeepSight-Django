@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/shared/hooks/useAuth";
 import { useNotebooks, useCreateNotebook, useDeleteNotebook } from "@/features/notebook/queries";
-import SidebarMenu from "@/features/notebook/components/layout/SidebarMenu";
 import NotebookGrid from "@/features/notebook/components/NotebookGrid";
 import NotebookList from "@/features/notebook/components/NotebookList";
 import CreateNotebookForm from "@/features/notebook/components/CreateNotebookForm";
@@ -29,7 +28,6 @@ export default function NotebookListPage() {
   const deleteMutation = useDeleteNotebook();
 
   // UI state
-  const [menuOpen, setMenuOpen] = useState(false);
   const [isGridView, setIsGridView] = useState(true);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -101,26 +99,11 @@ export default function NotebookListPage() {
   return (
     <AppLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Sidebar Menu */}
-        <SidebarMenu
-          isOpen={menuOpen}
-          onClose={() => setMenuOpen(false)}
-        currentPath="/deepdive"
-      />
-
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-40">
-        <div className="w-full px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-4">
-              <button 
-                onClick={() => setMenuOpen(true)} 
-                className="p-3 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                <svg className="w-7 h-7 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
+        {/* Header */}
+        <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-40">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
+            <div className="flex items-center justify-between h-20">
+              <div className="flex items-center space-x-4 ml-16">{/* Add left margin for navigation button */}
               <div className="flex items-center space-x-4">
                 <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
                   <BookOpen className="w-5 h-5 text-white" />

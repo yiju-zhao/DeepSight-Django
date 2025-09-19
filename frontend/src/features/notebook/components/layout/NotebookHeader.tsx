@@ -1,11 +1,10 @@
 import React from "react";
-import { ArrowLeft, Menu, LogOut } from "lucide-react";
+import { ArrowLeft, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/shared/hooks/useAuth";
 
 interface NotebookHeaderProps {
   notebookTitle?: string;
-  onMenuToggle: () => void;
   showBackButton?: boolean;
   backPath?: string;
 }
@@ -14,11 +13,10 @@ interface NotebookHeaderProps {
  * Header component for notebook pages
  * Handles navigation, menu, and logout functionality
  */
-const NotebookHeader: React.FC<NotebookHeaderProps> = ({ 
-  notebookTitle, 
-  onMenuToggle, 
+const NotebookHeader: React.FC<NotebookHeaderProps> = ({
+  notebookTitle,
   showBackButton = true,
-  backPath = "/deepdive" 
+  backPath = "/deepdive"
 }) => {
   const navigate = useNavigate();
   const { handleLogout } = useAuth();
@@ -26,7 +24,7 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
   return (
     <header className="flex-shrink-0 relative z-10">
       <div className="px-3 pt-4 pb-2 md:px-4 lg:px-5 flex justify-between items-center">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 ml-16">{/* Add left margin for navigation button */}
           {/* Back Button */}
           {showBackButton && (
             <button
@@ -37,14 +35,6 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
               <ArrowLeft className="h-5 w-5 text-gray-700" />
             </button>
           )}
-
-          {/* Menu Toggle */}
-          <button
-            onClick={onMenuToggle}
-            className="p-2.5 rounded-xl bg-gray-100/80 hover:bg-gray-200/80 transition-all duration-200 hover:scale-105"
-          >
-            <Menu className="h-5 w-5 text-gray-700" />
-          </button>
 
           {/* Title with elegant styling */}
           {notebookTitle && (

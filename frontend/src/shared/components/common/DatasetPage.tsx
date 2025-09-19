@@ -12,7 +12,7 @@ export default function DatasetPage() {
       <div className="min-h-screen bg-white flex flex-col">
         {/* Header */}
         <header className="border-b border-gray-200 p-4 flex justify-between items-center">
-          <div className="flex items-center">
+          <div className="flex items-center ml-16">{/* Add left margin for navigation button */}
             <Logo />
           </div>
 
