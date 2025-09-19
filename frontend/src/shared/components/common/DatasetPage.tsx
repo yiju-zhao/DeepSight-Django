@@ -1,36 +1,22 @@
 import React, { useState } from "react";
-import { Menu, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Database } from "lucide-react";
 import { Toaster } from "@/shared/components/ui/toaster";
-import Logo from "@/shared/components/common/Logo";
 import Footer from "@/shared/components/common/Footer";
 import AppLayout from "@/shared/components/layout/AppLayout";
+import MainPageHeader from "@/shared/components/header/MainPageHeader";
+import LanguageSwitcher from "@/shared/components/header/LanguageSwitcher";
 
 export default function DatasetPage() {
   return (
     <AppLayout>
       <div className="min-h-screen bg-white flex flex-col">
-        {/* Header */}
-        <header className="border-b border-gray-200 p-4 flex justify-between items-center">
-          <div className="flex items-center ml-16">{/* Add left margin for navigation button */}
-            <Logo />
-          </div>
-
-        {/* Language Switcher */}
-        <div className="relative group">
-          <div className="cursor-pointer text-gray-600 text-lg flex items-center">
-            <span className="text-2xl">文A</span>
-          </div>
-          <div className="absolute right-0 mt-2 w-32 bg-white border border-gray-200 rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-            <button className="w-full flex items-center px-3 py-2 text-sm hover:bg-gray-100">
-              🇺🇸 <span className="ml-2">English</span>
-            </button>
-            <button className="w-full flex items-center px-3 py-2 text-sm hover:bg-gray-100">
-              🇨🇳 <span className="ml-2">简体中文</span>
-            </button>
-          </div>
-        </div>
-      </header>
+        <MainPageHeader
+          title="Dataset"
+          subtitle="Research papers and publications"
+          icon={<Database className="w-5 h-5 text-white" />}
+          iconColor="from-green-500 to-green-600"
+          rightActions={<LanguageSwitcher />}
+        />
 
       {/* Main Content */}
       <main className="flex-1 px-6 py-8">

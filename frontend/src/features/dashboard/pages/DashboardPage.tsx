@@ -13,13 +13,14 @@ import AppLayout from '@/shared/components/layout/AppLayout';
 
 // Import TanStack Query hooks and components
 import { useDashboardData, Report, Podcast } from '../queries';
-import DashboardHeader from '../components/DashboardHeader';
 import ReportsSection from '../components/ReportsSection';
 import PodcastsSection from '../components/PodcastsSection';
 import ConferenceSection from '../components/ConferenceSection';
 import DashboardActions from '../components/DashboardActions';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
+import MainPageHeader from '@/shared/components/header/MainPageHeader';
+import { BarChart3 } from 'lucide-react';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -129,7 +130,12 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="flex flex-col h-screen bg-white">
-        <DashboardHeader />
+        <MainPageHeader
+          title="Dashboard"
+          subtitle="AI-powered insights and analytics"
+          icon={<BarChart3 className="w-5 h-5 text-white" />}
+          iconColor="from-blue-500 to-blue-600"
+        />
 
         <div className="flex-1 p-8 overflow-hidden">
           <div className="max-w-7xl mx-auto h-full">

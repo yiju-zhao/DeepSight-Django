@@ -3,9 +3,9 @@ import { useVenues, useInstances, useDashboard, useOverview } from '../hooks/use
 import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
 import { PublicationsTable } from '../components/PublicationsTable';
-import { AlertCircle } from 'lucide-react';
-import DashboardHeader from '@/features/dashboard/components/DashboardHeader';
+import { AlertCircle, TrendingUp } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
+import MainPageHeader from '@/shared/components/header/MainPageHeader';
 
 export default function ConferenceDashboard() {
   const [selectedVenue, setSelectedVenue] = useState<string>('');
@@ -61,9 +61,11 @@ export default function ConferenceDashboard() {
   return (
     <AppLayout>
       <div className="flex flex-col h-screen bg-white">
-        <DashboardHeader
+        <MainPageHeader
           title="Conference Analysis"
           subtitle="Explore detailed statistics, charts, and publication lists for specific conferences and years"
+          icon={<TrendingUp className="w-5 h-5 text-white" />}
+          iconColor="from-purple-500 to-purple-600"
         />
 
         <div className="flex-1 p-8 overflow-auto">

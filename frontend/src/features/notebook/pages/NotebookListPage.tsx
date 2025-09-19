@@ -6,6 +6,7 @@ import NotebookGrid from "@/features/notebook/components/NotebookGrid";
 import NotebookList from "@/features/notebook/components/NotebookList";
 import CreateNotebookForm from "@/features/notebook/components/CreateNotebookForm";
 import AppLayout from "@/shared/components/layout/AppLayout";
+import MainPageHeader from "@/shared/components/header/MainPageHeader";
 import {
   ChevronDown, Grid, List, Plus, BookOpen, Search, LogOut
 } from "lucide-react";
@@ -99,34 +100,12 @@ export default function NotebookListPage() {
   return (
     <AppLayout>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-        {/* Header */}
-        <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200/60 sticky top-0 z-40">
-          <div className="w-full px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between h-20">
-              <div className="flex items-center space-x-4 ml-16">{/* Add left margin for navigation button */}
-              <div className="flex items-center space-x-4">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center">
-                  <BookOpen className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">DeepDive</h1>
-                  <p className="text-sm text-gray-500">Manage your research</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleLogout}
-                className="p-3 rounded-lg hover:bg-gray-100 transition-colors"
-                title="Log out"
-              >
-                <LogOut className="w-6 h-6 text-gray-600" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+        <MainPageHeader
+          title="DeepDive"
+          subtitle="Manage your research"
+          icon={<BookOpen className="w-5 h-5 text-white" />}
+          iconColor="from-red-500 to-red-600"
+        />
 
       {/* Main Content */}
       <main className="w-full px-4 sm:px-6 lg:px-8 py-8">

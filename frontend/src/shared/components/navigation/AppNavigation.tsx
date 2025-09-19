@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -6,10 +6,9 @@ import {
   BarChart3,
   Database,
   Brain,
-  Menu,
-  X,
   ChevronDown,
-  TrendingUp
+  TrendingUp,
+  ArrowRight
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -25,8 +24,32 @@ interface AppNavigationProps {
 
 const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isHoverZone, setIsHoverZone] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const [showHint, setShowHint] = useState(true);
   const location = useLocation();
+
+  // Hide hint after 10 seconds or when navigation is used
+  useEffect(() => {
+    const timer = setTimeout(() => setShowHint(false), 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Auto-open on hover near left edge
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const isNearLeftEdge = e.clientX <= 20;
+      setIsHoverZone(isNearLeftEdge);
+
+      if (isNearLeftEdge && !isOpen) {
+        setIsOpen(true);
+        setShowHint(false); // Hide hint when user discovers navigation
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    return () => document.removeEventListener('mousemove', handleMouseMove);
+  }, [isOpen]);
 
   const navigationItems: NavigationItem[] = [
     {
@@ -137,27 +160,48 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
 
   return (
     <>
-      {/* Mobile/Desktop Navigation Toggle */}
-      <div className={`fixed top-4 left-4 z-50 ${className}`}>
-        <button
-          onClick={() => setIsOpen(true)}
-          className="p-3 bg-white rounded-lg shadow-lg border hover:bg-gray-50 transition-colors"
-          aria-label="Open navigation"
-        >
-          <Menu className="h-6 w-6 text-gray-700" />
-        </button>
-      </div>
+      {/* Hover trigger zone - invisible area on left edge */}
+      <div
+        className="fixed left-0 top-0 w-5 h-full z-40"
+        onMouseEnter={() => setIsHoverZone(true)}
+      />
+
+      {/* Navigation hint - shows initially to guide users */}
+      <AnimatePresence>
+        {showHint && (
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ delay: 2 }}
+            className="fixed top-1/2 left-4 transform -translate-y-1/2 z-40 pointer-events-none"
+          >
+            <div className="bg-black/80 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2 text-sm">
+              <ArrowRight className="h-4 w-4" />
+              <span>Hover left edge to navigate</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Hover zone indicator */}
+      <motion.div
+        className="fixed left-0 top-0 w-1 h-full bg-blue-500/30 z-30"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isHoverZone ? 1 : 0 }}
+        transition={{ duration: 0.2 }}
+      />
 
       {/* Navigation Sidebar */}
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop */}
+            {/* Backdrop - subtle and auto-closing */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 z-40"
+              className="fixed inset-0 bg-black bg-opacity-20 z-40"
               onClick={() => setIsOpen(false)}
             />
 
@@ -168,21 +212,31 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
               exit={{ x: -320 }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
               className="fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-50 overflow-y-auto"
+              onMouseLeave={() => {
+                // Auto-close when mouse leaves sidebar (with small delay)
+                setTimeout(() => setIsOpen(false), 300);
+              }}
+              onMouseEnter={() => {
+                // Keep open when hovering sidebar
+                setIsOpen(true);
+              }}
             >
               <div className="p-6">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900">DeepSight</h1>
-                    <p className="text-sm text-gray-600">AI Research Platform</p>
+                <div className="mb-8">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-2 h-12 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-900">DeepSight</h1>
+                      <p className="text-sm text-gray-600">AI Research Platform</p>
+                    </div>
                   </div>
-                  <button
-                    onClick={() => setIsOpen(false)}
-                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
-                    aria-label="Close navigation"
-                  >
-                    <X className="h-6 w-6 text-gray-700" />
-                  </button>
+                  <div className="mt-4 text-xs text-gray-500 bg-blue-50/50 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span>Hover navigation - move away to close</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Navigation Items */}
@@ -192,9 +246,21 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
 
                 {/* Footer */}
                 <div className="mt-12 pt-6 border-t border-gray-200">
-                  <p className="text-xs text-gray-500">
-                    © 2024 DeepSight. All rights reserved.
-                  </p>
+                  <div className="space-y-3">
+                    <div className="text-xs text-gray-500">
+                      <div className="flex items-center space-x-2 mb-1">
+                        <div className="w-1 h-1 bg-green-500 rounded-full"></div>
+                        <span>Modern hover navigation</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-1 h-1 bg-blue-500 rounded-full"></div>
+                        <span>Intelligent auto-close</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      © 2024 DeepSight. All rights reserved.
+                    </p>
+                  </div>
                 </div>
               </div>
             </motion.div>
