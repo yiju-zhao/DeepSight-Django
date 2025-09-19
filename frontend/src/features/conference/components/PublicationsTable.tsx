@@ -145,14 +145,12 @@ export function PublicationsTable({
                       </div>
                       <div className="text-xs text-gray-600 line-clamp-2">
                         {(() => {
-                          // Use split logic for keywords (semicolon-separated)
-                          const keywords = publication.keywords_list ||
-                            (publication.keywords ?
-                              publication.keywords.split(';')
-                                .map(k => k.trim())
-                                .filter(k => k.length > 0)
-                              : []
-                            );
+                          // Split keywords (semicolon-separated) on frontend
+                          const keywords = publication.keywords ?
+                            publication.keywords.split(';')
+                              .map(k => k.trim())
+                              .filter(k => k.length > 0)
+                            : [];
                           return keywords.slice(0, 3).join(', ');
                         })()}
                       </div>
@@ -162,36 +160,38 @@ export function PublicationsTable({
                   <td className="py-4 px-4">
                     <div className="space-y-2">
                       <div className="text-sm text-gray-900">
-                        {publication.authors_list ? (
-                          <>
-                            {publication.authors_list.slice(0, 3).map((author, index) => (
-                              <span key={index} className="inline-block">
-                                {author}
-                                {index < Math.min(publication.authors_list!.length - 1, 2) && ', '}
-                              </span>
-                            ))}
-                            {publication.authors_list.length > 3 && (
-                              <span className="text-gray-500"> +{publication.authors_list.length - 3} more</span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            {publication.authors.split(',').slice(0, 3).join(', ')}
-                            {publication.authors.split(',').length > 3 && '...'}
-                          </>
-                        )}
+                        {(() => {
+                          // Split authors (comma-separated) on frontend
+                          const authors = publication.authors ?
+                            publication.authors.split(',')
+                              .map(a => a.trim())
+                              .filter(a => a.length > 0)
+                            : [];
+
+                          return (
+                            <>
+                              {authors.slice(0, 3).map((author, index) => (
+                                <span key={index} className="inline-block">
+                                  {author}
+                                  {index < Math.min(authors.length - 1, 2) && ', '}
+                                </span>
+                              ))}
+                              {authors.length > 3 && (
+                                <span className="text-gray-500"> +{authors.length - 3} more</span>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                       {publication.aff_country_unique && (
                         <div className="flex flex-wrap gap-1">
                           {(() => {
-                            // Always use split logic to handle malformed data
-                            const countries = publication.countries_list ||
-                              (publication.aff_country_unique ?
-                                publication.aff_country_unique.split(',')
-                                  .map(c => c.trim())
-                                  .filter(c => c.length > 0)
-                                : []
-                              );
+                            // Split countries (comma-separated) on frontend
+                            const countries = publication.aff_country_unique ?
+                              publication.aff_country_unique.split(',')
+                                .map(c => c.trim())
+                                .filter(c => c.length > 0)
+                              : [];
 
                             return (
                               <>

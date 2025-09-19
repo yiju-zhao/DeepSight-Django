@@ -1,6 +1,5 @@
 from rest_framework import serializers
 from .models import Venue, Instance, Publication, Event
-from .utils import split_comma_values, split_semicolon_values
 
 
 class VenueSerializer(serializers.ModelSerializer):
@@ -46,33 +45,14 @@ class PublicationTableSerializer(serializers.ModelSerializer):
     instance_year = serializers.IntegerField(source='instance.year', read_only=True)
     venue_name = serializers.CharField(source='instance.venue.name', read_only=True)
 
-    # Split fields using service layer
-    authors_list = serializers.SerializerMethodField()
-    countries_list = serializers.SerializerMethodField()
-    keywords_list = serializers.SerializerMethodField()
-
     class Meta:
         model = Publication
         fields = [
             'id', 'title', 'authors', 'rating', 'research_topic',
             'session', 'aff_unique', 'aff_country_unique',
             'keywords', 'pdf_url', 'github', 'site',
-            'instance_year', 'venue_name',
-            # Add the new split fields
-            'authors_list', 'countries_list', 'keywords_list'
+            'instance_year', 'venue_name'
         ]
-
-    def get_authors_list(self, obj):
-        """Get split list of authors using utils"""
-        return split_comma_values(obj.authors)
-
-    def get_countries_list(self, obj):
-        """Get split list of countries using utils"""
-        return split_comma_values(obj.aff_country_unique)
-
-    def get_keywords_list(self, obj):
-        """Get split list of keywords using utils"""
-        return split_semicolon_values(obj.keywords)
 
 
 class EventSerializer(serializers.ModelSerializer):

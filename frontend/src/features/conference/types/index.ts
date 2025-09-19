@@ -57,10 +57,6 @@ export interface PublicationTableItem {
   site?: string;
   instance_year: number;
   venue_name: string;
-  // New split fields from backend
-  authors_list?: string[];
-  countries_list?: string[];
-  keywords_list?: string[];
 }
 
 export interface KPIData {

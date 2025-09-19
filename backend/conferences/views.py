@@ -80,8 +80,6 @@ class OverviewViewSet(viewsets.ViewSet):
     """ViewSet for dashboard analytics and overview"""
     permission_classes = [IsAuthenticated]
 
-    # Removed: _split_comma_values and _split_semicolon_values methods
-    # Now using centralized text_splitting_service
 
     def _get_publications_queryset(self, venue=None, year=None, instance_id=None):
         """Get filtered publications queryset"""
