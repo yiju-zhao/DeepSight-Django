@@ -144,7 +144,7 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
       <div className="bg-white rounded-lg shadow-sm border p-8">
         <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Popular Keywords</h3>
         <div className="flex flex-wrap justify-center items-center gap-4 min-h-[300px]">
-          {data.top_keywords.slice(0, 30).map((keyword, index) => {
+          {data.top_keywords.slice(0, 30).map((keyword) => {
             const maxCount = Math.max(...data.top_keywords.map(k => k.count));
             const minCount = Math.min(...data.top_keywords.map(k => k.count));
             const ratio = (keyword.count - minCount) / (maxCount - minCount || 1);
