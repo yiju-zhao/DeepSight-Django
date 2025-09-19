@@ -94,23 +94,6 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Top Affiliations */}
-        <ChartCard title="Top Affiliations">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.top_affiliations.slice(0, 8)} layout="horizontal">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={120}
-                fontSize={12}
-              />
-              <Tooltip />
-              <Bar dataKey="count" fill="#10B981" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
 
         {/* Geographic Distribution */}
         <ChartCard title="Geographic Distribution">
@@ -154,84 +137,60 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Session Types */}
-        <ChartCard title="Session Type Distribution">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data.session_types}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, value }: any) => `${name}: ${value}`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="count"
-              >
-                {data.session_types.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Author Positions */}
-        <ChartCard title="Author Academic Positions">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.author_positions.slice(0, 8)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="name"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                fontSize={12}
-              />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#8B5CF6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
       </div>
 
-      {/* Popular Keywords - Word Cloud Style */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Popular Keywords</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          {data.top_keywords.slice(0, 24).map((keyword, index) => {
+      {/* Popular Keywords - Enhanced Word Cloud */}
+      <div className="bg-white rounded-lg shadow-sm border p-8">
+        <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Popular Keywords</h3>
+        <div className="flex flex-wrap justify-center items-center gap-4 min-h-[300px]">
+          {data.top_keywords.slice(0, 30).map((keyword, index) => {
             const maxCount = Math.max(...data.top_keywords.map(k => k.count));
-            const fontSize = Math.min(18, 12 + (keyword.count / maxCount) * 8);
-            const color = COLORS[index % COLORS.length];
+            const minCount = Math.min(...data.top_keywords.map(k => k.count));
+            const ratio = (keyword.count - minCount) / (maxCount - minCount || 1);
+
+            // More dynamic font sizing (12px to 32px)
+            const fontSize = 14 + (ratio * 20);
+
+            // Random but consistent positioning and color
+            const colorIndex = keyword.name.length % COLORS.length;
+            const color = COLORS[colorIndex];
+
+            // Different opacity based on count
+            const opacity = 0.7 + (ratio * 0.3);
 
             return (
               <div
                 key={keyword.name}
-                className="p-3 rounded-lg text-center border-2 hover:shadow-md transition-shadow"
+                className="inline-block m-1 px-3 py-2 rounded-full bg-gradient-to-r hover:scale-110 transition-all duration-300 cursor-pointer"
                 style={{
-                  backgroundColor: `${color}10`,
-                  borderColor: `${color}40`
+                  background: `linear-gradient(45deg, ${color}20, ${color}40)`,
+                  border: `2px solid ${color}`,
+                  opacity: opacity
                 }}
+                title={`${keyword.name}: ${keyword.count} publications`}
               >
-                <div
-                  className="font-bold truncate"
+                <span
+                  className="font-bold whitespace-nowrap"
                   style={{
                     fontSize: `${fontSize}px`,
-                    color: color
+                    color: color,
+                    textShadow: '1px 1px 2px rgba(0,0,0,0.1)'
                   }}
-                  title={keyword.name}
                 >
                   {keyword.name}
-                </div>
-                <div className="text-xs text-gray-600 mt-1">
+                </span>
+                <span className="ml-2 text-xs text-gray-600 font-medium">
                   {keyword.count}
-                </div>
+                </span>
               </div>
             );
           })}
         </div>
+        {data.top_keywords.length === 0 && (
+          <div className="text-center text-gray-500 py-12">
+            <p>No keywords available for this conference</p>
+          </div>
+        )}
       </div>
     </div>
   );

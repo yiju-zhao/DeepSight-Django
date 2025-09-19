@@ -124,18 +124,19 @@ class OverviewViewSet(viewsets.ViewSet):
         # Average rating
         avg_rating = publications.aggregate(Avg('rating'))['rating__avg'] or 0
 
-        # Session distribution
-        session_counts = Counter()
+        # Top regions (countries)
+        region_counts = Counter()
         for pub in publications:
-            if pub.session:
-                session_counts[pub.session] += 1
+            if pub.aff_country_unique:
+                countries = self._split_semicolon_values(pub.aff_country_unique)
+                region_counts.update(countries)
 
-        # Author position distribution
-        position_counts = Counter()
+        # Top organizations (affiliations)
+        organization_counts = Counter()
         for pub in publications:
-            if pub.author_position:
-                positions = self._split_semicolon_values(pub.author_position)
-                position_counts.update(positions)
+            if pub.aff_unique:
+                affiliations = self._split_semicolon_values(pub.aff_unique)
+                organization_counts.update(affiliations)
 
         # Resource counts
         resource_counts = {
@@ -150,8 +151,8 @@ class OverviewViewSet(viewsets.ViewSet):
             'unique_affiliations': unique_affiliations,
             'unique_countries': unique_countries,
             'avg_rating': round(avg_rating, 2),
-            'session_distribution': dict(session_counts),
-            'author_position_distribution': dict(position_counts.most_common(10)),
+            'session_distribution': dict(region_counts.most_common(10)),
+            'author_position_distribution': dict(organization_counts.most_common(10)),
             'resource_counts': resource_counts,
         }
 

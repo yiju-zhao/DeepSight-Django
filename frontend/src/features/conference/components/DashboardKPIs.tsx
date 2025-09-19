@@ -128,10 +128,14 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
     );
   }
 
-  const sessionTypes = Object.entries(data.session_distribution || {});
-  const topPositions = Object.entries(data.author_position_distribution || {})
+  // Process top regions (countries) and organizations (affiliations)
+  const topRegions = Object.entries(data.session_distribution || {})
     .sort(([,a], [,b]) => b - a)
-    .slice(0, 5);
+    .slice(0, 8); // Show more regions
+
+  const topOrganizations = Object.entries(data.author_position_distribution || {})
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 8); // Show more organizations
 
   return (
     <div className="space-y-6">
@@ -139,8 +143,8 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
         <h2 className="text-2xl font-bold text-gray-900">Conference Overview</h2>
       </div>
 
-      {/* Main KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+      {/* Main KPI Cards - 5 cards in one line */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
         <KPICard
           icon={Users}
           label="Total Publications"
@@ -175,47 +179,21 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
           value={data.avg_rating.toFixed(1)}
           color="bg-yellow-500"
         />
-
-        <KPICard
-          icon={Presentation}
-          label="Total Resources"
-          value={data.resource_counts.with_github + data.resource_counts.with_site + data.resource_counts.with_pdf}
-          color="bg-teal-500"
-        />
       </div>
 
       {/* Additional Metrics */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Session Types */}
+        {/* Top Regions */}
         <MetricCard
-          label="Session Types"
-          items={sessionTypes.map(([type, count]) => ({ name: type, count }))}
+          label="Top Regions"
+          items={topRegions.map(([region, count]) => ({ name: region, count }))}
         />
 
-        {/* Top Author Positions */}
+        {/* Top Organizations */}
         <MetricCard
-          label="Top Author Positions"
-          items={topPositions.map(([position, count]) => ({ name: position, count }))}
+          label="Top Organizations"
+          items={topOrganizations.map(([org, count]) => ({ name: org, count }))}
         />
-      </div>
-
-      {/* External Resources */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">External Resources</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <p className="text-2xl font-bold text-green-600">{data.resource_counts.with_github}</p>
-            <p className="text-sm text-gray-600">With GitHub</p>
-          </div>
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <p className="text-2xl font-bold text-blue-600">{data.resource_counts.with_site}</p>
-            <p className="text-sm text-gray-600">With Project Site</p>
-          </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <p className="text-2xl font-bold text-purple-600">{data.resource_counts.with_pdf}</p>
-            <p className="text-sm text-gray-600">With PDF</p>
-          </div>
-        </div>
       </div>
     </div>
   );
