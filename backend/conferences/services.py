@@ -50,8 +50,8 @@ class PublicationDataService:
             Dictionary with aggregated data using split values
         """
         all_authors = []
-        all_countries = set()
-        all_affiliations = set()
+        all_countries = []  # Changed from set to list to preserve duplicates for counting
+        all_affiliations = []  # Changed from set to list to preserve duplicates for counting
         all_keywords = []
 
         for pub in publications:
@@ -59,15 +59,15 @@ class PublicationDataService:
             if pub.authors:
                 all_authors.extend(split_comma_values(pub.authors))
 
-            # Countries (comma-separated)
+            # Countries (comma-separated) - preserve duplicates for counting
             if pub.aff_country_unique:
                 countries = split_comma_values(pub.aff_country_unique)
-                all_countries.update(countries)
+                all_countries.extend(countries)
 
-            # Affiliations (semicolon-separated)
+            # Affiliations (semicolon-separated) - preserve duplicates for counting
             if pub.aff_unique:
                 affiliations = split_semicolon_values(pub.aff_unique)
-                all_affiliations.update(affiliations)
+                all_affiliations.extend(affiliations)
 
             # Keywords (semicolon-separated)
             if pub.keywords:
@@ -76,11 +76,11 @@ class PublicationDataService:
 
         return {
             'unique_authors': len(set(all_authors)),
-            'unique_countries': len(all_countries),
-            'unique_affiliations': len(all_affiliations),
+            'unique_countries': len(set(all_countries)),  # Count unique for KPIs
+            'unique_affiliations': len(set(all_affiliations)),  # Count unique for KPIs
             'all_authors': all_authors,
-            'all_countries': list(all_countries),
-            'all_affiliations': list(all_affiliations),
+            'all_countries': all_countries,  # Keep duplicates for chart counting
+            'all_affiliations': all_affiliations,  # Keep duplicates for chart counting
             'all_keywords': all_keywords,
         }
 
