@@ -144,10 +144,17 @@ export function PublicationsTable({
                         {publication.title}
                       </div>
                       <div className="text-xs text-gray-600 line-clamp-2">
-                        {publication.keywords_list ?
-                          publication.keywords_list.slice(0, 3).join(', ') :
-                          publication.keywords.split(',').slice(0, 3).join(', ')
-                        }
+                        {(() => {
+                          // Use split logic for keywords (semicolon-separated)
+                          const keywords = publication.keywords_list ||
+                            (publication.keywords ?
+                              publication.keywords.split(';')
+                                .map(k => k.trim())
+                                .filter(k => k.length > 0)
+                              : []
+                            );
+                          return keywords.slice(0, 3).join(', ');
+                        })()}
                       </div>
                     </div>
                   </td>
@@ -174,26 +181,33 @@ export function PublicationsTable({
                           </>
                         )}
                       </div>
-                      {(publication.countries_list || publication.aff_country_unique) && (
+                      {publication.aff_country_unique && (
                         <div className="flex flex-wrap gap-1">
-                          {publication.countries_list ? (
-                            <>
-                              {publication.countries_list.slice(0, 3).map((country, index) => (
-                                <span key={index} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                                  {country}
-                                </span>
-                              ))}
-                              {publication.countries_list.length > 3 && (
-                                <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
-                                  +{publication.countries_list.length - 3}
-                                </span>
-                              )}
-                            </>
-                          ) : (
-                            <span className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                              {publication.aff_country_unique}
-                            </span>
-                          )}
+                          {(() => {
+                            // Always use split logic to handle malformed data
+                            const countries = publication.countries_list ||
+                              (publication.aff_country_unique ?
+                                publication.aff_country_unique.split(',')
+                                  .map(c => c.trim())
+                                  .filter(c => c.length > 0)
+                                : []
+                              );
+
+                            return (
+                              <>
+                                {countries.slice(0, 3).map((country, index) => (
+                                  <span key={index} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                                    {country}
+                                  </span>
+                                ))}
+                                {countries.length > 3 && (
+                                  <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                                    +{countries.length - 3}
+                                  </span>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
