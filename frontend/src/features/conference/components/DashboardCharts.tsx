@@ -140,43 +140,71 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
 
       </div>
 
-      {/* Popular Keywords - Optimized Word Cloud */}
+      {/* Popular Keywords - Centered Word Cloud */}
       <div className="bg-white rounded-lg shadow-sm border p-8">
         <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Popular Keywords</h3>
-        <div className="flex flex-wrap justify-center items-center gap-2 min-h-[300px] relative">
-          {data.top_keywords.slice(0, 30).map((keyword, index) => {
-            const maxCount = Math.max(...data.top_keywords.map(k => k.count));
-            const minCount = Math.min(...data.top_keywords.map(k => k.count));
-            const ratio = (keyword.count - minCount) / (maxCount - minCount || 1);
+        <div className="relative min-h-[400px] flex items-center justify-center">
+          <div className="absolute inset-0 flex flex-wrap justify-center items-center content-center">
+            {data.top_keywords.slice(0, 30)
+              .sort((a, b) => b.count - a.count) // Sort by count descending
+              .map((keyword, index) => {
+                const maxCount = Math.max(...data.top_keywords.map(k => k.count));
+                const minCount = Math.min(...data.top_keywords.map(k => k.count));
+                const ratio = (keyword.count - minCount) / (maxCount - minCount || 1);
 
-            // Enhanced font sizing (16px to 48px for better visibility)
-            const fontSize = 16 + (ratio * 32);
+                // Enhanced font sizing (14px to 42px)
+                const fontSize = 14 + (ratio * 28);
 
-            // Color selection based on keyword characteristics
-            const colorIndex = keyword.name.length % COLORS.length;
-            const color = COLORS[colorIndex];
+                // Color selection
+                const colorIndex = keyword.name.length % COLORS.length;
+                const color = COLORS[colorIndex];
 
-            // Position larger keywords more centrally
-            const isLargeKeyword = ratio > 0.6;
-            const zIndex = Math.floor(ratio * 10);
+                // Position based on importance - larger keywords get priority positions
+                const importance = ratio;
 
-            return (
-              <span
-                key={keyword.name}
-                className="inline-block m-1 hover:scale-110 transition-all duration-300 cursor-pointer font-bold"
-                style={{
-                  fontSize: `${fontSize}px`,
-                  color: color,
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
-                  zIndex: zIndex,
-                  order: isLargeKeyword ? -Math.floor(ratio * 100) : index
-                }}
-                title={`${keyword.name}: ${keyword.count} publications`}
-              >
-                {keyword.name}
-              </span>
-            );
-          })}
+                // Create concentric circles effect
+                let positionClass = '';
+                let marginClass = '';
+
+                if (importance > 0.8) {
+                  // Largest keywords - center most
+                  positionClass = 'order-1';
+                  marginClass = 'm-2';
+                } else if (importance > 0.6) {
+                  // Large keywords - inner ring
+                  positionClass = 'order-2';
+                  marginClass = 'm-2';
+                } else if (importance > 0.4) {
+                  // Medium keywords - middle ring
+                  positionClass = 'order-3';
+                  marginClass = 'm-1';
+                } else if (importance > 0.2) {
+                  // Small keywords - outer ring
+                  positionClass = 'order-4';
+                  marginClass = 'm-1';
+                } else {
+                  // Smallest keywords - outermost
+                  positionClass = 'order-5';
+                  marginClass = 'm-1';
+                }
+
+                return (
+                  <span
+                    key={keyword.name}
+                    className={`inline-block hover:scale-110 transition-all duration-300 cursor-pointer font-bold ${positionClass} ${marginClass}`}
+                    style={{
+                      fontSize: `${fontSize}px`,
+                      color: color,
+                      textShadow: `2px 2px 4px rgba(0,0,0,${0.1 + ratio * 0.2})`,
+                      lineHeight: '1.2'
+                    }}
+                    title={`${keyword.name}: ${keyword.count} publications`}
+                  >
+                    {keyword.name}
+                  </span>
+                );
+              })}
+          </div>
         </div>
         {data.top_keywords.length === 0 && (
           <div className="text-center text-gray-500 py-12">
