@@ -9,7 +9,7 @@ interface PageHeaderProps {
 
 export default function PageHeader({ title, onMenuClick }: PageHeaderProps) {
   return (
-    <header className="border-b border-gray-200 p-4 flex items-center gap-4 relative z-10">
+    <header className="bg-gray-50 p-4 flex items-center gap-4 relative z-10">
       <button
         onClick={onMenuClick}
         className="p-2 rounded-md hover:bg-gray-100"
