@@ -195,7 +195,9 @@ describe('NotebookGrid', () => {
     });
 
     // Click on a notebook
-    const notebookCard = screen.getByText('Test Notebook 1').closest("div[class*="cursor-pointer"]");
+    const notebookCard = screen
+      .getByText('Test Notebook 1')
+      .closest('div[class*="cursor-pointer"]');
     expect(notebookCard).toBeInTheDocument();
 
     if (notebookCard) {

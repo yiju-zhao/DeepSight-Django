@@ -131,7 +131,6 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
 
     // Auto-load if extraction result already exists or on component mount (user reloads page)
     loadImages();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [extractResult, notebookId, videoFileId]);
 
   const loadImages = async () => {
