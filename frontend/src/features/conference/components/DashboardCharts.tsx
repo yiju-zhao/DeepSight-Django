@@ -137,6 +137,42 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
           </ResponsiveContainer>
         </ChartCard>
 
+        {/* Top Regions */}
+        <ChartCard title="Top Regions">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data.top_countries.slice(0, 10)} layout="horizontal">
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={80}
+                fontSize={12}
+              />
+              <Tooltip />
+              <Bar dataKey="count" fill="#10B981" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
+        {/* Top Organizations */}
+        <ChartCard title="Top Organizations">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={data.top_affiliations.slice(0, 8)} layout="horizontal">
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis type="number" />
+              <YAxis
+                type="category"
+                dataKey="name"
+                width={120}
+                fontSize={11}
+              />
+              <Tooltip />
+              <Bar dataKey="count" fill="#8B5CF6" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
+
       </div>
 
       {/* Popular Keywords - Enhanced Word Cloud */}

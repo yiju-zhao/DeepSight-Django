@@ -84,6 +84,12 @@ class OverviewViewSet(viewsets.ViewSet):
             return []
         return [item.strip() for item in field_value.split(';') if item.strip()]
 
+    def _split_comma_values(self, field_value):
+        """Helper to split comma-separated values and filter out blanks"""
+        if not field_value:
+            return []
+        return [item.strip() for item in field_value.split(',') if item.strip()]
+
     def _get_publications_queryset(self, venue=None, year=None, instance_id=None):
         """Get filtered publications queryset"""
         queryset = Publication.objects.select_related('instance__venue')
@@ -111,27 +117,33 @@ class OverviewViewSet(viewsets.ViewSet):
                 all_authors.extend(self._split_semicolon_values(pub.authors))
         unique_authors = len(set(all_authors))
 
-        # Count unique affiliations
-        unique_affiliations = publications.exclude(
-            Q(aff_unique__isnull=True) | Q(aff_unique__exact='')
-        ).values('aff_unique').distinct().count()
+        # Count unique affiliations (handle semicolon-separated values)
+        all_affiliations = set()
+        for pub in publications:
+            if pub.aff_unique:
+                affiliations = self._split_semicolon_values(pub.aff_unique)
+                all_affiliations.update(affiliations)
+        unique_affiliations = len(all_affiliations)
 
-        # Count unique countries
-        unique_countries = publications.exclude(
-            Q(aff_country_unique__isnull=True) | Q(aff_country_unique__exact='')
-        ).values('aff_country_unique').distinct().count()
+        # Count unique countries (handle comma-separated values)
+        all_countries = set()
+        for pub in publications:
+            if pub.aff_country_unique:
+                countries = self._split_comma_values(pub.aff_country_unique)
+                all_countries.update(countries)
+        unique_countries = len(all_countries)
 
         # Average rating
         avg_rating = publications.aggregate(Avg('rating'))['rating__avg'] or 0
 
-        # Top regions (countries)
+        # Top regions (countries) - use comma-separated aff_country_unique
         region_counts = Counter()
         for pub in publications:
             if pub.aff_country_unique:
-                countries = self._split_semicolon_values(pub.aff_country_unique)
+                countries = self._split_comma_values(pub.aff_country_unique)
                 region_counts.update(countries)
 
-        # Top organizations (affiliations)
+        # Top organizations (affiliations) - use semicolon-separated aff_unique
         organization_counts = Counter()
         for pub in publications:
             if pub.aff_unique:
