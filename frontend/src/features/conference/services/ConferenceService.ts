@@ -20,7 +20,7 @@ export interface IConferenceService {
 }
 
 export class ConferenceService implements IConferenceService {
-  private readonly baseEndpoint = '/api/v1/conferences';
+  private readonly baseEndpoint = '/conferences';
 
   /**
    * Get list of venues
