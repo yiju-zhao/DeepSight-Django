@@ -5,7 +5,7 @@ import { DashboardCharts } from '../components/DashboardCharts';
 import { PublicationsTable } from '../components/PublicationsTable';
 import { AlertCircle, TrendingUp } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
-import MainPageHeader from '@/shared/components/header/MainPageHeader';
+import MainPageHeader from '@/shared/components/common/MainPageHeader';
 
 export default function ConferenceDashboard() {
   const [selectedVenue, setSelectedVenue] = useState<string>('');
@@ -60,7 +60,7 @@ export default function ConferenceDashboard() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-screen bg-white">
+      <div className="flex flex-col min-h-screen bg-gray-50">
         <MainPageHeader
           title="Conference Analysis"
           subtitle="Explore detailed statistics, charts, and publication lists for specific conferences and years"

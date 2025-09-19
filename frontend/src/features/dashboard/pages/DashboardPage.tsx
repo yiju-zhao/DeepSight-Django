@@ -19,7 +19,7 @@ import ConferenceSection from '../components/ConferenceSection';
 import DashboardActions from '../components/DashboardActions';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
-import MainPageHeader from '@/shared/components/header/MainPageHeader';
+import MainPageHeader from '@/shared/components/common/MainPageHeader';
 import { BarChart3 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -143,11 +143,23 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
               {/* Conference Panel */}
               <div className="lg:col-span-1">
+                <div className="mb-2">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Conference</span>
+                    <div className="h-px bg-gray-200 flex-1" />
+                  </div>
+                </div>
                 <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
               </div>
 
               {/* Reports Panel */}
               <div className="lg:col-span-1">
+                <div className="mb-2">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Reports</span>
+                    <div className="h-px bg-gray-200 flex-1" />
+                  </div>
+                </div>
                 {reports.length > 0 ? (
                   <ReportsSection
                     reports={reports}
@@ -181,6 +193,12 @@ export default function DashboardPage() {
 
               {/* Podcasts Panel */}
               <div className="lg:col-span-1">
+                <div className="mb-2">
+                  <div className="flex items-center space-x-3">
+                    <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Podcasts</span>
+                    <div className="h-px bg-gray-200 flex-1" />
+                  </div>
+                </div>
                 {podcasts.length > 0 ? (
                   <PodcastsSection
                     podcasts={podcasts}

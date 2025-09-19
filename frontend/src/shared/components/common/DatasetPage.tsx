@@ -3,13 +3,13 @@ import { Database } from "lucide-react";
 import { Toaster } from "@/shared/components/ui/toaster";
 import Footer from "@/shared/components/common/Footer";
 import AppLayout from "@/shared/components/layout/AppLayout";
-import MainPageHeader from "@/shared/components/header/MainPageHeader";
-import LanguageSwitcher from "@/shared/components/header/LanguageSwitcher";
+import MainPageHeader from "@/shared/components/common/MainPageHeader";
+import LanguageSwitcher from "@/shared/components/common/LanguageSwitcher";
 
 export default function DatasetPage() {
   return (
     <AppLayout>
-      <div className="min-h-screen bg-white flex flex-col">
+      <div className="min-h-screen bg-gray-50 flex flex-col">
         <MainPageHeader
           title="Dataset"
           subtitle="Research papers and publications"

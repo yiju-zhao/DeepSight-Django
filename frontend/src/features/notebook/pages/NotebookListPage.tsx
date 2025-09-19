@@ -6,7 +6,7 @@ import NotebookGrid from "@/features/notebook/components/NotebookGrid";
 import NotebookList from "@/features/notebook/components/NotebookList";
 import CreateNotebookForm from "@/features/notebook/components/CreateNotebookForm";
 import AppLayout from "@/shared/components/layout/AppLayout";
-import MainPageHeader from "@/shared/components/header/MainPageHeader";
+import MainPageHeader from "@/shared/components/common/MainPageHeader";
 import {
   ChevronDown, Grid, List, Plus, BookOpen, Search, LogOut
 } from "lucide-react";
@@ -99,7 +99,7 @@ export default function NotebookListPage() {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-gray-50">
         <MainPageHeader
           title="DeepDive"
           subtitle="Manage your research"
