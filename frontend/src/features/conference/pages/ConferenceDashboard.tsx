@@ -62,46 +62,33 @@ export default function ConferenceDashboard() {
         <div className="space-y-8">
           {/* Header */}
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              Conference Publications Dashboard
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Conference Analysis
             </h1>
-
-            {/* Overview Stats */}
-            {overviewData && (
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                <div className="bg-white p-6 rounded-lg shadow-sm border">
-                  <h3 className="text-sm font-medium text-gray-600">Total Conferences</h3>
-                  <p className="text-2xl font-bold text-gray-900">{overviewData.total_conferences}</p>
-                </div>
-                <div className="bg-white p-6 rounded-lg shadow-sm border">
-                  <h3 className="text-sm font-medium text-gray-600">Total Papers</h3>
-                  <p className="text-2xl font-bold text-gray-900">{overviewData.total_papers.toLocaleString()}</p>
-                </div>
-                <div className="bg-white p-6 rounded-lg shadow-sm border">
-                  <h3 className="text-sm font-medium text-gray-600">Years Covered</h3>
-                  <p className="text-2xl font-bold text-gray-900">{overviewData.years_covered.length}</p>
-                </div>
-                <div className="bg-white p-6 rounded-lg shadow-sm border">
-                  <h3 className="text-sm font-medium text-gray-600">Avg Papers/Year</h3>
-                  <p className="text-2xl font-bold text-gray-900">{Math.round(overviewData.avg_papers_per_year)}</p>
-                </div>
-              </div>
-            )}
+            <p className="text-gray-600 mb-6">
+              Explore detailed statistics, charts, and publication lists for specific conferences and years
+            </p>
           </div>
 
-          {/* Selectors */}
+          {/* Conference and Year Filters */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Select Conference & Year</h2>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">Conference Selection</h2>
+              <div className="text-sm text-gray-500">
+                {selectedVenue && selectedYear && `${selectedVenue} ${selectedYear}`}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {/* Venue Selector */}
-              <div className="min-w-48">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Conference Venue</label>
                 <select
                   value={selectedVenue}
                   onChange={(e) => handleVenueChange(e.target.value)}
                   disabled={venuesLoading}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                 >
-                  <option value="">Select Conference</option>
+                  <option value="">Choose a conference...</option>
                   {venues?.map((venue) => (
                     <option key={venue.id} value={venue.name}>
                       {venue.name} ({venue.type})
@@ -111,20 +98,40 @@ export default function ConferenceDashboard() {
               </div>
 
               {/* Year Selector */}
-              {selectedVenue && (
-                <div className="min-w-36">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
+                <select
+                  value={selectedYear || ''}
+                  onChange={(e) => handleYearChange(Number(e.target.value))}
+                  disabled={instancesLoading || !selectedVenue}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                >
+                  <option value="">Choose a year...</option>
+                  {availableYears.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Instance Selector (if multiple instances per year) */}
+              {selectedVenue && selectedYear && instances && instances.length > 1 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Conference Instance</label>
                   <select
-                    value={selectedYear || ''}
-                    onChange={(e) => handleYearChange(Number(e.target.value))}
-                    disabled={instancesLoading}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                    value={selectedInstance || ''}
+                    onChange={(e) => handleInstanceSelect(Number(e.target.value))}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="">Select Year</option>
-                    {availableYears.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
+                    <option value="">Choose an instance...</option>
+                    {instances
+                      .filter(instance => instance.year === selectedYear)
+                      .map((instance) => (
+                        <option key={instance.instance_id} value={instance.instance_id}>
+                          {instance.venue.name} {instance.year} - {instance.location}
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}

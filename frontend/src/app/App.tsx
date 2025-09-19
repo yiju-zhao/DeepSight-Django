@@ -70,7 +70,7 @@ function AppRoutes() {
       />
       <Route path="/conference" element={<ConferencePage.Component />} />
       <Route
-        path="/conferences/dashboard"
+        path="/dashboard/conference"
         element={
           <PrivateRoute>
             <ConferenceDashboard.Component />

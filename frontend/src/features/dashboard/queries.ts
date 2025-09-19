@@ -158,6 +158,7 @@ export function useConferencesOverview(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [...queryKeys.conferences.all, 'overview'],
     queryFn: async (): Promise<ConferencesOverview> => {
+      // TODO: Backend - Update endpoint from /conferences/dashboard/overview/ to /dashboard/conference/overview/
       return apiClient.get('/conferences/dashboard/overview/');
     },
     enabled: options?.enabled ?? true,
@@ -251,6 +252,7 @@ export function useDashboardData(options?: { enabled?: boolean }) {
       {
         queryKey: [...queryKeys.conferences.all, 'overview'],
         queryFn: async (): Promise<ConferencesOverview> => {
+          // TODO: Backend - Update endpoint from /conferences/dashboard/overview/ to /dashboard/conference/overview/
           return apiClient.get('/conferences/dashboard/overview/');
         },
         enabled: options?.enabled ?? true,

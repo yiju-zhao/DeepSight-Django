@@ -81,7 +81,7 @@ export default function DashboardPage() {
   }, [refetch]);
 
   const handleNavigateToConferences = useCallback(() => {
-    navigate('/conferences/dashboard');
+    navigate('/dashboard/conference');
   }, [navigate]);
 
   // Loading state
@@ -121,24 +121,76 @@ export default function DashboardPage() {
     <div className="p-8 bg-white min-h-screen">
       <DashboardHeader />
 
-      <div className="max-w-4xl mx-auto space-y-8">
-        {/* Conference Analytics Section - Always show */}
-        <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
+      <div className="max-w-7xl mx-auto">
+        {/* Three-Panel Dashboard Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Conference Panel */}
+          <div className="lg:col-span-1">
+            <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
+          </div>
 
-        {hasContent ? (
-          <>
-            <ReportsSection
-              reports={reports}
-              onReportSelect={handleReportSelect}
-            />
-            <PodcastsSection
-              podcasts={podcasts}
-              onPodcastSelect={handlePodcastSelect}
-            />
-          </>
-        ) : (
-          <EmptyState />
-        )}
+          {/* Reports Panel */}
+          <div className="lg:col-span-1">
+            {reports.length > 0 ? (
+              <ReportsSection
+                reports={reports}
+                onReportSelect={handleReportSelect}
+              />
+            ) : (
+              <div className="bg-white rounded-lg shadow-sm border p-6 h-full flex flex-col">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <div className="h-6 w-6 bg-green-600 rounded"></div>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">Research Reports</h2>
+                    <p className="text-sm text-gray-600">AI-generated research insights</p>
+                  </div>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                      <span className="text-gray-400 text-2xl">📊</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">To be announced</h3>
+                    <p className="text-gray-500 text-sm">Report generation features coming soon</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Podcasts Panel */}
+          <div className="lg:col-span-1">
+            {podcasts.length > 0 ? (
+              <PodcastsSection
+                podcasts={podcasts}
+                onPodcastSelect={handlePodcastSelect}
+              />
+            ) : (
+              <div className="bg-white rounded-lg shadow-sm border p-6 h-full flex flex-col">
+                <div className="flex items-center space-x-3 mb-6">
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <div className="h-6 w-6 bg-purple-600 rounded"></div>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900">AI Podcasts</h2>
+                    <p className="text-sm text-gray-600">Audio content generation</p>
+                  </div>
+                </div>
+                <div className="flex-1 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                      <span className="text-gray-400 text-2xl">🎙️</span>
+                    </div>
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">To be announced</h3>
+                    <p className="text-gray-500 text-sm">Podcast generation features coming soon</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       <DashboardActions
