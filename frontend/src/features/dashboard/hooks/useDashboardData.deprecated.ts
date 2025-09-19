@@ -91,7 +91,7 @@ export function useDashboardData() {
         reports: reports.status === 'fulfilled' ? reports.value : [],
         podcasts: podcasts.status === 'fulfilled' ? podcasts.value : [],
         confsOverview: confsOverview.status === 'fulfilled' ? confsOverview.value : null,
-        orgsOverview: orgsOverview.status === 'fulfilled' ? orgsOverview.value : null,
+        orgsOverview: orgsOverview.status === 'fulfilled' ? { organizations: orgsOverview.value } : null,
       });
 
       // Log any failed requests

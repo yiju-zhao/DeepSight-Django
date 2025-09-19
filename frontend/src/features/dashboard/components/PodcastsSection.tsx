@@ -5,7 +5,7 @@
 
 import React from 'react';
 import PodcastListItem from '@/features/podcast/components/PodcastListItem';
-import { Podcast } from '../hooks/useDashboardData';
+import { Podcast } from '../queries';
 
 interface PodcastsSectionProps {
   podcasts: Podcast[];

@@ -6,7 +6,7 @@
 
 import React, { useMemo } from 'react';
 import ReportListItem from '@/features/report/components/ReportListItem';
-import { Report } from '../hooks/useDashboardData';
+import { Report } from '../queries';
 
 interface ReportsSectionProps {
   reports: Report[];
