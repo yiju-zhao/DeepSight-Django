@@ -58,6 +58,7 @@ export const useDashboard = (params: DashboardParams) => {
     queryFn: () => conferenceService.getDashboard(params),
     enabled: isEnabled,
     staleTime: 2 * 60 * 1000, // 2 minutes
+    retry: 1, // Only retry once on failure
   });
 };
 

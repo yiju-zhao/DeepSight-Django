@@ -34,15 +34,17 @@ export default function ConferenceDashboard() {
   );
 
   // Fetch dashboard data only when we have a matching instance
+  const dashboardParams = matchingInstance ? {
+    instance: matchingInstance.instance_id,
+    page: currentPage,
+    page_size: 20
+  } : {};
+
   const {
     data: dashboardData,
     isLoading: dashboardLoading,
     error: dashboardError
-  } = useDashboard({
-    ...(matchingInstance ? { instance: matchingInstance.instance_id } : {}),
-    page: currentPage,
-    page_size: 20
-  });
+  } = useDashboard(dashboardParams);
 
   // Fetch overview data
   const { data: overviewData } = useOverview();
@@ -161,9 +163,29 @@ export default function ConferenceDashboard() {
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center">
                 <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-                <span className="text-red-800">
-                  Error loading dashboard data. Please check your selection and try again.
-                </span>
+                <div className="text-red-800">
+                  <div className="font-medium">Error loading dashboard data</div>
+                  <div className="text-sm mt-1">
+                    {dashboardError?.message || 'Please check your selection and try again.'}
+                  </div>
+                  {matchingInstance && (
+                    <div className="text-xs mt-1 text-red-600">
+                      Instance ID: {matchingInstance.instance_id}
+                    </div>
+                  )}
+                  <details className="mt-2">
+                    <summary className="text-xs cursor-pointer">Debug Info</summary>
+                    <pre className="text-xs mt-1 bg-red-100 p-2 rounded">
+                      {JSON.stringify({
+                        selectedVenue,
+                        selectedYear,
+                        matchingInstance: matchingInstance?.instance_id,
+                        dashboardParams,
+                        errorDetails: dashboardError
+                      }, null, 2)}
+                    </pre>
+                  </details>
+                </div>
               </div>
             </div>
           )}
