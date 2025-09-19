@@ -53,6 +53,7 @@
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.6.1",
     "react-scripts": "^0.0.0",
+    "react-wordcloud": "^1.2.7",
     "recharts": "^3.2.1",
     "redux-persist": "^6.0.0",
     "rehype-highlight": "^7.0.2",
