@@ -129,7 +129,7 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-screen bg-white">
+      <div className="flex flex-col min-h-screen bg-gray-50">
         <MainPageHeader
           title="Dashboard"
           subtitle="AI-powered insights and analytics"
@@ -137,7 +137,7 @@ export default function DashboardPage() {
           iconColor="from-blue-500 to-blue-600"
         />
 
-        <div className="flex-1 p-8 overflow-hidden">
+        <div className="flex-1 p-6 md:p-8 overflow-hidden">
           <div className="max-w-7xl mx-auto h-full">
             {/* Three-Panel Dashboard Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
@@ -154,23 +154,25 @@ export default function DashboardPage() {
                     onReportSelect={handleReportSelect}
                   />
                 ) : (
-                  <div className="bg-white rounded-lg shadow-sm border p-6 h-full flex flex-col">
-                    <div className="flex items-center space-x-3 mb-6">
-                      <div className="p-2 bg-green-100 rounded-lg">
-                        <div className="h-6 w-6 bg-green-600 rounded"></div>
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-semibold text-gray-900">Research Reports</h2>
-                        <p className="text-sm text-gray-600">AI-generated research insights</p>
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6 h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-gray-100 rounded-lg">
+                          <div className="h-6 w-6 bg-gray-300 rounded" />
+                        </div>
+                        <div>
+                          <h2 className="text-base font-semibold text-gray-900">Research Reports</h2>
+                          <p className="text-sm text-gray-600">AI-generated insights</p>
+                        </div>
                       </div>
                     </div>
                     <div className="flex-1 flex items-center justify-center">
                       <div className="text-center">
-                        <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                          <span className="text-gray-400 text-2xl">📊</span>
+                        <div className="h-12 w-12 rounded-full border border-dashed border-gray-300 mx-auto mb-4 flex items-center justify-center text-gray-400">
+                          <span className="text-lg">📊</span>
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">To be announced</h3>
-                        <p className="text-gray-500 text-sm">Report generation features coming soon</p>
+                        <h3 className="text-sm font-medium text-gray-900 mb-1">Coming soon</h3>
+                        <p className="text-gray-500 text-xs">Report generation features in progress</p>
                       </div>
                     </div>
                   </div>
@@ -185,23 +187,25 @@ export default function DashboardPage() {
                     onPodcastSelect={handlePodcastSelect}
                   />
                 ) : (
-                  <div className="bg-white rounded-lg shadow-sm border p-6 h-full flex flex-col">
-                    <div className="flex items-center space-x-3 mb-6">
-                      <div className="p-2 bg-purple-100 rounded-lg">
-                        <div className="h-6 w-6 bg-purple-600 rounded"></div>
-                      </div>
-                      <div>
-                        <h2 className="text-xl font-semibold text-gray-900">AI Podcasts</h2>
-                        <p className="text-sm text-gray-600">Audio content generation</p>
+                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6 h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-gray-100 rounded-lg">
+                          <div className="h-6 w-6 bg-gray-300 rounded" />
+                        </div>
+                        <div>
+                          <h2 className="text-base font-semibold text-gray-900">AI Podcasts</h2>
+                          <p className="text-sm text-gray-600">Audio generation</p>
+                        </div>
                       </div>
                     </div>
                     <div className="flex-1 flex items-center justify-center">
                       <div className="text-center">
-                        <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                          <span className="text-gray-400 text-2xl">🎙️</span>
+                        <div className="h-12 w-12 rounded-full border border-dashed border-gray-300 mx-auto mb-4 flex items-center justify-center text-gray-400">
+                          <span className="text-lg">🎙️</span>
                         </div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">To be announced</h3>
-                        <p className="text-gray-500 text-sm">Podcast generation features coming soon</p>
+                        <h3 className="text-sm font-medium text-gray-900 mb-1">Coming soon</h3>
+                        <p className="text-gray-500 text-xs">Podcast features in progress</p>
                       </div>
                     </div>
                   </div>

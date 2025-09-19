@@ -28,20 +28,20 @@ const ReportListItem: React.FC<ReportListItemProps> = ({ report, onSelect }) => 
 
   return (
     <div 
-      className="mb-4 p-4 bg-gray-100 rounded-lg cursor-pointer hover:bg-gray-200 transition-colors"
+      className="mb-3 p-4 bg-white rounded-xl border border-gray-200 cursor-pointer hover:shadow-sm transition"
       onClick={handleClick}
     >
       <div className="flex items-start space-x-3">
         {/* Three dots icon */}
         <div className="flex flex-col space-y-1 mt-1">
-          <div className="w-1 h-1 bg-gray-600 rounded-full"></div>
-          <div className="w-1 h-1 bg-gray-600 rounded-full"></div>
-          <div className="w-1 h-1 bg-gray-600 rounded-full"></div>
+          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+          <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
         </div>
         
         <div className="flex-1 min-w-0">
           {/* Title */}
-          <h3 className="font-bold text-gray-900 mb-2">
+          <h3 className="text-base font-semibold text-gray-900 mb-1.5">
             {report.title || report.article_title || '大模型与生成式AI研究进展'}
           </h3>
           

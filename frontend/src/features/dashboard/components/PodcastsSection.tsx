@@ -23,12 +23,14 @@ const PodcastsSection: React.FC<PodcastsSectionProps> = ({
   if (loading) {
     return (
       <div className={`mb-8 ${className}`}>
-        <div className="space-y-4">
-          {[1, 2].map(i => (
-            <div key={i} className="animate-pulse">
-              <div className="h-20 bg-gray-200 rounded-lg"></div>
-            </div>
-          ))}
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="space-y-4">
+            {[1, 2].map(i => (
+              <div key={i} className="animate-pulse">
+                <div className="h-20 bg-gray-200 rounded-lg"></div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -37,12 +39,12 @@ const PodcastsSection: React.FC<PodcastsSectionProps> = ({
   if (podcasts.length === 0) {
     return (
       <div className={`mb-8 ${className}`}>
-        <div className="text-center py-8">
-          <div className="text-gray-400 text-4xl mb-2">🎧</div>
-          <h3 className="text-lg font-medium text-gray-900 mb-1">No podcasts yet</h3>
-          <p className="text-sm text-gray-500">
-            Start by creating your first AI-generated podcast.
-          </p>
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6">
+          <div className="text-center py-6">
+            <div className="h-10 w-10 rounded-full border border-dashed border-gray-300 mx-auto mb-3 flex items-center justify-center text-gray-400">🎧</div>
+            <h3 className="text-sm font-medium text-gray-900 mb-1">No podcasts yet</h3>
+            <p className="text-xs text-gray-500">Create your first AI-generated podcast.</p>
+          </div>
         </div>
       </div>
     );
@@ -50,15 +52,20 @@ const PodcastsSection: React.FC<PodcastsSectionProps> = ({
 
   return (
     <div className={`mb-8 ${className}`}>
-      <h2 className="text-2xl font-semibold mb-4 text-gray-900">Latest Podcasts</h2>
-      <div className="space-y-4">
-        {podcasts.map((podcast) => (
-          <PodcastListItem
-            key={podcast.id}
-            podcast={podcast}
-            onSelect={onPodcastSelect}
-          />
-        ))}
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-gray-900">Latest Podcasts</h2>
+          <p className="text-xs text-gray-500">Fresh AI-generated audio content</p>
+        </div>
+        <div className="space-y-3">
+          {podcasts.map((podcast) => (
+            <PodcastListItem
+              key={podcast.id}
+              podcast={podcast}
+              onSelect={onPodcastSelect}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

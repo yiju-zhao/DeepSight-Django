@@ -33,24 +33,24 @@ const PodcastListItem: React.FC<PodcastListItemProps> = ({ podcast, onSelect }) 
   };
 
   return (
-    <div className="mb-4">
+    <div className="mb-3">
       {/* Main item */}
       <div 
-        className="flex items-start space-x-3 cursor-pointer hover:bg-gray-50 p-2 rounded transition-colors"
+        className="flex items-start space-x-3 cursor-pointer bg-white border border-gray-200 hover:shadow-sm p-3 rounded-xl transition"
         onClick={handleClick}
       >
-        {/* Yellow square icon with three lines */}
-        <div className="w-8 h-8 bg-yellow-400 rounded flex items-center justify-center flex-shrink-0">
+        {/* Neutral square icon with three lines */}
+        <div className="w-8 h-8 bg-gray-100 border border-gray-200 rounded flex items-center justify-center flex-shrink-0">
           <div className="flex flex-col space-y-0.5">
-            <div className="w-3 h-0.5 bg-white rounded"></div>
-            <div className="w-3 h-0.5 bg-white rounded"></div>
-            <div className="w-3 h-0.5 bg-white rounded"></div>
+            <div className="w-3 h-0.5 bg-gray-500 rounded"></div>
+            <div className="w-3 h-0.5 bg-gray-500 rounded"></div>
+            <div className="w-3 h-0.5 bg-gray-500 rounded"></div>
           </div>
         </div>
         
         <div className="flex-1 min-w-0">
           {/* Title */}
-          <h3 className="font-bold text-gray-900 mb-2">
+          <h3 className="text-base font-semibold text-gray-900 mb-1.5">
             {podcast.title || '新兴人工智能研究进展:从对齐到场景理解'}
           </h3>
           
@@ -63,7 +63,7 @@ const PodcastListItem: React.FC<PodcastListItemProps> = ({ podcast, onSelect }) 
 
       {/* Expanded audio player */}
       {isExpanded && podcast.status === 'completed' && (
-        <div className="mt-3 ml-11 p-4 bg-gray-50 rounded-lg">
+        <div className="mt-3 ml-11 p-4 bg-gray-50 border border-gray-200 rounded-lg">
           <audio 
             controls 
             className="w-full"

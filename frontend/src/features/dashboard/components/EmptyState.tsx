@@ -21,12 +21,16 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   className = '',
 }) => {
   return (
-    <div className={`text-center py-12 ${className}`}>
-      <div className="text-gray-400 text-6xl mb-4" role="img" aria-label="Empty state icon">
-        {icon}
+    <div className={`text-center py-10 ${className}`}>
+      <div
+        className="h-12 w-12 rounded-full border border-dashed border-gray-300 mx-auto mb-4 flex items-center justify-center text-gray-400"
+        role="img"
+        aria-label="Empty state icon"
+      >
+        <span className="text-xl leading-none">{icon}</span>
       </div>
-      <h3 className="text-lg font-medium text-gray-900 mb-2">{title}</h3>
-      <p className="text-sm text-gray-500 mb-6 max-w-md mx-auto">
+      <h3 className="text-base font-medium text-gray-900 mb-1">{title}</h3>
+      <p className="text-xs text-gray-500 mb-5 max-w-md mx-auto">
         {description}
       </p>
       {action && (

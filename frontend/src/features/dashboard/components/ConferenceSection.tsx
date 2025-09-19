@@ -10,14 +10,14 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border p-6">
+      <div className="bg-white/70 backdrop-blur-sm rounded-xl border border-gray-200 p-6 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="h-6 bg-gray-200 rounded animate-pulse w-48" />
           <div className="h-8 bg-gray-200 rounded animate-pulse w-24" />
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="text-center p-4 bg-gray-50 rounded-lg">
+            <div key={i} className="text-center p-4 bg-gray-50 rounded-lg border border-gray-200">
               <div className="h-8 bg-gray-200 rounded animate-pulse mb-2" />
               <div className="h-4 bg-gray-200 rounded animate-pulse" />
             </div>
@@ -28,14 +28,14 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border p-6 hover:shadow-md transition-shadow h-full flex flex-col">
+    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition h-full flex flex-col">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-3">
-          <div className="p-2 bg-blue-100 rounded-lg">
-            <BarChart3 className="h-6 w-6 text-blue-600" />
+          <div className="p-2 bg-gray-100 rounded-lg border border-gray-200">
+            <BarChart3 className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">Conference Analytics</h2>
+            <h2 className="text-base font-semibold text-gray-900">Conference Analytics</h2>
             <p className="text-sm text-gray-600">Research data and trends</p>
           </div>
         </div>
@@ -45,7 +45,7 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
         {overviewData ? (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center justify-center mb-1">
                   <BarChart3 className="h-4 w-4 text-blue-600 mr-1" />
                   <span className="text-xl font-bold text-blue-600">
@@ -55,7 +55,7 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
                 <p className="text-xs text-gray-600">Conferences</p>
               </div>
 
-              <div className="text-center p-3 bg-green-50 rounded-lg">
+              <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center justify-center mb-1">
                   <TrendingUp className="h-4 w-4 text-green-600 mr-1" />
                   <span className="text-xl font-bold text-green-600">
@@ -65,7 +65,7 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
                 <p className="text-xs text-gray-600">Publications</p>
               </div>
 
-              <div className="text-center p-3 bg-purple-50 rounded-lg">
+              <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center justify-center mb-1">
                   <Globe className="h-4 w-4 text-purple-600 mr-1" />
                   <span className="text-xl font-bold text-purple-600">
@@ -75,7 +75,7 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
                 <p className="text-xs text-gray-600">Years Covered</p>
               </div>
 
-              <div className="text-center p-3 bg-orange-50 rounded-lg">
+              <div className="text-center p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex items-center justify-center mb-1">
                   <Users className="h-4 w-4 text-orange-600 mr-1" />
                   <span className="text-xl font-bold text-orange-600">
@@ -94,7 +94,7 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
         )}
       </div>
 
-      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+      <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
         <h3 className="font-medium text-gray-900 mb-2 text-sm">Available Analysis</h3>
         <div className="space-y-2 text-xs">
           <div className="flex items-center text-gray-600">
