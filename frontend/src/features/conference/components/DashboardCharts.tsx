@@ -12,6 +12,9 @@ import {
   LineChart,
   Line
 } from 'recharts';
+import { Text } from '@visx/text';
+import { scaleLog } from '@visx/scale';
+import Wordcloud from '@visx/wordcloud/lib/Wordcloud';
 import { ChartData } from '../types';
 
 interface DashboardChartsProps {
@@ -20,6 +23,73 @@ interface DashboardChartsProps {
 }
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'];
+
+interface WordData {
+  text: string;
+  value: number;
+}
+
+function getRotationDegree() {
+  const rand = Math.random();
+  const degree = rand > 0.5 ? 60 : -60;
+  return rand * degree;
+}
+
+const fixedValueGenerator = () => 0.5;
+
+interface WordCloudProps {
+  keywords: Array<{ name: string; count: number }>;
+}
+
+function WordCloudComponent({ keywords }: WordCloudProps) {
+  const words: WordData[] = keywords.map(keyword => ({
+    text: keyword.name,
+    value: keyword.count,
+  }));
+
+  const fontScale = scaleLog({
+    domain: [Math.min(...words.map((w) => w.value)), Math.max(...words.map((w) => w.value))],
+    range: [12, 60],
+  });
+
+  const fontSizeSetter = (datum: WordData) => fontScale(datum.value);
+
+  return (
+    <div style={{ width: '100%', height: '400px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <Wordcloud
+        words={words}
+        width={800}
+        height={400}
+        fontSize={fontSizeSetter}
+        font={'Inter, sans-serif'}
+        padding={4}
+        spiral="archimedean"
+        rotate={0}
+        random={fixedValueGenerator}
+      >
+        {(cloudWords) =>
+          cloudWords.map((w, i) => (
+            <Text
+              key={w.text}
+              fill={COLORS[i % COLORS.length]}
+              textAnchor="middle"
+              transform={`translate(${w.x}, ${w.y}) rotate(${w.rotate})`}
+              fontSize={w.size}
+              fontFamily={w.font}
+              className="cursor-pointer hover:opacity-80 transition-opacity duration-200"
+              style={{
+                textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
+                fontWeight: 600,
+              }}
+            >
+              {w.text}
+            </Text>
+          ))
+        }
+      </Wordcloud>
+    </div>
+  );
+}
 
 const ChartCard = ({
   title,
@@ -140,45 +210,14 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
 
       </div>
 
-      {/* Popular Keywords - Optimized Word Cloud */}
+      {/* Popular Keywords - @visx Word Cloud */}
       <div className="bg-white rounded-lg shadow-sm border p-8">
         <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Popular Keywords</h3>
-        <div className="flex flex-wrap justify-center items-center gap-2 min-h-[300px] relative">
-          {data.top_keywords.slice(0, 30).map((keyword, index) => {
-            const maxCount = Math.max(...data.top_keywords.map(k => k.count));
-            const minCount = Math.min(...data.top_keywords.map(k => k.count));
-            const ratio = (keyword.count - minCount) / (maxCount - minCount || 1);
-
-            // Enhanced font sizing (16px to 48px for better visibility)
-            const fontSize = 16 + (ratio * 32);
-
-            // Color selection based on keyword characteristics
-            const colorIndex = keyword.name.length % COLORS.length;
-            const color = COLORS[colorIndex];
-
-            // Position larger keywords more centrally
-            const isLargeKeyword = ratio > 0.6;
-            const zIndex = Math.floor(ratio * 10);
-
-            return (
-              <span
-                key={keyword.name}
-                className="inline-block m-1 hover:scale-110 transition-all duration-300 cursor-pointer font-bold"
-                style={{
-                  fontSize: `${fontSize}px`,
-                  color: color,
-                  textShadow: '2px 2px 4px rgba(0,0,0,0.1)',
-                  zIndex: zIndex,
-                  order: isLargeKeyword ? -Math.floor(ratio * 100) : index
-                }}
-                title={`${keyword.name}: ${keyword.count} publications`}
-              >
-                {keyword.name}
-              </span>
-            );
-          })}
-        </div>
-        {data.top_keywords.length === 0 && (
+        {data.top_keywords.length > 0 ? (
+          <div className="min-h-[400px] w-full">
+            <WordCloudComponent keywords={data.top_keywords.slice(0, 50)} />
+          </div>
+        ) : (
           <div className="text-center text-gray-500 py-12">
             <p>No keywords available for this conference</p>
           </div>
