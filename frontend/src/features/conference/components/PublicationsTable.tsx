@@ -182,11 +182,11 @@ export function PublicationsTable({
                   </td>
 
                   <td className="py-4 px-4">
-                    {publication.rating && (
+                    {publication.rating && !isNaN(Number(publication.rating)) && (
                       <div className="flex items-center space-x-1">
                         <Star className="w-3 h-3 text-yellow-400 fill-current" />
                         <span className="text-sm font-semibold text-gray-900">
-                          {publication.rating.toFixed(1)}
+                          {Number(publication.rating).toFixed(1)}
                         </span>
                       </div>
                     )}
