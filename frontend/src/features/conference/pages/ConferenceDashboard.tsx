@@ -4,6 +4,8 @@ import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
 import { PublicationsTable } from '../components/PublicationsTable';
 import { AlertCircle } from 'lucide-react';
+import DashboardHeader from '@/features/dashboard/components/DashboardHeader';
+import AppLayout from '@/shared/components/layout/AppLayout';
 
 export default function ConferenceDashboard() {
   const [selectedVenue, setSelectedVenue] = useState<string>('');
@@ -57,18 +59,16 @@ export default function ConferenceDashboard() {
     : [];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
-          {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Conference Analysis
-            </h1>
-            <p className="text-gray-600 mb-6">
-              Explore detailed statistics, charts, and publication lists for specific conferences and years
-            </p>
-          </div>
+    <AppLayout>
+      <div className="flex flex-col h-screen bg-white">
+        <DashboardHeader
+          title="Conference Analysis"
+          subtitle="Explore detailed statistics, charts, and publication lists for specific conferences and years"
+        />
+
+        <div className="flex-1 p-8 overflow-auto">
+          <div className="max-w-7xl mx-auto">
+            <div className="space-y-8">
 
           {/* Conference and Year Filters */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
@@ -202,8 +202,10 @@ export default function ConferenceDashboard() {
               </p>
             </div>
           )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }

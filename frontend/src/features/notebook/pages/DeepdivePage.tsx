@@ -7,6 +7,7 @@ import NotebookLayout from "@/features/notebook/components/layout/NotebookLayout
 import SourcesPanel from "@/features/notebook/components/panels/SourcesPanel";
 import SessionChatPanel from "@/features/notebook/components/panels/SessionChatPanel";
 import StudioPanel from "@/features/notebook/components/panels/StudioPanel";
+import AppLayout from "@/shared/components/layout/AppLayout";
 import "highlight.js/styles/github.css";
 
 /**
@@ -101,7 +102,8 @@ export default function DeepdivePage() {
   }
 
   return (
-    <NotebookLayout
+    <AppLayout>
+      <NotebookLayout
       notebookTitle={currentNotebook?.name}
       sourcesRemovedTrigger={sourcesRemovedTrigger}
       sourcesPanel={
@@ -132,6 +134,7 @@ export default function DeepdivePage() {
           onCloseModal={handleCloseModal}
         />
       }
-    />
+      />
+    </AppLayout>
   );
 }

@@ -6,7 +6,8 @@ import SidebarMenu from "@/features/notebook/components/layout/SidebarMenu";
 import NotebookGrid from "@/features/notebook/components/NotebookGrid";
 import NotebookList from "@/features/notebook/components/NotebookList";
 import CreateNotebookForm from "@/features/notebook/components/CreateNotebookForm";
-import { 
+import AppLayout from "@/shared/components/layout/AppLayout";
+import {
   ChevronDown, Grid, List, Plus, BookOpen, Search, LogOut
 } from "lucide-react";
 
@@ -86,21 +87,24 @@ export default function NotebookListPage() {
   // Show loading screen while checking authentication
   if (!authChecked) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
+      <AppLayout showNavigation={false}>
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading...</p>
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Sidebar Menu */}
-      <SidebarMenu 
-        isOpen={menuOpen} 
-        onClose={() => setMenuOpen(false)}
+    <AppLayout>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Sidebar Menu */}
+        <SidebarMenu
+          isOpen={menuOpen}
+          onClose={() => setMenuOpen(false)}
         currentPath="/deepdive"
       />
 
@@ -269,6 +273,7 @@ export default function NotebookListPage() {
           />
         )}
       </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }

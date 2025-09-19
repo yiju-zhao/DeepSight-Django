@@ -9,6 +9,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReportEditor from '@/features/report/components/ReportEditor';
+import AppLayout from '@/shared/components/layout/AppLayout';
 
 // Import TanStack Query hooks and components
 import { useDashboardData, Report, Podcast } from '../queries';
@@ -86,119 +87,131 @@ export default function DashboardPage() {
 
   // Loading state
   if (loading) {
-    return <LoadingState />;
+    return (
+      <AppLayout>
+        <LoadingState />
+      </AppLayout>
+    );
   }
 
   // Error state
   if (error) {
     return (
-      <div className="p-8 bg-white min-h-screen">
-        <DashboardHeader />
-        <div className="max-w-4xl mx-auto">
-          <EmptyState
-            icon="⚠️"
-            title="Something went wrong"
-            description={error}
-          />
+      <AppLayout>
+        <div className="p-8 bg-white min-h-screen">
+          <DashboardHeader />
+          <div className="max-w-4xl mx-auto">
+            <EmptyState
+              icon="⚠️"
+              title="Something went wrong"
+              description={error}
+            />
+          </div>
         </div>
-      </div>
+      </AppLayout>
     );
   }
 
   // Show report editor if a report is selected
   if (selectedReport) {
     return (
-      <ReportEditor
-        report={selectedReport}
-        onBack={handleBackToList}
-        onDelete={handleDeleteReport}
-        onSave={handleSaveReport}
-      />
+      <AppLayout>
+        <ReportEditor
+          report={selectedReport}
+          onBack={handleBackToList}
+          onDelete={handleDeleteReport}
+          onSave={handleSaveReport}
+        />
+      </AppLayout>
     );
   }
 
   return (
-    <div className="p-8 bg-white min-h-screen">
-      <DashboardHeader />
+    <AppLayout>
+      <div className="flex flex-col h-screen bg-white">
+        <DashboardHeader />
 
-      <div className="max-w-7xl mx-auto">
-        {/* Three-Panel Dashboard Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Conference Panel */}
-          <div className="lg:col-span-1">
-            <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
-          </div>
-
-          {/* Reports Panel */}
-          <div className="lg:col-span-1">
-            {reports.length > 0 ? (
-              <ReportsSection
-                reports={reports}
-                onReportSelect={handleReportSelect}
-              />
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm border p-6 h-full flex flex-col">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <div className="h-6 w-6 bg-green-600 rounded"></div>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">Research Reports</h2>
-                    <p className="text-sm text-gray-600">AI-generated research insights</p>
-                  </div>
-                </div>
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                      <span className="text-gray-400 text-2xl">📊</span>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">To be announced</h3>
-                    <p className="text-gray-500 text-sm">Report generation features coming soon</p>
-                  </div>
-                </div>
+        <div className="flex-1 p-8 overflow-hidden">
+          <div className="max-w-7xl mx-auto h-full">
+            {/* Three-Panel Dashboard Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
+              {/* Conference Panel */}
+              <div className="lg:col-span-1">
+                <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
               </div>
-            )}
-          </div>
 
-          {/* Podcasts Panel */}
-          <div className="lg:col-span-1">
-            {podcasts.length > 0 ? (
-              <PodcastsSection
-                podcasts={podcasts}
-                onPodcastSelect={handlePodcastSelect}
-              />
-            ) : (
-              <div className="bg-white rounded-lg shadow-sm border p-6 h-full flex flex-col">
-                <div className="flex items-center space-x-3 mb-6">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <div className="h-6 w-6 bg-purple-600 rounded"></div>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-900">AI Podcasts</h2>
-                    <p className="text-sm text-gray-600">Audio content generation</p>
-                  </div>
-                </div>
-                <div className="flex-1 flex items-center justify-center">
-                  <div className="text-center">
-                    <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
-                      <span className="text-gray-400 text-2xl">🎙️</span>
+              {/* Reports Panel */}
+              <div className="lg:col-span-1">
+                {reports.length > 0 ? (
+                  <ReportsSection
+                    reports={reports}
+                    onReportSelect={handleReportSelect}
+                  />
+                ) : (
+                  <div className="bg-white rounded-lg shadow-sm border p-6 h-full flex flex-col">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-2 bg-green-100 rounded-lg">
+                        <div className="h-6 w-6 bg-green-600 rounded"></div>
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-semibold text-gray-900">Research Reports</h2>
+                        <p className="text-sm text-gray-600">AI-generated research insights</p>
+                      </div>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">To be announced</h3>
-                    <p className="text-gray-500 text-sm">Podcast generation features coming soon</p>
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                          <span className="text-gray-400 text-2xl">📊</span>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">To be announced</h3>
+                        <p className="text-gray-500 text-sm">Report generation features coming soon</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
-            )}
+
+              {/* Podcasts Panel */}
+              <div className="lg:col-span-1">
+                {podcasts.length > 0 ? (
+                  <PodcastsSection
+                    podcasts={podcasts}
+                    onPodcastSelect={handlePodcastSelect}
+                  />
+                ) : (
+                  <div className="bg-white rounded-lg shadow-sm border p-6 h-full flex flex-col">
+                    <div className="flex items-center space-x-3 mb-6">
+                      <div className="p-2 bg-purple-100 rounded-lg">
+                        <div className="h-6 w-6 bg-purple-600 rounded"></div>
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-semibold text-gray-900">AI Podcasts</h2>
+                        <p className="text-sm text-gray-600">Audio content generation</p>
+                      </div>
+                    </div>
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="h-16 w-16 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                          <span className="text-gray-400 text-2xl">🎙️</span>
+                        </div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">To be announced</h3>
+                        <p className="text-gray-500 text-sm">Podcast generation features coming soon</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <DashboardActions
-        onViewModeChange={handleViewModeChange}
-        onLanguageChange={handleLanguageChange}
-        viewMode={viewMode}
-        language={language}
-      />
-    </div>
+        <DashboardActions
+          onViewModeChange={handleViewModeChange}
+          onLanguageChange={handleLanguageChange}
+          viewMode={viewMode}
+          language={language}
+        />
+      </div>
+    </AppLayout>
   );
 }

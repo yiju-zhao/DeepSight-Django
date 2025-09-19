@@ -4,50 +4,17 @@ import { Link } from "react-router-dom";
 import { Toaster } from "@/shared/components/ui/toaster";
 import Logo from "@/shared/components/common/Logo";
 import Footer from "@/shared/components/common/Footer";
+import AppLayout from "@/shared/components/layout/AppLayout";
 
 export default function DatasetPage() {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   return (
-    <div className="min-h-screen bg-white flex flex-col relative">
-      {/* Sidebar Menu */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50 flex">
-          <div className="w-64 bg-white shadow-xl p-6 z-50">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold">Menu</h2>
-              <button
-                onClick={() => setMenuOpen(false)}
-                className="text-gray-600 hover:text-gray-900"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <nav className="space-y-4">
-              <Link to="/" className="block text-gray-700 hover:text-red-600">Home Page</Link>
-              <Link to="/dashboard" className="block text-gray-700 hover:text-red-600">Dashboard</Link>
-              <Link to="/dataset" className="block text-red-600 font-semibold bg-gray-100 p-2 rounded">Dataset</Link>
-              <Link to="/deepdive" className="block text-gray-700 hover:text-red-600">Deepdive</Link>
-            </nav>
+    <AppLayout>
+      <div className="min-h-screen bg-white flex flex-col">
+        {/* Header */}
+        <header className="border-b border-gray-200 p-4 flex justify-between items-center">
+          <div className="flex items-center">
+            <Logo />
           </div>
-          <div
-            className="flex-1 bg-black bg-opacity-30"
-            onClick={() => setMenuOpen(false)}
-          />
-        </div>
-      )}
-
-      {/* Header */}
-      <header className="border-b border-gray-200 p-4 flex justify-between items-center relative z-10">
-        <div className="flex items-center">
-          <button
-            onClick={() => setMenuOpen(true)}
-            className="p-2 rounded-md hover:bg-gray-100"
-          >
-            <Menu className="h-6 w-6 text-gray-700" />
-          </button>
-          <Logo />
-        </div>
 
         {/* Language Switcher */}
         <div className="relative group">
@@ -81,8 +48,9 @@ export default function DatasetPage() {
         </div>
       </main>
 
-      <Footer />
-      <Toaster />
-    </div>
+        <Footer />
+        <Toaster />
+      </div>
+    </AppLayout>
   );
 }
