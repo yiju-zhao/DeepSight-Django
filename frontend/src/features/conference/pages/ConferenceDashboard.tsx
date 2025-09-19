@@ -43,7 +43,7 @@ export default function ConferenceDashboard() {
     setCurrentPage(1);
   };
 
-  const handleYearChange = (year: number) => {
+  const handleYearChange = (year: number | undefined) => {
     setSelectedYear(year);
     setSelectedInstance(undefined);
     setCurrentPage(1);
@@ -56,6 +56,11 @@ export default function ConferenceDashboard() {
 
   const availableYears = instances
     ? [...new Set(instances.map(i => i.year))].sort((a, b) => b - a)
+    : [];
+
+  // Instances for the selected year (if any)
+  const yearInstances = selectedYear && instances
+    ? instances.filter(i => i.year === selectedYear)
     : [];
 
   return (
@@ -103,8 +108,11 @@ export default function ConferenceDashboard() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Year</label>
                 <select
-                  value={selectedYear || ''}
-                  onChange={(e) => handleYearChange(Number(e.target.value))}
+                  value={selectedYear ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    handleYearChange(v ? Number(v) : undefined);
+                  }}
                   disabled={instancesLoading || !selectedVenue}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                 >
@@ -117,8 +125,8 @@ export default function ConferenceDashboard() {
                 </select>
               </div>
 
-              {/* Instance Selector (if multiple instances per year) */}
-              {selectedVenue && selectedYear && instances && instances.length > 1 && (
+              {/* Instance Selector (show even if one instance exists) */}
+              {selectedVenue && selectedYear && yearInstances && yearInstances.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Conference Instance</label>
                   <select
@@ -127,9 +135,7 @@ export default function ConferenceDashboard() {
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="">Choose an instance...</option>
-                    {instances
-                      .filter(instance => instance.year === selectedYear)
-                      .map((instance) => (
+                    {yearInstances.map((instance) => (
                         <option key={instance.instance_id} value={instance.instance_id}>
                           {instance.venue.name} {instance.year} - {instance.location}
                         </option>

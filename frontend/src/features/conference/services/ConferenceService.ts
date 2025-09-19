@@ -26,14 +26,17 @@ export class ConferenceService implements IConferenceService {
    * Get list of venues
    */
   async getVenues(): Promise<Venue[]> {
-    return apiClient.get(`${this.baseEndpoint}/venues/`);
+    const res = await apiClient.get(`${this.baseEndpoint}/venues/`, { params: { page_size: 1000 } });
+    // Handle paginated or non-paginated responses
+    return Array.isArray(res) ? res as Venue[] : (res?.results ?? []);
   }
 
   /**
    * Get list of instances with optional venue filter
    */
   async getInstances(params?: InstanceParams): Promise<Instance[]> {
-    return apiClient.get(`${this.baseEndpoint}/instances/`, { params });
+    const res = await apiClient.get(`${this.baseEndpoint}/instances/`, { params: { ...(params || {}), page_size: 1000 } });
+    return Array.isArray(res) ? res as Instance[] : (res?.results ?? []);
   }
 
   /**

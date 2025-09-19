@@ -1,7 +1,7 @@
 // Conference hooks for data fetching with TanStack Query
 import { useQuery } from '@tanstack/react-query';
 import { conferenceService } from '../services/ConferenceService';
-import { DashboardParams, InstanceParams } from '../types';
+import { DashboardParams, InstanceParams, Venue, Instance, DashboardResponse, ConferenceOverview, PaginatedResponse } from '../types';
 
 // Query keys for better cache management
 export const conferenceKeys = {
@@ -17,7 +17,7 @@ export const conferenceKeys = {
  * Hook to fetch conference venues
  */
 export const useVenues = () => {
-  return useQuery({
+  return useQuery<Venue[]>({
     queryKey: conferenceKeys.venues(),
     queryFn: conferenceService.getVenues,
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -28,7 +28,7 @@ export const useVenues = () => {
  * Hook to fetch conference instances with optional venue filter
  */
 export const useInstances = (params?: InstanceParams) => {
-  return useQuery({
+  return useQuery<Instance[]>({
     queryKey: conferenceKeys.instances(params),
     queryFn: () => conferenceService.getInstances(params),
     enabled: !!params?.venue, // Only fetch when venue is selected
@@ -54,7 +54,7 @@ export const usePublications = (params?: { instance?: number; page?: number; pag
 export const useDashboard = (params: DashboardParams) => {
   const isEnabled = !!(params.instance || (params.venue && params.year));
 
-  return useQuery({
+  return useQuery<DashboardResponse>({
     queryKey: conferenceKeys.dashboard(params),
     queryFn: () => conferenceService.getDashboard(params),
     enabled: isEnabled,
@@ -66,7 +66,7 @@ export const useDashboard = (params: DashboardParams) => {
  * Hook to fetch conference overview
  */
 export const useOverview = () => {
-  return useQuery({
+  return useQuery<ConferenceOverview>({
     queryKey: conferenceKeys.overview(),
     queryFn: conferenceService.getOverview,
     staleTime: 30 * 60 * 1000, // 30 minutes
