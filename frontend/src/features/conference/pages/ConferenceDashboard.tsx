@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useVenues, useInstances, useDashboard, useOverview, usePublications } from '../hooks/useConference';
 import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
@@ -13,6 +13,9 @@ export default function ConferenceDashboard() {
   const [selectedInstance, setSelectedInstance] = useState<number | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // Ref for the dashboard content section
+  const dashboardContentRef = useRef<HTMLDivElement>(null);
 
   // Fetch all instances first to build dropdown options
   const { data: instances, isLoading: instancesLoading } = useInstances();
@@ -87,6 +90,21 @@ export default function ConferenceDashboard() {
 
   // Fetch overview data
   const { data: overviewData } = useOverview();
+
+  // Auto-scroll to dashboard content when a conference is selected
+  useEffect(() => {
+    if (matchingInstance && dashboardContentRef.current) {
+      // Small delay to ensure the content is rendered
+      const timer = setTimeout(() => {
+        dashboardContentRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 300);
+
+      return () => clearTimeout(timer);
+    }
+  }, [matchingInstance]);
 
   const handleVenueChange = (venue: string) => {
     setSelectedVenue(venue);
@@ -285,34 +303,13 @@ export default function ConferenceDashboard() {
                   <div className="text-sm mt-1">
                     {dashboardError?.message || publicationsError?.message || 'Please check your selection and try again.'}
                   </div>
-                  {matchingInstance && (
-                    <div className="text-xs mt-1 text-red-600">
-                      Instance ID: {matchingInstance.instance_id}
-                    </div>
-                  )}
-                  <details className="mt-2">
-                    <summary className="text-xs cursor-pointer">Debug Info</summary>
-                    <pre className="text-xs mt-1 bg-red-100 p-2 rounded">
-                      {JSON.stringify({
-                        selectedVenue,
-                        selectedYear,
-                        matchingInstance: matchingInstance?.instance_id,
-                        dashboardParams,
-                        publicationsParams,
-                        errorDetails: {
-                          dashboard: dashboardError,
-                          publications: publicationsError
-                        }
-                      }, null, 2)}
-                    </pre>
-                  </details>
                 </div>
               </div>
             </div>
           )}
 
           {matchingInstance && (
-            <div className="space-y-8">
+            <div ref={dashboardContentRef} className="space-y-8">
               {/* KPIs */}
               {dashboardData && (
                 <DashboardKPIs data={dashboardData.kpis} isLoading={dashboardLoading} />
