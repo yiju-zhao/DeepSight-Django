@@ -199,12 +199,12 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop - subtle and auto-closing */}
+            {/* Backdrop - covers entire screen including header */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-20 z-40"
+              className="fixed inset-0 bg-black bg-opacity-20 z-[60]"
               onClick={() => setIsOpen(false)}
             />
 
@@ -214,7 +214,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
               animate={{ x: 0 }}
               exit={{ x: -320 }}
               transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-50 overflow-y-auto"
+              className="fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-[70] overflow-y-auto"
               onMouseEnter={() => {
                 // Keep open when hovering sidebar
                 setIsOpen(true);
