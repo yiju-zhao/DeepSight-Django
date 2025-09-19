@@ -81,10 +81,10 @@ export function useDashboardData() {
 
     try {
       const [reports, podcasts, confsOverview, orgsOverview] = await Promise.allSettled([
-        fetchJson(`${config.API_BASE_URL}/reports/trending`),
-        fetchJson(`${config.API_BASE_URL}/podcasts/`),
-        fetchJson(`${config.API_BASE_URL}/conferences/overview`),
-        fetchJson(`${config.API_BASE_URL}/organizations/overview`),
+        fetchJson(`${config.API_BASE_URL}/reports/jobs/`),
+        fetchJson(`${config.API_BASE_URL}/podcasts/jobs/`),
+        fetchJson(`${config.API_BASE_URL}/conferences/dashboard/overview/`),
+        Promise.resolve([]), // No organizations endpoint available yet
       ]);
 
       setData({
@@ -95,9 +95,9 @@ export function useDashboardData() {
       });
 
       // Log any failed requests
-      [reports, podcasts, confsOverview, orgsOverview].forEach((result, index) => {
+      [reports, podcasts, confsOverview].forEach((result, index) => {
         if (result.status === 'rejected') {
-          const endpoints = ['reports', 'podcasts', 'conferences', 'organizations'];
+          const endpoints = ['reports', 'podcasts', 'conferences'];
           console.warn(`Failed to load ${endpoints[index]}:`, result.reason);
         }
       });

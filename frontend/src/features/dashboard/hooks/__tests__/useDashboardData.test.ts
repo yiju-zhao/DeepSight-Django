@@ -79,11 +79,10 @@ describe('useDashboardData', () => {
     expect(result.current.error).toBe(null);
 
     // Verify API calls were made
-    expect(mockFetchJson).toHaveBeenCalledTimes(4);
-    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/reports/trending`);
-    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/podcasts/`);
-    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/conferences/overview`);
-    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/organizations/overview`);
+    expect(mockFetchJson).toHaveBeenCalledTimes(3);
+    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/reports/jobs/`);
+    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/podcasts/jobs/`);
+    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/conferences/dashboard/overview/`);
   });
 
   it('should handle partial failures gracefully', async () => {
