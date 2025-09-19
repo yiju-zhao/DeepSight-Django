@@ -51,17 +51,18 @@ export class ConferenceService implements IConferenceService {
   }
 
   /**
-   * Get dashboard data with venue/year or instance filter
+   * Get dashboard data with instance filter (KPIs and charts only)
    */
   async getDashboard(params: DashboardParams): Promise<DashboardResponse> {
-    return apiClient.get(`${this.baseEndpoint}/dashboard/`, { params });
+    return apiClient.get(`${this.baseEndpoint}/overview/`, { params });
   }
 
   /**
-   * Get conferences overview statistics
+   * Get conferences overview statistics (general overview, not instance-specific)
    */
   async getOverview(): Promise<ConferenceOverview> {
-    return apiClient.get(`${this.baseEndpoint}/dashboard/overview/`);
+    // Note: This is currently unused in ConferenceDashboard but kept for compatibility
+    return apiClient.get(`${this.baseEndpoint}/overview/general/`);
   }
 }
 

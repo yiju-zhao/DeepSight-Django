@@ -8,13 +8,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from collections import Counter
-import re
 
 from .models import Venue, Instance, Publication, Event
 from .serializers import (
     VenueSerializer, InstanceSerializer, PublicationSerializer,
-    EventSerializer, PublicationTableSerializer, DashboardResponseSerializer,
-    ConferenceOverviewSerializer
+    EventSerializer
 )
 
 
@@ -76,8 +74,8 @@ class EventViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class DashboardViewSet(viewsets.ViewSet):
-    """ViewSet for dashboard analytics"""
+class OverviewViewSet(viewsets.ViewSet):
+    """ViewSet for dashboard analytics and overview"""
     permission_classes = [IsAuthenticated]
 
     def _split_semicolon_values(self, field_value):
@@ -208,45 +206,34 @@ class DashboardViewSet(viewsets.ViewSet):
         }
 
     @method_decorator(cache_page(60 * 15))  # Cache for 15 minutes
-    @action(detail=False, methods=['get'])
-    def dashboard(self, request):
-        """Get dashboard data for a specific venue/year or instance"""
-        venue = request.query_params.get('venue')
-        year = request.query_params.get('year')
+    def list(self, request):
+        """Get dashboard data for a specific instance"""
         instance_id = request.query_params.get('instance')
 
-        try:
-            if year:
-                year = int(year)
-            if instance_id:
-                instance_id = int(instance_id)
-        except (ValueError, TypeError):
+        if not instance_id:
             return Response(
-                {'error': 'Invalid year or instance parameter'},
+                {'error': 'instance parameter is required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
-            publications = self._get_publications_queryset(venue, year, instance_id)
+            instance_id = int(instance_id)
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Invalid instance parameter'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            publications = self._get_publications_queryset(instance_id=instance_id)
 
             # Calculate KPIs and charts
             kpis = self._calculate_kpis(publications)
             charts = self._calculate_charts(publications)
 
-            # Get paginated table data
-            paginator = StandardPageNumberPagination()
-            page = paginator.paginate_queryset(publications, request)
-            table_serializer = PublicationTableSerializer(page, many=True)
-
             response_data = {
                 'kpis': kpis,
                 'charts': charts,
-                'table': table_serializer.data,
-                'pagination': {
-                    'count': paginator.page.paginator.count,
-                    'next': paginator.get_next_link(),
-                    'previous': paginator.get_previous_link(),
-                }
             }
 
             return Response(response_data)
@@ -259,8 +246,8 @@ class DashboardViewSet(viewsets.ViewSet):
 
     @method_decorator(cache_page(60 * 30))  # Cache for 30 minutes
     @action(detail=False, methods=['get'])
-    def overview(self, request):
-        """Get conferences overview statistics"""
+    def general(self, request):
+        """Get general conferences overview statistics"""
         venues = Venue.objects.all()
         instances = Instance.objects.select_related('venue').all()
         publications = Publication.objects.all()

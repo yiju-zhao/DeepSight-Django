@@ -8,7 +8,7 @@ router.register(r'venues', views.VenueViewSet, basename='venue')
 router.register(r'instances', views.InstanceViewSet, basename='instance')
 router.register(r'publications', views.PublicationViewSet, basename='publication')
 router.register(r'events', views.EventViewSet, basename='event')
-router.register(r'dashboard', views.DashboardViewSet, basename='dashboard')
+router.register(r'overview', views.OverviewViewSet, basename='overview')
 
 # URL patterns
 urlpatterns = [
@@ -20,5 +20,4 @@ urlpatterns = [
 # /api/v1/conferences/instances/ (list/detail; support ?venue=CVPR)
 # /api/v1/conferences/publications/ (list/detail; support ?instance=<id>)
 # /api/v1/conferences/events/ (list/detail; support ?instance=<id>)
-# /api/v1/conferences/dashboard/dashboard/ (dashboard analytics)
-# /api/v1/conferences/dashboard/overview/ (conferences overview)
+# /api/v1/conferences/overview/ (dashboard analytics and stats)

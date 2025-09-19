@@ -82,7 +82,7 @@ describe('useDashboardData', () => {
     expect(mockFetchJson).toHaveBeenCalledTimes(3);
     expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/reports/jobs/`);
     expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/podcasts/jobs/`);
-    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/conferences/dashboard/overview/`);
+    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/conferences/overview/general/`);
   });
 
   it('should handle partial failures gracefully', async () => {

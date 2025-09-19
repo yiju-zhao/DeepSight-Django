@@ -158,8 +158,7 @@ export function useConferencesOverview(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [...queryKeys.conferences.all, 'overview'],
     queryFn: async (): Promise<ConferencesOverview> => {
-      // TODO: Backend - Update endpoint from /conferences/dashboard/overview/ to /dashboard/conference/overview/
-      return apiClient.get('/conferences/dashboard/overview/');
+      return apiClient.get('/conferences/overview/general/');
     },
     enabled: options?.enabled ?? true,
     // Conference data is relatively stable
@@ -252,8 +251,7 @@ export function useDashboardData(options?: { enabled?: boolean }) {
       {
         queryKey: [...queryKeys.conferences.all, 'overview'],
         queryFn: async (): Promise<ConferencesOverview> => {
-          // TODO: Backend - Update endpoint from /conferences/dashboard/overview/ to /dashboard/conference/overview/
-          return apiClient.get('/conferences/dashboard/overview/');
+          return apiClient.get('/conferences/overview/general/');
         },
         enabled: options?.enabled ?? true,
         staleTime: 10 * 60 * 1000,

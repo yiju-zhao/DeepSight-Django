@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useVenues, useInstances, useDashboard, useOverview } from '../hooks/useConference';
+import { useVenues, useInstances, useDashboard, useOverview, usePublications } from '../hooks/useConference';
 import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
 import { PublicationsTable } from '../components/PublicationsTable';
@@ -33,11 +33,9 @@ export default function ConferenceDashboard() {
     i => i.venue.name === selectedVenue && i.year === selectedYear
   );
 
-  // Fetch dashboard data only when we have a matching instance
+  // Fetch dashboard data (KPIs and charts) only when we have a matching instance
   const dashboardParams = matchingInstance ? {
-    instance: matchingInstance.instance_id,
-    page: currentPage,
-    page_size: 20
+    instance: matchingInstance.instance_id
   } : {};
 
   const {
@@ -45,6 +43,19 @@ export default function ConferenceDashboard() {
     isLoading: dashboardLoading,
     error: dashboardError
   } = useDashboard(dashboardParams);
+
+  // Fetch publications separately with pagination
+  const publicationsParams = matchingInstance ? {
+    instance: matchingInstance.instance_id,
+    page: currentPage,
+    page_size: 20
+  } : undefined;
+
+  const {
+    data: publicationsData,
+    isLoading: publicationsLoading,
+    error: publicationsError
+  } = usePublications(publicationsParams);
 
   // Fetch overview data
   const { data: overviewData } = useOverview();
@@ -159,14 +170,14 @@ export default function ConferenceDashboard() {
           </div>
 
           {/* Dashboard Content */}
-          {dashboardError && (
+          {(dashboardError || publicationsError) && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center">
                 <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
                 <div className="text-red-800">
                   <div className="font-medium">Error loading dashboard data</div>
                   <div className="text-sm mt-1">
-                    {dashboardError?.message || 'Please check your selection and try again.'}
+                    {dashboardError?.message || publicationsError?.message || 'Please check your selection and try again.'}
                   </div>
                   {matchingInstance && (
                     <div className="text-xs mt-1 text-red-600">
@@ -181,7 +192,11 @@ export default function ConferenceDashboard() {
                         selectedYear,
                         matchingInstance: matchingInstance?.instance_id,
                         dashboardParams,
-                        errorDetails: dashboardError
+                        publicationsParams,
+                        errorDetails: {
+                          dashboard: dashboardError,
+                          publications: publicationsError
+                        }
                       }, null, 2)}
                     </pre>
                   </details>
@@ -190,21 +205,29 @@ export default function ConferenceDashboard() {
             </div>
           )}
 
-          {dashboardData && (
+          {matchingInstance && (
             <div className="space-y-8">
               {/* KPIs */}
-              <DashboardKPIs data={dashboardData.kpis} isLoading={dashboardLoading} />
+              {dashboardData && (
+                <DashboardKPIs data={dashboardData.kpis} isLoading={dashboardLoading} />
+              )}
 
               {/* Charts */}
-              <DashboardCharts data={dashboardData.charts} isLoading={dashboardLoading} />
+              {dashboardData && (
+                <DashboardCharts data={dashboardData.charts} isLoading={dashboardLoading} />
+              )}
 
               {/* Publications Table */}
               <PublicationsTable
-                data={dashboardData.table}
-                pagination={dashboardData.pagination}
+                data={publicationsData?.results || []}
+                pagination={{
+                  count: publicationsData?.count || 0,
+                  next: publicationsData?.next || null,
+                  previous: publicationsData?.previous || null
+                }}
                 currentPage={currentPage}
                 onPageChange={setCurrentPage}
-                isLoading={dashboardLoading}
+                isLoading={publicationsLoading}
               />
             </div>
           )}
