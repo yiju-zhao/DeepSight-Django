@@ -25,13 +25,12 @@ export const useVenues = () => {
 };
 
 /**
- * Hook to fetch conference instances with optional venue filter
+ * Hook to fetch all conference instances (no filtering)
  */
-export const useInstances = (params?: InstanceParams) => {
+export const useInstances = () => {
   return useQuery<Instance[]>({
-    queryKey: conferenceKeys.instances(params),
-    queryFn: () => conferenceService.getInstances(params),
-    enabled: !!params?.venue, // Only fetch when venue is selected
+    queryKey: conferenceKeys.instances(),
+    queryFn: () => conferenceService.getInstances(), // Fetch all instances
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 };

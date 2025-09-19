@@ -13,22 +13,33 @@ export default function ConferenceDashboard() {
   const [selectedInstance, setSelectedInstance] = useState<number | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch venues
-  const { data: venues, isLoading: venuesLoading } = useVenues();
+  // Fetch all instances first to build dropdown options
+  const { data: instances, isLoading: instancesLoading } = useInstances();
 
-  // Fetch instances for selected venue
-  const { data: instances, isLoading: instancesLoading } = useInstances(
-    selectedVenue ? { venue: selectedVenue } : undefined
+  // Extract unique venues and years from all instances
+  const availableVenues = instances
+    ? [...new Set(instances.map(i => i.venue.name))].sort()
+    : [];
+
+  const availableYears = instances && selectedVenue
+    ? [...new Set(instances
+        .filter(i => i.venue.name === selectedVenue)
+        .map(i => i.year)
+      )].sort((a, b) => b - a)
+    : [];
+
+  // Find the matching instance for selected venue+year combo
+  const matchingInstance = instances?.find(
+    i => i.venue.name === selectedVenue && i.year === selectedYear
   );
 
-  // Fetch dashboard data
+  // Fetch dashboard data only when we have a matching instance
   const {
     data: dashboardData,
     isLoading: dashboardLoading,
     error: dashboardError
   } = useDashboard({
-    ...(selectedInstance ? { instance: selectedInstance } : {}),
-    ...(selectedVenue && selectedYear ? { venue: selectedVenue, year: selectedYear } : {}),
+    ...(matchingInstance ? { instance: matchingInstance.instance_id } : {}),
     page: currentPage,
     page_size: 20
   });
@@ -50,18 +61,14 @@ export default function ConferenceDashboard() {
   };
 
   const handleInstanceSelect = (instanceId: number) => {
-    setSelectedInstance(instanceId);
-    setCurrentPage(1);
+    const instance = instances?.find(i => i.instance_id === instanceId);
+    if (instance) {
+      setSelectedVenue(instance.venue.name);
+      setSelectedYear(instance.year);
+      setSelectedInstance(instanceId);
+      setCurrentPage(1);
+    }
   };
-
-  const availableYears = instances
-    ? [...new Set(instances.map(i => i.year))].sort((a, b) => b - a)
-    : [];
-
-  // Instances for the selected year (if any)
-  const yearInstances = selectedYear && instances
-    ? instances.filter(i => i.year === selectedYear)
-    : [];
 
   return (
     <AppLayout>
@@ -92,13 +99,13 @@ export default function ConferenceDashboard() {
                 <select
                   value={selectedVenue}
                   onChange={(e) => handleVenueChange(e.target.value)}
-                  disabled={venuesLoading}
+                  disabled={instancesLoading}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                 >
                   <option value="">Choose a conference...</option>
-                  {venues?.map((venue) => (
-                    <option key={venue.id} value={venue.name}>
-                      {venue.name} ({venue.type})
+                  {availableVenues.map((venueName) => (
+                    <option key={venueName} value={venueName}>
+                      {venueName}
                     </option>
                   ))}
                 </select>
@@ -125,25 +132,6 @@ export default function ConferenceDashboard() {
                 </select>
               </div>
 
-              {/* Instance Selector (show even if one instance exists) */}
-              {selectedVenue && selectedYear && yearInstances && yearInstances.length > 0 && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Conference Instance</label>
-                  <select
-                    value={selectedInstance || ''}
-                    onChange={(e) => handleInstanceSelect(Number(e.target.value))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  >
-                    <option value="">Choose an instance...</option>
-                    {yearInstances.map((instance) => (
-                        <option key={instance.instance_id} value={instance.instance_id}>
-                          {instance.venue.name} {instance.year} - {instance.location}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-              )}
-
               {/* Quick Instance Selector */}
               {instances && instances.length > 0 && (
                 <div className="flex-1">
@@ -154,7 +142,7 @@ export default function ConferenceDashboard() {
                         key={instance.instance_id}
                         onClick={() => handleInstanceSelect(instance.instance_id)}
                         className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                          selectedInstance === instance.instance_id
+                          matchingInstance?.instance_id === instance.instance_id
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
                         }`}
@@ -200,7 +188,7 @@ export default function ConferenceDashboard() {
           )}
 
           {/* No Selection State */}
-          {!selectedInstance && (!selectedVenue || !selectedYear) && !dashboardLoading && (
+          {!matchingInstance && !dashboardLoading && (
             <div className="text-center py-16">
               <h3 className="text-lg font-medium text-gray-500 mb-2">
                 Select a conference and year to view dashboard

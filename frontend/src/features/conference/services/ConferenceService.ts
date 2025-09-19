@@ -54,7 +54,7 @@ export class ConferenceService implements IConferenceService {
    * Get dashboard data with venue/year or instance filter
    */
   async getDashboard(params: DashboardParams): Promise<DashboardResponse> {
-    return apiClient.get(`${this.baseEndpoint}/dashboard/dashboard/`, { params });
+    return apiClient.get(`${this.baseEndpoint}/dashboard/`, { params });
   }
 
   /**
