@@ -1,6 +1,6 @@
 import { combineReducers } from '@reduxjs/toolkit';
 // import authSlice from "@/features/auth/authSlice"; // DISABLED - Now using React Query
-import dashboardSlice from "@/features/dashboard/dashboardSlice";
+// import dashboardSlice from "@/features/dashboard/dashboardSlice"; // REMOVED - Now using React Query
 import conferenceSlice from "@/features/conference/conferenceSlice";
 // import notebookSlice from "@/features/notebook/notebookSlice"; // REMOVED - Now using React Query
 import podcastSlice from "@/features/podcast/podcastSlice";
@@ -8,7 +8,7 @@ import podcastSlice from "@/features/podcast/podcastSlice";
 
 const rootReducer = combineReducers({
   // auth: authSlice.reducer, // DISABLED - Now using React Query for auth
-  dashboard: dashboardSlice.reducer,
+  // dashboard: dashboardSlice.reducer, // REMOVED - Now using React Query
   conference: conferenceSlice.reducer,
   // notebook: notebookSlice.reducer, // REMOVED - Now using React Query
   podcast: podcastSlice.reducer,

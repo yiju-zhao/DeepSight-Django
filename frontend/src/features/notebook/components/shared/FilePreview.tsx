@@ -222,49 +222,13 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
   );
 };
 
-// Function to process markdown content and resolve image URLs
+// Function to process markdown content - simplified after legacy removal
 const processMarkdownContent = (content: string, fileId: string, notebookId: string, useMinIOUrls = false): string => {
   if (!content) return content;
-  
-  console.log('processMarkdownContent called with:', { fileId, notebookId, contentLength: content.length, useMinIOUrls });
-  
-  // If using MinIO URLs, the content should already have direct MinIO URLs
-  // No processing needed as backend already converted them
-  if (useMinIOUrls) {
-    console.log('Using MinIO URLs - no processing needed');
-    return content;
-  }
-  
-  // Legacy processing for API URLs
-  // Pattern to match markdown image syntax: ![alt text](image_path)
-  const imagePattern = /!\[([^\]]*)\]\(([^)]+)\)/g;
-  
-  return content.replace(imagePattern, (match: string, altText: string, imagePath: string) => {
-    console.log('Processing image:', { altText, imagePath });
-    
-    // Skip if it's already a full URL (http/https)
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return match;
-    }
-    
-    // Handle relative paths that start with ../images/ or contain /images/
-    if (imagePath.startsWith('../images/') || imagePath.includes('/images/')) {
-      const imageName = imagePath.split('/').pop();
-      const imageUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/images/${imageName}`;
-      console.log('Generated image URL from relative path:', imageUrl);
-      return `![${altText}](${imageUrl})`;
-    }
-    
-    // Handle direct image filenames (like _page_0_Figure_10.jpeg)
-    if (imagePath.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/i) && !imagePath.includes('/')) {
-      const imageUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/images/${imagePath}`;
-      console.log('Generated image URL from filename:', imageUrl);
-      return `![${altText}](${imageUrl})`;
-    }
-    
-    // Return original if not an image path we can process
-    return match;
-  });
+
+  // Modern approach: MinIO URLs are already resolved by backend or resolvedContent mechanism
+  // No additional processing needed as images are handled by the resolvedContent effect
+  return content;
 };
 
 // Memoized markdown content component (same as StudioPanel)

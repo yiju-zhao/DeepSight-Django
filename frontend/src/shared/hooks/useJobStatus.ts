@@ -64,7 +64,8 @@ export function useJobStatus({
     queryKey: ['job-status', jobId],
     queryFn: () => fetchJobStatus(jobId),
     enabled: !!jobId,
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
+      const data = query?.state?.data as JobStatus | undefined;
       const shouldContinue = shouldPoll(data);
       setIsPolling(shouldContinue);
 

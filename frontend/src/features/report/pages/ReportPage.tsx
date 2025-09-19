@@ -21,25 +21,59 @@ const ReportPage: React.FC = () => {
     refetchInterval: 5000, // Refresh every 5 seconds for active jobs
   });
 
-  // Extract reports array from response
+  // Extract raw API reports array from response
   const reports = reportsResponse?.reports || [];
+
+  // Map API reports (QueryReport) to UI domain type (Report)
+  const mappedReports: Report[] = useMemo(() => {
+    return reports.map((r: QueryReport): Report => ({
+      id: r.job_id, // Use job_id as canonical id for actions
+      job_id: r.job_id,
+      title: r.title,
+      article_title: r.article_title,
+      description: undefined,
+      content: r.has_content ? '' : undefined,
+      markdown_content: undefined,
+      status: r.status,
+      progress: r.progress,
+      topic: undefined,
+      model_provider: undefined,
+      retriever: undefined,
+      prompt_type: undefined,
+      include_image: undefined,
+      include_domains: undefined,
+      time_range: undefined,
+      notebook_id: undefined,
+      selected_files_paths: undefined,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      user: undefined,
+      error_message: r.error,
+      result_metadata: undefined,
+      file_metadata: undefined,
+      generated_files: undefined,
+      processing_logs: undefined,
+      main_report_object_key: undefined,
+      figure_data_object_key: undefined,
+    }));
+  }, [reports]);
 
   // Delete mutation
   const deleteReportMutation = useDeleteReport();
 
   // Calculate stats from reports (QueryReport type from API)
   const stats = useMemo(() => ({
-    total: reports.length,
-    completed: reports.filter((r: QueryReport) => r.status === 'completed').length,
-    failed: reports.filter((r: QueryReport) => r.status === 'failed').length,
-    pending: reports.filter((r: QueryReport) => r.status === 'pending').length,
-    running: reports.filter((r: QueryReport) => r.status === 'running').length,
-    cancelled: reports.filter((r: QueryReport) => r.status === 'cancelled').length,
-  }), [reports]);
+    total: mappedReports.length,
+    completed: mappedReports.filter((r: Report) => r.status === 'completed').length,
+    failed: mappedReports.filter((r: Report) => r.status === 'failed').length,
+    pending: mappedReports.filter((r: Report) => r.status === 'pending').length,
+    running: mappedReports.filter((r: Report) => r.status === 'running').length,
+    cancelled: mappedReports.filter((r: Report) => r.status === 'cancelled').length,
+  }), [mappedReports]);
 
   // Filter and sort reports
   const filteredReports = useMemo(() => {
-    let filtered = reports;
+    let filtered: Report[] = mappedReports;
 
     // Apply search filter
     if (searchTerm) {
@@ -73,7 +107,7 @@ const ReportPage: React.FC = () => {
       default:
         return filtered;
     }
-  }, [reports, searchTerm, filters, sortOrder]);
+  }, [mappedReports, searchTerm, filters, sortOrder]);
 
   const handleSelectReport = (report: Report) => {
     setSelectedReport(report);

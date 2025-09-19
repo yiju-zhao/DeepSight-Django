@@ -4,11 +4,14 @@ This document tracks legacy code found during type error fixes that can be safel
 
 ## Files Already Removed
 - ✅ `src/features/dashboard/hooks/useDashboardData.deprecated.ts` - Deprecated dashboard hook replaced by TanStack Query
+- ✅ `src/features/dashboard/dashboardSlice.ts` - Redux slice replaced by TanStack Query dashboard queries
 
-## Legacy Code Found During Type Fixes
+## Legacy Code Successfully Cleaned Up
 
-### Comments and TODOs for Removal
-- 📍 `src/features/notebook/components/shared/FilePreview.tsx:238` - "Legacy processing for API URLs" comment and associated code block (lines ~238-270) that handles old image URL patterns. This appears to be fallback logic that could potentially be removed if the newer image resolution logic is working properly.
+### ✅ FilePreview Image Processing
+- **Removed**: Legacy image URL processing code (lines 238-270) in `FilePreview.tsx`
+- **Modern approach**: Now uses MinIO URLs and `resolvedContent` mechanism for proper image resolution
+- **Impact**: Simplified `processMarkdownContent` function, removed ~40 lines of legacy fallback code
 
 ## Redux-Related Legacy Code
 (To be identified and documented)
@@ -26,15 +29,21 @@ This document tracks legacy code found during type error fixes that can be safel
 - ✅ Removed deprecated dashboard hook file
 - ✅ Fixed major type errors preventing compilation
 
-## Redux Migration Status
-Found several Redux slice files that could be migrated to TanStack Query:
-- `src/features/podcast/podcastSlice.ts`
-- `src/features/auth/authSlice.ts`
-- `src/features/conference/conferenceSlice.ts`
-- `src/features/dashboard/dashboardSlice.ts`
-- `src/shared/store/slices/uiSlice.ts`
+### ✅ Redux Cleanup
+- **Removed**: Dashboard Redux slice and references from rootReducer
+- **Status**: Dashboard fully migrated to TanStack Query
 
-*Note: Dashboard already migrated to TanStack Query*
+## Redux Migration Status
+Remaining Redux slice files that could be migrated to TanStack Query:
+- `src/features/podcast/podcastSlice.ts` - **ACTIVE** (still used in PodcastPage)
+- `src/features/auth/authSlice.ts` - **COMMENTED OUT** (ready for removal)
+- `src/features/conference/conferenceSlice.ts` - **ACTIVE** (still in rootReducer)
+- `src/shared/store/slices/uiSlice.ts` - **UNKNOWN** (needs evaluation)
+
+**Completed migrations:**
+- ✅ Dashboard - fully migrated to TanStack Query
+- ✅ Reports - fully migrated to TanStack Query
+- ✅ Notebooks - fully migrated to TanStack Query
 
 ---
 *Last updated: 2025-01-19*

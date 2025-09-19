@@ -247,8 +247,7 @@ export default defineConfig({
   ],
   
   server: {
-    // Force HTTP for development - no HTTPS
-    https: false,
+    // Force HTTP for development - no HTTPS (default)
     host: '0.0.0.0',
     port: 5173,
 
