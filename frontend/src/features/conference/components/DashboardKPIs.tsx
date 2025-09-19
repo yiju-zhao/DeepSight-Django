@@ -128,14 +128,6 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
     );
   }
 
-  // Process top regions (countries) and organizations (affiliations)
-  const topRegions = Object.entries(data.session_distribution || {})
-    .sort(([,a], [,b]) => b - a)
-    .slice(0, 8); // Show more regions
-
-  const topOrganizations = Object.entries(data.author_position_distribution || {})
-    .sort(([,a], [,b]) => b - a)
-    .slice(0, 8); // Show more organizations
 
   return (
     <div className="space-y-6">
@@ -154,21 +146,21 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
 
         <KPICard
           icon={GraduationCap}
-          label="Unique Authors"
+          label="Authors"
           value={data.unique_authors}
           color="bg-green-500"
         />
 
         <KPICard
           icon={Building2}
-          label="Unique Affiliations"
+          label="Orgnizations"
           value={data.unique_affiliations}
           color="bg-purple-500"
         />
 
         <KPICard
           icon={Globe}
-          label="Unique Countries"
+          label="Countries"
           value={data.unique_countries}
           color="bg-orange-500"
         />
@@ -181,20 +173,6 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
         />
       </div>
 
-      {/* Additional Metrics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Regions */}
-        <MetricCard
-          label="Top Regions"
-          items={topRegions.map(([region, count]) => ({ name: region, count }))}
-        />
-
-        {/* Top Organizations */}
-        <MetricCard
-          label="Top Organizations"
-          items={topOrganizations.map(([org, count]) => ({ name: org, count }))}
-        />
-      </div>
     </div>
   );
 }

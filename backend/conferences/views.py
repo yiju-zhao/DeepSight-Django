@@ -84,6 +84,12 @@ class OverviewViewSet(viewsets.ViewSet):
             return []
         return [item.strip() for item in field_value.split(',') if item.strip()]
 
+    def _split_semicolon_values(self, field_value):
+        """Helper to split semicolon-separated values and filter out blanks"""
+        if not field_value:
+            return []
+        return [item.strip() for item in field_value.split(';') if item.strip()]
+
     def _get_publications_queryset(self, venue=None, year=None, instance_id=None):
         """Get filtered publications queryset"""
         queryset = Publication.objects.select_related('instance__venue')
@@ -111,11 +117,11 @@ class OverviewViewSet(viewsets.ViewSet):
                 all_authors.extend(self._split_comma_values(pub.authors))
         unique_authors = len(set(all_authors))
 
-        # Count unique affiliations (handle comma-separated values)
+        # Count unique affiliations (handle semicolon-separated values)
         all_affiliations = set()
         for pub in publications:
             if pub.aff_unique:
-                affiliations = self._split_comma_values(pub.aff_unique)
+                affiliations = self._split_semicolon_values(pub.aff_unique)
                 all_affiliations.update(affiliations)
         unique_affiliations = len(all_affiliations)
 
@@ -137,11 +143,11 @@ class OverviewViewSet(viewsets.ViewSet):
                 countries = self._split_comma_values(pub.aff_country_unique)
                 region_counts.update(countries)
 
-        # Top organizations (affiliations) - use comma-separated aff_unique
+        # Top organizations (affiliations) - use semicolon-separated aff_unique
         organization_counts = Counter()
         for pub in publications:
             if pub.aff_unique:
-                affiliations = self._split_comma_values(pub.aff_unique)
+                affiliations = self._split_semicolon_values(pub.aff_unique)
                 organization_counts.update(affiliations)
 
         # Resource counts
@@ -171,7 +177,7 @@ class OverviewViewSet(viewsets.ViewSet):
         top_affiliations = Counter()
         for pub in publications:
             if pub.aff_unique:
-                affiliations = self._split_comma_values(pub.aff_unique)
+                affiliations = self._split_semicolon_values(pub.aff_unique)
                 top_affiliations.update(affiliations)
 
         # Top countries
@@ -185,7 +191,7 @@ class OverviewViewSet(viewsets.ViewSet):
         top_keywords = Counter()
         for pub in publications:
             if pub.keywords:
-                keywords = self._split_comma_values(pub.keywords)
+                keywords = self._split_semicolon_values(pub.keywords)
                 top_keywords.update(keywords)
 
         # Ratings histogram

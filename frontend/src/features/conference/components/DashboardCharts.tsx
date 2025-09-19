@@ -75,24 +75,6 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Research Topics */}
-        <ChartCard title="Publications by Research Topic">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.topics.slice(0, 10)}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis
-                dataKey="name"
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                fontSize={12}
-              />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#3B82F6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
 
 
         {/* Geographic Distribution */}
@@ -137,23 +119,6 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Top Regions */}
-        <ChartCard title="Top Regions">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.top_countries.slice(0, 10)} layout="horizontal">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={80}
-                fontSize={12}
-              />
-              <Tooltip />
-              <Bar dataKey="count" fill="#10B981" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
 
         {/* Top Organizations */}
         <ChartCard title="Top Organizations">
