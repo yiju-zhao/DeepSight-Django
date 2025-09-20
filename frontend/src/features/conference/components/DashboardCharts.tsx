@@ -55,14 +55,14 @@ function WordCloudComponent({ keywords }: WordCloudProps) {
   const fontSizeSetter = (datum: WordData) => fontScale(datum.value);
 
   return (
-    <div style={{ width: '100%', height: '400px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+    <div style={{ width: '100%', height: '320px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
       <Wordcloud
         words={words}
-        width={800}
-        height={400}
+        width={500}
+        height={320}
         fontSize={fontSizeSetter}
         font={'Inter, sans-serif'}
-        padding={4}
+        padding={2}
         spiral="archimedean"
         rotate={0}
         random={fixedValueGenerator}
@@ -146,7 +146,6 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-
         {/* Geographic Distribution */}
         <ChartCard title="Geographic Distribution">
           <ResponsiveContainer width="100%" height="100%">
@@ -189,7 +188,6 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
           </ResponsiveContainer>
         </ChartCard>
 
-
         {/* Top Organizations */}
         <ChartCard title="Top Organizations">
           <ResponsiveContainer width="100%" height="100%">
@@ -208,20 +206,17 @@ export function DashboardCharts({ data, isLoading }: DashboardChartsProps) {
           </ResponsiveContainer>
         </ChartCard>
 
-      </div>
+        {/* Popular Keywords - @visx Word Cloud */}
+        <ChartCard title="Popular Keywords">
+          {data.top_keywords.length > 0 ? (
+            <WordCloudComponent keywords={data.top_keywords.slice(0, 30)} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-center text-gray-500">
+              <p>No keywords available for this conference</p>
+            </div>
+          )}
+        </ChartCard>
 
-      {/* Popular Keywords - @visx Word Cloud */}
-      <div className="bg-white rounded-lg shadow-sm border p-8">
-        <h3 className="text-2xl font-semibold text-gray-900 mb-6 text-center">Popular Keywords</h3>
-        {data.top_keywords.length > 0 ? (
-          <div className="min-h-[400px] w-full">
-            <WordCloudComponent keywords={data.top_keywords.slice(0, 50)} />
-          </div>
-        ) : (
-          <div className="text-center text-gray-500 py-12">
-            <p>No keywords available for this conference</p>
-          </div>
-        )}
       </div>
     </div>
   );

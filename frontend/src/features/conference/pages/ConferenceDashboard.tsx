@@ -5,7 +5,6 @@ import { DashboardCharts } from '../components/DashboardCharts';
 import { PublicationsTable } from '../components/PublicationsTable';
 import { AlertCircle, TrendingUp, Search, Calendar, MapPin, Star, Users, FileText } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
-import MainPageHeader from '@/shared/components/common/MainPageHeader';
 
 export default function ConferenceDashboard() {
   const [selectedVenue, setSelectedVenue] = useState<string>('');
@@ -140,13 +139,6 @@ export default function ConferenceDashboard() {
   return (
     <AppLayout>
       <div className="flex flex-col min-h-screen bg-gray-50">
-        <MainPageHeader
-          title="Conference Analysis"
-          subtitle="Explore detailed statistics, charts, and publication lists for specific conferences and years"
-          icon={<TrendingUp className="w-5 h-5 text-white" />}
-          iconColor="from-purple-500 to-purple-600"
-        />
-
         <div className="flex-1 p-8 overflow-auto">
           <div className="max-w-7xl mx-auto">
             <div className="space-y-8">
@@ -252,20 +244,15 @@ export default function ConferenceDashboard() {
                           <h4 className="font-bold text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
                             {venueName}
                           </h4>
-                          <p className="text-sm text-gray-600 mt-1">{venueData.venue.type}</p>
                         </div>
                         <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
                       </div>
 
                       <div className="mb-4">
-                        <div className="flex items-center text-sm text-gray-600 mb-2">
-                          <Calendar className="w-4 h-4 mr-2" />
+                        <div className="text-sm text-gray-600 mb-2">
                           {venueData.yearRange.min === venueData.yearRange.max
                             ? venueData.yearRange.min
                             : `${venueData.yearRange.min} - ${venueData.yearRange.max}`}
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          {venueData.instances.length} instance{venueData.instances.length !== 1 ? 's' : ''} available
                         </div>
                       </div>
 
