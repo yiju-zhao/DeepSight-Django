@@ -248,13 +248,6 @@ export default function ConferenceDashboard() {
                         <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
                       </div>
 
-                      <div className="mb-4">
-                        <div className="text-sm text-gray-600 mb-2">
-                          {venueData.yearRange.min === venueData.yearRange.max
-                            ? venueData.yearRange.min
-                            : `${venueData.yearRange.min} - ${venueData.yearRange.max}`}
-                        </div>
-                      </div>
 
                       <div className="flex flex-wrap gap-2">
                         {venueData.instances
