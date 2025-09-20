@@ -14,7 +14,7 @@ from .serializers import (
     VenueSerializer, InstanceSerializer, PublicationSerializer,
     EventSerializer
 )
-from .utils import split_comma_values, split_semicolon_values
+from .utils import split_comma_values, split_semicolon_values, deduplicate_keywords
 
 
 class StandardPageNumberPagination(PageNumberPagination):
@@ -165,7 +165,10 @@ class OverviewViewSet(viewsets.ViewSet):
         topics_counter = Counter(all_topics)
         affiliations_counter = Counter(all_affiliations)
         countries_counter = Counter(all_countries)
-        keywords_counter = Counter(all_keywords)
+
+        # Deduplicate keywords (e.g., "LLM", "llm", "LLMs" -> "LLM")
+        keywords_deduplicated = deduplicate_keywords(all_keywords)
+
         sessions_counter = Counter(all_sessions)
         ratings_counter = Counter([int(r) for r in all_ratings if r])
         author_positions_counter = Counter(all_author_positions)
@@ -185,7 +188,7 @@ class OverviewViewSet(viewsets.ViewSet):
                 'topics': topics_counter,
                 'affiliations': affiliations_counter,
                 'countries': countries_counter,
-                'keywords': keywords_counter,
+                'keywords': keywords_deduplicated,
                 'sessions': sessions_counter,
                 'ratings': ratings_counter,
                 'author_positions': author_positions_counter,
@@ -213,7 +216,7 @@ class OverviewViewSet(viewsets.ViewSet):
             'topics': [{'name': k, 'count': v} for k, v in counters['topics'].most_common(10)],
             'top_affiliations': [{'name': k, 'count': v} for k, v in counters['affiliations'].most_common(10)],
             'top_countries': [{'name': k, 'count': v} for k, v in counters['countries'].most_common(10)],
-            'top_keywords': [{'name': k, 'count': v} for k, v in counters['keywords'].most_common(20)],
+            'top_keywords': [{'name': k, 'count': v} for k, v in sorted(counters['keywords'].items(), key=lambda x: x[1], reverse=True)[:20]],
             'ratings_histogram': [{'rating': k, 'count': v} for k, v in sorted(counters['ratings'].items())],
             'session_types': [{'name': k, 'count': v} for k, v in counters['sessions'].items()],
             'author_positions': [{'name': k, 'count': v} for k, v in counters['author_positions'].most_common(10)],
