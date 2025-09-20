@@ -43,8 +43,8 @@ const LoadingSkeleton = () => (
 
 const PublicationRow = memo(({ publication }: { publication: PublicationTableItem }) => {
   const keywords = useMemo(() => splitSemicolonValues(publication.keywords), [publication.keywords]);
-  const authors = useMemo(() => splitCommaValues(publication.authors), [publication.authors]);
-  const countries = useMemo(() => splitCommaValues(publication.aff_country_unique), [publication.aff_country_unique]);
+  const authors = useMemo(() => splitSemicolonValues(publication.authors), [publication.authors]);
+  const countries = useMemo(() => splitSemicolonValues(publication.aff_country_unique), [publication.aff_country_unique]);
 
   const keywordsDisplay = useMemo(() => formatTruncatedList(keywords, 3), [keywords]);
   const authorsDisplay = useMemo(() => formatTruncatedList(authors, 3), [authors]);

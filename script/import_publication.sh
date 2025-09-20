@@ -1,4 +1,4 @@
-python ../backend/manage.py import_publications /Users/eason/Downloads/colm2025.json \
+python ../backend/manage.py import_publications_COLM /Users/eason/Downloads/colm2025.json \
     --venue-name "COLM" \
     --venue-type "Conference" \
     --year 2025 \

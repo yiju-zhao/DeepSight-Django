@@ -116,14 +116,14 @@ class OverviewViewSet(viewsets.ViewSet):
         resource_counts = {'with_github': 0, 'with_site': 0, 'with_pdf': 0}
 
         for pub in pub_list:
-            # Authors (comma-separated)
+            # Authors (semicolon-separated - as stored in DB)
             if pub.authors:
-                authors = split_comma_values(pub.authors)
+                authors = split_semicolon_values(pub.authors)
                 all_authors.extend(authors)
 
-            # Countries (comma-separated)
+            # Countries (semicolon-separated - as stored in DB)
             if pub.aff_country_unique:
-                countries = split_comma_values(pub.aff_country_unique)
+                countries = split_semicolon_values(pub.aff_country_unique)
                 all_countries.extend(countries)
 
             # Affiliations (semicolon-separated)
@@ -148,9 +148,9 @@ class OverviewViewSet(viewsets.ViewSet):
             if pub.rating is not None:
                 all_ratings.append(pub.rating)
 
-            # Author positions (comma-separated)
+            # Author positions (semicolon-separated - as stored in DB)
             if pub.author_position:
-                positions = split_comma_values(pub.author_position)
+                positions = split_semicolon_values(pub.author_position)
                 all_author_positions.extend(positions)
 
             # Resource counts

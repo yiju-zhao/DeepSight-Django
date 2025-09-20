@@ -5,17 +5,19 @@ from conferences.models import Publication, Venue, Instance
 from datetime import datetime
 
 # Maps the key from the JSON file to the corresponding field in the Publication model
+# All multi-value fields are stored with semicolon separators (as in original JSON)
+# Frontend handles splitting based on field type expectations
 PUBLICATION_MAP = {
     "title": "title",
-    "author": "authors",
-    "aff": "aff",  # affiliations
-    "aff_unique_norm": "aff_unique",  # unique normalized affiliations
-    "aff_country_unique": "aff_country_unique",  # unique countries
-    "position": "author_position",  # author positions
-    "homepage": "author_homepage",  # author homepages
+    "author": "authors",  # semicolon-separated in DB (original format)
+    "aff": "aff",  # semicolon-separated in DB (affiliations)
+    "aff_unique_norm": "aff_unique",  # semicolon-separated in DB (unique normalized affiliations)
+    "aff_country_unique": "aff_country_unique",  # semicolon-separated in DB (unique countries)
+    "position": "author_position",  # semicolon-separated in DB (author positions)
+    "homepage": "author_homepage",  # semicolon-separated in DB (author homepages)
     "abstract": "abstract",
     "tldr": "summary",  # tldr -> summary
-    "keywords": "keywords",
+    "keywords": "keywords",  # semicolon-separated in DB
     "primary_area": "research_topic",
     "track": "tag",  # track -> tag
     "bibtex": "doi",  # using bibtex field for DOI info
@@ -106,18 +108,8 @@ class Command(BaseCommand):
                     for json_key, model_field in PUBLICATION_MAP.items():
                         if json_key in entry and entry[json_key] is not None:
                             value = entry[json_key]
-
-                            # Handle special field transformations
-                            if json_key == 'author':
-                                # Convert semicolon-separated authors to comma-separated
-                                if isinstance(value, str):
-                                    value = value.replace(';', ', ')
-
-                            elif json_key in ['aff', 'aff_unique_norm', 'aff_country_unique', 'position', 'homepage']:
-                                # Convert semicolon-separated values to comma-separated
-                                if isinstance(value, str):
-                                    value = value.replace(';', ', ')
-
+                            # Keep all separators as semicolons (original JSON format)
+                            # Frontend utilities handle the appropriate splitting
                             model_data[model_field] = value
 
                     # Construct PDF URL from paper ID
