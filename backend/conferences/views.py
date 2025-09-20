@@ -14,8 +14,7 @@ from .serializers import (
     VenueSerializer, InstanceSerializer, PublicationSerializer,
     EventSerializer
 )
-from .services import publication_data_service
-from .utils import split_comma_values
+from .utils import split_comma_values, split_semicolon_values
 
 
 class StandardPageNumberPagination(PageNumberPagination):
@@ -97,77 +96,127 @@ class OverviewViewSet(viewsets.ViewSet):
 
         return queryset
 
-    def _calculate_kpis(self, publications):
-        """Calculate KPI metrics"""
-        total_publications = publications.count()
+    def _process_dashboard_data(self, publications):
+        """Process publications data once for all dashboard views"""
 
-        # Use service for aggregation processing
-        aggregation_data = publication_data_service.process_publications_for_aggregation(publications)
+        # Get the raw publication data once
+        pub_list = list(publications)  # Execute query once
+        total_publications = len(pub_list)
 
-        unique_authors = aggregation_data['unique_authors']
-        unique_affiliations = aggregation_data['unique_affiliations']
-        unique_countries = aggregation_data['unique_countries']
+        # Process all data in one pass
+        all_authors = []
+        all_countries = []
+        all_affiliations = []
+        all_keywords = []
+        all_topics = []
+        all_sessions = []
+        all_ratings = []
+        all_author_positions = []
 
-        # Average rating
-        avg_rating = publications.aggregate(Avg('rating'))['rating__avg'] or 0
+        resource_counts = {'with_github': 0, 'with_site': 0, 'with_pdf': 0}
 
-        # Use aggregation data for counts
-        region_counts = Counter(aggregation_data['all_countries'])
-        organization_counts = Counter(aggregation_data['all_affiliations'])
+        for pub in pub_list:
+            # Authors (comma-separated)
+            if pub.authors:
+                authors = split_comma_values(pub.authors)
+                all_authors.extend(authors)
 
-        # Resource counts
-        resource_counts = {
-            'with_github': publications.exclude(Q(github__isnull=True) | Q(github__exact='')).count(),
-            'with_site': publications.exclude(Q(site__isnull=True) | Q(site__exact='')).count(),
-            'with_pdf': publications.exclude(Q(pdf_url__isnull=True) | Q(pdf_url__exact='')).count(),
-        }
+            # Countries (comma-separated)
+            if pub.aff_country_unique:
+                countries = split_comma_values(pub.aff_country_unique)
+                all_countries.extend(countries)
 
-        return {
-            'total_publications': total_publications,
-            'unique_authors': unique_authors,
-            'unique_affiliations': unique_affiliations,
-            'unique_countries': unique_countries,
-            'avg_rating': round(avg_rating, 2),
-            'session_distribution': dict(region_counts.most_common(10)),
-            'author_position_distribution': dict(organization_counts.most_common(10)),
-            'resource_counts': resource_counts,
-        }
+            # Affiliations (semicolon-separated)
+            if pub.aff_unique:
+                affiliations = split_semicolon_values(pub.aff_unique)
+                all_affiliations.extend(affiliations)
 
-    def _calculate_charts(self, publications):
-        """Calculate chart data"""
-        # Research topics
-        topics = Counter(pub.research_topic for pub in publications if pub.research_topic)
+            # Keywords (semicolon-separated)
+            if pub.keywords:
+                keywords = split_semicolon_values(pub.keywords)
+                all_keywords.extend(keywords)
 
-        # Use service for processing publications data
-        aggregation_data = publication_data_service.process_publications_for_aggregation(publications)
+            # Topics
+            if pub.research_topic:
+                all_topics.append(pub.research_topic)
 
-        # Top affiliations, countries, and keywords from aggregated data
-        top_affiliations = Counter(aggregation_data['all_affiliations'])
-        top_countries = Counter(aggregation_data['all_countries'])
-        top_keywords = Counter(aggregation_data['all_keywords'])
+            # Sessions
+            if pub.session:
+                all_sessions.append(pub.session)
 
-        # Ratings histogram
-        ratings = [pub.rating for pub in publications if pub.rating is not None]
-        ratings_histogram = Counter([int(r) for r in ratings if r])
+            # Ratings
+            if pub.rating is not None:
+                all_ratings.append(pub.rating)
 
-        # Session types
-        session_types = Counter(pub.session for pub in publications if pub.session)
-
-        # Author positions (comma-separated)
-        author_positions = Counter()
-        for pub in publications:
+            # Author positions (comma-separated)
             if pub.author_position:
                 positions = split_comma_values(pub.author_position)
-                author_positions.update(positions)
+                all_author_positions.extend(positions)
+
+            # Resource counts
+            if pub.github and pub.github.strip():
+                resource_counts['with_github'] += 1
+            if pub.site and pub.site.strip():
+                resource_counts['with_site'] += 1
+            if pub.pdf_url and pub.pdf_url.strip():
+                resource_counts['with_pdf'] += 1
+
+        # Calculate counters once
+        topics_counter = Counter(all_topics)
+        affiliations_counter = Counter(all_affiliations)
+        countries_counter = Counter(all_countries)
+        keywords_counter = Counter(all_keywords)
+        sessions_counter = Counter(all_sessions)
+        ratings_counter = Counter([int(r) for r in all_ratings if r])
+        author_positions_counter = Counter(all_author_positions)
+
+        # Calculate average rating
+        avg_rating = sum(all_ratings) / len(all_ratings) if all_ratings else 0
+
+        # Return all processed data
+        return {
+            'total_publications': total_publications,
+            'unique_authors': len(set(all_authors)),
+            'unique_affiliations': len(set(all_affiliations)),
+            'unique_countries': len(set(all_countries)),
+            'avg_rating': round(avg_rating, 2),
+            'resource_counts': resource_counts,
+            'counters': {
+                'topics': topics_counter,
+                'affiliations': affiliations_counter,
+                'countries': countries_counter,
+                'keywords': keywords_counter,
+                'sessions': sessions_counter,
+                'ratings': ratings_counter,
+                'author_positions': author_positions_counter,
+            }
+        }
+
+    def _build_kpis(self, processed_data):
+        """Build KPI data from processed data"""
+        return {
+            'total_publications': processed_data['total_publications'],
+            'unique_authors': processed_data['unique_authors'],
+            'unique_affiliations': processed_data['unique_affiliations'],
+            'unique_countries': processed_data['unique_countries'],
+            'avg_rating': processed_data['avg_rating'],
+            'session_distribution': dict(processed_data['counters']['countries'].most_common(10)),
+            'author_position_distribution': dict(processed_data['counters']['affiliations'].most_common(10)),
+            'resource_counts': processed_data['resource_counts'],
+        }
+
+    def _build_charts(self, processed_data):
+        """Build chart data from processed data"""
+        counters = processed_data['counters']
 
         return {
-            'topics': [{'name': k, 'count': v} for k, v in topics.most_common(10)],
-            'top_affiliations': [{'name': k, 'count': v} for k, v in top_affiliations.most_common(10)],
-            'top_countries': [{'name': k, 'count': v} for k, v in top_countries.most_common(10)],
-            'top_keywords': [{'name': k, 'count': v} for k, v in top_keywords.most_common(20)],
-            'ratings_histogram': [{'rating': k, 'count': v} for k, v in sorted(ratings_histogram.items())],
-            'session_types': [{'name': k, 'count': v} for k, v in session_types.items()],
-            'author_positions': [{'name': k, 'count': v} for k, v in author_positions.most_common(10)],
+            'topics': [{'name': k, 'count': v} for k, v in counters['topics'].most_common(10)],
+            'top_affiliations': [{'name': k, 'count': v} for k, v in counters['affiliations'].most_common(10)],
+            'top_countries': [{'name': k, 'count': v} for k, v in counters['countries'].most_common(10)],
+            'top_keywords': [{'name': k, 'count': v} for k, v in counters['keywords'].most_common(20)],
+            'ratings_histogram': [{'rating': k, 'count': v} for k, v in sorted(counters['ratings'].items())],
+            'session_types': [{'name': k, 'count': v} for k, v in counters['sessions'].items()],
+            'author_positions': [{'name': k, 'count': v} for k, v in counters['author_positions'].most_common(10)],
         }
 
     @method_decorator(cache_page(60 * 15))  # Cache for 15 minutes
@@ -192,9 +241,12 @@ class OverviewViewSet(viewsets.ViewSet):
         try:
             publications = self._get_publications_queryset(instance_id=instance_id)
 
-            # Calculate KPIs and charts
-            kpis = self._calculate_kpis(publications)
-            charts = self._calculate_charts(publications)
+            # Process data once for all views
+            processed_data = self._process_dashboard_data(publications)
+
+            # Build KPIs and charts from processed data
+            kpis = self._build_kpis(processed_data)
+            charts = self._build_charts(processed_data)
 
             response_data = {
                 'kpis': kpis,

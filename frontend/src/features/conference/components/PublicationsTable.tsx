@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { PublicationTableItem, PaginationInfo } from '../types';
 import {
   ExternalLink,
@@ -9,6 +9,7 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import { splitCommaValues, splitSemicolonValues, formatTruncatedList } from '@/shared/utils/utils';
 
 interface PublicationsTableProps {
   data: PublicationTableItem[];
@@ -40,6 +41,127 @@ const LoadingSkeleton = () => (
   </div>
 );
 
+const PublicationRow = memo(({ publication }: { publication: PublicationTableItem }) => {
+  const keywords = useMemo(() => splitSemicolonValues(publication.keywords), [publication.keywords]);
+  const authors = useMemo(() => splitCommaValues(publication.authors), [publication.authors]);
+  const countries = useMemo(() => splitCommaValues(publication.aff_country_unique), [publication.aff_country_unique]);
+
+  const keywordsDisplay = useMemo(() => formatTruncatedList(keywords, 3), [keywords]);
+  const authorsDisplay = useMemo(() => formatTruncatedList(authors, 3), [authors]);
+  const countriesDisplay = useMemo(() => formatTruncatedList(countries, 3), [countries]);
+
+  return (
+    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+      <td className="py-4 px-4">
+        <div className="space-y-1">
+          <div className="font-medium text-gray-900 text-sm">
+            {publication.title}
+          </div>
+          <div className="text-xs text-gray-600 line-clamp-2">
+            {keywordsDisplay.displayText}
+          </div>
+        </div>
+      </td>
+
+      <td className="py-4 px-4">
+        <div className="space-y-2">
+          <div className="text-sm text-gray-900">
+            {authorsDisplay.displayText}
+            {authorsDisplay.hasMore && (
+              <span className="text-gray-500"> +{authorsDisplay.remainingCount} more</span>
+            )}
+          </div>
+          {publication.aff_country_unique && (
+            <div className="flex flex-wrap gap-1">
+              {countriesDisplay.displayItems.map((country, index) => (
+                <span key={index} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
+                  {country}
+                </span>
+              ))}
+              {countriesDisplay.hasMore && (
+                <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                  +{countriesDisplay.remainingCount}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </td>
+
+      <td className="py-4 px-4">
+        <span className="text-sm text-gray-900">
+          {publication.research_topic}
+        </span>
+      </td>
+
+      <td className="py-4 px-4">
+        {publication.session && (
+          <span className={`inline-block px-2 py-1 text-xs rounded ${
+            publication.session === 'Oral'
+              ? 'bg-green-100 text-green-800'
+              : 'bg-blue-100 text-blue-800'
+          }`}>
+            {publication.session}
+          </span>
+        )}
+      </td>
+
+      <td className="py-4 px-4">
+        {publication.rating && !isNaN(Number(publication.rating)) && (
+          <div className="flex items-center space-x-1">
+            <Star className="w-3 h-3 text-yellow-400 fill-current" />
+            <span className="text-sm font-semibold text-gray-900">
+              {Number(publication.rating).toFixed(1)}
+            </span>
+          </div>
+        )}
+      </td>
+
+      <td className="py-4 px-4">
+        <div className="flex items-center space-x-2">
+          {publication.pdf_url && (
+            <a
+              href={publication.pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+              title="View PDF"
+            >
+              <FileText size={16} />
+            </a>
+          )}
+
+          {publication.github && (
+            <a
+              href={publication.github}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded transition-colors"
+              title="View GitHub"
+            >
+              <Github size={16} />
+            </a>
+          )}
+
+          {publication.site && (
+            <a
+              href={publication.site}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
+              title="View Project Site"
+            >
+              <ExternalLink size={16} />
+            </a>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+});
+
+PublicationRow.displayName = 'PublicationRow';
+
 export function PublicationsTable({
   data,
   pagination,
@@ -55,22 +177,32 @@ export function PublicationsTable({
     return <LoadingSkeleton />;
   }
 
-  // Get unique values for filters
-  const uniqueTopics = [...new Set(data.map(item => item.research_topic))].filter(Boolean);
-  const uniqueSessions = [...new Set(data.map(item => item.session))].filter(Boolean);
+  // Get unique values for filters (memoized for performance)
+  const uniqueTopics = useMemo(() =>
+    [...new Set(data.map(item => item.research_topic))].filter(Boolean),
+    [data]
+  );
 
-  // Filter data
-  const filteredData = data.filter(item => {
-    const matchesSearch = searchTerm === '' ||
-      item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.authors.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.keywords.toLowerCase().includes(searchTerm.toLowerCase());
+  const uniqueSessions = useMemo(() =>
+    [...new Set(data.map(item => item.session))].filter(Boolean),
+    [data]
+  );
 
-    const matchesTopic = filterTopic === '' || item.research_topic === filterTopic;
-    const matchesSession = filterSession === '' || item.session === filterSession;
+  // Filter data (memoized for performance)
+  const filteredData = useMemo(() =>
+    data.filter(item => {
+      const matchesSearch = searchTerm === '' ||
+        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.authors.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.keywords.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesSearch && matchesTopic && matchesSession;
-  });
+      const matchesTopic = filterTopic === '' || item.research_topic === filterTopic;
+      const matchesSession = filterSession === '' || item.session === filterSession;
+
+      return matchesSearch && matchesTopic && matchesSession;
+    }),
+    [data, searchTerm, filterTopic, filterSession]
+  );
 
   const totalPages = Math.ceil(pagination.count / 20);
 
@@ -134,154 +266,7 @@ export function PublicationsTable({
             </thead>
             <tbody>
               {filteredData.map((publication) => (
-                <tr
-                  key={publication.id}
-                  className="border-b border-gray-100 hover:bg-gray-50 transition-colors"
-                >
-                  <td className="py-4 px-4">
-                    <div className="space-y-1">
-                      <div className="font-medium text-gray-900 text-sm">
-                        {publication.title}
-                      </div>
-                      <div className="text-xs text-gray-600 line-clamp-2">
-                        {(() => {
-                          // Split keywords (semicolon-separated) on frontend
-                          const keywords = publication.keywords ?
-                            publication.keywords.split(';')
-                              .map(k => k.trim())
-                              .filter(k => k.length > 0)
-                            : [];
-                          return keywords.slice(0, 3).join(', ');
-                        })()}
-                      </div>
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-4">
-                    <div className="space-y-2">
-                      <div className="text-sm text-gray-900">
-                        {(() => {
-                          // Split authors (comma-separated) on frontend
-                          const authors = publication.authors ?
-                            publication.authors.split(',')
-                              .map(a => a.trim())
-                              .filter(a => a.length > 0)
-                            : [];
-
-                          return (
-                            <>
-                              {authors.slice(0, 3).map((author, index) => (
-                                <span key={index} className="inline-block">
-                                  {author}
-                                  {index < Math.min(authors.length - 1, 2) && ', '}
-                                </span>
-                              ))}
-                              {authors.length > 3 && (
-                                <span className="text-gray-500"> +{authors.length - 3} more</span>
-                              )}
-                            </>
-                          );
-                        })()}
-                      </div>
-                      {publication.aff_country_unique && (
-                        <div className="flex flex-wrap gap-1">
-                          {(() => {
-                            // Split countries (comma-separated) on frontend
-                            const countries = publication.aff_country_unique ?
-                              publication.aff_country_unique.split(',')
-                                .map(c => c.trim())
-                                .filter(c => c.length > 0)
-                              : [];
-
-                            return (
-                              <>
-                                {countries.slice(0, 3).map((country, index) => (
-                                  <span key={index} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                                    {country}
-                                  </span>
-                                ))}
-                                {countries.length > 3 && (
-                                  <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
-                                    +{countries.length - 3}
-                                  </span>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  </td>
-
-                  <td className="py-4 px-4">
-                    <span className="text-sm text-gray-900">
-                      {publication.research_topic}
-                    </span>
-                  </td>
-
-                  <td className="py-4 px-4">
-                    {publication.session && (
-                      <span className={`inline-block px-2 py-1 text-xs rounded ${
-                        publication.session === 'Oral'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {publication.session}
-                      </span>
-                    )}
-                  </td>
-
-                  <td className="py-4 px-4">
-                    {publication.rating && !isNaN(Number(publication.rating)) && (
-                      <div className="flex items-center space-x-1">
-                        <Star className="w-3 h-3 text-yellow-400 fill-current" />
-                        <span className="text-sm font-semibold text-gray-900">
-                          {Number(publication.rating).toFixed(1)}
-                        </span>
-                      </div>
-                    )}
-                  </td>
-
-                  <td className="py-4 px-4">
-                    <div className="flex items-center space-x-2">
-                      {publication.pdf_url && (
-                        <a
-                          href={publication.pdf_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-                          title="View PDF"
-                        >
-                          <FileText size={16} />
-                        </a>
-                      )}
-
-                      {publication.github && (
-                        <a
-                          href={publication.github}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded transition-colors"
-                          title="View GitHub"
-                        >
-                          <Github size={16} />
-                        </a>
-                      )}
-
-                      {publication.site && (
-                        <a
-                          href={publication.site}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                          title="View Project Site"
-                        >
-                          <ExternalLink size={16} />
-                        </a>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                <PublicationRow key={publication.id} publication={publication} />
               ))}
             </tbody>
           </table>
