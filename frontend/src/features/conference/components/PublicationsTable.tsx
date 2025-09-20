@@ -173,10 +173,6 @@ export function PublicationsTable({
   const [filterTopic, setFilterTopic] = useState('');
   const [filterSession, setFilterSession] = useState('');
 
-  if (isLoading) {
-    return <LoadingSkeleton />;
-  }
-
   // Get unique values for filters (memoized for performance)
   const uniqueTopics = useMemo(() =>
     [...new Set(data.map(item => item.research_topic))].filter(Boolean),
@@ -203,6 +199,10 @@ export function PublicationsTable({
     }),
     [data, searchTerm, filterTopic, filterSession]
   );
+
+  if (isLoading) {
+    return <LoadingSkeleton />;
+  }
 
   const totalPages = Math.ceil(pagination.count / 20);
 
