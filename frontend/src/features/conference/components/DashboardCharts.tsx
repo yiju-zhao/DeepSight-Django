@@ -115,11 +115,11 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
   }
 
   return (
-    <div className="w-full h-[500px] flex justify-center items-center">
+    <div className="w-full h-[500px]">
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 60, right: 60, bottom: 90, left: 60 }}
+        margin={{ top: 60, right: 140, bottom: 60, left: 60 }}
         padAngle={0.06}
         innerRadiusRatio={0.96}
         innerRadiusOffset={0.02}
@@ -138,7 +138,7 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
           {
             anchor: 'right',
             direction: 'column',
-            translateY: 70,
+            translateY: 0,
             itemWidth: 80,
             itemHeight: 16,
             symbolShape: 'circle'
