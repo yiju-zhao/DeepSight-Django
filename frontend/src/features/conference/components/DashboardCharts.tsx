@@ -119,7 +119,7 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 60, right: 140, bottom: 60, left: 60 }}
+        margin={{ top: 80, right: 140, bottom: 80, left: 60 }}
         padAngle={0.06}
         innerRadiusRatio={0.96}
         innerRadiusOffset={0.02}
@@ -172,7 +172,7 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 60, right: 140, bottom: 60, left: 60 }}
+        margin={{ top: 80, right: 140, bottom: 80, left: 60 }}
         padAngle={0.04}
         innerRadiusRatio={0.94}
         innerRadiusOffset={0.02}
