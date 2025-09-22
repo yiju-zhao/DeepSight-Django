@@ -185,7 +185,6 @@ export function PublicationsTable({
   isLoading
 }: PublicationsTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [keywordFilter, setKeywordFilter] = useState('');
   const [sortField, setSortField] = useState<SortField>('rating');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showColumnSettings, setShowColumnSettings] = useState(false);
@@ -197,7 +196,7 @@ export function PublicationsTable({
     topic: false,
     rating: true,
     links: true,
-    keywords: false,
+    keywords: true,
     countries: false
   });
 
@@ -206,12 +205,10 @@ export function PublicationsTable({
     let filtered = data.filter(item => {
       const matchesSearch = searchTerm === '' ||
         item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.authors.toLowerCase().includes(searchTerm.toLowerCase());
+        item.authors.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        item.keywords.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesKeyword = keywordFilter === '' ||
-        item.keywords.toLowerCase().includes(keywordFilter.toLowerCase());
-
-      return matchesSearch && matchesKeyword;
+      return matchesSearch;
     });
 
     // Sort the filtered data
@@ -235,7 +232,7 @@ export function PublicationsTable({
     });
 
     return filtered;
-  }, [data, searchTerm, keywordFilter, sortField, sortDirection]);
+  }, [data, searchTerm, sortField, sortDirection]);
 
   const toggleColumn = (column: keyof ColumnVisibility) => {
     if (column === 'title' || column === 'authors') return; // These are always visible
@@ -283,20 +280,10 @@ export function PublicationsTable({
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder="Search titles and authors..."
+              placeholder="Search titles, authors, keywords..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
-
-          <div className="relative flex-1 min-w-48">
-            <input
-              type="text"
-              placeholder="Filter by keywords..."
-              value={keywordFilter}
-              onChange={(e) => setKeywordFilter(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
@@ -435,7 +422,7 @@ export function PublicationsTable({
         {/* Results Info */}
         <div className="text-sm text-gray-600 text-center mt-4">
           Showing {filteredAndSortedData.length} of {pagination.count.toLocaleString()} publications
-          {searchTerm || keywordFilter ? ' (filtered)' : ''}
+          {searchTerm ? ' (filtered)' : ''}
         </div>
       </div>
     </div>
