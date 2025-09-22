@@ -100,7 +100,7 @@ function WordCloudComponent({ keywords }: WordCloudProps) {
 const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoading?: boolean }) => {
   if (isLoading) {
     return (
-      <div className="w-full h-[500px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+      <div className="w-full h-[600px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
         <div className="text-gray-500">Loading geographic collaboration...</div>
       </div>
     );
@@ -108,18 +108,18 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
 
   if (!data?.keys?.length || !data?.matrix?.length) {
     return (
-      <div className="w-full h-[500px] bg-gray-50 rounded-lg flex items-center justify-center">
+      <div className="w-full h-[600px] bg-gray-50 rounded-lg flex items-center justify-center">
         <div className="text-gray-500">No collaboration data available</div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-[500px]">
+    <div className="w-full h-[600px]">
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 80, right: 140, bottom: 80, left: 60 }}
+        margin={{ top: 60, right: 60, bottom: 60, left: 60 }}
         padAngle={0.06}
         innerRadiusRatio={0.96}
         innerRadiusOffset={0.02}
@@ -134,16 +134,6 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
         labelRotation={-45}
         labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
         colors={{ scheme: 'category10' }}
-        legends={[
-          {
-            anchor: 'right',
-            direction: 'column',
-            translateY: 0,
-            itemWidth: 80,
-            itemHeight: 16,
-            symbolShape: 'circle'
-          }
-        ]}
       />
     </div>
   );
@@ -153,7 +143,7 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
 const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading?: boolean }) => {
   if (isLoading) {
     return (
-      <div className="w-full h-[500px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+      <div className="w-full h-[600px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
         <div className="text-gray-500">Loading organization collaboration...</div>
       </div>
     );
@@ -168,11 +158,11 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
   }
 
   return (
-    <div className="w-full h-[500px]">
+    <div className="w-full h-[600px]">
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 80, right: 140, bottom: 80, left: 60 }}
+        margin={{ top: 60, right: 60, bottom: 60, left: 60 }}
         padAngle={0.04}
         innerRadiusRatio={0.94}
         innerRadiusOffset={0.02}
@@ -187,16 +177,6 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
         labelRotation={-60}
         labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
         colors={{ scheme: 'set2' }}
-        legends={[
-          {
-            anchor: 'right',
-            direction: 'column',
-            translateY: 0,
-            itemWidth: 80,
-            itemHeight: 16,
-            symbolShape: 'circle'
-          }
-        ]}
       />
     </div>
   );
@@ -406,21 +386,22 @@ const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBin
         </ChartCard>
       </div>
 
-      {/* Geographic Collaboration - Full Width */}
-      <ChartCard title="Geographic Collaboration (Top 8)">
-        <GeographicChordTop8
-          data={data.chords?.country || { keys: [], matrix: [] }}
-          isLoading={isLoading}
-        />
-      </ChartCard>
+      {/* Geographic and Organization Collaboration - Side by Side */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard title="Geographic Collaboration (Top 8)">
+          <GeographicChordTop8
+            data={data.chords?.country || { keys: [], matrix: [] }}
+            isLoading={isLoading}
+          />
+        </ChartCard>
 
-      {/* Organization Collaboration - Full Width */}
-      <ChartCard title="Organization Collaboration (Top 10)">
-        <TopOrgChordTop10
-          data={data.chords?.org || { keys: [], matrix: [] }}
-          isLoading={isLoading}
-        />
-      </ChartCard>
+        <ChartCard title="Organization Collaboration (Top 10)">
+          <TopOrgChordTop10
+            data={data.chords?.org || { keys: [], matrix: [] }}
+            isLoading={isLoading}
+          />
+        </ChartCard>
+      </div>
     </div>
   );
 };
