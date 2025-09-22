@@ -248,34 +248,39 @@ class OverviewViewSet(viewsets.ViewSet):
         }
 
     def _build_organization_publications(self, raw_data):
-        """Build organization publications data grouped by research area"""
+        """Build organization publications data grouped by research area using same logic as org collaboration chart"""
         organization_research_areas = raw_data.get('organization_research_areas', [])
 
-        # Group by organization and research area, counting actual publications
-        org_data = {}
+        # Use same counting logic as build_cooccurrence_matrix
+        org_area_totals = Counter()  # (org, area) -> count
+        org_totals = Counter()       # org -> total count
 
         for item in organization_research_areas:
             affiliations = item['affiliations']
-            area = item['research_area'] or 'Publications'  # Handle None research areas
+            area = item['research_area'] or 'Publications'
 
-            # For each affiliation in this publication, increment the count
-            for org in affiliations:
-                if org not in org_data:
-                    org_data[org] = {}
+            # Convert to set to ensure uniqueness within publication (same as cooccurrence matrix)
+            unique_affiliations = set(affiliations)
 
-                if area not in org_data[org]:
-                    org_data[org][area] = 0
+            # Count each organization's participation in this publication (same logic as line 166 in utils.py)
+            for org in unique_affiliations:
+                org_totals[org] += 1
+                org_area_totals[(org, area)] += 1
 
-                org_data[org][area] += 1
-
-        # Convert to list format and sort by total publications
+        # Convert to the expected format
         result = []
-        for org, areas in org_data.items():
-            total = sum(areas.values())
+        for org, total in org_totals.items():
+            research_area_counts = {}
+
+            # Get counts for each research area for this org
+            for (counted_org, area), count in org_area_totals.items():
+                if counted_org == org:
+                    research_area_counts[area] = count
+
             result.append({
                 'organization': org,
                 'total': total,
-                'research_areas': areas
+                'research_areas': research_area_counts
             })
 
         # Sort by total publications descending and take top 15
