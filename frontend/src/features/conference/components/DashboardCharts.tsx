@@ -130,8 +130,8 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
         ribbonBorderWidth={1}
         ribbonBorderColor={{ from: 'color', modifiers: [['darker', 0.4]] }}
         enableLabel={true}
-        labelOffset={12}
-        labelRotation={-45}
+        labelOffset={20}
+        labelRotation={0}
         labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
         colors={{ scheme: 'category10' }}
       />
@@ -173,10 +173,10 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
         ribbonBorderWidth={1}
         ribbonBorderColor={{ from: 'color', modifiers: [['darker', 0.5]] }}
         enableLabel={true}
-        labelOffset={16}
-        labelRotation={-60}
+        labelOffset={20}
+        labelRotation={0}
         labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
-        colors={{ scheme: 'set2' }}
+        colors={{ scheme: 'set3' }}
       />
     </div>
   );
@@ -390,14 +390,14 @@ const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBin
 
       {/* Geographic and Organization Collaboration - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Geographic Collaboration (Top 8)" height="h-[650px]">
+        <ChartCard title="Geographic Collaboration (Top 8)" height="h-[600px]">
           <GeographicChordTop8
             data={data.chords?.country || { keys: [], matrix: [] }}
             isLoading={isLoading}
           />
         </ChartCard>
 
-        <ChartCard title="Organization Collaboration (Top 10)" height="h-[650px]">
+        <ChartCard title="Organization Collaboration (Top 10)" height="h-[600px]">
           <TopOrgChordTop10
             data={data.chords?.org || { keys: [], matrix: [] }}
             isLoading={isLoading}
