@@ -119,7 +119,7 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 60, right: 60, bottom: 60, left: 60 }}
+        margin={{ top: 60, right: 60, bottom: 90, left: 60 }}
         padAngle={0.06}
         innerRadiusRatio={0.96}
         innerRadiusOffset={0.02}
@@ -162,7 +162,7 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 60, right: 60, bottom: 60, left: 60 }}
+        margin={{ top: 60, right: 60, bottom: 90, left: 60 }}
         padAngle={0.04}
         innerRadiusRatio={0.94}
         innerRadiusOffset={0.02}
@@ -390,14 +390,14 @@ const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBin
 
       {/* Geographic and Organization Collaboration - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Geographic Collaboration (Top 8)" height="h-[600px]">
+        <ChartCard title="Geographic Collaboration (Top 8)" height="h-[550px]">
           <GeographicChordTop8
             data={data.chords?.country || { keys: [], matrix: [] }}
             isLoading={isLoading}
           />
         </ChartCard>
 
-        <ChartCard title="Organization Collaboration (Top 10)" height="h-[600px]">
+        <ChartCard title="Organization Collaboration (Top 10)" height="h-[550px]">
           <TopOrgChordTop10
             data={data.chords?.org || { keys: [], matrix: [] }}
             isLoading={isLoading}
