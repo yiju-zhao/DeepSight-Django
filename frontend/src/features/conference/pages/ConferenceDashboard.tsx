@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, memo } from 'react';
 import { useDebounce } from '@/shared/hooks/useDebounce';
 import { useVenues, useInstances, useDashboard, useOverview, usePublications } from '../hooks/useConference';
 import { DashboardKPIs } from '../components/DashboardKPIs';
@@ -6,6 +6,68 @@ import { DashboardCharts } from '../components/DashboardCharts';
 import { PublicationsTable } from '../components/PublicationsTable';
 import { AlertCircle, TrendingUp, Search, Calendar, MapPin, Star, Users, FileText } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
+
+// Memoized dashboard content component to prevent unnecessary re-renders
+const DashboardContent = memo(({
+  dashboardData,
+  dashboardLoading,
+  publicationsData,
+  publicationsLoading,
+  currentPage,
+  onPageChange,
+  searchInput,
+  onSearchChange,
+  sortField,
+  sortDirection,
+  onSortChange,
+  debouncedSearch
+}: {
+  dashboardData: any;
+  dashboardLoading: boolean;
+  publicationsData: any;
+  publicationsLoading: boolean;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  searchInput: string;
+  onSearchChange: (search: string) => void;
+  sortField: 'rating' | 'title';
+  sortDirection: 'asc' | 'desc';
+  onSortChange: (field: 'rating' | 'title', direction: 'asc' | 'desc') => void;
+  debouncedSearch: string;
+}) => (
+  <div className="space-y-8">
+    {/* KPIs */}
+    {dashboardData && (
+      <DashboardKPIs data={dashboardData.kpis} isLoading={dashboardLoading} />
+    )}
+
+    {/* Charts */}
+    {dashboardData && (
+      <DashboardCharts data={dashboardData.charts} isLoading={dashboardLoading} />
+    )}
+
+    {/* Publications Table */}
+    <PublicationsTable
+      data={publicationsData?.results || []}
+      pagination={{
+        count: publicationsData?.count || 0,
+        next: publicationsData?.next || null,
+        previous: publicationsData?.previous || null
+      }}
+      currentPage={currentPage}
+      onPageChange={onPageChange}
+      searchTerm={searchInput}
+      onSearchChange={onSearchChange}
+      sortField={sortField}
+      sortDirection={sortDirection}
+      onSortChange={onSortChange}
+      isFiltered={!!debouncedSearch}
+      isLoading={publicationsLoading}
+    />
+  </div>
+));
+
+DashboardContent.displayName = 'DashboardContent';
 
 export default function ConferenceDashboard() {
   const [selectedVenue, setSelectedVenue] = useState<string>('');
@@ -152,16 +214,25 @@ export default function ConferenceDashboard() {
     }
   };
 
-  const handleSearchChange = (search: string) => {
-    setSearchInput(search); // Update input immediately for responsive UI
-    setCurrentPage(1); // Reset to first page when searching
-  };
+  const handleSearchChange = useMemo(() =>
+    (search: string) => {
+      setSearchInput(search); // Update input immediately for responsive UI
+      setCurrentPage(1); // Reset to first page when searching
+    }, []
+  );
 
-  const handleSortChange = (field: 'rating' | 'title', direction: 'asc' | 'desc') => {
-    setSortField(field);
-    setSortDirection(direction);
-    setCurrentPage(1); // Reset to first page when sorting changes
-  };
+  const handleSortChange = useMemo(() =>
+    (field: 'rating' | 'title', direction: 'asc' | 'desc') => {
+      setSortField(field);
+      setSortDirection(direction);
+      setCurrentPage(1); // Reset to first page when sorting changes
+    }, []
+  );
+
+  const handlePageChange = useMemo(() =>
+    (page: number) => setCurrentPage(page),
+    []
+  );
 
   return (
     <AppLayout>
@@ -324,34 +395,20 @@ export default function ConferenceDashboard() {
           )}
 
           {matchingInstance && (
-            <div ref={dashboardContentRef} className="space-y-8">
-              {/* KPIs */}
-              {dashboardData && (
-                <DashboardKPIs data={dashboardData.kpis} isLoading={dashboardLoading} />
-              )}
-
-              {/* Charts */}
-              {dashboardData && (
-                <DashboardCharts data={dashboardData.charts} isLoading={dashboardLoading} />
-              )}
-
-              {/* Publications Table */}
-              <PublicationsTable
-                data={publicationsData?.results || []}
-                pagination={{
-                  count: publicationsData?.count || 0,
-                  next: publicationsData?.next || null,
-                  previous: publicationsData?.previous || null
-                }}
+            <div ref={dashboardContentRef}>
+              <DashboardContent
+                dashboardData={dashboardData}
+                dashboardLoading={dashboardLoading}
+                publicationsData={publicationsData}
+                publicationsLoading={publicationsLoading}
                 currentPage={currentPage}
-                onPageChange={setCurrentPage}
-                searchTerm={searchInput}
+                onPageChange={handlePageChange}
+                searchInput={searchInput}
                 onSearchChange={handleSearchChange}
                 sortField={sortField}
                 sortDirection={sortDirection}
                 onSortChange={handleSortChange}
-                isFiltered={!!debouncedSearch}
-                isLoading={publicationsLoading}
+                debouncedSearch={debouncedSearch}
               />
             </div>
           )}

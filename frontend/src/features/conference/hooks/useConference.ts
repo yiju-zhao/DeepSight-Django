@@ -43,7 +43,9 @@ export const usePublications = (params?: { instance?: number; page?: number; pag
     queryKey: conferenceKeys.publications(params),
     queryFn: () => conferenceService.getPublications(params),
     enabled: !!params?.instance, // Only fetch when instance is selected
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    staleTime: 30 * 1000, // 30 seconds for search results
+    refetchOnWindowFocus: false, // Don't refetch on window focus
+    keepPreviousData: true, // Keep previous data while loading new data
   });
 };
 

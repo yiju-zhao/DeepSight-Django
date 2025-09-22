@@ -183,7 +183,25 @@ const PublicationRow = memo(({ publication, columnVisibility }: { publication: P
 
 PublicationRow.displayName = 'PublicationRow';
 
-export function PublicationsTable({
+// Memoized table body component to prevent unnecessary re-renders
+const TableBody = memo(({ data, columnVisibility }: {
+  data: PublicationTableItem[];
+  columnVisibility: ColumnVisibility;
+}) => (
+  <tbody>
+    {data.map((publication) => (
+      <PublicationRow
+        key={publication.id}
+        publication={publication}
+        columnVisibility={columnVisibility}
+      />
+    ))}
+  </tbody>
+));
+
+TableBody.displayName = 'TableBody';
+
+const PublicationsTableComponent = ({
   data,
   pagination,
   currentPage,
@@ -195,7 +213,7 @@ export function PublicationsTable({
   onSortChange,
   isFiltered,
   isLoading
-}: PublicationsTableProps) {
+}: PublicationsTableProps) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
 
   // Column visibility state - title and authors always visible, others default to visible
@@ -340,15 +358,10 @@ export function PublicationsTable({
                 )}
               </tr>
             </thead>
-            <tbody>
-              {displayData.map((publication) => (
-                <PublicationRow
-                  key={publication.id}
-                  publication={publication}
-                  columnVisibility={columnVisibility}
-                />
-              ))}
-            </tbody>
+            <TableBody
+              data={displayData}
+              columnVisibility={columnVisibility}
+            />
           </table>
         </div>
 
@@ -404,4 +417,9 @@ export function PublicationsTable({
       </div>
     </div>
   );
-}
+};
+
+PublicationsTableComponent.displayName = 'PublicationsTable';
+
+// Memoized export to prevent unnecessary re-renders
+export const PublicationsTable = memo(PublicationsTableComponent);
