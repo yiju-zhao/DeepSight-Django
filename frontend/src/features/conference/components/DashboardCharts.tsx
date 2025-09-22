@@ -318,17 +318,19 @@ const RatingHistogramFine = memo(({
 const ChartCard = ({
   title,
   children,
-  isLoading
+  isLoading,
+  height = "h-80"
 }: {
   title: string;
   children: React.ReactNode;
   isLoading?: boolean;
+  height?: string;
 }) => {
   if (isLoading) {
     return (
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <div className="h-5 bg-gray-200 rounded animate-pulse w-48 mb-4" />
-        <div className="h-80 bg-gray-200 rounded animate-pulse" />
+        <div className={`${height} bg-gray-200 rounded animate-pulse`} />
       </div>
     );
   }
@@ -336,7 +338,7 @@ const ChartCard = ({
   return (
     <div className="bg-white rounded-lg shadow-sm border p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
-      <div className="h-80">
+      <div className={height}>
         {children}
       </div>
     </div>
@@ -388,14 +390,14 @@ const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBin
 
       {/* Geographic and Organization Collaboration - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Geographic Collaboration (Top 8)">
+        <ChartCard title="Geographic Collaboration (Top 8)" height="h-[650px]">
           <GeographicChordTop8
             data={data.chords?.country || { keys: [], matrix: [] }}
             isLoading={isLoading}
           />
         </ChartCard>
 
-        <ChartCard title="Organization Collaboration (Top 10)">
+        <ChartCard title="Organization Collaboration (Top 10)" height="h-[650px]">
           <TopOrgChordTop10
             data={data.chords?.org || { keys: [], matrix: [] }}
             isLoading={isLoading}
