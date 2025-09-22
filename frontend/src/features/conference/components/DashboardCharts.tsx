@@ -100,7 +100,7 @@ function WordCloudComponent({ keywords }: WordCloudProps) {
 const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoading?: boolean }) => {
   if (isLoading) {
     return (
-      <div className="w-full h-96 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+      <div className="w-full h-[500px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
         <div className="text-gray-500">Loading geographic collaboration...</div>
       </div>
     );
@@ -108,14 +108,14 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
 
   if (!data?.keys?.length || !data?.matrix?.length) {
     return (
-      <div className="w-full h-96 bg-gray-50 rounded-lg flex items-center justify-center">
+      <div className="w-full h-[500px] bg-gray-50 rounded-lg flex items-center justify-center">
         <div className="text-gray-500">No collaboration data available</div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-96">
+    <div className="w-full h-[500px]">
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
@@ -165,7 +165,7 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
 const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading?: boolean }) => {
   if (isLoading) {
     return (
-      <div className="w-full h-96 bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+      <div className="w-full h-[500px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
         <div className="text-gray-500">Loading organization collaboration...</div>
       </div>
     );
@@ -173,14 +173,14 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
 
   if (!data?.keys?.length || !data?.matrix?.length) {
     return (
-      <div className="w-full h-96 bg-gray-50 rounded-lg flex items-center justify-center">
+      <div className="w-full h-[500px] bg-gray-50 rounded-lg flex items-center justify-center">
         <div className="text-gray-500">No organization collaboration data available</div>
       </div>
     );
   }
 
   return (
-    <div className="w-full h-96">
+    <div className="w-full h-[500px]">
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
@@ -269,7 +269,6 @@ const RatingHistogramFine = memo(({
             onChange={(e) => handleBinSizeChange(parseFloat(e.target.value))}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
           >
-            <option value={0.1}>Bin Size: 0.1</option>
             <option value={0.25}>Bin Size: 0.25</option>
             <option value={0.5}>Bin Size: 0.5</option>
             <option value={1.0}>Bin Size: 1.0</option>
@@ -302,7 +301,6 @@ const RatingHistogramFine = memo(({
             onChange={(e) => handleBinSizeChange(parseFloat(e.target.value))}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           >
-            <option value={0.1}>0.1</option>
             <option value={0.25}>0.25</option>
             <option value={0.5}>0.5</option>
             <option value={1.0}>1.0</option>
