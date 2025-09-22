@@ -119,7 +119,7 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 40, right: 200, bottom: 40, left: 40 }}
+        margin={{ top: 60, right: 60, bottom: 90, left: 60 }}
         padAngle={0.06}
         innerRadiusRatio={0.96}
         innerRadiusOffset={0.02}
@@ -138,23 +138,10 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
           {
             anchor: 'right',
             direction: 'column',
-            translateX: 160,
-            translateY: 0,
-            itemWidth: 120,
-            itemHeight: 20,
-            itemsSpacing: 4,
-            symbolSize: 12,
-            symbolShape: 'circle',
-            itemDirection: 'left-to-right',
-            itemTextColor: '#999',
-            effects: [
-              {
-                on: 'hover',
-                style: {
-                  itemTextColor: '#000'
-                }
-              }
-            ]
+            translateY: 70,
+            itemWidth: 80,
+            itemHeight: 16,
+            symbolShape: 'circle'
           }
         ]}
       />
@@ -181,7 +168,7 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
   }
 
   return (
-    <div className="w-full h-[500px]">
+    <div className="w-full h-[500px] flex justify-center items-center">
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
@@ -202,24 +189,12 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
         colors={{ scheme: 'set2' }}
         legends={[
           {
-            anchor: 'bottom',
-            direction: 'row',
+            anchor: 'right',
+            direction: 'column',
             translateY: 70,
-            itemWidth: 70,
-            itemHeight: 14,
-            itemsSpacing: 0,
-            symbolSize: 10,
-            symbolShape: 'circle',
-            itemDirection: 'left-to-right',
-            itemTextColor: '#999',
-            effects: [
-              {
-                on: 'hover',
-                style: {
-                  itemTextColor: '#000'
-                }
-              }
-            ]
+            itemWidth: 80,
+            itemHeight: 16,
+            symbolShape: 'circle'
           }
         ]}
       />
