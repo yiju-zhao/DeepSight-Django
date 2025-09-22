@@ -165,11 +165,11 @@ def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int
         for item in unique_items:
             item_totals[item] += 1
 
-        # Count pairs within this publication
+        # Count pairs within this publication (including self-pairs)
         items_list = list(unique_items)
         for i, item1 in enumerate(items_list):
             for j, item2 in enumerate(items_list):
-                if i < j:  # Only count each pair once (unordered)
+                if i <= j:  # Include self-connections (i == j) and pairs (i < j)
                     # Use sorted tuple to ensure consistent ordering
                     pair_key = tuple(sorted([item1, item2]))
                     pair_counts[pair_key] += 1
@@ -184,17 +184,12 @@ def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int
     n = len(top_items)
     matrix = [[0 for _ in range(n)] for _ in range(n)]
 
-    # Fill matrix with pair counts
+    # Fill matrix with pair counts (including self-connections)
     for i, item1 in enumerate(top_items):
         for j, item2 in enumerate(top_items):
-            if i != j:
-                pair_key = tuple(sorted([item1, item2]))
-                count = pair_counts.get(pair_key, 0)
-                matrix[i][j] = count
-            # Diagonal can represent self-count or be 0
-            # For chord diagrams, we typically set diagonal to 0
-            else:
-                matrix[i][j] = 0
+            pair_key = tuple(sorted([item1, item2]))
+            count = pair_counts.get(pair_key, 0)
+            matrix[i][j] = count
 
     return {
         'keys': top_items,

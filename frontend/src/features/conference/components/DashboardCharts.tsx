@@ -1,17 +1,3 @@
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line
-} from 'recharts';
 import { Text } from '@visx/text';
 import { scaleLog } from '@visx/scale';
 import Wordcloud from '@visx/wordcloud/lib/Wordcloud';
@@ -19,7 +5,6 @@ import { ChartData } from '../types';
 import { GeographicChordTop8 } from './GeographicChordTop8';
 import { TopOrgChordTop10 } from './TopOrgChordTop10';
 import { RatingHistogramFine } from './RatingHistogramFine';
-import { KeywordsTreemap } from './KeywordsTreemap';
 import { memo, useState, useCallback } from 'react';
 
 interface DashboardChartsProps {
@@ -48,11 +33,24 @@ interface WordCloudProps {
   keywords: Array<{ name: string; count: number }>;
 }
 
+type SpiralType = 'archimedean' | 'rectangular';
+
 function WordCloudComponent({ keywords }: WordCloudProps) {
+  const [spiralType, setSpiralType] = useState<SpiralType>('rectangular');
+  const [withRotation, setWithRotation] = useState(false);
+
   const words: WordData[] = keywords.map(keyword => ({
     text: keyword.name,
     value: keyword.count,
   }));
+
+  if (words.length === 0) {
+    return (
+      <div className="w-full h-80 bg-gray-50 rounded-lg flex items-center justify-center">
+        <div className="text-gray-500">No keyword data available</div>
+      </div>
+    );
+  }
 
   const fontScale = scaleLog({
     domain: [Math.min(...words.map((w) => w.value)), Math.max(...words.map((w) => w.value))],
@@ -62,38 +60,64 @@ function WordCloudComponent({ keywords }: WordCloudProps) {
   const fontSizeSetter = (datum: WordData) => fontScale(datum.value);
 
   return (
-    <div style={{ width: '100%', height: '320px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-      <Wordcloud
-        words={words}
-        width={500}
-        height={320}
-        fontSize={fontSizeSetter}
-        font={'Inter, sans-serif'}
-        padding={2}
-        spiral="archimedean"
-        rotate={0}
-        random={fixedValueGenerator}
-      >
-        {(cloudWords) =>
-          cloudWords.map((w, i) => (
-            <Text
-              key={w.text}
-              fill={COLORS[i % COLORS.length]}
-              textAnchor="middle"
-              transform={`translate(${w.x}, ${w.y}) rotate(${w.rotate})`}
-              fontSize={w.size}
-              fontFamily={w.font}
-              className="cursor-pointer hover:opacity-80 transition-opacity duration-200"
-              style={{
-                textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
-                fontWeight: 600,
-              }}
+    <div className="w-full">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <label className="flex items-center text-sm">
+            <span className="mr-2">Spiral:</span>
+            <select
+              onChange={(e) => setSpiralType(e.target.value as SpiralType)}
+              value={spiralType}
+              className="px-2 py-1 border border-gray-300 rounded text-sm"
             >
-              {w.text}
-            </Text>
-          ))
-        }
-      </Wordcloud>
+              <option value="archimedean">Archimedean</option>
+              <option value="rectangular">Rectangular</option>
+            </select>
+          </label>
+          <label className="flex items-center text-sm">
+            <input
+              type="checkbox"
+              checked={withRotation}
+              onChange={() => setWithRotation(!withRotation)}
+              className="mr-2"
+            />
+            Rotation
+          </label>
+        </div>
+      </div>
+      <div style={{ width: '100%', height: '320px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <Wordcloud
+          words={words}
+          width={500}
+          height={320}
+          fontSize={fontSizeSetter}
+          font={'Inter, sans-serif'}
+          padding={2}
+          spiral={spiralType}
+          rotate={withRotation ? getRotationDegree : 0}
+          random={fixedValueGenerator}
+        >
+          {(cloudWords) =>
+            cloudWords.map((w, i) => (
+              <Text
+                key={w.text}
+                fill={COLORS[i % COLORS.length]}
+                textAnchor="middle"
+                transform={`translate(${w.x}, ${w.y}) rotate(${w.rotate})`}
+                fontSize={w.size}
+                fontFamily={w.font}
+                className="cursor-pointer hover:opacity-80 transition-opacity duration-200"
+                style={{
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
+                  fontWeight: 600,
+                }}
+              >
+                {w.text}
+              </Text>
+            ))
+          }
+        </Wordcloud>
+      </div>
     </div>
   );
 }
@@ -179,56 +203,11 @@ const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBin
           />
         </ChartCard>
 
-        {/* Popular Keywords - Treemap */}
-        <ChartCard title="Popular Keywords (Treemap)">
-          <KeywordsTreemap
-            data={data.keywords_treemap || []}
-            isLoading={isLoading}
-          />
+        {/* Popular Keywords - Word Cloud */}
+        <ChartCard title="Popular Keywords">
+          <WordCloudComponent keywords={data.top_keywords || []} />
         </ChartCard>
 
-        {/* Legacy Charts (kept for backward compatibility) */}
-
-        {/* Geographic Distribution (Pie Chart) */}
-        <ChartCard title="Geographic Distribution (Overview)">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data.top_countries.slice(0, 8)}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }: any) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="count"
-              >
-                {data.top_countries.slice(0, 8).map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {/* Top Organizations (Bar Chart) */}
-        <ChartCard title="Top Organizations (Overview)">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={data.top_affiliations.slice(0, 8)} layout="horizontal">
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis type="number" />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={120}
-                fontSize={11}
-              />
-              <Tooltip />
-              <Bar dataKey="count" fill="#8B5CF6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
 
       </div>
     </div>
