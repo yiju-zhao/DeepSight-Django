@@ -121,19 +121,19 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
         keys={data.keys}
         margin={{ top: 60, right: 60, bottom: 90, left: 60 }}
         padAngle={0.06}
-        innerRadiusRatio={0.96}
+        innerRadiusRatio={0.94}
         innerRadiusOffset={0.02}
-        arcOpacity={0.6}
+        arcOpacity={0.7}
         arcBorderWidth={1}
-        arcBorderColor={{ from: 'color', modifiers: [['darker', 0.4]] }}
-        ribbonOpacity={0.5}
+        arcBorderColor={{ from: 'color', modifiers: [['darker', 0.3]] }}
+        ribbonOpacity={0.45}
         ribbonBorderWidth={1}
-        ribbonBorderColor={{ from: 'color', modifiers: [['darker', 0.4]] }}
+        ribbonBorderColor={{ from: 'color', modifiers: [['darker', 0.5]] }}
         enableLabel={true}
         labelOffset={20}
         labelRotation={0}
         labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
-        colors={{ scheme: 'category10' }}
+        colors={{ scheme: 'set1' }}
       />
     </div>
   );
@@ -169,14 +169,14 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
         arcOpacity={0.7}
         arcBorderWidth={1}
         arcBorderColor={{ from: 'color', modifiers: [['darker', 0.3]] }}
-        ribbonOpacity={0.4}
+        ribbonOpacity={0.45}
         ribbonBorderWidth={1}
         ribbonBorderColor={{ from: 'color', modifiers: [['darker', 0.5]] }}
         enableLabel={true}
         labelOffset={20}
         labelRotation={0}
         labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
-        colors={{ scheme: 'set3' }}
+        colors={{ scheme: 'category10' }}
       />
     </div>
   );
