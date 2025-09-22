@@ -9,6 +9,7 @@ import { memo, useState } from 'react';
 interface DashboardChartsProps {
   data: ChartData;
   isLoading?: boolean;
+  ratingHistogramLoading?: boolean;
   onBinSizeChange?: (binSize: number) => void;
   currentBinSize?: number;
 }
@@ -345,7 +346,7 @@ const ChartCard = ({
   );
 };
 
-const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBinSize = 0.5 }: DashboardChartsProps) => {
+const DashboardChartsComponent = ({ data, isLoading, ratingHistogramLoading, onBinSizeChange, currentBinSize = 0.5 }: DashboardChartsProps) => {
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -376,7 +377,7 @@ const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBin
         <ChartCard title="">
           <RatingHistogramFine
             data={data.ratings_histogram_fine || []}
-            isLoading={isLoading}
+            isLoading={ratingHistogramLoading || isLoading}
             onBinSizeChange={onBinSizeChange}
             currentBinSize={currentBinSize}
           />
