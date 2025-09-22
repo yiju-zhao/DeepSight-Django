@@ -11,6 +11,8 @@ import AppLayout from '@/shared/components/layout/AppLayout';
 const DashboardContent = memo(({
   dashboardData,
   dashboardLoading,
+  ratingHistogramData,
+  ratingHistogramLoading,
   publicationsData,
   publicationsLoading,
   currentPage,
@@ -26,6 +28,8 @@ const DashboardContent = memo(({
 }: {
   dashboardData: any;
   dashboardLoading: boolean;
+  ratingHistogramData: any;
+  ratingHistogramLoading: boolean;
   publicationsData: any;
   publicationsLoading: boolean;
   currentPage: number;
@@ -50,6 +54,8 @@ const DashboardContent = memo(({
       <DashboardCharts
         data={dashboardData.charts}
         isLoading={dashboardLoading}
+        ratingHistogramData={ratingHistogramData?.charts?.ratings_histogram_fine}
+        ratingHistogramLoading={ratingHistogramLoading}
         onBinSizeChange={onBinSizeChange}
         currentBinSize={currentBinSize}
       />
@@ -152,6 +158,17 @@ export default function ConferenceDashboard() {
     isLoading: dashboardLoading,
     error: dashboardError
   } = useDashboard(dashboardParams);
+
+  // Separate API call for rating histogram with bin size
+  const ratingHistogramParams = matchingInstance ? {
+    instance: matchingInstance.instance_id,
+    bin_size: binSize
+  } : {};
+
+  const {
+    data: ratingHistogramData,
+    isLoading: ratingHistogramLoading,
+  } = useDashboard(ratingHistogramParams);
 
 
   // Convert sort parameters to Django ordering format
@@ -413,6 +430,8 @@ export default function ConferenceDashboard() {
               <DashboardContent
                 dashboardData={dashboardData}
                 dashboardLoading={dashboardLoading}
+                ratingHistogramData={ratingHistogramData}
+                ratingHistogramLoading={ratingHistogramLoading}
                 publicationsData={publicationsData}
                 publicationsLoading={publicationsLoading}
                 currentPage={currentPage}

@@ -115,9 +115,7 @@ export interface ChartData {
     country: ChordData;
     org: ChordData;
   };
-  ratings_histogram_fine: {
-    [binSize: string]: FineHistogramBin[];
-  };
+  ratings_histogram_fine: FineHistogramBin[];
   keywords_treemap: TreemapData[];
 }
 

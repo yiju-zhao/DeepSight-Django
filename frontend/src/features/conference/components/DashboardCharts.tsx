@@ -3,12 +3,14 @@ import { scaleLog } from '@visx/scale';
 import Wordcloud from '@visx/wordcloud/lib/Wordcloud';
 import { ResponsiveChord } from '@nivo/chord';
 import { ResponsiveBar } from '@nivo/bar';
-import { ChartData } from '../types';
+import { ChartData, FineHistogramBin } from '../types';
 import { memo, useState } from 'react';
 
 interface DashboardChartsProps {
   data: ChartData;
   isLoading?: boolean;
+  ratingHistogramData?: FineHistogramBin[];
+  ratingHistogramLoading?: boolean;
   onBinSizeChange?: (binSize: number) => void;
   currentBinSize?: number;
 }
@@ -25,12 +27,6 @@ interface ChordData {
   matrix: number[][];
 }
 
-interface HistogramBin {
-  bin: number;
-  start: number;
-  end: number;
-  count: number;
-}
 
 const fixedValueGenerator = () => 0.5;
 
@@ -189,7 +185,7 @@ const RatingHistogramFine = memo(({
   onBinSizeChange,
   currentBinSize = 0.5
 }: {
-  data: { [binSize: string]: HistogramBin[] };
+  data: FineHistogramBin[];
   isLoading?: boolean;
   onBinSizeChange?: (binSize: number) => void;
   currentBinSize?: number;
@@ -200,8 +196,6 @@ const RatingHistogramFine = memo(({
     setSelectedBinSize(newBinSize);
     onBinSizeChange?.(newBinSize);
   };
-
-  const currentData = data?.[selectedBinSize.toString()] || [];
 
   if (isLoading) {
     return (
@@ -217,7 +211,7 @@ const RatingHistogramFine = memo(({
     );
   }
 
-  if (!currentData?.length) {
+  if (!data?.length) {
     return (
       <div className="w-full">
         <div className="mb-4 flex items-center justify-between">
@@ -240,7 +234,7 @@ const RatingHistogramFine = memo(({
   }
 
   // Prepare data for Nivo Bar
-  const chartData = currentData.map(bin => ({
+  const chartData = data.map(bin => ({
     id: `${bin.start.toFixed(1)}-${bin.end.toFixed(1)}`,
     label: `${bin.start.toFixed(1)}`,
     value: bin.count,
@@ -347,7 +341,7 @@ const ChartCard = ({
   );
 };
 
-const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBinSize = 0.5 }: DashboardChartsProps) => {
+const DashboardChartsComponent = ({ data, isLoading, ratingHistogramData, ratingHistogramLoading, onBinSizeChange, currentBinSize = 0.5 }: DashboardChartsProps) => {
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -377,8 +371,8 @@ const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBin
         {/* Rating Distribution (Fine-Grained) */}
         <ChartCard title="">
           <RatingHistogramFine
-            data={data.ratings_histogram_fine || {}}
-            isLoading={isLoading}
+            data={ratingHistogramData || data.ratings_histogram_fine || []}
+            isLoading={ratingHistogramLoading}
             onBinSizeChange={onBinSizeChange}
             currentBinSize={currentBinSize}
           />
