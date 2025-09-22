@@ -151,7 +151,7 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
 
   if (!data?.keys?.length || !data?.matrix?.length) {
     return (
-      <div className="w-full h-[500px] bg-gray-50 rounded-lg flex items-center justify-center">
+      <div className="w-full h-[600px] bg-gray-50 rounded-lg flex items-center justify-center">
         <div className="text-gray-500">No organization collaboration data available</div>
       </div>
     );
