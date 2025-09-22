@@ -9,7 +9,6 @@ import { memo, useState } from 'react';
 interface DashboardChartsProps {
   data: ChartData;
   isLoading?: boolean;
-  ratingHistogramLoading?: boolean;
   onBinSizeChange?: (binSize: number) => void;
   currentBinSize?: number;
 }
@@ -190,7 +189,7 @@ const RatingHistogramFine = memo(({
   onBinSizeChange,
   currentBinSize = 0.5
 }: {
-  data: HistogramBin[];
+  data: { [binSize: string]: HistogramBin[] };
   isLoading?: boolean;
   onBinSizeChange?: (binSize: number) => void;
   currentBinSize?: number;
@@ -201,6 +200,8 @@ const RatingHistogramFine = memo(({
     setSelectedBinSize(newBinSize);
     onBinSizeChange?.(newBinSize);
   };
+
+  const currentData = data?.[selectedBinSize.toString()] || [];
 
   if (isLoading) {
     return (
@@ -216,7 +217,7 @@ const RatingHistogramFine = memo(({
     );
   }
 
-  if (!data?.length) {
+  if (!currentData?.length) {
     return (
       <div className="w-full">
         <div className="mb-4 flex items-center justify-between">
@@ -239,7 +240,7 @@ const RatingHistogramFine = memo(({
   }
 
   // Prepare data for Nivo Bar
-  const chartData = data.map(bin => ({
+  const chartData = currentData.map(bin => ({
     id: `${bin.start.toFixed(1)}-${bin.end.toFixed(1)}`,
     label: `${bin.start.toFixed(1)}`,
     value: bin.count,
@@ -346,7 +347,7 @@ const ChartCard = ({
   );
 };
 
-const DashboardChartsComponent = ({ data, isLoading, ratingHistogramLoading, onBinSizeChange, currentBinSize = 0.5 }: DashboardChartsProps) => {
+const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBinSize = 0.5 }: DashboardChartsProps) => {
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -376,8 +377,8 @@ const DashboardChartsComponent = ({ data, isLoading, ratingHistogramLoading, onB
         {/* Rating Distribution (Fine-Grained) */}
         <ChartCard title="">
           <RatingHistogramFine
-            data={data.ratings_histogram_fine || []}
-            isLoading={ratingHistogramLoading || isLoading}
+            data={data.ratings_histogram_fine || {}}
+            isLoading={isLoading}
             onBinSizeChange={onBinSizeChange}
             currentBinSize={currentBinSize}
           />

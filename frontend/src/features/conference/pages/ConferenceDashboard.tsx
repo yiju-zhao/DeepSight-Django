@@ -11,8 +11,6 @@ import AppLayout from '@/shared/components/layout/AppLayout';
 const DashboardContent = memo(({
   dashboardData,
   dashboardLoading,
-  ratingHistogramData,
-  ratingHistogramLoading,
   publicationsData,
   publicationsLoading,
   currentPage,
@@ -28,8 +26,6 @@ const DashboardContent = memo(({
 }: {
   dashboardData: any;
   dashboardLoading: boolean;
-  ratingHistogramData: any;
-  ratingHistogramLoading: boolean;
   publicationsData: any;
   publicationsLoading: boolean;
   currentPage: number;
@@ -52,12 +48,8 @@ const DashboardContent = memo(({
     {/* Charts */}
     {dashboardData && (
       <DashboardCharts
-        data={{
-          ...dashboardData.charts,
-          ratings_histogram_fine: ratingHistogramData?.charts?.ratings_histogram_fine || dashboardData.charts.ratings_histogram_fine
-        }}
+        data={dashboardData.charts}
         isLoading={dashboardLoading}
-        ratingHistogramLoading={ratingHistogramLoading}
         onBinSizeChange={onBinSizeChange}
         currentBinSize={currentBinSize}
       />
@@ -161,16 +153,6 @@ export default function ConferenceDashboard() {
     error: dashboardError
   } = useDashboard(dashboardParams);
 
-  // Separate API call for rating histogram with bin size
-  const ratingHistogramParams = matchingInstance ? {
-    instance: matchingInstance.instance_id,
-    bin_size: binSize
-  } : {};
-
-  const {
-    data: ratingHistogramData,
-    isLoading: ratingHistogramLoading,
-  } = useDashboard(ratingHistogramParams);
 
   // Convert sort parameters to Django ordering format
   const getOrdering = () => {
@@ -431,8 +413,6 @@ export default function ConferenceDashboard() {
               <DashboardContent
                 dashboardData={dashboardData}
                 dashboardLoading={dashboardLoading}
-                ratingHistogramData={ratingHistogramData}
-                ratingHistogramLoading={ratingHistogramLoading}
                 publicationsData={publicationsData}
                 publicationsLoading={publicationsLoading}
                 currentPage={currentPage}
