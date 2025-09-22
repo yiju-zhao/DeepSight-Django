@@ -5,7 +5,6 @@ export { default as NotebookListPage } from './pages/NotebookListPage';
 // Layout Components
 export { default as NotebookLayout } from './components/layout/NotebookLayout';
 export { default as NotebookHeader } from './components/layout/NotebookHeader';
-export { default as SidebarMenu } from './components/layout/SidebarMenu';
 
 // Main Panels
 export { default as SourcesPanel } from './components/panels/SourcesPanel';

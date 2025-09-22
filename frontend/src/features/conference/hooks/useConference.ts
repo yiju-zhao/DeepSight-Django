@@ -45,7 +45,7 @@ export const usePublications = (params?: { instance?: number; page?: number; pag
     enabled: !!params?.instance, // Only fetch when instance is selected
     staleTime: 30 * 1000, // 30 seconds for search results
     refetchOnWindowFocus: false, // Don't refetch on window focus
-    keepPreviousData: true, // Keep previous data while loading new data
+    placeholderData: (previousData) => previousData, // Keep previous data while loading new data
   });
 };
 

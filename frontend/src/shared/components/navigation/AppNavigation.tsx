@@ -151,7 +151,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
                 className="overflow-hidden"
               >
                 <div className="space-y-1 mt-1">
-                  {item.children.map(child => renderNavigationItem(child, depth + 1))}
+                  {item.children?.map(child => renderNavigationItem(child, depth + 1))}
                 </div>
               </motion.div>
             )}

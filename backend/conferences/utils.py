@@ -135,3 +135,125 @@ def deduplicate_keywords(keywords: List[str]) -> Dict[str, int]:
         canonical_counts[canonical_form] = total_count
 
     return canonical_counts
+
+
+def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int = 10) -> Dict:
+    """Build co-occurrence matrix for chord diagrams
+
+    Args:
+        items_per_publication: List of lists, where each inner list contains unique items for one publication
+        top_n: Number of top items to include in the matrix
+
+    Returns:
+        Dictionary with:
+        - keys: ordered list of top N item names
+        - matrix: NxN symmetric matrix with co-occurrence counts
+        - totals: total unique paper count per item (for reference)
+    """
+    if not items_per_publication:
+        return {'keys': [], 'matrix': [], 'totals': {}}
+
+    # Count total unique paper participation per item
+    item_totals = Counter()
+    pair_counts = Counter()
+
+    for items in items_per_publication:
+        # Convert to set to ensure uniqueness within publication
+        unique_items = set(items)
+
+        # Count each item's participation in this publication
+        for item in unique_items:
+            item_totals[item] += 1
+
+        # Count pairs within this publication
+        items_list = list(unique_items)
+        for i, item1 in enumerate(items_list):
+            for j, item2 in enumerate(items_list):
+                if i < j:  # Only count each pair once (unordered)
+                    # Use sorted tuple to ensure consistent ordering
+                    pair_key = tuple(sorted([item1, item2]))
+                    pair_counts[pair_key] += 1
+
+    # Select top N items by total participation
+    top_items = [item for item, count in item_totals.most_common(top_n)]
+
+    if not top_items:
+        return {'keys': [], 'matrix': [], 'totals': {}}
+
+    # Build symmetric matrix
+    n = len(top_items)
+    matrix = [[0 for _ in range(n)] for _ in range(n)]
+
+    # Fill matrix with pair counts
+    for i, item1 in enumerate(top_items):
+        for j, item2 in enumerate(top_items):
+            if i != j:
+                pair_key = tuple(sorted([item1, item2]))
+                count = pair_counts.get(pair_key, 0)
+                matrix[i][j] = count
+            # Diagonal can represent self-count or be 0
+            # For chord diagrams, we typically set diagonal to 0
+            else:
+                matrix[i][j] = 0
+
+    return {
+        'keys': top_items,
+        'matrix': matrix,
+        'totals': dict(item_totals)
+    }
+
+
+def build_fine_histogram(values: List[float], bin_size: float = 0.5, min_val: float = None, max_val: float = None) -> List[Dict]:
+    """Build fine-grained histogram with configurable bin size
+
+    Args:
+        values: List of numeric values to bin
+        bin_size: Size of each bin (default 0.5)
+        min_val: Minimum value for binning (default: min of values)
+        max_val: Maximum value for binning (default: max of values)
+
+    Returns:
+        List of dictionaries with bin info: [{'bin': center, 'start': start, 'end': end, 'count': count}]
+    """
+    if not values:
+        return []
+
+    # Filter out None values and convert to floats
+    clean_values = [float(v) for v in values if v is not None]
+    if not clean_values:
+        return []
+
+    # Determine range
+    if min_val is None:
+        min_val = min(clean_values)
+    if max_val is None:
+        max_val = max(clean_values)
+
+    # Clamp bin_size to reasonable bounds
+    bin_size = max(0.1, min(2.0, bin_size))
+
+    # Generate bins
+    bins = []
+    current_start = min_val
+
+    while current_start < max_val:
+        current_end = min(current_start + bin_size, max_val + bin_size)  # Allow for edge cases
+        bins.append({
+            'start': current_start,
+            'end': current_end,
+            'bin': current_start + bin_size / 2,  # Center of bin
+            'count': 0
+        })
+        current_start = current_end
+
+    # Count values in each bin
+    for value in clean_values:
+        for bin_info in bins:
+            if bin_info['start'] <= value < bin_info['end'] or (value == max_val and bin_info['end'] > max_val):
+                bin_info['count'] += 1
+                break
+
+    # Remove empty bins at the end if desired
+    # Keep all bins for now to show complete range
+
+    return bins

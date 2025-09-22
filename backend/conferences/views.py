@@ -14,7 +14,7 @@ from .serializers import (
     VenueSerializer, InstanceSerializer, PublicationSerializer,
     EventSerializer
 )
-from .utils import split_comma_values, split_semicolon_values, deduplicate_keywords
+from .utils import split_comma_values, split_semicolon_values, deduplicate_keywords, build_cooccurrence_matrix, build_fine_histogram
 
 
 class StandardPageNumberPagination(PageNumberPagination):
@@ -137,6 +137,10 @@ class OverviewViewSet(viewsets.ViewSet):
         all_ratings = []
         all_author_positions = []
 
+        # New data structures for visualizations
+        countries_per_publication = []
+        affiliations_per_publication = []
+
         resource_counts = {'with_github': 0, 'with_site': 0, 'with_pdf': 0}
 
         for pub in pub_list:
@@ -149,11 +153,19 @@ class OverviewViewSet(viewsets.ViewSet):
             if pub.aff_country_unique:
                 countries = split_semicolon_values(pub.aff_country_unique)
                 all_countries.extend(countries)
+                # Store unique countries per publication for collaboration analysis
+                countries_per_publication.append(list(set(countries)))
+            else:
+                countries_per_publication.append([])
 
             # Affiliations (semicolon-separated)
             if pub.aff_unique:
                 affiliations = split_semicolon_values(pub.aff_unique)
                 all_affiliations.extend(affiliations)
+                # Store unique affiliations per publication for collaboration analysis
+                affiliations_per_publication.append(list(set(affiliations)))
+            else:
+                affiliations_per_publication.append([])
 
             # Keywords (semicolon-separated)
             if pub.keywords:
@@ -216,6 +228,11 @@ class OverviewViewSet(viewsets.ViewSet):
                 'sessions': sessions_counter,
                 'ratings': ratings_counter,
                 'author_positions': author_positions_counter,
+            },
+            'raw_data': {
+                'countries_per_publication': countries_per_publication,
+                'affiliations_per_publication': affiliations_per_publication,
+                'all_ratings': all_ratings,  # Keep original float ratings for fine histogram
             }
         }
 
@@ -232,9 +249,33 @@ class OverviewViewSet(viewsets.ViewSet):
             'resource_counts': processed_data['resource_counts'],
         }
 
-    def _build_charts(self, processed_data):
+    def _build_charts(self, processed_data, bin_size=0.5):
         """Build chart data from processed data"""
         counters = processed_data['counters']
+        raw_data = processed_data.get('raw_data', {})
+
+        # Build collaboration chord diagrams
+        country_chord = build_cooccurrence_matrix(
+            raw_data.get('countries_per_publication', []),
+            top_n=8
+        )
+
+        org_chord = build_cooccurrence_matrix(
+            raw_data.get('affiliations_per_publication', []),
+            top_n=10
+        )
+
+        # Build fine-grained histogram
+        ratings_histogram_fine = build_fine_histogram(
+            raw_data.get('all_ratings', []),
+            bin_size=bin_size
+        )
+
+        # Build keywords treemap data
+        keywords_treemap = [
+            {'name': k, 'value': v}
+            for k, v in sorted(counters['keywords'].items(), key=lambda x: x[1], reverse=True)[:30]
+        ]
 
         return {
             'topics': [{'name': k, 'count': v} for k, v in counters['topics'].most_common(10)],
@@ -244,12 +285,20 @@ class OverviewViewSet(viewsets.ViewSet):
             'ratings_histogram': [{'rating': k, 'count': v} for k, v in sorted(counters['ratings'].items())],
             'session_types': [{'name': k, 'count': v} for k, v in counters['sessions'].items()],
             'author_positions': [{'name': k, 'count': v} for k, v in counters['author_positions'].most_common(10)],
+            # New visualizations
+            'chords': {
+                'country': country_chord,
+                'org': org_chord
+            },
+            'ratings_histogram_fine': ratings_histogram_fine,
+            'keywords_treemap': keywords_treemap,
         }
 
     @method_decorator(cache_page(60 * 15))  # Cache for 15 minutes
     def list(self, request):
         """Get dashboard data for a specific instance"""
         instance_id = request.query_params.get('instance')
+        bin_size_param = request.query_params.get('bin_size', '0.5')
 
         if not instance_id:
             return Response(
@@ -265,6 +314,14 @@ class OverviewViewSet(viewsets.ViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Parse and validate bin_size parameter
+        try:
+            bin_size = float(bin_size_param)
+            # Clamp to reasonable bounds
+            bin_size = max(0.1, min(2.0, bin_size))
+        except (ValueError, TypeError):
+            bin_size = 0.5  # Default fallback
+
         try:
             publications = self._get_publications_queryset(instance_id=instance_id)
 
@@ -273,7 +330,7 @@ class OverviewViewSet(viewsets.ViewSet):
 
             # Build KPIs and charts from processed data
             kpis = self._build_kpis(processed_data)
-            charts = self._build_charts(processed_data)
+            charts = self._build_charts(processed_data, bin_size=bin_size)
 
             response_data = {
                 'kpis': kpis,

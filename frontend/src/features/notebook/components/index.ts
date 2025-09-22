@@ -4,7 +4,6 @@
 // Layout components
 export { default as NotebookLayout } from './layout/NotebookLayout';
 export { default as NotebookHeader } from './layout/NotebookHeader';
-export { default as SidebarMenu } from './layout/SidebarMenu';
 
 // Panel components
 export { default as SessionChatPanel } from './panels/SessionChatPanel';

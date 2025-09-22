@@ -17,6 +17,7 @@ import ReportsSection from '../components/ReportsSection';
 import PodcastsSection from '../components/PodcastsSection';
 import ConferenceSection from '../components/ConferenceSection';
 import DashboardActions from '../components/DashboardActions';
+import DashboardHeader from '../components/DashboardHeader';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import MainPageHeader from '@/shared/components/common/MainPageHeader';

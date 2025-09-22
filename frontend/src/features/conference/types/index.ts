@@ -85,6 +85,23 @@ export interface RatingHistogramItem {
   count: number;
 }
 
+export interface ChordData {
+  keys: string[];
+  matrix: number[][];
+}
+
+export interface FineHistogramBin {
+  bin: number;
+  start: number;
+  end: number;
+  count: number;
+}
+
+export interface TreemapData {
+  name: string;
+  value: number;
+}
+
 export interface ChartData {
   topics: ChartDataItem[];
   top_affiliations: ChartDataItem[];
@@ -93,6 +110,13 @@ export interface ChartData {
   ratings_histogram: RatingHistogramItem[];
   session_types: ChartDataItem[];
   author_positions: ChartDataItem[];
+  // New visualizations
+  chords: {
+    country: ChordData;
+    org: ChordData;
+  };
+  ratings_histogram_fine: FineHistogramBin[];
+  keywords_treemap: TreemapData[];
 }
 
 export interface PaginationInfo {
@@ -136,6 +160,7 @@ export interface DashboardParams {
   instance?: number;
   page?: number;
   page_size?: number;
+  bin_size?: number;
 }
 
 export interface InstanceParams {

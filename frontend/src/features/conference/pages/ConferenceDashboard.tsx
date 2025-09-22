@@ -15,12 +15,14 @@ const DashboardContent = memo(({
   publicationsLoading,
   currentPage,
   onPageChange,
-  searchInput,
-  onSearchChange,
+  publicationSearchInput,
+  onPublicationSearchChange,
   sortField,
   sortDirection,
   onSortChange,
-  debouncedSearch
+  debouncedPublicationSearch,
+  onBinSizeChange,
+  currentBinSize
 }: {
   dashboardData: any;
   dashboardLoading: boolean;
@@ -28,12 +30,14 @@ const DashboardContent = memo(({
   publicationsLoading: boolean;
   currentPage: number;
   onPageChange: (page: number) => void;
-  searchInput: string;
-  onSearchChange: (search: string) => void;
+  publicationSearchInput: string;
+  onPublicationSearchChange: (search: string) => void;
   sortField: 'rating' | 'title';
   sortDirection: 'asc' | 'desc';
   onSortChange: (field: 'rating' | 'title', direction: 'asc' | 'desc') => void;
-  debouncedSearch: string;
+  debouncedPublicationSearch: string;
+  onBinSizeChange: (binSize: number) => void;
+  currentBinSize: number;
 }) => (
   <div className="space-y-8">
     {/* KPIs */}
@@ -43,7 +47,12 @@ const DashboardContent = memo(({
 
     {/* Charts */}
     {dashboardData && (
-      <DashboardCharts data={dashboardData.charts} isLoading={dashboardLoading} />
+      <DashboardCharts
+        data={dashboardData.charts}
+        isLoading={dashboardLoading}
+        onBinSizeChange={onBinSizeChange}
+        currentBinSize={currentBinSize}
+      />
     )}
 
     {/* Publications Table */}
@@ -56,12 +65,12 @@ const DashboardContent = memo(({
       }}
       currentPage={currentPage}
       onPageChange={onPageChange}
-      searchTerm={searchInput}
-      onSearchChange={onSearchChange}
+      searchTerm={publicationSearchInput}
+      onSearchChange={onPublicationSearchChange}
       sortField={sortField}
       sortDirection={sortDirection}
       onSortChange={onSortChange}
-      isFiltered={!!debouncedSearch}
+      isFiltered={!!debouncedPublicationSearch}
       isLoading={publicationsLoading}
     />
   </div>
@@ -74,12 +83,15 @@ export default function ConferenceDashboard() {
   const [selectedYear, setSelectedYear] = useState<number | undefined>();
   const [selectedInstance, setSelectedInstance] = useState<number | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchInput, setSearchInput] = useState(''); // Input field state
+  // Separate search states to avoid coupling
+  const [conferenceSearchInput, setConferenceSearchInput] = useState(''); // For conference list search
+  const [publicationSearchInput, setPublicationSearchInput] = useState(''); // For publications search
   const [sortField, setSortField] = useState<'rating' | 'title'>('rating');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [binSize, setBinSize] = useState(0.5); // Default bin size for rating histogram
 
   // Debounce search input to avoid too many API calls
-  const debouncedSearch = useDebounce(searchInput, 500); // 500ms delay
+  const debouncedPublicationSearch = useDebounce(publicationSearchInput, 500); // 500ms delay (publications only)
 
   // Ref for the dashboard content section
   const dashboardContentRef = useRef<HTMLDivElement>(null);
@@ -93,8 +105,8 @@ export default function ConferenceDashboard() {
 
     // Filter instances based on search term
     const filtered = instances.filter(instance =>
-      instance.venue.name.toLowerCase().includes(searchInput.toLowerCase()) ||
-      instance.year.toString().includes(searchInput)
+      instance.venue.name.toLowerCase().includes(conferenceSearchInput.toLowerCase()) ||
+      instance.year.toString().includes(conferenceSearchInput)
     );
 
     // Group by venue
@@ -123,7 +135,7 @@ export default function ConferenceDashboard() {
       groupedConferences: grouped,
       popularConferences: popular
     };
-  }, [instances, searchInput]);
+  }, [instances, conferenceSearchInput]);
 
   // Find the matching instance for selected venue+year combo
   const matchingInstance = instances?.find(
@@ -132,7 +144,8 @@ export default function ConferenceDashboard() {
 
   // Fetch dashboard data (KPIs and charts) only when we have a matching instance
   const dashboardParams = matchingInstance ? {
-    instance: matchingInstance.instance_id
+    instance: matchingInstance.instance_id,
+    bin_size: binSize
   } : {};
 
   const {
@@ -152,7 +165,7 @@ export default function ConferenceDashboard() {
     instance: matchingInstance.instance_id,
     page: currentPage,
     page_size: 20,
-    search: debouncedSearch || undefined,
+    search: debouncedPublicationSearch || undefined,
     ordering: getOrdering()
   } : undefined;
 
@@ -190,14 +203,14 @@ export default function ConferenceDashboard() {
     setSelectedYear(undefined);
     setSelectedInstance(undefined);
     setCurrentPage(1);
-    setSearchInput(''); // Reset search when changing venue
+    setPublicationSearchInput(''); // Reset publications search when changing venue
   };
 
   const handleYearChange = (year: number | undefined) => {
     setSelectedYear(year);
     setSelectedInstance(undefined);
     setCurrentPage(1);
-    setSearchInput(''); // Reset search when changing year
+    setPublicationSearchInput(''); // Reset publications search when changing year
   };
 
   const handleInstanceSelect = (instanceId: number) => {
@@ -207,16 +220,16 @@ export default function ConferenceDashboard() {
       setSelectedYear(instance.year);
       setSelectedInstance(instanceId);
       setCurrentPage(1);
-      setSearchInput(''); // Reset search when changing instance
+      setPublicationSearchInput(''); // Reset publications search when changing instance
 
       // Always scroll to dashboard when an instance is clicked, even if it's already selected
       setTimeout(() => scrollToDashboard(), 100);
     }
   };
 
-  const handleSearchChange = useMemo(() =>
+  const handlePublicationSearchChange = useMemo(() =>
     (search: string) => {
-      setSearchInput(search); // Update input immediately for responsive UI
+      setPublicationSearchInput(search); // Update publications search
       setCurrentPage(1); // Reset to first page when searching
     }, []
   );
@@ -257,26 +270,26 @@ export default function ConferenceDashboard() {
                 )}
               </div>
 
-              {/* Search Bar */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
-                <input
-                  type="text"
-                  placeholder="Search conferences, venues, or years..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
-                />
-              </div>
-            </div>
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <input
+              type="text"
+              placeholder="Search conferences, venues, or years..."
+              value={conferenceSearchInput}
+              onChange={(e) => setConferenceSearchInput(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+            />
+          </div>
+        </div>
 
-            {/* Popular Conferences */}
-            {!searchInput && popularConferences.length > 0 && (
-              <div className="bg-white rounded-xl shadow-sm border p-6">
-                <div className="flex items-center mb-4">
-                  <Star className="w-5 h-5 text-yellow-500 mr-2" />
-                  <h3 className="text-lg font-semibold text-gray-900">Recent & Popular</h3>
-                </div>
+        {/* Popular Conferences */}
+        {!conferenceSearchInput && popularConferences.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center mb-4">
+              <Star className="w-5 h-5 text-yellow-500 mr-2" />
+              <h3 className="text-lg font-semibold text-gray-900">Recent & Popular</h3>
+            </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {popularConferences.map((instance) => (
                     <button
@@ -403,12 +416,14 @@ export default function ConferenceDashboard() {
                 publicationsLoading={publicationsLoading}
                 currentPage={currentPage}
                 onPageChange={handlePageChange}
-                searchInput={searchInput}
-                onSearchChange={handleSearchChange}
+                publicationSearchInput={publicationSearchInput}
+                onPublicationSearchChange={handlePublicationSearchChange}
                 sortField={sortField}
                 sortDirection={sortDirection}
                 onSortChange={handleSortChange}
-                debouncedSearch={debouncedSearch}
+                debouncedPublicationSearch={debouncedPublicationSearch}
+                onBinSizeChange={setBinSize}
+                currentBinSize={binSize}
               />
             </div>
           )}
