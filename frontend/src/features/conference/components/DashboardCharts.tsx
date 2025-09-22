@@ -175,24 +175,24 @@ const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBin
         <h2 className="text-2xl font-bold text-gray-900">Visualizations</h2>
       </div>
 
+      {/* Geographic Collaboration - Full Width */}
+      <ChartCard title="Geographic Collaboration (Top 8)">
+        <GeographicChordTop8
+          data={data.chords?.country || { keys: [], matrix: [] }}
+          isLoading={isLoading}
+        />
+      </ChartCard>
+
+      {/* Organization Collaboration - Full Width */}
+      <ChartCard title="Organization Collaboration (Top 10)">
+        <TopOrgChordTop10
+          data={data.chords?.org || { keys: [], matrix: [] }}
+          isLoading={isLoading}
+        />
+      </ChartCard>
+
+      {/* Rating and Keywords - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Geographic Collaboration - Chord Diagram */}
-        <ChartCard title="Geographic Collaboration (Top 8)">
-          <GeographicChordTop8
-            data={data.chords?.country || { keys: [], matrix: [] }}
-            isLoading={isLoading}
-          />
-        </ChartCard>
-
-        {/* Organization Collaboration - Chord Diagram */}
-        <ChartCard title="Organization Collaboration (Top 10)">
-          <TopOrgChordTop10
-            data={data.chords?.org || { keys: [], matrix: [] }}
-            isLoading={isLoading}
-          />
-        </ChartCard>
-
         {/* Rating Distribution (Fine-Grained) */}
         <ChartCard title="">
           <RatingHistogramFine
@@ -207,8 +207,6 @@ const DashboardChartsComponent = ({ data, isLoading, onBinSizeChange, currentBin
         <ChartCard title="Popular Keywords">
           <WordCloudComponent keywords={data.top_keywords || []} />
         </ChartCard>
-
-
       </div>
     </div>
   );
