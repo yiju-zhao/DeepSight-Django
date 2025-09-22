@@ -115,11 +115,11 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
   }
 
   return (
-    <div className="w-full h-[500px]">
+    <div className="w-full h-[500px] flex justify-center items-center">
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 60, right: 60, bottom: 90, left: 60 }}
+        margin={{ top: 40, right: 200, bottom: 40, left: 40 }}
         padAngle={0.06}
         innerRadiusRatio={0.96}
         innerRadiusOffset={0.02}
@@ -136,12 +136,13 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
         colors={{ scheme: 'category10' }}
         legends={[
           {
-            anchor: 'bottom',
-            direction: 'row',
-            translateY: 70,
-            itemWidth: 80,
-            itemHeight: 16,
-            itemsSpacing: 0,
+            anchor: 'right',
+            direction: 'column',
+            translateX: 160,
+            translateY: 0,
+            itemWidth: 120,
+            itemHeight: 20,
+            itemsSpacing: 4,
             symbolSize: 12,
             symbolShape: 'circle',
             itemDirection: 'left-to-right',
