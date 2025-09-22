@@ -15,7 +15,7 @@ import {
 export interface IConferenceService {
   getVenues(): Promise<Venue[]>;
   getInstances(params?: InstanceParams): Promise<Instance[]>;
-  getPublications(params?: { instance?: number; page?: number; page_size?: number }): Promise<PaginatedResponse<PublicationTableItem>>;
+  getPublications(params?: { instance?: number; page?: number; page_size?: number; search?: string; ordering?: string }): Promise<PaginatedResponse<PublicationTableItem>>;
   getDashboard(params: DashboardParams): Promise<DashboardResponse>;
   getOverview(): Promise<ConferenceOverview>;
 }
@@ -47,6 +47,8 @@ export class ConferenceService implements IConferenceService {
     instance?: number;
     page?: number;
     page_size?: number;
+    search?: string;
+    ordering?: string;
   }): Promise<PaginatedResponse<PublicationTableItem>> {
     return apiClient.get(`${this.baseEndpoint}/publications/`, { params });
   }

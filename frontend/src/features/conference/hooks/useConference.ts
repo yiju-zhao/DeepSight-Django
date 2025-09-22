@@ -38,7 +38,7 @@ export const useInstances = () => {
 /**
  * Hook to fetch publications
  */
-export const usePublications = (params?: { instance?: number; page?: number; page_size?: number }) => {
+export const usePublications = (params?: { instance?: number; page?: number; page_size?: number; search?: string; ordering?: string }) => {
   return useQuery({
     queryKey: conferenceKeys.publications(params),
     queryFn: () => conferenceService.getPublications(params),

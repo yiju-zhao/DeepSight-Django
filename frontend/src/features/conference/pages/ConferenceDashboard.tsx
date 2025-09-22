@@ -12,6 +12,8 @@ export default function ConferenceDashboard() {
   const [selectedInstance, setSelectedInstance] = useState<number | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortField, setSortField] = useState<'rating' | 'title'>('rating');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
   // Ref for the dashboard content section
   const dashboardContentRef = useRef<HTMLDivElement>(null);
@@ -20,8 +22,8 @@ export default function ConferenceDashboard() {
   const { data: instances, isLoading: instancesLoading } = useInstances();
 
   // Process and group instances for better UI
-  const { groupedConferences, filteredInstances, popularConferences } = useMemo(() => {
-    if (!instances) return { groupedConferences: {}, filteredInstances: [], popularConferences: [] };
+  const { groupedConferences, popularConferences } = useMemo(() => {
+    if (!instances) return { groupedConferences: {}, popularConferences: [] };
 
     // Filter instances based on search term
     const filtered = instances.filter(instance =>
@@ -53,7 +55,6 @@ export default function ConferenceDashboard() {
 
     return {
       groupedConferences: grouped,
-      filteredInstances: filtered,
       popularConferences: popular
     };
   }, [instances, searchTerm]);
@@ -74,11 +75,19 @@ export default function ConferenceDashboard() {
     error: dashboardError
   } = useDashboard(dashboardParams);
 
+  // Convert sort parameters to Django ordering format
+  const getOrdering = () => {
+    const prefix = sortDirection === 'desc' ? '-' : '';
+    return `${prefix}${sortField}`;
+  };
+
   // Fetch publications separately with pagination
   const publicationsParams = matchingInstance ? {
     instance: matchingInstance.instance_id,
     page: currentPage,
-    page_size: 20
+    page_size: 20,
+    search: searchTerm || undefined,
+    ordering: getOrdering()
   } : undefined;
 
   const {
@@ -87,8 +96,8 @@ export default function ConferenceDashboard() {
     error: publicationsError
   } = usePublications(publicationsParams);
 
-  // Fetch overview data
-  const { data: overviewData } = useOverview();
+  // Overview data hook available but not used in this component
+  // const { data: overviewData } = useOverview();
 
   // Auto-scroll to dashboard content when a conference is selected
   const scrollToDashboard = () => {
@@ -115,12 +124,14 @@ export default function ConferenceDashboard() {
     setSelectedYear(undefined);
     setSelectedInstance(undefined);
     setCurrentPage(1);
+    setSearchTerm(''); // Reset search when changing venue
   };
 
   const handleYearChange = (year: number | undefined) => {
     setSelectedYear(year);
     setSelectedInstance(undefined);
     setCurrentPage(1);
+    setSearchTerm(''); // Reset search when changing year
   };
 
   const handleInstanceSelect = (instanceId: number) => {
@@ -130,10 +141,22 @@ export default function ConferenceDashboard() {
       setSelectedYear(instance.year);
       setSelectedInstance(instanceId);
       setCurrentPage(1);
+      setSearchTerm(''); // Reset search when changing instance
 
       // Always scroll to dashboard when an instance is clicked, even if it's already selected
       setTimeout(() => scrollToDashboard(), 100);
     }
+  };
+
+  const handleSearchChange = (search: string) => {
+    setSearchTerm(search);
+    setCurrentPage(1); // Reset to first page when searching
+  };
+
+  const handleSortChange = (field: 'rating' | 'title', direction: 'asc' | 'desc') => {
+    setSortField(field);
+    setSortDirection(direction);
+    setCurrentPage(1); // Reset to first page when sorting changes
   };
 
   return (
@@ -318,6 +341,11 @@ export default function ConferenceDashboard() {
                 }}
                 currentPage={currentPage}
                 onPageChange={setCurrentPage}
+                searchTerm={searchTerm}
+                onSearchChange={handleSearchChange}
+                sortField={sortField}
+                sortDirection={sortDirection}
+                onSortChange={handleSortChange}
                 isLoading={publicationsLoading}
               />
             </div>

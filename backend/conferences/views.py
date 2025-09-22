@@ -55,8 +55,32 @@ class PublicationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = super().get_queryset()
         instance_id = self.request.query_params.get('instance')
+        search = self.request.query_params.get('search')
+        ordering = self.request.query_params.get('ordering')
+
         if instance_id:
             queryset = queryset.filter(instance_id=instance_id)
+
+        if search:
+            # Search in title, authors, and keywords (case-insensitive)
+            queryset = queryset.filter(
+                Q(title__icontains=search) |
+                Q(authors__icontains=search) |
+                Q(keywords__icontains=search)
+            )
+
+        # Apply ordering
+        if ordering:
+            # Support for title and rating ordering
+            if ordering in ['title', '-title', 'rating', '-rating']:
+                queryset = queryset.order_by(ordering)
+            else:
+                # Default ordering by rating descending
+                queryset = queryset.order_by('-rating')
+        else:
+            # Default ordering by rating descending
+            queryset = queryset.order_by('-rating')
+
         return queryset
 
 

@@ -17,6 +17,11 @@ interface PublicationsTableProps {
   pagination: PaginationInfo;
   currentPage: number;
   onPageChange: (page: number) => void;
+  searchTerm: string;
+  onSearchChange: (search: string) => void;
+  sortField: SortField;
+  sortDirection: SortDirection;
+  onSortChange: (field: SortField, direction: SortDirection) => void;
   isLoading?: boolean;
 }
 
@@ -182,11 +187,13 @@ export function PublicationsTable({
   pagination,
   currentPage,
   onPageChange,
+  searchTerm,
+  onSearchChange,
+  sortField,
+  sortDirection,
+  onSortChange,
   isLoading
 }: PublicationsTableProps) {
-  const [searchTerm, setSearchTerm] = useState('');
-  const [sortField, setSortField] = useState<SortField>('rating');
-  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showColumnSettings, setShowColumnSettings] = useState(false);
 
   // Column visibility state - title and authors always visible, others default to visible
@@ -200,39 +207,8 @@ export function PublicationsTable({
     countries: false
   });
 
-  // Filter and sort data (memoized for performance)
-  const filteredAndSortedData = useMemo(() => {
-    let filtered = data.filter(item => {
-      const matchesSearch = searchTerm === '' ||
-        item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.authors.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.keywords.toLowerCase().includes(searchTerm.toLowerCase());
-
-      return matchesSearch;
-    });
-
-    // Sort the filtered data
-    filtered.sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
-
-      if (sortField === 'rating') {
-        aValue = Number(a.rating) || 0;
-        bValue = Number(b.rating) || 0;
-      } else {
-        aValue = a.title.toLowerCase();
-        bValue = b.title.toLowerCase();
-      }
-
-      if (sortDirection === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
-    });
-
-    return filtered;
-  }, [data, searchTerm, sortField, sortDirection]);
+  // Data is already filtered and sorted by backend
+  const displayData = data;
 
   const toggleColumn = (column: keyof ColumnVisibility) => {
     if (column === 'title' || column === 'authors') return; // These are always visible
@@ -282,7 +258,7 @@ export function PublicationsTable({
               type="text"
               placeholder="Search titles, authors, keywords..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => onSearchChange(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
@@ -291,8 +267,7 @@ export function PublicationsTable({
             value={`${sortField}-${sortDirection}`}
             onChange={(e) => {
               const [field, direction] = e.target.value.split('-') as [SortField, SortDirection];
-              setSortField(field);
-              setSortDirection(direction);
+              onSortChange(field, direction);
             }}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
@@ -364,7 +339,7 @@ export function PublicationsTable({
               </tr>
             </thead>
             <tbody>
-              {filteredAndSortedData.map((publication) => (
+              {displayData.map((publication) => (
                 <PublicationRow
                   key={publication.id}
                   publication={publication}
@@ -421,7 +396,7 @@ export function PublicationsTable({
 
         {/* Results Info */}
         <div className="text-sm text-gray-600 text-center mt-4">
-          Showing {filteredAndSortedData.length} of {pagination.count.toLocaleString()} publications
+          Showing {displayData.length} of {pagination.count.toLocaleString()} publications
           {searchTerm ? ' (filtered)' : ''}
         </div>
       </div>
