@@ -168,11 +168,12 @@ class OverviewViewSet(viewsets.ViewSet):
 
                 # Store organization and research area pairs for stacked chart
                 research_area = pub.research_topic if pub.research_topic else None
-                for aff in set(affiliations):  # Use set to avoid duplicates within same publication
-                    organization_research_areas.append({
-                        'organization': aff,
-                        'research_area': research_area
-                    })
+                # Only add one entry per publication (not per affiliation) to count publications correctly
+                organization_research_areas.append({
+                    'publication_id': pub.id,
+                    'affiliations': list(set(affiliations)),
+                    'research_area': research_area
+                })
             else:
                 affiliations_per_publication.append([])
 
@@ -250,19 +251,22 @@ class OverviewViewSet(viewsets.ViewSet):
         """Build organization publications data grouped by research area"""
         organization_research_areas = raw_data.get('organization_research_areas', [])
 
-        # Group by organization and research area
+        # Group by organization and research area, counting actual publications
         org_data = {}
+
         for item in organization_research_areas:
-            org = item['organization']
-            area = item['research_area'] or 'Other'  # Handle None research areas
+            affiliations = item['affiliations']
+            area = item['research_area'] or 'Publications'  # Handle None research areas
 
-            if org not in org_data:
-                org_data[org] = {}
+            # For each affiliation in this publication, increment the count
+            for org in affiliations:
+                if org not in org_data:
+                    org_data[org] = {}
 
-            if area not in org_data[org]:
-                org_data[org][area] = 0
+                if area not in org_data[org]:
+                    org_data[org][area] = 0
 
-            org_data[org][area] += 1
+                org_data[org][area] += 1
 
         # Convert to list format and sort by total publications
         result = []

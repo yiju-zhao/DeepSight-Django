@@ -350,6 +350,47 @@ const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: Organiz
   });
   const keys = Array.from(allResearchAreas);
 
+  // Create custom color function that fades with publication count
+  const createGradientColors = () => {
+    const baseColors = [
+      '#2563eb', '#059669', '#dc2626', '#7c3aed', '#ea580c',
+      '#0891b2', '#be123c', '#4338f5', '#16a34a', '#ca8a04'
+    ];
+
+    const maxTotal = Math.max(...sortedData.map(d => d.total));
+    const minTotal = Math.min(...sortedData.map(d => d.total));
+
+    return (bar: any): string => {
+      // Find the organization data for this bar
+      const orgData = sortedData.find(d => d.organization === bar.indexValue);
+
+      // Get base color for this research area
+      const areaIndex = keys.indexOf(String(bar.id));
+      const baseColor = baseColors[areaIndex % baseColors.length];
+
+      if (!orgData || !baseColor) {
+        const fallbackColor = baseColors[0] || '#2563eb';
+        const hex = fallbackColor.replace('#', '');
+        const r = parseInt(hex.substr(0, 2), 16);
+        const g = parseInt(hex.substr(2, 2), 16);
+        const b = parseInt(hex.substr(4, 2), 16);
+        return `rgba(${r}, ${g}, ${b}, 0.7)`;
+      }
+
+      // Calculate opacity based on total publications (higher total = more opaque)
+      const ratio = maxTotal > minTotal ? (orgData.total - minTotal) / (maxTotal - minTotal) : 1;
+      const opacity = 0.4 + (ratio * 0.6); // Range from 0.4 to 1.0
+
+      // Convert hex to rgba with calculated opacity
+      const hex = baseColor.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+
+      return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    };
+  };
+
   return (
     <div className="w-full h-[500px]">
       <ResponsiveBar
@@ -361,7 +402,7 @@ const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: Organiz
         padding={0.3}
         valueScale={{ type: 'linear' }}
         indexScale={{ type: 'band', round: true }}
-        colors={{ scheme: 'set2' }}
+        colors={createGradientColors()}
         borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
         axisTop={null}
         axisRight={null}
@@ -369,7 +410,7 @@ const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: Organiz
           tickSize: 5,
           tickPadding: 5,
           tickRotation: -45,
-          legend: 'Organization',
+          legend: '',
           legendPosition: 'middle',
           legendOffset: 100
         }}
