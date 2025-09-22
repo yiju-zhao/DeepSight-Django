@@ -102,6 +102,12 @@ export interface TreemapData {
   value: number;
 }
 
+export interface OrganizationPublicationData {
+  organization: string;
+  total: number;
+  research_areas: { [area: string]: number };
+}
+
 export interface ChartData {
   topics: ChartDataItem[];
   top_affiliations: ChartDataItem[];
@@ -117,6 +123,7 @@ export interface ChartData {
   };
   ratings_histogram_fine: FineHistogramBin[];
   keywords_treemap: TreemapData[];
+  organization_publications: OrganizationPublicationData[];
 }
 
 export interface PaginationInfo {

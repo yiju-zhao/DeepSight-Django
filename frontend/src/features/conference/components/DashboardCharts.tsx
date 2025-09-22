@@ -3,7 +3,7 @@ import { scaleLog } from '@visx/scale';
 import Wordcloud from '@visx/wordcloud/lib/Wordcloud';
 import { ResponsiveChord } from '@nivo/chord';
 import { ResponsiveBar } from '@nivo/bar';
-import { ChartData, FineHistogramBin } from '../types';
+import { ChartData, FineHistogramBin, OrganizationPublicationData } from '../types';
 import { memo, useState } from 'react';
 
 interface DashboardChartsProps {
@@ -311,6 +311,124 @@ const RatingHistogramFine = memo(({
   );
 });
 
+// Organization Publications Chart Component
+const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: OrganizationPublicationData[]; isLoading?: boolean }) => {
+  if (isLoading) {
+    return (
+      <div className="w-full h-[500px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+        <div className="text-gray-500">Loading organization publications...</div>
+      </div>
+    );
+  }
+
+  if (!data?.length) {
+    return (
+      <div className="w-full h-[500px] bg-gray-50 rounded-lg flex items-center justify-center">
+        <div className="text-gray-500">No organization publication data available</div>
+      </div>
+    );
+  }
+
+  // Sort data by total publications (descending) - backend already sorts but ensure frontend consistency
+  const sortedData = [...data].sort((a, b) => b.total - a.total);
+
+  // Transform data to nivo format
+  const chartData = sortedData.map(org => {
+    const result = {
+      organization: org.organization,
+      ...org.research_areas
+    };
+    return result;
+  });
+
+  // Get all unique research areas for keys
+  const allResearchAreas = new Set<string>();
+  sortedData.forEach(org => {
+    Object.keys(org.research_areas).forEach(area => {
+      allResearchAreas.add(area);
+    });
+  });
+  const keys = Array.from(allResearchAreas);
+
+  return (
+    <div className="w-full h-[500px]">
+      <ResponsiveBar
+        data={chartData}
+        keys={keys}
+        indexBy="organization"
+        layout="vertical"
+        margin={{ top: 50, right: 130, bottom: 120, left: 60 }}
+        padding={0.3}
+        valueScale={{ type: 'linear' }}
+        indexScale={{ type: 'band', round: true }}
+        colors={{ scheme: 'set2' }}
+        borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+        axisTop={null}
+        axisRight={null}
+        axisBottom={{
+          tickSize: 5,
+          tickPadding: 5,
+          tickRotation: -45,
+          legend: 'Organization',
+          legendPosition: 'middle',
+          legendOffset: 100
+        }}
+        axisLeft={{
+          tickSize: 5,
+          tickPadding: 5,
+          tickRotation: 0,
+          legend: 'Publication Count',
+          legendPosition: 'middle',
+          legendOffset: -40
+        }}
+        enableLabel={true}
+        labelSkipWidth={12}
+        labelSkipHeight={12}
+        labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+        legends={[
+          {
+            dataFrom: 'keys',
+            anchor: 'bottom-right',
+            direction: 'column',
+            translateX: 120,
+            translateY: 0,
+            itemsSpacing: 3,
+            itemWidth: 100,
+            itemHeight: 16,
+            itemDirection: 'left-to-right',
+            itemOpacity: 0.85,
+            symbolSize: 12,
+            effects: [
+              {
+                on: 'hover',
+                style: {
+                  itemOpacity: 1
+                }
+              }
+            ]
+          }
+        ]}
+        tooltip={({ id, value, color, indexValue }) => (
+          <div className="bg-white p-3 shadow-lg rounded-lg border">
+            <div className="flex items-center mb-1">
+              <div
+                className="w-3 h-3 rounded mr-2"
+                style={{ backgroundColor: color }}
+              />
+              <span className="font-semibold text-gray-900">{id}</span>
+            </div>
+            <div className="text-sm text-gray-600">
+              {indexValue}: {value} publications
+            </div>
+          </div>
+        )}
+        animate={true}
+        motionConfig="gentle"
+      />
+    </div>
+  );
+});
+
 const ChartCard = ({
   title,
   children,
@@ -381,6 +499,16 @@ const DashboardChartsComponent = ({ data, isLoading, ratingHistogramData, rating
         {/* Popular Keywords - Word Cloud */}
         <ChartCard title="Popular Keywords">
           <WordCloudComponent keywords={data.top_keywords || []} />
+        </ChartCard>
+      </div>
+
+      {/* Organization Publications - Full Width */}
+      <div className="grid grid-cols-1 gap-6">
+        <ChartCard title="Organization Publications by Research Area (Top 15)" height="h-[500px]">
+          <OrganizationPublicationsChart
+            data={data.organization_publications || []}
+            isLoading={isLoading}
+          />
         </ChartCard>
       </div>
 

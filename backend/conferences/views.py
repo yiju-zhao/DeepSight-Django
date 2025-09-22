@@ -140,6 +140,7 @@ class OverviewViewSet(viewsets.ViewSet):
         # New data structures for visualizations
         countries_per_publication = []
         affiliations_per_publication = []
+        organization_research_areas = []
 
         resource_counts = {'with_github': 0, 'with_site': 0, 'with_pdf': 0}
 
@@ -164,6 +165,14 @@ class OverviewViewSet(viewsets.ViewSet):
                 all_affiliations.extend(affiliations)
                 # Store unique affiliations per publication for collaboration analysis
                 affiliations_per_publication.append(list(set(affiliations)))
+
+                # Store organization and research area pairs for stacked chart
+                research_area = pub.research_topic if pub.research_topic else None
+                for aff in set(affiliations):  # Use set to avoid duplicates within same publication
+                    organization_research_areas.append({
+                        'organization': aff,
+                        'research_area': research_area
+                    })
             else:
                 affiliations_per_publication.append([])
 
@@ -233,8 +242,41 @@ class OverviewViewSet(viewsets.ViewSet):
                 'countries_per_publication': countries_per_publication,
                 'affiliations_per_publication': affiliations_per_publication,
                 'all_ratings': all_ratings,  # Keep original float ratings for fine histogram
+                'organization_research_areas': organization_research_areas,
             }
         }
+
+    def _build_organization_publications(self, raw_data):
+        """Build organization publications data grouped by research area"""
+        organization_research_areas = raw_data.get('organization_research_areas', [])
+
+        # Group by organization and research area
+        org_data = {}
+        for item in organization_research_areas:
+            org = item['organization']
+            area = item['research_area'] or 'Other'  # Handle None research areas
+
+            if org not in org_data:
+                org_data[org] = {}
+
+            if area not in org_data[org]:
+                org_data[org][area] = 0
+
+            org_data[org][area] += 1
+
+        # Convert to list format and sort by total publications
+        result = []
+        for org, areas in org_data.items():
+            total = sum(areas.values())
+            result.append({
+                'organization': org,
+                'total': total,
+                'research_areas': areas
+            })
+
+        # Sort by total publications descending and take top 15
+        result.sort(key=lambda x: x['total'], reverse=True)
+        return result[:15]
 
     def _build_kpis(self, processed_data):
         """Build KPI data from processed data"""
@@ -277,6 +319,9 @@ class OverviewViewSet(viewsets.ViewSet):
             for k, v in sorted(counters['keywords'].items(), key=lambda x: x[1], reverse=True)[:30]
         ]
 
+        # Build organization publications data (stacked by research area)
+        organization_publications = self._build_organization_publications(raw_data)
+
         return {
             'topics': [{'name': k, 'count': v} for k, v in counters['topics'].most_common(10)],
             'top_affiliations': [{'name': k, 'count': v} for k, v in counters['affiliations'].most_common(10)],
@@ -292,6 +337,7 @@ class OverviewViewSet(viewsets.ViewSet):
             },
             'ratings_histogram_fine': ratings_histogram_fine,
             'keywords_treemap': keywords_treemap,
+            'organization_publications': organization_publications,
         }
 
     @method_decorator(cache_page(60 * 15))  # Cache for 15 minutes
