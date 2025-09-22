@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
+import { useDebounce } from '@/shared/hooks/useDebounce';
 import { useVenues, useInstances, useDashboard, useOverview, usePublications } from '../hooks/useConference';
 import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
@@ -11,9 +12,12 @@ export default function ConferenceDashboard() {
   const [selectedYear, setSelectedYear] = useState<number | undefined>();
   const [selectedInstance, setSelectedInstance] = useState<number | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState(''); // Input field state
   const [sortField, setSortField] = useState<'rating' | 'title'>('rating');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Debounce search input to avoid too many API calls
+  const debouncedSearch = useDebounce(searchInput, 500); // 500ms delay
 
   // Ref for the dashboard content section
   const dashboardContentRef = useRef<HTMLDivElement>(null);
@@ -27,8 +31,8 @@ export default function ConferenceDashboard() {
 
     // Filter instances based on search term
     const filtered = instances.filter(instance =>
-      instance.venue.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      instance.year.toString().includes(searchTerm)
+      instance.venue.name.toLowerCase().includes(searchInput.toLowerCase()) ||
+      instance.year.toString().includes(searchInput)
     );
 
     // Group by venue
@@ -57,7 +61,7 @@ export default function ConferenceDashboard() {
       groupedConferences: grouped,
       popularConferences: popular
     };
-  }, [instances, searchTerm]);
+  }, [instances, searchInput]);
 
   // Find the matching instance for selected venue+year combo
   const matchingInstance = instances?.find(
@@ -86,7 +90,7 @@ export default function ConferenceDashboard() {
     instance: matchingInstance.instance_id,
     page: currentPage,
     page_size: 20,
-    search: searchTerm || undefined,
+    search: debouncedSearch || undefined,
     ordering: getOrdering()
   } : undefined;
 
@@ -124,14 +128,14 @@ export default function ConferenceDashboard() {
     setSelectedYear(undefined);
     setSelectedInstance(undefined);
     setCurrentPage(1);
-    setSearchTerm(''); // Reset search when changing venue
+    setSearchInput(''); // Reset search when changing venue
   };
 
   const handleYearChange = (year: number | undefined) => {
     setSelectedYear(year);
     setSelectedInstance(undefined);
     setCurrentPage(1);
-    setSearchTerm(''); // Reset search when changing year
+    setSearchInput(''); // Reset search when changing year
   };
 
   const handleInstanceSelect = (instanceId: number) => {
@@ -141,7 +145,7 @@ export default function ConferenceDashboard() {
       setSelectedYear(instance.year);
       setSelectedInstance(instanceId);
       setCurrentPage(1);
-      setSearchTerm(''); // Reset search when changing instance
+      setSearchInput(''); // Reset search when changing instance
 
       // Always scroll to dashboard when an instance is clicked, even if it's already selected
       setTimeout(() => scrollToDashboard(), 100);
@@ -149,7 +153,7 @@ export default function ConferenceDashboard() {
   };
 
   const handleSearchChange = (search: string) => {
-    setSearchTerm(search);
+    setSearchInput(search); // Update input immediately for responsive UI
     setCurrentPage(1); // Reset to first page when searching
   };
 
@@ -188,15 +192,15 @@ export default function ConferenceDashboard() {
                 <input
                   type="text"
                   placeholder="Search conferences, venues, or years..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                 />
               </div>
             </div>
 
             {/* Popular Conferences */}
-            {!searchTerm && popularConferences.length > 0 && (
+            {!searchInput && popularConferences.length > 0 && (
               <div className="bg-white rounded-xl shadow-sm border p-6">
                 <div className="flex items-center mb-4">
                   <Star className="w-5 h-5 text-yellow-500 mr-2" />
@@ -341,11 +345,12 @@ export default function ConferenceDashboard() {
                 }}
                 currentPage={currentPage}
                 onPageChange={setCurrentPage}
-                searchTerm={searchTerm}
+                searchTerm={searchInput}
                 onSearchChange={handleSearchChange}
                 sortField={sortField}
                 sortDirection={sortDirection}
                 onSortChange={handleSortChange}
+                isFiltered={!!debouncedSearch}
                 isLoading={publicationsLoading}
               />
             </div>

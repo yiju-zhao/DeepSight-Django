@@ -22,6 +22,7 @@ interface PublicationsTableProps {
   sortField: SortField;
   sortDirection: SortDirection;
   onSortChange: (field: SortField, direction: SortDirection) => void;
+  isFiltered: boolean; // Whether results are currently filtered
   isLoading?: boolean;
 }
 
@@ -192,6 +193,7 @@ export function PublicationsTable({
   sortField,
   sortDirection,
   onSortChange,
+  isFiltered,
   isLoading
 }: PublicationsTableProps) {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
@@ -397,7 +399,7 @@ export function PublicationsTable({
         {/* Results Info */}
         <div className="text-sm text-gray-600 text-center mt-4">
           Showing {displayData.length} of {pagination.count.toLocaleString()} publications
-          {searchTerm ? ' (filtered)' : ''}
+          {isFiltered ? ' (filtered)' : ''}
         </div>
       </div>
     </div>
