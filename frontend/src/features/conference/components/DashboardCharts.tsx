@@ -168,11 +168,11 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
   }
 
   return (
-    <div className="w-full h-[500px] flex justify-center items-center">
+    <div className="w-full h-[500px]">
       <ResponsiveChord
         data={data.matrix}
         keys={data.keys}
-        margin={{ top: 60, right: 60, bottom: 90, left: 60 }}
+        margin={{ top: 60, right: 140, bottom: 60, left: 60 }}
         padAngle={0.04}
         innerRadiusRatio={0.94}
         innerRadiusOffset={0.02}
@@ -191,7 +191,7 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
           {
             anchor: 'right',
             direction: 'column',
-            translateY: 70,
+            translateY: 0,
             itemWidth: 80,
             itemHeight: 16,
             symbolShape: 'circle'
