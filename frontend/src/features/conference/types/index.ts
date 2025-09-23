@@ -90,6 +90,11 @@ export interface ChordData {
   matrix: number[][];
 }
 
+export interface ForceGraphData {
+  nodes: Array<{ id: string; val: number; group: number }>;
+  links: Array<{ source: string; target: string; value: number }>;
+}
+
 export interface FineHistogramBin {
   bin: number;
   start: number;
@@ -120,6 +125,9 @@ export interface ChartData {
   chords: {
     country: ChordData;
     org: ChordData;
+  };
+  force_graphs: {
+    country: ForceGraphData;
   };
   ratings_histogram_fine: FineHistogramBin[];
   keywords_treemap: TreemapData[];

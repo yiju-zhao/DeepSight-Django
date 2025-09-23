@@ -3,7 +3,8 @@ import { scaleLog } from '@visx/scale';
 import Wordcloud from '@visx/wordcloud/lib/Wordcloud';
 import { ResponsiveChord } from '@nivo/chord';
 import { ResponsiveBar } from '@nivo/bar';
-import { ChartData, FineHistogramBin, OrganizationPublicationData } from '../types';
+import ForceGraph2D from 'react-force-graph-2d';
+import { ChartData, FineHistogramBin, OrganizationPublicationData, ForceGraphData } from '../types';
 import { memo, useState } from 'react';
 
 interface DashboardChartsProps {
@@ -92,8 +93,8 @@ function WordCloudComponent({ keywords }: WordCloudProps) {
   );
 }
 
-// Geographic Chord Component
-const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoading?: boolean }) => {
+// Geographic Force Graph Component
+const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; isLoading?: boolean }) => {
   if (isLoading) {
     return (
       <div className="w-full h-[600px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
@@ -102,7 +103,7 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
     );
   }
 
-  if (!data?.keys?.length || !data?.matrix?.length) {
+  if (!data?.nodes?.length) {
     return (
       <div className="w-full h-[600px] bg-gray-50 rounded-lg flex items-center justify-center">
         <div className="text-gray-500">No collaboration data available</div>
@@ -112,24 +113,46 @@ const GeographicChordTop8 = memo(({ data, isLoading }: { data: ChordData; isLoad
 
   return (
     <div className="w-full h-[600px]">
-      <ResponsiveChord
-        data={data.matrix}
-        keys={data.keys}
-        margin={{ top: 60, right: 60, bottom: 90, left: 60 }}
-        padAngle={0.06}
-        innerRadiusRatio={0.94}
-        innerRadiusOffset={0.02}
-        arcOpacity={0.7}
-        arcBorderWidth={1}
-        arcBorderColor={{ from: 'color', modifiers: [['darker', 0.3]] }}
-        ribbonOpacity={0.45}
-        ribbonBorderWidth={1}
-        ribbonBorderColor={{ from: 'color', modifiers: [['darker', 0.5]] }}
-        enableLabel={true}
-        labelOffset={20}
-        labelRotation={0}
-        labelTextColor={{ from: 'color', modifiers: [['darker', 1]] }}
-        colors={{ scheme: 'set1' }}
+      <ForceGraph2D
+        graphData={data}
+        nodeAutoColorBy="group"
+        width={700}
+        height={600}
+        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          const label = node.id;
+          const fontSize = 12/globalScale;
+          const nodeX = node.x ?? 0;
+          const nodeY = node.y ?? 0;
+
+          ctx.font = `${fontSize}px Sans-Serif`;
+          const textWidth = ctx.measureText(label).width;
+          const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
+          const bckgWidth = bckgDimensions[0] || 0;
+          const bckgHeight = bckgDimensions[1] || 0;
+
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.fillRect(nodeX - bckgWidth / 2, nodeY - bckgHeight / 2, bckgWidth, bckgHeight);
+
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = node.color;
+          ctx.fillText(label, nodeX, nodeY);
+
+          (node as any).__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
+        }}
+        nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
+          ctx.fillStyle = color;
+          const bckgDimensions = (node as any).__bckgDimensions;
+          const nodeX = node.x ?? 0;
+          const nodeY = node.y ?? 0;
+          if (bckgDimensions && Array.isArray(bckgDimensions)) {
+            const bckgWidth = bckgDimensions[0] || 0;
+            const bckgHeight = bckgDimensions[1] || 0;
+            ctx.fillRect(nodeX - bckgWidth / 2, nodeY - bckgHeight / 2, bckgWidth, bckgHeight);
+          }
+        }}
+        linkWidth={(link: any) => Math.sqrt(link.value)}
+        linkColor={() => 'rgba(100, 100, 100, 0.5)'}
       />
     </div>
   );
@@ -481,8 +504,8 @@ const DashboardChartsComponent = ({ data, isLoading, ratingHistogramData, rating
       {/* Geographic and Organization Collaboration - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="Geographic Collaboration (Top 8)" height="h-[550px]">
-          <GeographicChordTop8
-            data={data.chords?.country || { keys: [], matrix: [] }}
+          <GeographicForceGraph
+            data={data.force_graphs?.country || { nodes: [], links: [] }}
             isLoading={isLoading}
           />
         </ChartCard>

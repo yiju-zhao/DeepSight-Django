@@ -264,6 +264,88 @@ class OverviewViewSet(viewsets.ViewSet):
         result.sort(key=lambda x: x['total'], reverse=True)
         return result[:15]
 
+    def _convert_to_force_graph(self, chord_data):
+        """Convert chord diagram data to force graph format (nodes and links)"""
+        if not chord_data or not chord_data.get('keys') or not chord_data.get('matrix'):
+            return {'nodes': [], 'links': []}
+
+        keys = chord_data['keys']
+        matrix = chord_data['matrix']
+        totals = chord_data.get('totals', {})
+
+        # Create nodes
+        nodes = []
+        for i, key in enumerate(keys):
+            nodes.append({
+                'id': key,
+                'val': totals.get(key, 1),  # Node size based on total publications
+                'group': 1  # All same group for now
+            })
+
+        # Create links from matrix (only for collaborations, skip diagonal)
+        links = []
+        for i in range(len(keys)):
+            for j in range(i + 1, len(keys)):  # Only upper triangle (avoid duplicates)
+                weight = matrix[i][j]
+                if weight > 0:  # Only create links if there are collaborations
+                    links.append({
+                        'source': keys[i],
+                        'target': keys[j],
+                        'value': weight  # Link thickness based on collaboration count
+                    })
+
+        return {'nodes': nodes, 'links': links}
+
+    def _build_country_force_graph(self, raw_data):
+        """Build force graph data for countries directly from publication data"""
+        countries_per_publication = raw_data.get('countries_per_publication', [])
+
+        # Count total publications per country
+        country_totals = Counter()
+        # Count collaborations between countries
+        country_collaborations = Counter()
+
+        for countries in countries_per_publication:
+            # Remove empty strings and strip whitespace
+            clean_countries = [country.strip() for country in countries if country.strip()]
+
+            # Count total publications per country
+            for country in clean_countries:
+                country_totals[country] += 1
+
+            # Count collaborations (pairs of countries in same publication)
+            if len(clean_countries) > 1:
+                for i, country1 in enumerate(clean_countries):
+                    for j, country2 in enumerate(clean_countries):
+                        if i < j:  # Avoid duplicates
+                            # Use sorted tuple for consistent ordering
+                            pair = tuple(sorted([country1, country2]))
+                            country_collaborations[pair] += 1
+
+        # Get top 8 countries by total publications
+        top_countries = [country for country, count in country_totals.most_common(8)]
+
+        # Create nodes
+        nodes = []
+        for country in top_countries:
+            nodes.append({
+                'id': country,
+                'val': country_totals[country],  # Node size based on total publications
+                'group': 1
+            })
+
+        # Create links between top countries only
+        links = []
+        for (country1, country2), collab_count in country_collaborations.items():
+            if country1 in top_countries and country2 in top_countries:
+                links.append({
+                    'source': country1,
+                    'target': country2,
+                    'value': collab_count  # Link thickness based on collaboration count
+                })
+
+        return {'nodes': nodes, 'links': links}
+
     def _build_kpis(self, processed_data):
         """Build KPI data from processed data"""
         return {
@@ -287,6 +369,9 @@ class OverviewViewSet(viewsets.ViewSet):
             raw_data.get('countries_per_publication', []),
             top_n=8
         )
+
+        # Build force graph data for countries directly from raw data
+        country_force_graph = self._build_country_force_graph(raw_data)
 
         org_chord = build_cooccurrence_matrix(
             raw_data.get('affiliations_per_publication', []),
@@ -320,6 +405,9 @@ class OverviewViewSet(viewsets.ViewSet):
             'chords': {
                 'country': country_chord,
                 'org': org_chord
+            },
+            'force_graphs': {
+                'country': country_force_graph
             },
             'ratings_histogram_fine': ratings_histogram_fine,
             'keywords_treemap': keywords_treemap,
