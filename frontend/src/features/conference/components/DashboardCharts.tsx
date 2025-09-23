@@ -332,23 +332,14 @@ const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: Organiz
   // Sort data by total publications (descending) - backend already sorts but ensure frontend consistency
   const sortedData = [...data].sort((a, b) => b.total - a.total);
 
-  // Transform data to nivo format
-  const chartData = sortedData.map(org => {
-    const result = {
-      organization: org.organization,
-      ...org.research_areas
-    };
-    return result;
-  });
+  // Transform data to nivo format - use total count instead of breaking down by research area
+  const chartData = sortedData.map(org => ({
+    organization: org.organization,
+    total: org.total
+  }));
 
-  // Get all unique research areas for keys
-  const allResearchAreas = new Set<string>();
-  sortedData.forEach(org => {
-    Object.keys(org.research_areas).forEach(area => {
-      allResearchAreas.add(area);
-    });
-  });
-  const keys = Array.from(allResearchAreas);
+  // Use single key for total publications
+  const keys = ['total'];
 
 
   return (
@@ -386,40 +377,14 @@ const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: Organiz
         labelSkipWidth={12}
         labelSkipHeight={12}
         labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
-        legends={[
-          {
-            dataFrom: 'keys',
-            anchor: 'bottom-right',
-            direction: 'column',
-            translateX: 120,
-            translateY: 0,
-            itemsSpacing: 3,
-            itemWidth: 100,
-            itemHeight: 16,
-            itemDirection: 'left-to-right',
-            itemOpacity: 0.85,
-            symbolSize: 12,
-            effects: [
-              {
-                on: 'hover',
-                style: {
-                  itemOpacity: 1
-                }
-              }
-            ]
-          }
-        ]}
-        tooltip={({ id, value, color, indexValue }) => (
+        legends={[]}
+        tooltip={({ value, indexValue }) => (
           <div className="bg-white p-3 shadow-lg rounded-lg border">
-            <div className="flex items-center mb-1">
-              <div
-                className="w-3 h-3 rounded mr-2"
-                style={{ backgroundColor: color }}
-              />
-              <span className="font-semibold text-gray-900">{id}</span>
+            <div className="font-semibold text-gray-900">
+              {indexValue}
             </div>
             <div className="text-sm text-gray-600">
-              {indexValue}: {value} publications
+              {value} publications (including collaborations)
             </div>
           </div>
         )}
@@ -505,7 +470,7 @@ const DashboardChartsComponent = ({ data, isLoading, ratingHistogramData, rating
 
       {/* Organization Publications - Full Width */}
       <div className="grid grid-cols-1 gap-6">
-        <ChartCard title="Organization Publications by Research Area (Top 15)" height="h-[500px]">
+        <ChartCard title="Organization Publications (Top 15)" height="h-[500px]">
           <OrganizationPublicationsChart
             data={data.organization_publications || []}
             isLoading={isLoading}
