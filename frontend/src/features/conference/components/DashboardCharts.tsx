@@ -347,10 +347,11 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
     );
   }
 
-  const NetworkChart = ({ width, height, fontSize }: {
+  const NetworkChart = ({ width, height, fontSize, zoom = 2 }: {
     width: number;
     height: number;
     fontSize: number;
+    zoom?: number;
   }) => (
     <ForceGraph2D
       graphData={data}
@@ -364,6 +365,7 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
       linkWidth={d => Math.sqrt(d.value) * 2}
       linkDirectionalParticleWidth={4}
       backgroundColor="#ffffff"
+      zoom={zoom}
       nodeCanvasObject={(node, ctx, globalScale) => {
         const label = node.id;
         const adjustedFontSize = fontSize/globalScale;
@@ -423,11 +425,12 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
               <X className="w-6 h-6 text-gray-600" />
             </button>
           </div>
-          <div className="flex-1 flex items-center justify-center p-4">
+          <div className="flex-1 flex items-center justify-center p-2">
             <NetworkChart
-              width={window.innerWidth * 0.85}
-              height={window.innerHeight * 0.75}
+              width={window.innerWidth * 0.9}
+              height={window.innerHeight * 0.8}
               fontSize={16}
+              zoom={1.5}
             />
           </div>
         </div>
@@ -445,9 +448,10 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
         <Maximize2 className="w-5 h-5 text-gray-600" />
       </button>
       <NetworkChart
-        width={450}
-        height={500}
+        width={460}
+        height={510}
         fontSize={12}
+        zoom={2.5}
       />
     </div>
   );
