@@ -85,10 +85,6 @@ export interface RatingHistogramItem {
   count: number;
 }
 
-export interface ChordData {
-  keys: string[];
-  matrix: number[][];
-}
 
 export interface ForceGraphData {
   nodes: Array<{ id: string; val: number; group: number }>;
@@ -122,10 +118,6 @@ export interface ChartData {
   session_types: ChartDataItem[];
   author_positions: ChartDataItem[];
   // New visualizations
-  chords: {
-    country: ChordData;
-    org: ChordData;
-  };
   force_graphs: {
     country: ForceGraphData;
     organization: ForceGraphData;

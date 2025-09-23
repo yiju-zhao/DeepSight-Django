@@ -346,6 +346,56 @@ class OverviewViewSet(viewsets.ViewSet):
 
         return {'nodes': nodes, 'links': links}
 
+    def _build_organization_force_graph(self, raw_data):
+        """Build force graph data for organizations directly from publication data"""
+        affiliations_per_publication = raw_data.get('affiliations_per_publication', [])
+
+        # Count total publications per organization
+        org_totals = Counter()
+        # Count collaborations between organizations
+        org_collaborations = Counter()
+
+        for affiliations in affiliations_per_publication:
+            # Remove empty strings and strip whitespace
+            clean_affiliations = [aff.strip() for aff in affiliations if aff.strip()]
+
+            # Count total publications per organization
+            for org in clean_affiliations:
+                org_totals[org] += 1
+
+            # Count collaborations (pairs of organizations in same publication)
+            if len(clean_affiliations) > 1:
+                for i, org1 in enumerate(clean_affiliations):
+                    for j, org2 in enumerate(clean_affiliations):
+                        if i < j:  # Avoid duplicates
+                            # Use sorted tuple for consistent ordering
+                            pair = tuple(sorted([org1, org2]))
+                            org_collaborations[pair] += 1
+
+        # Get top 20 organizations by publication count for cleaner visualization
+        top_orgs = [org for org, count in org_totals.most_common(20)]
+
+        # Create nodes for top 20 organizations
+        nodes = []
+        for org in top_orgs:
+            nodes.append({
+                'id': org,
+                'val': org_totals[org],  # Node size based on total publications
+                'group': 1
+            })
+
+        # Create links between top 20 organizations only
+        links = []
+        for (org1, org2), collab_count in org_collaborations.items():
+            if org1 in top_orgs and org2 in top_orgs:
+                links.append({
+                    'source': org1,
+                    'target': org2,
+                    'value': collab_count  # Link thickness based on collaboration count
+                })
+
+        return {'nodes': nodes, 'links': links}
+
     def _build_kpis(self, processed_data):
         """Build KPI data from processed data"""
         return {
@@ -364,19 +414,12 @@ class OverviewViewSet(viewsets.ViewSet):
         counters = processed_data['counters']
         raw_data = processed_data.get('raw_data', {})
 
-        # Build collaboration chord diagrams
-        country_chord = build_cooccurrence_matrix(
-            raw_data.get('countries_per_publication', []),
-            top_n=8
-        )
-
         # Build force graph data for countries directly from raw data
         country_force_graph = self._build_country_force_graph(raw_data)
 
-        org_chord = build_cooccurrence_matrix(
-            raw_data.get('affiliations_per_publication', []),
-            top_n=10
-        )
+        # Build force graph data for organizations directly from raw data
+        organization_force_graph = self._build_organization_force_graph(raw_data)
+
 
         # Build fine-grained histogram
         ratings_histogram_fine = build_fine_histogram(
@@ -402,12 +445,9 @@ class OverviewViewSet(viewsets.ViewSet):
             'session_types': [{'name': k, 'count': v} for k, v in counters['sessions'].items()],
             'author_positions': [{'name': k, 'count': v} for k, v in counters['author_positions'].most_common(10)],
             # New visualizations
-            'chords': {
-                'country': country_chord,
-                'org': org_chord
-            },
             'force_graphs': {
-                'country': country_force_graph
+                'country': country_force_graph,
+                'organization': organization_force_graph
             },
             'ratings_histogram_fine': ratings_histogram_fine,
             'keywords_treemap': keywords_treemap,
