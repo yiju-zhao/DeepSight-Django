@@ -195,10 +195,12 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
     <div className="w-full h-[600px]">
       <ForceGraph2D
         graphData={processedData}
-        nodeAutoColorBy="group"
         width={700}
         height={600}
         autoPauseRedraw={false}
+        nodeRelSize={0}
+        nodeVal={0}
+        nodeColor={() => 'transparent'}
         linkWidth={(link: any) => highlightLinks.has(link) ? Math.sqrt(link.value) * 2 : Math.sqrt(link.value)}
         linkDirectionalParticles={4}
         linkDirectionalParticleWidth={(link: any) => highlightLinks.has(link) ? 4 : 0}
@@ -206,7 +208,7 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
         onNodeHover={handleNodeHover}
         onLinkHover={handleLinkHover}
         nodeLabel={(node: any) => `${node.id}: ${node.val} publications`}
-        nodeCanvasObjectMode={(node: any) => highlightNodes.has(node) ? 'before' : 'after'}
+        nodeCanvasObjectMode={() => 'replace'}
         nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
           // Draw highlight ring for highlighted nodes
           if (highlightNodes.has(node)) {
