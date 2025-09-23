@@ -162,19 +162,13 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
     updateHighlight();
   };
 
-  // Calculate font size range
-  const values = data.nodes.map(n => n.val);
-  const minVal = Math.min(...values);
-  const maxVal = Math.max(...values);
-
   const getNodeColor = (n: number) => '#' + ((n * 1234567) % Math.pow(2, 24)).toString(16).padStart(6, '0');
 
   function nodePaint(node: any, color: string, ctx: CanvasRenderingContext2D) {
-    const { x, y, id, val } = node;
+    const { x, y, id } = node;
 
-    // Calculate font size based on publication count (10px to 20px range)
-    const normalizedVal = maxVal > minVal ? (val - minVal) / (maxVal - minVal) : 0.5;
-    const fontSize = 10 + (20 - 10) * normalizedVal;
+    // Use fixed font size for all nodes
+    const fontSize = 12;
 
     // Set font and text properties
     ctx.font = `${fontSize}px Sans-Serif`;
@@ -200,6 +194,7 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
         width={700}
         height={600}
         nodeLabel={(node: any) => `${node.id}: ${node.val} publications`}
+        nodeRelSize={8}
         autoPauseRedraw={false}
         linkWidth={(link: any) => highlightLinks.has(link) ? Math.sqrt(link.value) * 2 : Math.sqrt(link.value)}
         linkDirectionalParticles={4}
