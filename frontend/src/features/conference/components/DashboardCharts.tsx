@@ -405,8 +405,6 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
           );
         }
       }}
-      cooldownTicks={100}
-      onEngineStop={() => {}}
       d3AlphaDecay={0.02}
       d3VelocityDecay={0.08}
     />
@@ -430,7 +428,6 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
               width={window.innerWidth * 0.9}
               height={window.innerHeight * 0.8}
               fontSize={16}
-              zoom={1.5}
             />
           </div>
         </div>
@@ -451,7 +448,6 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
         width={460}
         height={510}
         fontSize={12}
-        zoom={2.5}
       />
     </div>
   );
