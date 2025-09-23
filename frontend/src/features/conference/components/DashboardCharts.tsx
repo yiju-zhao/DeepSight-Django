@@ -162,13 +162,24 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
     updateHighlight();
   };
 
-  const getNodeColor = (n: number) => '#' + ((n * 1234567) % Math.pow(2, 24)).toString(16).padStart(6, '0');
+  // Color scheme for geographic regions
+  const getRegionColor = (group: number) => {
+    const regionColors: { [key: number]: string } = {
+      1: '#ff6b6b', // North America - red
+      2: '#4ecdc4', // Europe - teal
+      3: '#45b7d1', // Asia-Pacific - blue
+      4: '#96ceb4', // South America - green
+      5: '#feca57', // Africa - yellow
+      6: '#ff9ff3'  // Middle East - pink
+    };
+    return regionColors[group] || '#95a5a6';
+  };
 
   function nodePaint(node: any, color: string, ctx: CanvasRenderingContext2D) {
     const { x, y, id } = node;
 
     // Use fixed font size for all nodes
-    const fontSize = 12;
+    const fontSize = 10;
 
     // Set font and text properties
     ctx.font = `${fontSize}px Sans-Serif`;
@@ -193,23 +204,53 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
         graphData={processedData}
         width={700}
         height={600}
-        nodeLabel={(node: any) => `${node.id}: ${node.val} publications`}
+        backgroundColor="rgba(0,0,0,0.02)"
+
+        // Node configuration
+        nodeLabel={(node: any) => `
+          <div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">
+            <strong>${node.id}</strong><br/>
+            Publications: ${node.val || 0}<br/>
+            Group: ${node.group || 'Unknown'}
+          </div>
+        `}
+        nodeAutoColorBy="group"
+        nodeColor={(node: any) => getRegionColor(node.group)}
         nodeRelSize={8}
-        autoPauseRedraw={false}
-        linkWidth={(link: any) => highlightLinks.has(link) ? Math.sqrt(link.value) * 2 : Math.sqrt(link.value)}
-        linkDirectionalParticles={4}
-        linkDirectionalParticleWidth={(link: any) => highlightLinks.has(link) ? 4 : 0}
-        linkColor={(link: any) => highlightLinks.has(link) ? 'rgba(255, 100, 100, 0.8)' : 'rgba(100, 100, 100, 0.5)'}
+        nodeVal={(node: any) => Math.sqrt(node.val || 1)}
+
+        // Link configuration with particle animations
+        linkWidth={(link: any) => Math.max(1, Math.sqrt(link.value || 1))}
+        linkColor={(link: any) => highlightLinks.has(link) ? 'rgba(255, 100, 100, 0.8)' : 'rgba(100, 100, 100, 0.3)'}
+
+        // Particle animations representing collaboration weight
+        linkDirectionalParticles={(link: any) => Math.max(1, Math.floor((link.value || 1) / 5))}
+        linkDirectionalParticleSpeed={(link: any) => (link.value || 1) * 0.001}
+        linkDirectionalParticleWidth={(link: any) => highlightLinks.has(link) ? 4 : 2}
+        linkDirectionalParticleColor={() => '#ffffff'}
+
+        // Canvas object rendering
         nodeCanvasObjectMode={(node: any) => highlightNodes.has(node) ? 'before' : undefined}
         nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D) => {
           if (highlightNodes.has(node)) {
             paintRing(node, ctx);
           }
-          nodePaint(node, getNodeColor(node.id.length), ctx);
+          nodePaint(node, getRegionColor(node.group), ctx);
         }}
         nodePointerAreaPaint={nodePaint}
+
+        // Interaction handlers
         onNodeHover={handleNodeHover}
         onLinkHover={handleLinkHover}
+        onNodeClick={(node: any) => {
+          console.log('Clicked node:', node);
+        }}
+
+        // Force simulation settings
+        autoPauseRedraw={false}
+        cooldownTicks={100}
+        enableZoomInteraction={true}
+        enableNodeDrag={true}
       />
     </div>
   );
