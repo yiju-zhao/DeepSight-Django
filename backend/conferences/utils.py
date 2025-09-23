@@ -113,8 +113,12 @@ def deduplicate_keywords(keywords: List[str]) -> Dict[str, int]:
     # Step 1: Normalize and group variants
     variant_groups = {}  # normalized -> list of original forms
     for keyword in keywords:
+        # Filter out single-letter keywords
+        if len(keyword.strip()) <= 1:
+            continue
+
         normalized = normalize_keyword(keyword)
-        if normalized:
+        if normalized and len(normalized) > 1:  # Also filter normalized single letters
             if normalized not in variant_groups:
                 variant_groups[normalized] = []
             variant_groups[normalized].append(keyword)
