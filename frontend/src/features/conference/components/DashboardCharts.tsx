@@ -347,13 +347,10 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
     );
   }
 
-  const NetworkChart = ({ width, height, nodeSize, linkWidth, fontSize, labelOffset }: {
+  const NetworkChart = ({ width, height, fontSize }: {
     width: number;
     height: number;
-    nodeSize: number;
-    linkWidth: number;
     fontSize: number;
-    labelOffset: number;
   }) => (
     <ForceGraph2D
       graphData={data}
@@ -363,19 +360,47 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
       nodeAutoColorBy="group"
       linkDirectionalParticles="value"
       linkDirectionalParticleSpeed={d => d.value * 0.001}
-      nodeRelSize={nodeSize}
-      linkWidth={d => Math.sqrt(d.value) * linkWidth}
-      linkDirectionalParticleWidth={Math.max(3, nodeSize / 2)}
+      nodeRelSize={0}
+      linkWidth={d => Math.sqrt(d.value) * 2}
+      linkDirectionalParticleWidth={4}
       backgroundColor="#ffffff"
       nodeCanvasObject={(node, ctx, globalScale) => {
         const label = node.id;
         const adjustedFontSize = fontSize/globalScale;
-        ctx.font = `${adjustedFontSize}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#333';
-        if (typeof node.x === 'number' && typeof node.y === 'number') {
-          ctx.fillText(label, node.x, node.y + labelOffset/globalScale);
+        ctx.font = `${adjustedFontSize}px Sans-Serif`;
+        const textWidth = ctx.measureText(label).width;
+        const bckgDimensions = [textWidth, adjustedFontSize].map(n => n + adjustedFontSize * 0.2);
+
+        if (typeof node.x === 'number' && typeof node.y === 'number' && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number') {
+          // Draw background
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.fillRect(
+            node.x - bckgDimensions[0] / 2,
+            node.y - bckgDimensions[1] / 2,
+            bckgDimensions[0],
+            bckgDimensions[1]
+          );
+
+          // Draw text
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = node.color || '#333';
+          ctx.fillText(label, node.x, node.y);
+
+          // Store dimensions for click area
+          (node as any).__bckgDimensions = bckgDimensions;
+        }
+      }}
+      nodePointerAreaPaint={(node, color, ctx) => {
+        ctx.fillStyle = color;
+        const bckgDimensions = (node as any).__bckgDimensions;
+        if (bckgDimensions && Array.isArray(bckgDimensions) && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number' && typeof node.x === 'number' && typeof node.y === 'number') {
+          ctx.fillRect(
+            node.x - bckgDimensions[0] / 2,
+            node.y - bckgDimensions[1] / 2,
+            bckgDimensions[0],
+            bckgDimensions[1]
+          );
         }
       }}
       cooldownTicks={100}
@@ -402,10 +427,7 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
             <NetworkChart
               width={window.innerWidth * 0.85}
               height={window.innerHeight * 0.75}
-              nodeSize={12}
-              linkWidth={3}
               fontSize={16}
-              labelOffset={20}
             />
           </div>
         </div>
@@ -425,10 +447,7 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
       <NetworkChart
         width={450}
         height={500}
-        nodeSize={6}
-        linkWidth={1.5}
-        fontSize={10}
-        labelOffset={12}
+        fontSize={12}
       />
     </div>
   );
