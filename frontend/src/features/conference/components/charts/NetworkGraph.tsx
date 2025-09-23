@@ -1,7 +1,5 @@
 import { memo, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import ForceGraph3D from 'react-force-graph-3d';
-import SpriteText from 'three-spritetext';
 import { Maximize2, X } from 'lucide-react';
 import { ForceGraphData } from '../../types';
 
@@ -11,10 +9,9 @@ interface NetworkGraphProps {
   title: string;
   noDataMessage: string;
   loadingMessage: string;
-  use3D?: boolean;
 }
 
-const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingMessage, use3D = false }: NetworkGraphProps) => {
+const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingMessage }: NetworkGraphProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (isLoading) {
@@ -37,93 +34,64 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
     width: number;
     height: number;
     fontSize: number;
-  }) => {
-    if (use3D) {
-      return (
-        <ForceGraph3D
-          graphData={data}
-          width={width}
-          height={height}
-          nodeAutoColorBy="group"
-          nodeThreeObjectExtend={true}
-          nodeThreeObject={(node: any) => {
-            const sprite = new SpriteText(node.id);
-            sprite.color = node.color || '#333';
-            sprite.textHeight = 8;
-            return sprite;
-          }}
-          linkDirectionalParticles="value"
-          linkDirectionalParticleSpeed={(d: any) => d.value * 0.001}
-          linkWidth={2}
-          linkDirectionalParticleWidth={4}
-          backgroundColor="#ffffff"
-          cooldownTicks={100}
-          onEngineStop={() => {}}
-          d3AlphaDecay={0.02}
-          d3VelocityDecay={0.08}
-        />
-      );
-    }
+  }) => (
+    <ForceGraph2D
+      graphData={data}
+      width={width}
+      height={height}
+      nodeLabel="id"
+      nodeAutoColorBy="group"
+      linkDirectionalParticles="value"
+      linkDirectionalParticleSpeed={d => d.value * 0.001}
+      nodeRelSize={0}
+      linkWidth={2}
+      linkDirectionalParticleWidth={4}
+      backgroundColor="#ffffff"
+      cooldownTicks={100}
+      onEngineStop={() => {}}
+      nodeCanvasObject={(node, ctx, globalScale) => {
+        const label = node.id;
+        const adjustedFontSize = fontSize/globalScale;
+        ctx.font = `${adjustedFontSize}px Sans-Serif`;
+        const textWidth = ctx.measureText(label).width;
+        const bckgDimensions = [textWidth, adjustedFontSize].map(n => n + adjustedFontSize * 0.2);
 
-    return (
-      <ForceGraph2D
-        graphData={data}
-        width={width}
-        height={height}
-        nodeLabel="id"
-        nodeAutoColorBy="group"
-        linkDirectionalParticles="value"
-        linkDirectionalParticleSpeed={(d: any) => d.value * 0.001}
-        nodeRelSize={0}
-        linkWidth={2}
-        linkDirectionalParticleWidth={4}
-        backgroundColor="#ffffff"
-        cooldownTicks={100}
-        onEngineStop={() => {}}
-        nodeCanvasObject={(node: any, ctx: any, globalScale: number) => {
-          const label = node.id;
-          const adjustedFontSize = fontSize/globalScale;
-          ctx.font = `${adjustedFontSize}px Sans-Serif`;
-          const textWidth = ctx.measureText(label).width;
-          const bckgDimensions = [textWidth, adjustedFontSize].map((n: number) => n + adjustedFontSize * 0.2);
+        if (typeof node.x === 'number' && typeof node.y === 'number' && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number') {
+          // Draw background
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          ctx.fillRect(
+            node.x - bckgDimensions[0] / 2,
+            node.y - bckgDimensions[1] / 2,
+            bckgDimensions[0],
+            bckgDimensions[1]
+          );
 
-          if (typeof node.x === 'number' && typeof node.y === 'number' && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number') {
-            // Draw background
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.fillRect(
-              node.x - bckgDimensions[0] / 2,
-              node.y - bckgDimensions[1] / 2,
-              bckgDimensions[0],
-              bckgDimensions[1]
-            );
+          // Draw text
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = node.color || '#333';
+          ctx.fillText(label, node.x, node.y);
 
-            // Draw text
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillStyle = node.color || '#333';
-            ctx.fillText(label, node.x, node.y);
-
-            // Store dimensions for click area
-            (node as any).__bckgDimensions = bckgDimensions;
-          }
-        }}
-        nodePointerAreaPaint={(node: any, color: any, ctx: any) => {
-          ctx.fillStyle = color;
-          const bckgDimensions = (node as any).__bckgDimensions;
-          if (bckgDimensions && Array.isArray(bckgDimensions) && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number' && typeof node.x === 'number' && typeof node.y === 'number') {
-            ctx.fillRect(
-              node.x - bckgDimensions[0] / 2,
-              node.y - bckgDimensions[1] / 2,
-              bckgDimensions[0],
-              bckgDimensions[1]
-            );
-          }
-        }}
-        d3AlphaDecay={0.02}
-        d3VelocityDecay={0.08}
-      />
-    );
-  };
+          // Store dimensions for click area
+          (node as any).__bckgDimensions = bckgDimensions;
+        }
+      }}
+      nodePointerAreaPaint={(node, color, ctx) => {
+        ctx.fillStyle = color;
+        const bckgDimensions = (node as any).__bckgDimensions;
+        if (bckgDimensions && Array.isArray(bckgDimensions) && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number' && typeof node.x === 'number' && typeof node.y === 'number') {
+          ctx.fillRect(
+            node.x - bckgDimensions[0] / 2,
+            node.y - bckgDimensions[1] / 2,
+            bckgDimensions[0],
+            bckgDimensions[1]
+          );
+        }
+      }}
+      d3AlphaDecay={0.02}
+      d3VelocityDecay={0.08}
+    />
+  );
 
   if (isExpanded) {
     return (

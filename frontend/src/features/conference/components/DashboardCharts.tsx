@@ -89,7 +89,6 @@ const DashboardChartsComponent = ({
             title="Organization Collaboration Network"
             noDataMessage="No organization collaboration data available"
             loadingMessage="Loading organization collaboration network..."
-            use3D={true}
           />
         </ChartCard>
       </div>
