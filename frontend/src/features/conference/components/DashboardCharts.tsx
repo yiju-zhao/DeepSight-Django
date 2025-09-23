@@ -347,11 +347,10 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
     );
   }
 
-  const NetworkChart = ({ width, height, fontSize, zoom = 2 }: {
+  const NetworkChart = ({ width, height, fontSize }: {
     width: number;
     height: number;
     fontSize: number;
-    zoom?: number;
   }) => (
     <ForceGraph2D
       graphData={data}
@@ -365,7 +364,8 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
       linkWidth={d => Math.sqrt(d.value) * 2}
       linkDirectionalParticleWidth={4}
       backgroundColor="#ffffff"
-      zoom={zoom}
+      cooldownTicks={100}
+      onEngineStop={() => {}}
       nodeCanvasObject={(node, ctx, globalScale) => {
         const label = node.id;
         const adjustedFontSize = fontSize/globalScale;
