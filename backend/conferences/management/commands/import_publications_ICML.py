@@ -21,14 +21,10 @@ PUBLICATION_MAP = {
     "primary_area": "research_topic",
     "track": "tag",  # track -> tag
     "bibtex": "doi",  # using bibtex field for DOI info
-    "pdf_url": "pdf_url",  # will be constructed if needed
     "id": "external_id",
     "github": "github",
     "site": "site",
     "status": "session",
-    # ICML specific mappings
-    "recommendation": "rating_raw",  # recommendation -> rating_raw for ICML
-    "openreview": "openreview_url",
     "pdf": "pdf_url"  # direct PDF URL from ICML data
 }
 
