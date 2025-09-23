@@ -69,6 +69,9 @@ class PublicationViewSet(viewsets.ModelViewSet):
                 Q(keywords__icontains=search)
             )
 
+        # Filter out publications with status "reject"
+        queryset = queryset.exclude(session__iexact='reject')
+
         # Apply ordering
         if ordering:
             # Support for title and rating ordering
@@ -117,6 +120,9 @@ class OverviewViewSet(viewsets.ViewSet):
             )
         else:
             raise Http404("Either instance ID or both venue and year must be provided")
+
+        # Filter out publications with status "reject"
+        queryset = queryset.exclude(session__iexact='reject')
 
         return queryset
 
