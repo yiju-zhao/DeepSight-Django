@@ -128,6 +128,7 @@ export interface ChartData {
   };
   force_graphs: {
     country: ForceGraphData;
+    organization: ForceGraphData;
   };
   ratings_histogram_fine: FineHistogramBin[];
   keywords_treemap: TreemapData[];
