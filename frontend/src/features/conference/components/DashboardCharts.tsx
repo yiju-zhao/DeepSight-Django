@@ -198,9 +198,9 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
         width={700}
         height={600}
         autoPauseRedraw={false}
-        nodeRelSize={0}
-        nodeVal={0}
-        nodeColor={() => 'transparent'}
+        nodeRelSize={2}
+        nodeVal={(node: any) => Math.sqrt(node.val)}
+        nodeColor={() => 'rgba(0,0,0,0.1)'}
         linkWidth={(link: any) => highlightLinks.has(link) ? Math.sqrt(link.value) * 2 : Math.sqrt(link.value)}
         linkDirectionalParticles={4}
         linkDirectionalParticleWidth={(link: any) => highlightLinks.has(link) ? 4 : 0}
@@ -208,7 +208,7 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
         onNodeHover={handleNodeHover}
         onLinkHover={handleLinkHover}
         nodeLabel={(node: any) => `${node.id}: ${node.val} publications`}
-        nodeCanvasObjectMode={() => 'replace'}
+        nodeCanvasObjectMode={(node: any) => highlightNodes.has(node) ? 'before' : 'after'}
         nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
           // Draw highlight ring for highlighted nodes
           if (highlightNodes.has(node)) {
