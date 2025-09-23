@@ -109,10 +109,10 @@ const OrganizationCollaborationNetwork = memo(({ data, isLoading }: { data: Forc
       height={height}
       nodeLabel="id"
       nodeAutoColorBy="group"
-      linkDirectionalParticles="value"
-      linkDirectionalParticleSpeed={d => d.value * 0.001}
+      linkDirectionalParticles={2}
+      linkDirectionalParticleSpeed={d => d.value * 0.01}
       nodeRelSize={0}
-      linkWidth={d => Math.sqrt(d.value) * 2}
+      linkWidth={2}
       linkDirectionalParticleWidth={4}
       backgroundColor="#ffffff"
       cooldownTicks={100}
@@ -441,10 +441,10 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
       height={height}
       nodeLabel="id"
       nodeAutoColorBy="group"
-      linkDirectionalParticles="value"
-      linkDirectionalParticleSpeed={d => d.value * 0.001}
+      linkDirectionalParticles={2}
+      linkDirectionalParticleSpeed={d => d.value * 0.01}
       nodeRelSize={0}
-      linkWidth={d => Math.sqrt(d.value) * 2}
+      linkWidth={2}
       linkDirectionalParticleWidth={4}
       backgroundColor="#ffffff"
       cooldownTicks={100}

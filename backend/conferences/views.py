@@ -341,7 +341,7 @@ class OverviewViewSet(viewsets.ViewSet):
                 links.append({
                     'source': country1,
                     'target': country2,
-                    'value': collab_count  # Link thickness based on collaboration count
+                    'value': collab_count  # Particle speed based on collaboration count
                 })
 
         return {'nodes': nodes, 'links': links}
@@ -391,7 +391,7 @@ class OverviewViewSet(viewsets.ViewSet):
                 links.append({
                     'source': org1,
                     'target': org2,
-                    'value': collab_count  # Link thickness based on collaboration count
+                    'value': collab_count  # Particle speed based on collaboration count
                 })
 
         return {'nodes': nodes, 'links': links}
