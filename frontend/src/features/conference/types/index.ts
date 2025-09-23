@@ -113,6 +113,11 @@ export interface OrganizationPublicationData {
   research_areas: { [area: string]: number };
 }
 
+export interface GeographicNetworkData {
+  nodes: Array<{ id: string; group: number }>;
+  links: Array<{ source: string; target: string; value: number }>;
+}
+
 export interface ChartData {
   topics: ChartDataItem[];
   top_affiliations: ChartDataItem[];
@@ -132,6 +137,7 @@ export interface ChartData {
   ratings_histogram_fine: FineHistogramBin[];
   keywords_treemap: TreemapData[];
   organization_publications: OrganizationPublicationData[];
+  geographic_network: GeographicNetworkData;
 }
 
 export interface PaginationInfo {

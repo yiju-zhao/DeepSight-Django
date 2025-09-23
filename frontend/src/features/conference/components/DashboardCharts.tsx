@@ -3,9 +3,9 @@ import { scaleLog } from '@visx/scale';
 import Wordcloud from '@visx/wordcloud/lib/Wordcloud';
 import { ResponsiveChord } from '@nivo/chord';
 import { ResponsiveBar } from '@nivo/bar';
+import { ChartData, FineHistogramBin, OrganizationPublicationData, GeographicNetworkData } from '../types';
+import { memo, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
-import { ChartData, FineHistogramBin, OrganizationPublicationData, ForceGraphData } from '../types';
-import { memo, useState, useMemo, useCallback } from 'react';
 
 interface DashboardChartsProps {
   data: ChartData;
@@ -18,25 +18,10 @@ interface DashboardChartsProps {
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'];
 
-interface WordData {
-  text: string;
-  value: number;
-}
-
-interface ChordData {
-  keys: string[];
-  matrix: number[][];
-}
-
-
 const fixedValueGenerator = () => 0.5;
 
-interface WordCloudProps {
-  keywords: Array<{ name: string; count: number }>;
-}
-
-function WordCloudComponent({ keywords }: WordCloudProps) {
-  const words: WordData[] = keywords.map(keyword => ({
+function WordCloudComponent({ keywords }: { keywords: Array<{ name: string; count: number }> }) {
+  const words = keywords.map(keyword => ({
     text: keyword.name,
     value: keyword.count,
   }));
@@ -54,7 +39,7 @@ function WordCloudComponent({ keywords }: WordCloudProps) {
     range: [12, 60],
   });
 
-  const fontSizeSetter = (datum: WordData) => fontScale(datum.value);
+  const fontSizeSetter = (datum: { text: string; value: number }) => fontScale(datum.value);
 
   return (
     <div style={{ width: '100%', height: '320px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -93,171 +78,7 @@ function WordCloudComponent({ keywords }: WordCloudProps) {
   );
 }
 
-// Geographic Force Graph Component
-const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; isLoading?: boolean }) => {
-  if (isLoading) {
-    return (
-      <div className="w-full h-[600px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
-        <div className="text-gray-500">Loading geographic collaboration...</div>
-      </div>
-    );
-  }
-
-  if (!data?.nodes?.length) {
-    return (
-      <div className="w-full h-[600px] bg-gray-50 rounded-lg flex items-center justify-center">
-        <div className="text-gray-500">No collaboration data available</div>
-      </div>
-    );
-  }
-
-  const processedData = useMemo(() => {
-    const nodes = data.nodes.map(node => ({ ...node, neighbors: [], links: [] }));
-    const links = data.links.map(link => ({ ...link }));
-
-    // Cross-link node objects
-    links.forEach((link: any) => {
-      const a = nodes.find(n => n.id === link.source);
-      const b = nodes.find(n => n.id === link.target);
-      if (a && b) {
-        (a as any).neighbors.push(b);
-        (b as any).neighbors.push(a);
-        (a as any).links.push(link);
-        (b as any).links.push(link);
-      }
-    });
-
-    return { nodes, links };
-  }, [data]);
-
-  const [highlightNodes, setHighlightNodes] = useState(new Set());
-  const [highlightLinks, setHighlightLinks] = useState(new Set());
-  const [hoverNode, setHoverNode] = useState(null);
-
-  const updateHighlight = () => {
-    setHighlightNodes(highlightNodes);
-    setHighlightLinks(highlightLinks);
-  };
-
-  const handleNodeHover = (node: any) => {
-    highlightNodes.clear();
-    highlightLinks.clear();
-    if (node) {
-      highlightNodes.add(node);
-      node.neighbors.forEach((neighbor: any) => highlightNodes.add(neighbor));
-      node.links.forEach((link: any) => highlightLinks.add(link));
-    }
-    setHoverNode(node || null);
-    updateHighlight();
-  };
-
-  const handleLinkHover = (link: any) => {
-    highlightNodes.clear();
-    highlightLinks.clear();
-    if (link) {
-      highlightLinks.add(link);
-      highlightNodes.add(link.source);
-      highlightNodes.add(link.target);
-    }
-    updateHighlight();
-  };
-
-  // Color scheme for geographic regions
-  const getRegionColor = (group: number) => {
-    const regionColors: { [key: number]: string } = {
-      1: '#ff6b6b', // North America - red
-      2: '#4ecdc4', // Europe - teal
-      3: '#45b7d1', // Asia-Pacific - blue
-      4: '#96ceb4', // South America - green
-      5: '#feca57', // Africa - yellow
-      6: '#ff9ff3'  // Middle East - pink
-    };
-    return regionColors[group] || '#95a5a6';
-  };
-
-  function nodePaint(node: any, color: string, ctx: CanvasRenderingContext2D) {
-    const { x, y, id } = node;
-
-    // Use fixed font size for all nodes
-    const fontSize = 10;
-
-    // Set font and text properties
-    ctx.font = `${fontSize}px Sans-Serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = color;
-
-    // Draw the text
-    ctx.fillText(id, x, y);
-  }
-
-  const paintRing = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
-    ctx.beginPath();
-    ctx.arc(node.x, node.y, 15, 0, 2 * Math.PI, false);
-    ctx.fillStyle = node === hoverNode ? 'red' : 'orange';
-    ctx.fill();
-  }, [hoverNode]);
-
-  return (
-    <div className="w-full h-[600px]">
-      <ForceGraph2D
-        graphData={processedData}
-        width={700}
-        height={600}
-        backgroundColor="rgba(0,0,0,0.02)"
-
-        // Node configuration
-        nodeLabel={(node: any) => `
-          <div style="background: rgba(0,0,0,0.8); color: white; padding: 8px; border-radius: 4px; font-size: 12px;">
-            <strong>${node.id}</strong><br/>
-            Publications: ${node.val || 0}<br/>
-            Group: ${node.group || 'Unknown'}
-          </div>
-        `}
-        nodeAutoColorBy="group"
-        nodeColor={(node: any) => getRegionColor(node.group)}
-        nodeRelSize={8}
-        nodeVal={(node: any) => Math.sqrt(node.val || 1)}
-
-        // Link configuration with particle animations
-        linkWidth={(link: any) => Math.max(1, Math.sqrt(link.value || 1))}
-        linkColor={(link: any) => highlightLinks.has(link) ? 'rgba(255, 100, 100, 0.8)' : 'rgba(100, 100, 100, 0.3)'}
-
-        // Particle animations representing collaboration weight
-        linkDirectionalParticles={(link: any) => Math.max(1, Math.floor((link.value || 1) / 5))}
-        linkDirectionalParticleSpeed={(link: any) => (link.value || 1) * 0.001}
-        linkDirectionalParticleWidth={(link: any) => highlightLinks.has(link) ? 4 : 2}
-        linkDirectionalParticleColor={() => '#ffffff'}
-
-        // Canvas object rendering
-        nodeCanvasObjectMode={(node: any) => highlightNodes.has(node) ? 'before' : undefined}
-        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D) => {
-          if (highlightNodes.has(node)) {
-            paintRing(node, ctx);
-          }
-          nodePaint(node, getRegionColor(node.group), ctx);
-        }}
-        nodePointerAreaPaint={nodePaint}
-
-        // Interaction handlers
-        onNodeHover={handleNodeHover}
-        onLinkHover={handleLinkHover}
-        onNodeClick={(node: any) => {
-          console.log('Clicked node:', node);
-        }}
-
-        // Force simulation settings
-        autoPauseRedraw={false}
-        cooldownTicks={100}
-        enableZoomInteraction={true}
-        enableNodeDrag={true}
-      />
-    </div>
-  );
-});
-
-// Organization Chord Component
-const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading?: boolean }) => {
+const TopOrgChordTop10 = memo(({ data, isLoading }: { data: { keys: string[]; matrix: number[][] }; isLoading?: boolean }) => {
   if (isLoading) {
     return (
       <div className="w-full h-[600px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
@@ -299,7 +120,6 @@ const TopOrgChordTop10 = memo(({ data, isLoading }: { data: ChordData; isLoading
   );
 });
 
-// Rating Histogram Component
 const RatingHistogramFine = memo(({
   data,
   isLoading,
@@ -354,7 +174,6 @@ const RatingHistogramFine = memo(({
     );
   }
 
-  // Prepare data for Nivo Bar
   const chartData = data.map(bin => ({
     id: `${bin.start.toFixed(1)}-${bin.end.toFixed(1)}`,
     label: `${bin.start.toFixed(1)}`,
@@ -432,7 +251,6 @@ const RatingHistogramFine = memo(({
   );
 });
 
-// Organization Publications Chart Component
 const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: OrganizationPublicationData[]; isLoading?: boolean }) => {
   if (isLoading) {
     return (
@@ -450,24 +268,17 @@ const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: Organiz
     );
   }
 
-  // Sort data by total publications (descending) - backend already sorts but ensure frontend consistency
   const sortedData = [...data].sort((a, b) => b.total - a.total);
-
-  // Transform data to nivo format - use total count instead of breaking down by research area
   const chartData = sortedData.map(org => ({
     organization: org.organization,
     total: org.total
   }));
 
-  // Use single key for total publications
-  const keys = ['total'];
-
-
   return (
     <div className="w-full h-[500px]">
       <ResponsiveBar
         data={chartData}
-        keys={keys}
+        keys={['total']}
         indexBy="organization"
         layout="vertical"
         margin={{ top: 50, right: 130, bottom: 120, left: 60 }}
@@ -511,6 +322,53 @@ const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: Organiz
         )}
         animate={true}
         motionConfig="gentle"
+      />
+    </div>
+  );
+});
+
+const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: GeographicNetworkData; isLoading?: boolean }) => {
+  if (isLoading) {
+    return (
+      <div className="w-full h-[600px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
+        <div className="text-gray-500">Loading geographic collaboration network...</div>
+      </div>
+    );
+  }
+
+  if (!data?.nodes?.length || !data?.links?.length) {
+    return (
+      <div className="w-full h-[600px] bg-gray-50 rounded-lg flex items-center justify-center">
+        <div className="text-gray-500">No geographic collaboration data available</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-[600px]">
+      <ForceGraph2D
+        graphData={data}
+        nodeLabel="id"
+        nodeAutoColorBy="group"
+        linkDirectionalParticles="value"
+        linkDirectionalParticleSpeed={d => d.value * 0.001}
+        nodeRelSize={8}
+        linkWidth={d => Math.sqrt(d.value) * 2}
+        linkDirectionalParticleWidth={4}
+        backgroundColor="#ffffff"
+        nodeCanvasObject={(node, ctx, globalScale) => {
+          const label = node.id;
+          const fontSize = 12/globalScale;
+          ctx.font = `${fontSize}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#333';
+          if (typeof node.x === 'number' && typeof node.y === 'number') {
+            ctx.fillText(label, node.x, node.y + 15/globalScale);
+          }
+        }}
+        cooldownTicks={100}
+        onEngineStop={() => {}}
       />
     </div>
   );
@@ -571,9 +429,7 @@ const DashboardChartsComponent = ({ data, isLoading, ratingHistogramData, rating
         <h2 className="text-2xl font-bold text-gray-900">Visualizations</h2>
       </div>
 
-      {/* Rating and Keywords - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Rating Distribution (Fine-Grained) */}
         <ChartCard title="">
           <RatingHistogramFine
             data={ratingHistogramData || data.ratings_histogram_fine || []}
@@ -582,14 +438,11 @@ const DashboardChartsComponent = ({ data, isLoading, ratingHistogramData, rating
             currentBinSize={currentBinSize}
           />
         </ChartCard>
-
-        {/* Popular Keywords - Word Cloud */}
         <ChartCard title="Popular Keywords">
           <WordCloudComponent keywords={data.top_keywords || []} />
         </ChartCard>
       </div>
 
-      {/* Organization Publications - Full Width */}
       <div className="grid grid-cols-1 gap-6">
         <ChartCard title="Organization Publications (Top 15)" height="h-[500px]">
           <OrganizationPublicationsChart
@@ -599,15 +452,13 @@ const DashboardChartsComponent = ({ data, isLoading, ratingHistogramData, rating
         </ChartCard>
       </div>
 
-      {/* Geographic and Organization Collaboration - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="Geographic Collaboration Network" height="h-[550px]">
-          <GeographicForceGraph
-            data={data.force_graphs?.country || { nodes: [], links: [] }}
+          <GeographicCollaborationNetwork
+            data={data.geographic_network || { nodes: [], links: [] }}
             isLoading={isLoading}
           />
         </ChartCard>
-
         <ChartCard title="Organization Collaboration (Top 10)" height="h-[550px]">
           <TopOrgChordTop10
             data={data.chords?.org || { keys: [], matrix: [] }}
