@@ -237,14 +237,14 @@ class OverviewViewSet(viewsets.ViewSet):
         }
 
     def _build_organization_publications(self, raw_data):
-        """Build organization publications data using exact same logic as org collaboration chart"""
+        """Build organization publications data showing total participation (including collaborations)"""
         # Use exact same logic as build_cooccurrence_matrix to ensure consistency
         affiliations_per_publication = raw_data.get('affiliations_per_publication', [])
 
         # Call build_cooccurrence_matrix to get the exact same totals
         cooccurrence_data = build_cooccurrence_matrix(affiliations_per_publication, top_n=15)
 
-        # Use the totals from cooccurrence matrix (which is the authoritative source)
+        # Use the totals from cooccurrence matrix (total participation including collaborations)
         org_totals = cooccurrence_data.get('totals', {})
 
         # Convert to the expected format

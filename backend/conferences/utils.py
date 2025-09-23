@@ -156,6 +156,7 @@ def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int
     # Count total unique paper participation per item
     item_totals = Counter()
     pair_counts = Counter()
+    solo_counts = Counter()  # Count of solo publications per item
 
     for items in items_per_publication:
         # Convert to set to ensure uniqueness within publication
@@ -165,11 +166,16 @@ def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int
         for item in unique_items:
             item_totals[item] += 1
 
-        # Count pairs within this publication (including self-pairs)
+        # Count solo publications (diagonal of matrix should be solo counts)
+        if len(unique_items) == 1:
+            item = list(unique_items)[0]
+            solo_counts[item] += 1
+
+        # Count pairs within this publication (excluding self-pairs for now)
         items_list = list(unique_items)
         for i, item1 in enumerate(items_list):
             for j, item2 in enumerate(items_list):
-                if i <= j:  # Include self-connections (i == j) and pairs (i < j)
+                if i < j:  # Only count pairs (not self-connections)
                     # Use sorted tuple to ensure consistent ordering
                     pair_key = tuple(sorted([item1, item2]))
                     pair_counts[pair_key] += 1
@@ -184,12 +190,17 @@ def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int
     n = len(top_items)
     matrix = [[0 for _ in range(n)] for _ in range(n)]
 
-    # Fill matrix with pair counts (including self-connections)
+    # Fill matrix with pair counts, using solo counts for diagonal
     for i, item1 in enumerate(top_items):
         for j, item2 in enumerate(top_items):
-            pair_key = tuple(sorted([item1, item2]))
-            count = pair_counts.get(pair_key, 0)
-            matrix[i][j] = count
+            if i == j:
+                # Diagonal elements: use solo publication count
+                matrix[i][j] = solo_counts.get(item1, 0)
+            else:
+                # Off-diagonal elements: use collaboration count
+                pair_key = tuple(sorted([item1, item2]))
+                count = pair_counts.get(pair_key, 0)
+                matrix[i][j] = count
 
     return {
         'keys': top_items,
