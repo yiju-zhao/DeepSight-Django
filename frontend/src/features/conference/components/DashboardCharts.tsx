@@ -156,21 +156,51 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
     highlightLinks.clear();
     if (link) {
       highlightLinks.add(link);
-      const sourceNode = processedData.nodes.find(n => n.id === link.source);
-      const targetNode = processedData.nodes.find(n => n.id === link.target);
-      if (sourceNode) highlightNodes.add(sourceNode);
-      if (targetNode) highlightNodes.add(targetNode);
+      highlightNodes.add(link.source);
+      highlightNodes.add(link.target);
     }
     updateHighlight();
-  }, [highlightNodes, highlightLinks, processedData.nodes]);
+  }, [highlightNodes, highlightLinks]);
 
+  // Node painting function - based on the examples
+  const nodePaint = useCallback((node: any, color: string, ctx: CanvasRenderingContext2D) => {
+    const { x, y } = node;
+    const label = node.id;
+
+    // Calculate font size proportional to publication count
+    const { min, max, minVal, maxVal } = fontSizeScale;
+    const safeMinVal = minVal ?? 1;
+    const safeMaxVal = maxVal ?? 1;
+    const normalizedVal = safeMaxVal > safeMinVal ? (node.val - safeMinVal) / (safeMaxVal - safeMinVal) : 0.5;
+    const fontSize = min + (max - min) * normalizedVal;
+
+    // Draw text background if highlighted
+    const isHighlighted = highlightNodes.has(node);
+    if (isHighlighted) {
+      ctx.font = `${fontSize}px Sans-Serif`;
+      const textWidth = ctx.measureText(label).width;
+      const bckgWidth = textWidth + fontSize * 0.4;
+      const bckgHeight = fontSize + fontSize * 0.4;
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.fillRect(x - bckgWidth / 2, y - bckgHeight / 2, bckgWidth, bckgHeight);
+    }
+
+    // Draw text
+    ctx.font = `${fontSize}px Sans-Serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = isHighlighted ? '#000' : color;
+    ctx.fillText(label, x, y);
+  }, [fontSizeScale, highlightNodes]);
+
+  // Ring painting for highlighted nodes
   const paintRing = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
-    const nodeX = node.x ?? 0;
-    const nodeY = node.y ?? 0;
-    const radius = 30; // Base radius for ring
+    const { x, y } = node;
+    const radius = 30;
 
     ctx.beginPath();
-    ctx.arc(nodeX, nodeY, radius, 0, 2 * Math.PI, false);
+    ctx.arc(x, y, radius, 0, 2 * Math.PI, false);
     ctx.fillStyle = node === hoverNode ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 165, 0, 0.3)';
     ctx.fill();
   }, [hoverNode]);
@@ -198,9 +228,7 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
         width={700}
         height={600}
         autoPauseRedraw={false}
-        nodeRelSize={1}
-        nodeVal={1}
-        nodeColor={() => 'transparent'}
+        nodeRelSize={8}
         linkWidth={(link: any) => highlightLinks.has(link) ? Math.sqrt(link.value) * 2 : Math.sqrt(link.value)}
         linkDirectionalParticles={4}
         linkDirectionalParticleWidth={(link: any) => highlightLinks.has(link) ? 4 : 0}
@@ -208,59 +236,16 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
         onNodeHover={handleNodeHover}
         onLinkHover={handleLinkHover}
         nodeLabel={(node: any) => `${node.id}: ${node.val} publications`}
-        nodeCanvasObjectMode={() => 'replace'}
-        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-          const nodeX = node.x;
-          const nodeY = node.y;
-
-          // Draw highlight ring for highlighted nodes first
+        nodeCanvasObjectMode={(node: any) => highlightNodes.has(node) ? 'before' : undefined}
+        nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D) => {
+          // Draw highlight ring for highlighted nodes
           if (highlightNodes.has(node)) {
-            ctx.beginPath();
-            ctx.arc(nodeX, nodeY, 30, 0, 2 * Math.PI, false);
-            ctx.fillStyle = node === hoverNode ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 165, 0, 0.3)';
-            ctx.fill();
+            paintRing(node, ctx);
           }
-
-          // Draw text label exactly at node position
-          const label = node.id;
-          // Font size proportional to publication count
-          const { min, max, minVal, maxVal } = fontSizeScale;
-          const safeMinVal = minVal ?? 1;
-          const safeMaxVal = maxVal ?? 1;
-          const normalizedVal = safeMaxVal > safeMinVal ? (node.val - safeMinVal) / (safeMaxVal - safeMinVal) : 0.5;
-          const baseFontSize = min + (max - min) * normalizedVal;
-          const fontSize = baseFontSize / globalScale;
-
-          ctx.font = `${fontSize}px Sans-Serif`;
-          const textWidth = ctx.measureText(label).width;
-          const bckgWidth = textWidth + fontSize * 0.2;
-          const bckgHeight = fontSize + fontSize * 0.2;
-
-          // Background with opacity based on highlight
-          const isHighlighted = highlightNodes.has(node);
-          ctx.fillStyle = isHighlighted ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.8)';
-          ctx.fillRect(nodeX - bckgWidth / 2, nodeY - bckgHeight / 2, bckgWidth, bckgHeight);
-
-          // Text color based on highlight
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = isHighlighted ? '#000' : node.color || '#333';
-          ctx.fillText(label, nodeX, nodeY);
-
-          // Store dimensions for pointer area
-          (node as any).__bckgDimensions = [bckgWidth, bckgHeight];
+          // Always draw the text node
+          nodePaint(node, '#333', ctx);
         }}
-        nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
-          ctx.fillStyle = color;
-          const bckgDimensions = (node as any).__bckgDimensions;
-          const nodeX = node.x;
-          const nodeY = node.y;
-          if (bckgDimensions && Array.isArray(bckgDimensions)) {
-            const bckgWidth = bckgDimensions[0] || 0;
-            const bckgHeight = bckgDimensions[1] || 0;
-            ctx.fillRect(nodeX - bckgWidth / 2, nodeY - bckgHeight / 2, bckgWidth, bckgHeight);
-          }
-        }}
+        nodePointerAreaPaint={nodePaint}
       />
     </div>
   );
