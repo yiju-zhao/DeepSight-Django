@@ -5,7 +5,7 @@ import { ResponsiveChord } from '@nivo/chord';
 import { ResponsiveBar } from '@nivo/bar';
 import ForceGraph2D from 'react-force-graph-2d';
 import { ChartData, FineHistogramBin, OrganizationPublicationData, ForceGraphData } from '../types';
-import { memo, useState } from 'react';
+import { memo, useState, useMemo, useCallback } from 'react';
 
 interface DashboardChartsProps {
   data: ChartData;
@@ -95,6 +95,86 @@ function WordCloudComponent({ keywords }: WordCloudProps) {
 
 // Geographic Force Graph Component
 const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; isLoading?: boolean }) => {
+  const [highlightNodes, setHighlightNodes] = useState(new Set());
+  const [highlightLinks, setHighlightLinks] = useState(new Set());
+  const [hoverNode, setHoverNode] = useState<any>(null);
+
+  // Process data to add neighbor and link relationships
+  const processedData = useMemo(() => {
+    if (!data?.nodes?.length || !data?.links?.length) return data;
+
+    const nodes = data.nodes.map(node => ({ ...node, neighbors: [], links: [] }));
+    const links = data.links.map(link => ({ ...link }));
+
+    // Cross-link node objects
+    links.forEach((link: any) => {
+      const a = nodes.find(n => n.id === link.source);
+      const b = nodes.find(n => n.id === link.target);
+      if (a && b) {
+        (a as any).neighbors.push(b);
+        (b as any).neighbors.push(a);
+        (a as any).links.push(link);
+        (b as any).links.push(link);
+      }
+    });
+
+    return { nodes, links };
+  }, [data]);
+
+  // Calculate font size scaling based on publication counts
+  const fontSizeScale = useMemo(() => {
+    if (!data?.nodes?.length) return { min: 10, max: 20 };
+    const values = data.nodes.map(n => n.val);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    return { min: 10, max: 24, minVal, maxVal };
+  }, [data]);
+
+  const updateHighlight = () => {
+    setHighlightNodes(new Set(highlightNodes));
+    setHighlightLinks(new Set(highlightLinks));
+  };
+
+  const handleNodeHover = useCallback((node: any) => {
+    highlightNodes.clear();
+    highlightLinks.clear();
+    if (node) {
+      highlightNodes.add(node);
+      if (node.neighbors) {
+        node.neighbors.forEach((neighbor: any) => highlightNodes.add(neighbor));
+      }
+      if (node.links) {
+        node.links.forEach((link: any) => highlightLinks.add(link));
+      }
+    }
+    setHoverNode(node || null);
+    updateHighlight();
+  }, [highlightNodes, highlightLinks]);
+
+  const handleLinkHover = useCallback((link: any) => {
+    highlightNodes.clear();
+    highlightLinks.clear();
+    if (link) {
+      highlightLinks.add(link);
+      const sourceNode = processedData.nodes.find(n => n.id === link.source);
+      const targetNode = processedData.nodes.find(n => n.id === link.target);
+      if (sourceNode) highlightNodes.add(sourceNode);
+      if (targetNode) highlightNodes.add(targetNode);
+    }
+    updateHighlight();
+  }, [highlightNodes, highlightLinks, processedData.nodes]);
+
+  const paintRing = useCallback((node: any, ctx: CanvasRenderingContext2D) => {
+    const nodeX = node.x ?? 0;
+    const nodeY = node.y ?? 0;
+    const radius = 30; // Base radius for ring
+
+    ctx.beginPath();
+    ctx.arc(nodeX, nodeY, radius, 0, 2 * Math.PI, false);
+    ctx.fillStyle = node === hoverNode ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 165, 0, 0.3)';
+    ctx.fill();
+  }, [hoverNode]);
+
   if (isLoading) {
     return (
       <div className="w-full h-[600px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
@@ -114,31 +194,55 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
   return (
     <div className="w-full h-[600px]">
       <ForceGraph2D
-        graphData={data}
+        graphData={processedData}
         nodeAutoColorBy="group"
         width={700}
         height={600}
+        autoPauseRedraw={false}
+        linkWidth={(link: any) => highlightLinks.has(link) ? Math.sqrt(link.value) * 2 : Math.sqrt(link.value)}
+        linkDirectionalParticles={4}
+        linkDirectionalParticleWidth={(link: any) => highlightLinks.has(link) ? 4 : 0}
+        linkColor={(link: any) => highlightLinks.has(link) ? 'rgba(255, 100, 100, 0.8)' : 'rgba(100, 100, 100, 0.5)'}
+        onNodeHover={handleNodeHover}
+        onLinkHover={handleLinkHover}
+        nodeLabel={(node: any) => `${node.id}: ${node.val} publications`}
+        nodeCanvasObjectMode={(node: any) => highlightNodes.has(node) ? 'before' : 'after'}
         nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          // Draw highlight ring for highlighted nodes
+          if (highlightNodes.has(node)) {
+            paintRing(node, ctx);
+          }
+
+          // Draw text label
           const label = node.id;
-          const fontSize = 12/globalScale;
+          // Font size proportional to publication count
+          const { min, max, minVal, maxVal } = fontSizeScale;
+          const safeMinVal = minVal ?? 1;
+          const safeMaxVal = maxVal ?? 1;
+          const normalizedVal = safeMaxVal > safeMinVal ? (node.val - safeMinVal) / (safeMaxVal - safeMinVal) : 0.5;
+          const baseFontSize = min + (max - min) * normalizedVal;
+          const fontSize = baseFontSize / globalScale;
           const nodeX = node.x ?? 0;
           const nodeY = node.y ?? 0;
 
           ctx.font = `${fontSize}px Sans-Serif`;
           const textWidth = ctx.measureText(label).width;
-          const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2); // some padding
+          const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
           const bckgWidth = bckgDimensions[0] || 0;
           const bckgHeight = bckgDimensions[1] || 0;
 
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          // Background with opacity based on highlight
+          const isHighlighted = highlightNodes.has(node);
+          ctx.fillStyle = isHighlighted ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.8)';
           ctx.fillRect(nodeX - bckgWidth / 2, nodeY - bckgHeight / 2, bckgWidth, bckgHeight);
 
+          // Text color based on highlight
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = node.color;
+          ctx.fillStyle = isHighlighted ? '#000' : node.color || '#333';
           ctx.fillText(label, nodeX, nodeY);
 
-          (node as any).__bckgDimensions = bckgDimensions; // to re-use in nodePointerAreaPaint
+          (node as any).__bckgDimensions = bckgDimensions;
         }}
         nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
           ctx.fillStyle = color;
@@ -151,8 +255,6 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
             ctx.fillRect(nodeX - bckgWidth / 2, nodeY - bckgHeight / 2, bckgWidth, bckgHeight);
           }
         }}
-        linkWidth={(link: any) => Math.sqrt(link.value)}
-        linkColor={() => 'rgba(100, 100, 100, 0.5)'}
       />
     </div>
   );
@@ -503,7 +605,7 @@ const DashboardChartsComponent = ({ data, isLoading, ratingHistogramData, rating
 
       {/* Geographic and Organization Collaboration - Side by Side */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard title="Geographic Collaboration (Top 8)" height="h-[550px]">
+        <ChartCard title="Geographic Collaboration Network" height="h-[550px]">
           <GeographicForceGraph
             data={data.force_graphs?.country || { nodes: [], links: [] }}
             isLoading={isLoading}

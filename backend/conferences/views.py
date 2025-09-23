@@ -322,22 +322,22 @@ class OverviewViewSet(viewsets.ViewSet):
                             pair = tuple(sorted([country1, country2]))
                             country_collaborations[pair] += 1
 
-        # Get top 8 countries by total publications
-        top_countries = [country for country, count in country_totals.most_common(8)]
+        # Get all countries (not limited to top 8)
+        all_countries = list(country_totals.keys())
 
-        # Create nodes
+        # Create nodes for all countries
         nodes = []
-        for country in top_countries:
+        for country in all_countries:
             nodes.append({
                 'id': country,
                 'val': country_totals[country],  # Node size based on total publications
                 'group': 1
             })
 
-        # Create links between top countries only
+        # Create links between all countries
         links = []
         for (country1, country2), collab_count in country_collaborations.items():
-            if country1 in top_countries and country2 in top_countries:
+            if country1 in all_countries and country2 in all_countries:
                 links.append({
                     'source': country1,
                     'target': country2,
