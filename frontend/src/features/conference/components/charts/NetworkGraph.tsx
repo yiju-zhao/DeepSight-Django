@@ -9,10 +9,30 @@ interface NetworkGraphProps {
   title: string;
   noDataMessage: string;
   loadingMessage: string;
+  themeColor?: 'orange' | 'purple';
 }
 
-const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingMessage }: NetworkGraphProps) => {
+const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingMessage, themeColor = 'orange' }: NetworkGraphProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Calculate color based on publication count and theme
+  const getNodeColor = (val: number, maxVal: number, theme: 'orange' | 'purple') => {
+    // Normalize the value to a 0-1 range
+    const intensity = Math.min(val / maxVal, 1);
+
+    if (theme === 'orange') {
+      // Orange theme: light orange to dark orange
+      const lightness = Math.max(20, 80 - (intensity * 60)); // 80% to 20% lightness
+      return `hsl(25, 85%, ${lightness}%)`;
+    } else {
+      // Purple theme: light purple to dark purple
+      const lightness = Math.max(20, 80 - (intensity * 60)); // 80% to 20% lightness
+      return `hsl(260, 85%, ${lightness}%)`;
+    }
+  };
+
+  // Find max value for normalization
+  const maxVal = Math.max(...(data?.nodes?.map(n => n.val) || [1]));
 
   if (isLoading) {
     return (
@@ -57,8 +77,11 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
         const bckgDimensions = [textWidth, adjustedFontSize].map(n => n + adjustedFontSize * 0.2);
 
         if (typeof node.x === 'number' && typeof node.y === 'number' && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number') {
-          // Draw background
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+          // Get themed color based on publication count
+          const nodeColor = getNodeColor(node.val || 1, maxVal, themeColor);
+
+          // Draw background with themed color
+          ctx.fillStyle = nodeColor;
           ctx.fillRect(
             node.x - bckgDimensions[0] / 2,
             node.y - bckgDimensions[1] / 2,
@@ -66,10 +89,11 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
             bckgDimensions[1]
           );
 
-          // Draw text
+          // Draw text - use white for dark backgrounds, dark for light backgrounds
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillStyle = node.color || '#333';
+          const intensity = Math.min((node.val || 1) / maxVal, 1);
+          ctx.fillStyle = intensity > 0.5 ? '#ffffff' : '#000000';
           ctx.fillText(label, node.x, node.y);
 
           // Store dimensions for click area

@@ -80,15 +80,17 @@ const DashboardChartsComponent = ({
             title="Geographic Collaboration Network"
             noDataMessage="No geographic collaboration data available"
             loadingMessage="Loading geographic collaboration network..."
+            themeColor="orange"
           />
         </ChartCard>
-        <ChartCard title="Organization Collaboration Network (Top 20)" height="h-[550px]">
+        <ChartCard title="Organization Collaboration Network (Top 15)" height="h-[550px]">
           <NetworkGraph
             data={data.force_graphs?.organization || { nodes: [], links: [] }}
             isLoading={isLoading}
             title="Organization Collaboration Network"
             noDataMessage="No organization collaboration data available"
             loadingMessage="Loading organization collaboration network..."
+            themeColor="purple"
           />
         </ChartCard>
       </div>

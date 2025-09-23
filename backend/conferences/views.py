@@ -372,10 +372,10 @@ class OverviewViewSet(viewsets.ViewSet):
                             pair = tuple(sorted([org1, org2]))
                             org_collaborations[pair] += 1
 
-        # Get top 20 organizations by publication count for cleaner visualization
-        top_orgs = [org for org, count in org_totals.most_common(20)]
+        # Get top 15 organizations by publication count for cleaner visualization
+        top_orgs = [org for org, count in org_totals.most_common(15)]
 
-        # Create nodes for top 20 organizations
+        # Create nodes for top 15 organizations
         nodes = []
         for org in top_orgs:
             nodes.append({
@@ -384,7 +384,7 @@ class OverviewViewSet(viewsets.ViewSet):
                 'group': 1
             })
 
-        # Create links between top 20 organizations only
+        # Create links between top 15 organizations only
         links = []
         for (org1, org2), collab_count in org_collaborations.items():
             if org1 in top_orgs and org2 in top_orgs:
