@@ -3,7 +3,7 @@ import { scaleLog } from '@visx/scale';
 import Wordcloud from '@visx/wordcloud/lib/Wordcloud';
 import { ResponsiveChord } from '@nivo/chord';
 import { ResponsiveBar } from '@nivo/bar';
-import { ChartData, FineHistogramBin, OrganizationPublicationData, GeographicNetworkData } from '../types';
+import { ChartData, FineHistogramBin, OrganizationPublicationData, ForceGraphData } from '../types';
 import { memo, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 
@@ -327,7 +327,7 @@ const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: Organiz
   );
 });
 
-const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: GeographicNetworkData; isLoading?: boolean }) => {
+const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceGraphData; isLoading?: boolean }) => {
   if (isLoading) {
     return (
       <div className="w-full h-[600px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
@@ -455,7 +455,7 @@ const DashboardChartsComponent = ({ data, isLoading, ratingHistogramData, rating
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard title="Geographic Collaboration Network" height="h-[550px]">
           <GeographicCollaborationNetwork
-            data={data.geographic_network || { nodes: [], links: [] }}
+            data={data.force_graphs?.country || { nodes: [], links: [] }}
             isLoading={isLoading}
           />
         </ChartCard>
