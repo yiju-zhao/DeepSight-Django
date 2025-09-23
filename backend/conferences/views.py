@@ -140,7 +140,6 @@ class OverviewViewSet(viewsets.ViewSet):
         # New data structures for visualizations
         countries_per_publication = []
         affiliations_per_publication = []
-        organization_research_areas = []
 
         resource_counts = {'with_github': 0, 'with_site': 0, 'with_pdf': 0}
 
@@ -165,15 +164,6 @@ class OverviewViewSet(viewsets.ViewSet):
                 all_affiliations.extend(affiliations)
                 # Store unique affiliations per publication for collaboration analysis
                 affiliations_per_publication.append(list(set(affiliations)))
-
-                # Store organization and research area pairs for stacked chart
-                research_area = pub.research_topic if pub.research_topic else None
-                # Only add one entry per publication (not per affiliation) to count publications correctly
-                organization_research_areas.append({
-                    'publication_id': pub.id,
-                    'affiliations': list(set(affiliations)),
-                    'research_area': research_area
-                })
             else:
                 affiliations_per_publication.append([])
 
@@ -243,44 +233,32 @@ class OverviewViewSet(viewsets.ViewSet):
                 'countries_per_publication': countries_per_publication,
                 'affiliations_per_publication': affiliations_per_publication,
                 'all_ratings': all_ratings,  # Keep original float ratings for fine histogram
-                'organization_research_areas': organization_research_areas,
             }
         }
 
     def _build_organization_publications(self, raw_data):
-        """Build organization publications data grouped by research area using same logic as org collaboration chart"""
-        organization_research_areas = raw_data.get('organization_research_areas', [])
+        """Build organization publications data using same data source as org collaboration chart"""
+        # Use same data source as the collaboration chart (affiliations_per_publication)
+        affiliations_per_publication = raw_data.get('affiliations_per_publication', [])
 
         # Use same counting logic as build_cooccurrence_matrix
-        org_area_totals = Counter()  # (org, area) -> count
         org_totals = Counter()       # org -> total count
 
-        for item in organization_research_areas:
-            affiliations = item['affiliations']
-            area = item['research_area'] or 'Publications'
-
+        for affiliations in affiliations_per_publication:
             # Convert to set to ensure uniqueness within publication (same as cooccurrence matrix)
             unique_affiliations = set(affiliations)
 
-            # Count each organization's participation in this publication (same logic as line 166 in utils.py)
+            # Count each organization's participation in this publication (same logic as utils.py line 166)
             for org in unique_affiliations:
                 org_totals[org] += 1
-                org_area_totals[(org, area)] += 1
 
         # Convert to the expected format
         result = []
         for org, total in org_totals.items():
-            research_area_counts = {}
-
-            # Get counts for each research area for this org
-            for (counted_org, area), count in org_area_totals.items():
-                if counted_org == org:
-                    research_area_counts[area] = count
-
             result.append({
                 'organization': org,
                 'total': total,
-                'research_areas': research_area_counts
+                'research_areas': {}  # Empty since we're not breaking down by research area anymore
             })
 
         # Sort by total publications descending and take top 15
