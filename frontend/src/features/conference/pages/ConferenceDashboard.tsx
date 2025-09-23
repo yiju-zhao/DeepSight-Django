@@ -380,7 +380,7 @@ export default function ConferenceDashboard() {
 
                       <div className="flex flex-wrap gap-2">
                         {venueData.instances
-                          .sort((a: any, b: any) => b.year - a.year)
+                          .sort((a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
                           .map((instance: any) => (
                           <button
                             key={instance.instance_id}
