@@ -237,20 +237,15 @@ class OverviewViewSet(viewsets.ViewSet):
         }
 
     def _build_organization_publications(self, raw_data):
-        """Build organization publications data using same data source as org collaboration chart"""
-        # Use same data source as the collaboration chart (affiliations_per_publication)
+        """Build organization publications data using exact same logic as org collaboration chart"""
+        # Use exact same logic as build_cooccurrence_matrix to ensure consistency
         affiliations_per_publication = raw_data.get('affiliations_per_publication', [])
 
-        # Use same counting logic as build_cooccurrence_matrix
-        org_totals = Counter()       # org -> total count
+        # Call build_cooccurrence_matrix to get the exact same totals
+        cooccurrence_data = build_cooccurrence_matrix(affiliations_per_publication, top_n=15)
 
-        for affiliations in affiliations_per_publication:
-            # Convert to set to ensure uniqueness within publication (same as cooccurrence matrix)
-            unique_affiliations = set(affiliations)
-
-            # Count each organization's participation in this publication (same logic as utils.py line 166)
-            for org in unique_affiliations:
-                org_totals[org] += 1
+        # Use the totals from cooccurrence matrix (which is the authoritative source)
+        org_totals = cooccurrence_data.get('totals', {})
 
         # Convert to the expected format
         result = []
@@ -306,13 +301,8 @@ class OverviewViewSet(viewsets.ViewSet):
             for k, v in sorted(counters['keywords'].items(), key=lambda x: x[1], reverse=True)[:30]
         ]
 
-        # Build organization publications data (stacked by research area)
+        # Build organization publications data using exact same logic as collaboration chart
         organization_publications = self._build_organization_publications(raw_data)
-
-        # Debug: Print comparison of Google counts
-        google_count_chord = org_chord.get('totals', {}).get('Google', 0) if org_chord else 0
-        google_count_bar = next((org['total'] for org in organization_publications if org['organization'] == 'Google'), 0)
-        print(f"DEBUG: Google count - Chord: {google_count_chord}, Bar: {google_count_bar}")
 
         return {
             'topics': [{'name': k, 'count': v} for k, v in counters['topics'].most_common(10)],
@@ -332,7 +322,7 @@ class OverviewViewSet(viewsets.ViewSet):
             'organization_publications': organization_publications,
         }
 
-    # @method_decorator(cache_page(60 * 15))  # Cache temporarily disabled for debugging
+    @method_decorator(cache_page(60 * 15))  # Cache for 15 minutes
     def list(self, request):
         """Get dashboard data for a specific instance"""
         instance_id = request.query_params.get('instance')
