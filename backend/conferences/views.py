@@ -237,15 +237,19 @@ class OverviewViewSet(viewsets.ViewSet):
         }
 
     def _build_organization_publications(self, raw_data):
-        """Build organization publications data showing total participation (including collaborations)"""
-        # Use exact same logic as build_cooccurrence_matrix to ensure consistency
+        """Build organization publications data with simple counting: if pub has (A,B) then A+1, B+1"""
         affiliations_per_publication = raw_data.get('affiliations_per_publication', [])
 
-        # Call build_cooccurrence_matrix to get the exact same totals
-        cooccurrence_data = build_cooccurrence_matrix(affiliations_per_publication, top_n=15)
+        # Simple counting: each organization gets +1 for each publication it appears in
+        org_totals = Counter()
 
-        # Use the totals from cooccurrence matrix (total participation including collaborations)
-        org_totals = cooccurrence_data.get('totals', {})
+        for affiliations in affiliations_per_publication:
+            # Remove empty strings and strip whitespace
+            clean_affiliations = [aff.strip() for aff in affiliations if aff.strip()]
+
+            # Each organization in this publication gets +1
+            for org in clean_affiliations:
+                org_totals[org] += 1
 
         # Convert to the expected format
         result = []
