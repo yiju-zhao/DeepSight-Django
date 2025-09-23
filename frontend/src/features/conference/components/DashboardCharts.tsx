@@ -198,9 +198,9 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
         width={700}
         height={600}
         autoPauseRedraw={false}
-        nodeRelSize={2}
-        nodeVal={(node: any) => Math.sqrt(node.val)}
-        nodeColor={() => 'rgba(0,0,0,0.1)'}
+        nodeRelSize={1}
+        nodeVal={1}
+        nodeColor={() => 'transparent'}
         linkWidth={(link: any) => highlightLinks.has(link) ? Math.sqrt(link.value) * 2 : Math.sqrt(link.value)}
         linkDirectionalParticles={4}
         linkDirectionalParticleWidth={(link: any) => highlightLinks.has(link) ? 4 : 0}
@@ -208,14 +208,20 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
         onNodeHover={handleNodeHover}
         onLinkHover={handleLinkHover}
         nodeLabel={(node: any) => `${node.id}: ${node.val} publications`}
-        nodeCanvasObjectMode={(node: any) => highlightNodes.has(node) ? 'before' : 'after'}
+        nodeCanvasObjectMode={() => 'replace'}
         nodeCanvasObject={(node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-          // Draw highlight ring for highlighted nodes
+          const nodeX = node.x;
+          const nodeY = node.y;
+
+          // Draw highlight ring for highlighted nodes first
           if (highlightNodes.has(node)) {
-            paintRing(node, ctx);
+            ctx.beginPath();
+            ctx.arc(nodeX, nodeY, 30, 0, 2 * Math.PI, false);
+            ctx.fillStyle = node === hoverNode ? 'rgba(255, 0, 0, 0.3)' : 'rgba(255, 165, 0, 0.3)';
+            ctx.fill();
           }
 
-          // Draw text label
+          // Draw text label exactly at node position
           const label = node.id;
           // Font size proportional to publication count
           const { min, max, minVal, maxVal } = fontSizeScale;
@@ -224,14 +230,11 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
           const normalizedVal = safeMaxVal > safeMinVal ? (node.val - safeMinVal) / (safeMaxVal - safeMinVal) : 0.5;
           const baseFontSize = min + (max - min) * normalizedVal;
           const fontSize = baseFontSize / globalScale;
-          const nodeX = node.x ?? 0;
-          const nodeY = node.y ?? 0;
 
           ctx.font = `${fontSize}px Sans-Serif`;
           const textWidth = ctx.measureText(label).width;
-          const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
-          const bckgWidth = bckgDimensions[0] || 0;
-          const bckgHeight = bckgDimensions[1] || 0;
+          const bckgWidth = textWidth + fontSize * 0.2;
+          const bckgHeight = fontSize + fontSize * 0.2;
 
           // Background with opacity based on highlight
           const isHighlighted = highlightNodes.has(node);
@@ -244,13 +247,14 @@ const GeographicForceGraph = memo(({ data, isLoading }: { data: ForceGraphData; 
           ctx.fillStyle = isHighlighted ? '#000' : node.color || '#333';
           ctx.fillText(label, nodeX, nodeY);
 
-          (node as any).__bckgDimensions = bckgDimensions;
+          // Store dimensions for pointer area
+          (node as any).__bckgDimensions = [bckgWidth, bckgHeight];
         }}
         nodePointerAreaPaint={(node: any, color: string, ctx: CanvasRenderingContext2D) => {
           ctx.fillStyle = color;
           const bckgDimensions = (node as any).__bckgDimensions;
-          const nodeX = node.x ?? 0;
-          const nodeY = node.y ?? 0;
+          const nodeX = node.x;
+          const nodeY = node.y;
           if (bckgDimensions && Array.isArray(bckgDimensions)) {
             const bckgWidth = bckgDimensions[0] || 0;
             const bckgHeight = bckgDimensions[1] || 0;
