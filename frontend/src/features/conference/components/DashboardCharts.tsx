@@ -6,6 +6,7 @@ import { ResponsiveBar } from '@nivo/bar';
 import { ChartData, FineHistogramBin, OrganizationPublicationData, ForceGraphData } from '../types';
 import { memo, useState } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
+import { Maximize2, X } from 'lucide-react';
 
 interface DashboardChartsProps {
   data: ChartData;
@@ -328,6 +329,8 @@ const OrganizationPublicationsChart = memo(({ data, isLoading }: { data: Organiz
 });
 
 const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceGraphData; isLoading?: boolean }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (isLoading) {
     return (
       <div className="w-full h-[600px] bg-gray-100 rounded-lg animate-pulse flex items-center justify-center">
@@ -344,35 +347,88 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
     );
   }
 
+  const NetworkChart = ({ width, height, nodeSize, linkWidth, fontSize, labelOffset }: {
+    width: number;
+    height: number;
+    nodeSize: number;
+    linkWidth: number;
+    fontSize: number;
+    labelOffset: number;
+  }) => (
+    <ForceGraph2D
+      graphData={data}
+      width={width}
+      height={height}
+      nodeLabel="id"
+      nodeAutoColorBy="group"
+      linkDirectionalParticles="value"
+      linkDirectionalParticleSpeed={d => d.value * 0.001}
+      nodeRelSize={nodeSize}
+      linkWidth={d => Math.sqrt(d.value) * linkWidth}
+      linkDirectionalParticleWidth={Math.max(3, nodeSize / 2)}
+      backgroundColor="#ffffff"
+      nodeCanvasObject={(node, ctx, globalScale) => {
+        const label = node.id;
+        const adjustedFontSize = fontSize/globalScale;
+        ctx.font = `${adjustedFontSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#333';
+        if (typeof node.x === 'number' && typeof node.y === 'number') {
+          ctx.fillText(label, node.x, node.y + labelOffset/globalScale);
+        }
+      }}
+      cooldownTicks={100}
+      onEngineStop={() => {}}
+      d3AlphaDecay={0.02}
+      d3VelocityDecay={0.08}
+    />
+  );
+
+  if (isExpanded) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl w-[95vw] h-[95vh] flex flex-col">
+          <div className="flex items-center justify-between p-4 border-b">
+            <h3 className="text-xl font-semibold text-gray-900">Geographic Collaboration Network</h3>
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <X className="w-6 h-6 text-gray-600" />
+            </button>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-4">
+            <NetworkChart
+              width={window.innerWidth * 0.85}
+              height={window.innerHeight * 0.75}
+              nodeSize={12}
+              linkWidth={3}
+              fontSize={16}
+              labelOffset={20}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="w-full h-full flex items-center justify-center">
-      <ForceGraph2D
-        graphData={data}
+    <div className="relative w-full h-full flex items-center justify-center">
+      <button
+        onClick={() => setIsExpanded(true)}
+        className="absolute top-2 right-2 p-2 hover:bg-gray-100 rounded-lg transition-colors z-10"
+        title="Expand to full screen"
+      >
+        <Maximize2 className="w-5 h-5 text-gray-600" />
+      </button>
+      <NetworkChart
         width={450}
         height={500}
-        nodeLabel="id"
-        nodeAutoColorBy="group"
-        linkDirectionalParticles="value"
-        linkDirectionalParticleSpeed={d => d.value * 0.001}
-        nodeRelSize={6}
-        linkWidth={d => Math.sqrt(d.value) * 1.5}
-        linkDirectionalParticleWidth={3}
-        backgroundColor="#ffffff"
-        nodeCanvasObject={(node, ctx, globalScale) => {
-          const label = node.id;
-          const fontSize = 10/globalScale;
-          ctx.font = `${fontSize}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#333';
-          if (typeof node.x === 'number' && typeof node.y === 'number') {
-            ctx.fillText(label, node.x, node.y + 12/globalScale);
-          }
-        }}
-        cooldownTicks={100}
-        onEngineStop={() => {}}
-        d3AlphaDecay={0.02}
-        d3VelocityDecay={0.08}
+        nodeSize={6}
+        linkWidth={1.5}
+        fontSize={10}
+        labelOffset={12}
       />
     </div>
   );
