@@ -345,30 +345,34 @@ const GeographicCollaborationNetwork = memo(({ data, isLoading }: { data: ForceG
   }
 
   return (
-    <div className="w-full h-[600px]">
+    <div className="w-full h-full flex items-center justify-center">
       <ForceGraph2D
         graphData={data}
+        width={450}
+        height={500}
         nodeLabel="id"
         nodeAutoColorBy="group"
         linkDirectionalParticles="value"
         linkDirectionalParticleSpeed={d => d.value * 0.001}
-        nodeRelSize={8}
-        linkWidth={d => Math.sqrt(d.value) * 2}
-        linkDirectionalParticleWidth={4}
+        nodeRelSize={6}
+        linkWidth={d => Math.sqrt(d.value) * 1.5}
+        linkDirectionalParticleWidth={3}
         backgroundColor="#ffffff"
         nodeCanvasObject={(node, ctx, globalScale) => {
           const label = node.id;
-          const fontSize = 12/globalScale;
+          const fontSize = 10/globalScale;
           ctx.font = `${fontSize}px Arial`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillStyle = '#333';
           if (typeof node.x === 'number' && typeof node.y === 'number') {
-            ctx.fillText(label, node.x, node.y + 15/globalScale);
+            ctx.fillText(label, node.x, node.y + 12/globalScale);
           }
         }}
         cooldownTicks={100}
         onEngineStop={() => {}}
+        d3AlphaDecay={0.02}
+        d3VelocityDecay={0.08}
       />
     </div>
   );
