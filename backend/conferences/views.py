@@ -309,6 +309,11 @@ class OverviewViewSet(viewsets.ViewSet):
         # Build organization publications data (stacked by research area)
         organization_publications = self._build_organization_publications(raw_data)
 
+        # Debug: Print comparison of Google counts
+        google_count_chord = org_chord.get('totals', {}).get('Google', 0) if org_chord else 0
+        google_count_bar = next((org['total'] for org in organization_publications if org['organization'] == 'Google'), 0)
+        print(f"DEBUG: Google count - Chord: {google_count_chord}, Bar: {google_count_bar}")
+
         return {
             'topics': [{'name': k, 'count': v} for k, v in counters['topics'].most_common(10)],
             'top_affiliations': [{'name': k, 'count': v} for k, v in counters['affiliations'].most_common(10)],
@@ -327,7 +332,7 @@ class OverviewViewSet(viewsets.ViewSet):
             'organization_publications': organization_publications,
         }
 
-    @method_decorator(cache_page(60 * 15))  # Cache for 15 minutes
+    # @method_decorator(cache_page(60 * 15))  # Cache temporarily disabled for debugging
     def list(self, request):
         """Get dashboard data for a specific instance"""
         instance_id = request.query_params.get('instance')
