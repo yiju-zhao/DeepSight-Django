@@ -132,10 +132,10 @@ export default function ConferenceDashboard() {
       return acc;
     }, {} as Record<string, any>);
 
-    // Sort by most recent and popular (mock popularity for now)
+    // Sort by most recent start date and take only 3
     const popular = filtered
-      .sort((a, b) => b.year - a.year)
-      .slice(0, 6);
+      .sort((a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
+      .slice(0, 3);
 
     return {
       groupedConferences: grouped,
@@ -306,7 +306,7 @@ export default function ConferenceDashboard() {
           <div className="bg-white rounded-xl shadow-sm border p-6">
             <div className="flex items-center mb-4">
               <Star className="w-5 h-5 text-yellow-500 mr-2" />
-              <h3 className="text-lg font-semibold text-gray-900">Recent & Popular</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Recent</h3>
             </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {popularConferences.map((instance) => (
