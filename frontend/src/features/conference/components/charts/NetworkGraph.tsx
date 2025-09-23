@@ -15,24 +15,22 @@ interface NetworkGraphProps {
 const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingMessage, themeColor = 'orange' }: NetworkGraphProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  // Calculate color based on publication count and theme
-  const getNodeColor = (val: number, maxVal: number, theme: 'orange' | 'purple') => {
-    // Normalize the value to a 0-1 range
-    const intensity = Math.min(val / maxVal, 1);
+  // Get top 5 nodes by publication count
+  const sortedNodes = [...(data?.nodes || [])].sort((a, b) => (b.val || 0) - (a.val || 0));
+  const top5NodeIds = new Set(sortedNodes.slice(0, 5).map(n => n.id));
 
+  // Calculate color based on whether node is in top 5 and theme
+  const getNodeColor = (nodeId: string, isTop5: boolean, theme: 'orange' | 'purple') => {
     if (theme === 'orange') {
-      // Orange theme: light orange to dark orange
-      const lightness = Math.max(20, 80 - (intensity * 60)); // 80% to 20% lightness
-      return `hsl(25, 85%, ${lightness}%)`;
+      return isTop5
+        ? 'hsl(25, 85%, 30%)' // Dark orange for top 5
+        : 'hsl(25, 85%, 75%)'; // Light orange for rest
     } else {
-      // Purple theme: light purple to dark purple
-      const lightness = Math.max(20, 80 - (intensity * 60)); // 80% to 20% lightness
-      return `hsl(260, 85%, ${lightness}%)`;
+      return isTop5
+        ? 'hsl(260, 85%, 30%)' // Dark purple for top 5
+        : 'hsl(260, 85%, 75%)'; // Light purple for rest
     }
   };
-
-  // Find max value for normalization
-  const maxVal = Math.max(...(data?.nodes?.map(n => n.val) || [1]));
 
   if (isLoading) {
     return (
@@ -77,8 +75,11 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
         const bckgDimensions = [textWidth, adjustedFontSize].map(n => n + adjustedFontSize * 0.2);
 
         if (typeof node.x === 'number' && typeof node.y === 'number' && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number') {
-          // Get themed color based on publication count
-          const nodeColor = getNodeColor(node.val || 1, maxVal, themeColor);
+          // Check if this node is in top 5
+          const isTop5 = top5NodeIds.has(node.id);
+
+          // Get themed color based on top 5 status
+          const nodeColor = getNodeColor(node.id, isTop5, themeColor);
 
           // Draw background with themed color
           ctx.fillStyle = nodeColor;
@@ -89,11 +90,10 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
             bckgDimensions[1]
           );
 
-          // Draw text - use white for dark backgrounds, dark for light backgrounds
+          // Draw text - white for dark backgrounds (top 5), black for light backgrounds (rest)
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          const intensity = Math.min((node.val || 1) / maxVal, 1);
-          ctx.fillStyle = intensity > 0.5 ? '#ffffff' : '#000000';
+          ctx.fillStyle = isTop5 ? '#ffffff' : '#000000';
           ctx.fillText(label, node.x, node.y);
 
           // Store dimensions for click area
