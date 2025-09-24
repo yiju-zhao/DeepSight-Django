@@ -76,18 +76,16 @@ class ConfigurationManager:
 
     def _setup_openai_models(self, config, lm_configs) -> 'STORMWikiLMConfigs':
         """Setup OpenAI language models."""
-        openai_kwargs = {
-            "api_key": os.getenv("OPENAI_API_KEY"),
-            "temperature": config.temperature,
-            "top_p": config.top_p,
-        }
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        azure_api_key = os.getenv("AZURE_API_KEY", "")  # Optional fallback
 
         # Setup different model configurations
         lm_configs.init_openai_model(
-            api_key=openai_kwargs["api_key"],
+            openai_api_key=openai_api_key,
+            azure_api_key=azure_api_key,
             openai_type="openai",
-            temperature=openai_kwargs["temperature"],
-            top_p=openai_kwargs["top_p"],
+            temperature=config.temperature,
+            top_p=config.top_p,
         )
 
         return lm_configs
