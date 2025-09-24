@@ -1,5 +1,6 @@
 import { memo, useState } from 'react';
-import ForceGraph2D from 'react-force-graph-2d';
+import ForceGraph3D from 'react-force-graph-3d';
+import SpriteText from 'three-spritetext';
 import { Maximize2, X } from 'lucide-react';
 import { ForceGraphData } from '../../types';
 
@@ -75,64 +76,29 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
     height: number;
     fontSize: number;
   }) => (
-    <ForceGraph2D
+    <ForceGraph3D
       graphData={data}
       width={width}
       height={height}
-      nodeLabel="id"
-      nodeAutoColorBy="group"
-      linkDirectionalParticles={d => calculateParticleMetrics(d.value || 0).particles}
-      linkDirectionalParticleSpeed={d => calculateParticleMetrics(d.value || 0).speed}
-      nodeRelSize={0}
+      nodeLabel={(node: any) => `<div><b>${node.id}</b>${node.description ? `: ${node.description}` : ''}</div>`}
+      nodeAutoColorBy={(node: any) => {
+        const isTop5 = top5NodeIds.has(node.id);
+        return getNodeColor(node.id, isTop5, themeColor);
+      }}
+      linkDirectionalParticles={(d: any) => calculateParticleMetrics(d.value || 0).particles}
+      linkDirectionalParticleSpeed={(d: any) => calculateParticleMetrics(d.value || 0).speed}
       linkWidth={2}
       linkDirectionalParticleWidth={4}
       backgroundColor="#ffffff"
       cooldownTicks={100}
       onEngineStop={() => {}}
-      nodeCanvasObject={(node, ctx, globalScale) => {
-        const label = node.id;
-        const adjustedFontSize = fontSize/globalScale;
-        ctx.font = `${adjustedFontSize}px Sans-Serif`;
-        const textWidth = ctx.measureText(label).width;
-        const bckgDimensions = [textWidth, adjustedFontSize].map(n => n + adjustedFontSize * 0.2);
-
-        if (typeof node.x === 'number' && typeof node.y === 'number' && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number') {
-          // Check if this node is in top 5
-          const isTop5 = top5NodeIds.has(node.id);
-
-          // Get themed color based on top 5 status
-          const nodeColor = getNodeColor(node.id, isTop5, themeColor);
-
-          // Draw background with themed color
-          ctx.fillStyle = nodeColor;
-          ctx.fillRect(
-            node.x - bckgDimensions[0] / 2,
-            node.y - bckgDimensions[1] / 2,
-            bckgDimensions[0],
-            bckgDimensions[1]
-          );
-
-          // Draw text - white for dark backgrounds (top 5), black for light backgrounds (rest)
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = isTop5 ? '#ffffff' : '#000000';
-          ctx.fillText(label, node.x, node.y);
-
-          // Store dimensions for click area
-          (node as any).__bckgDimensions = bckgDimensions;
-        }
-      }}
-      nodePointerAreaPaint={(node, color, ctx) => {
-        ctx.fillStyle = color;
-        const bckgDimensions = (node as any).__bckgDimensions;
-        if (bckgDimensions && Array.isArray(bckgDimensions) && bckgDimensions.length === 2 && typeof bckgDimensions[0] === 'number' && typeof bckgDimensions[1] === 'number' && typeof node.x === 'number' && typeof node.y === 'number') {
-          ctx.fillRect(
-            node.x - bckgDimensions[0] / 2,
-            node.y - bckgDimensions[1] / 2,
-            bckgDimensions[0],
-            bckgDimensions[1]
-          );
-        }
+      nodeThreeObjectExtend={true}
+      nodeThreeObject={(node: any) => {
+        const sprite = new SpriteText(node.id);
+        const isTop5 = top5NodeIds.has(node.id);
+        sprite.color = getNodeColor(node.id, isTop5, themeColor);
+        sprite.textHeight = fontSize * 0.6;
+        return sprite;
       }}
       d3AlphaDecay={0.02}
       d3VelocityDecay={0.08}
