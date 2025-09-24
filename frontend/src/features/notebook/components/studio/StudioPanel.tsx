@@ -206,14 +206,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         
         // Recover report job if found
         if (runningReport) {
-          console.log('Recovering running report job:', runningReport.job_id);
           reportGeneration.startGeneration(runningReport.job_id);
           reportGeneration.updateProgress(runningReport.progress || 'Generating report...');
         }
-        
+
         // Recover podcast job if found
         if (runningPodcast) {
-          console.log('Recovering running podcast job:', runningPodcast.job_id);
           podcastGeneration.startGeneration(runningPodcast.job_id);
           podcastGeneration.updateProgress(runningPodcast.progress || 'Generating podcast...');
         }
@@ -417,10 +415,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   // ====== SINGLE RESPONSIBILITY: Data refresh ======
   const handleRefresh = useCallback(() => {
-    reportJobs.refetch();
-    podcastJobs.refetch();
-    reportModels.refetch();
-  }, [reportJobs, podcastJobs, reportModels]);
+    // Use optimized cache invalidation instead of manual refetch
+    handleReportJobComplete();
+    handlePodcastJobComplete();
+    reportModels.refetch(); // Models don't change often, manual refetch is fine
+  }, [handleReportJobComplete, handlePodcastJobComplete, reportModels]);
 
   // ====== SINGLE RESPONSIBILITY: File operations ======
   const handleSelectReport = useCallback(async (report: ReportItem) => {
@@ -628,13 +627,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         throw new Error('File ID not found');
       }
       
-      console.log('Saving file:', { fileId, notebookId, contentLength: content.length });
       await studioService.updateReport(fileId, notebookId, content);
       setSelectedFileContent(content);
-      
-      // Refresh the report data to ensure it's synchronized
-      reportJobs.refetch();
-      
+
+      // Use optimized cache invalidation to ensure data is synchronized
+      handleReportJobComplete();
+
       toast({
         title: "File Saved",
         description: "Your changes have been saved and synchronized"
@@ -648,7 +646,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [selectedFile, studioService, reportJobs, notebookId, toast]);
+  }, [selectedFile, studioService, handleReportJobComplete, notebookId, toast]);
 
   const handleCloseFile = useCallback(() => {
     setSelectedFile(null);
@@ -1025,7 +1023,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
           isPreviewingEdits={isPreviewingEdits}
         />
       )}
-
 
     </div>
   );
