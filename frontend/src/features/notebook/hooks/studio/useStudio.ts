@@ -148,12 +148,19 @@ export const useDeleteReport = (notebookId: string) => {
         queryClient.setQueryData(studioKeys.reportJobs(notebookId), context.previousReports);
       }
     },
-    onSuccess: () => {
-      // Only invalidate on success to trigger background refetch for eventual consistency
-      // This ensures optimistic update persists but server state syncs in background
-      queryClient.invalidateQueries({
-        queryKey: studioKeys.reportJobs(notebookId),
+    onSuccess: (data, jobId) => {
+      // Also clear any active generation job for this report
+      queryClient.setQueryData(['generation', 'notebook', notebookId, 'active-job', 'report'], (old: any) => {
+        return old?.jobId === jobId ? null : old;
       });
+
+      // Delay invalidation to give server time to process deletion
+      // This prevents the deleted item from reappearing due to race conditions
+      setTimeout(() => {
+        queryClient.invalidateQueries({
+          queryKey: studioKeys.reportJobs(notebookId),
+        });
+      }, 1000);
     },
   });
 };
@@ -188,12 +195,19 @@ export const useDeletePodcast = (notebookId: string) => {
         queryClient.setQueryData(studioKeys.podcastJobs(notebookId), context.previousPodcasts);
       }
     },
-    onSuccess: () => {
-      // Only invalidate on success to trigger background refetch for eventual consistency
-      // This ensures optimistic update persists but server state syncs in background
-      queryClient.invalidateQueries({
-        queryKey: studioKeys.podcastJobs(notebookId),
+    onSuccess: (data, jobId) => {
+      // Also clear any active generation job for this podcast
+      queryClient.setQueryData(['generation', 'notebook', notebookId, 'active-job', 'podcast'], (old: any) => {
+        return old?.jobId === jobId ? null : old;
       });
+
+      // Delay invalidation to give server time to process deletion
+      // This prevents the deleted item from reappearing due to race conditions
+      setTimeout(() => {
+        queryClient.invalidateQueries({
+          queryKey: studioKeys.podcastJobs(notebookId),
+        });
+      }, 1000);
     },
   });
 };

@@ -27,7 +27,7 @@ export interface ActiveJob {
 const generationKeys = {
   all: ['generation'] as const,
   notebook: (notebookId: string) => [...generationKeys.all, 'notebook', notebookId] as const,
-  activeJob: (notebookId: string) => [...generationKeys.notebook(notebookId), 'active-job'] as const,
+  activeJob: (notebookId: string, type: 'report' | 'podcast') => [...generationKeys.notebook(notebookId), 'active-job', type] as const,
   jobStatus: (jobId: string, notebookId: string) => [...generationKeys.notebook(notebookId), 'job-status', jobId] as const,
 };
 
@@ -41,7 +41,7 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
 
   // Query for active job (replaces localStorage jobStorage)
   const activeJobQuery = useQuery({
-    queryKey: generationKeys.activeJob(notebookId),
+    queryKey: generationKeys.activeJob(notebookId, type),
     queryFn: async (): Promise<ActiveJob | null> => {
       // Check for running jobs from server instead of localStorage
       const jobs = type === 'report'
@@ -103,7 +103,7 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
           if (jobData) {
             // Update active job cache directly
             queryClient.setQueryData(
-              generationKeys.activeJob(notebookId),
+              generationKeys.activeJob(notebookId, type),
               (old: ActiveJob | null) => {
                 if (!old || old.jobId !== jobId) return old;
 
@@ -140,12 +140,23 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
   // Start job completion handler
   const handleJobComplete = useCallback((jobData: any) => {
     // Clear active job
-    queryClient.setQueryData(generationKeys.activeJob(notebookId), null);
+    queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
 
-    // Invalidate job lists to show completed job
-    queryClient.invalidateQueries({
-      queryKey: type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId),
-    });
+    // Check if job list still contains this job (it might have been deleted)
+    const currentData = queryClient.getQueryData(
+      type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId)
+    ) as any;
+
+    const jobExists = currentData?.jobs?.some((job: any) =>
+      (job.id === jobData.jobId || job.job_id === jobData.jobId) && job.status !== 'deleted'
+    );
+
+    // Only invalidate if the job wasn't deleted
+    if (jobExists !== false) {
+      queryClient.invalidateQueries({
+        queryKey: type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId),
+      });
+    }
 
     // Stop SSE
     if (sseControllerRef.current) {
@@ -160,7 +171,7 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
   const handleJobError = useCallback((error: string) => {
     // Update active job with error
     queryClient.setQueryData(
-      generationKeys.activeJob(notebookId),
+      generationKeys.activeJob(notebookId, type),
       (old: ActiveJob | null) => old ? { ...old, status: 'failed' as const, progress: error } : null
     );
 
@@ -203,7 +214,7 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
         startTime: new Date().toISOString(),
       };
 
-      queryClient.setQueryData(generationKeys.activeJob(notebookId), newJob);
+      queryClient.setQueryData(generationKeys.activeJob(notebookId, type), newJob);
 
       // Start SSE connection
       connectSSE(response.job_id);
@@ -227,7 +238,7 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
     },
     onSuccess: () => {
       // Clear active job
-      queryClient.setQueryData(generationKeys.activeJob(notebookId), null);
+      queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
 
       // Stop SSE
       if (sseControllerRef.current) {
