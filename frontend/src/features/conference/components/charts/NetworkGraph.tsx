@@ -77,7 +77,7 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
       nodeLabel="id"
       nodeAutoColorBy="group"
       linkDirectionalParticles={d => normalizeParticleCount(d.value || 0)}
-      linkDirectionalParticleSpeed={0.4}
+      linkDirectionalParticleSpeed={0.004}
       nodeRelSize={0}
       linkWidth={2}
       linkDirectionalParticleWidth={4}
