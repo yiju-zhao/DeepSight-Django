@@ -145,14 +145,14 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
           padding={0.3}
           valueScale={{ type: 'linear' }}
           indexScale={{ type: 'band', round: true }}
-          colors={{ scheme: 'category10' }}
+          colors={{ scheme: 'nivo' }}
           borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
           axisTop={null}
           axisRight={null}
           axisBottom={{
             tickSize: 5,
             tickPadding: 5,
-            tickRotation: -45,
+            tickRotation: -30,
             legend: '',
             legendPosition: 'middle',
             legendOffset: 100
@@ -173,11 +173,11 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
             {
               dataFrom: 'keys',
               anchor: 'bottom-right',
-              direction: 'column',
+              direction: 'row',
               justify: false,
-              translateX: 120,
-              translateY: 0,
-              itemsSpacing: 2,
+              translateX: 22,
+              translateY: -30,
+              itemsSpacing: 3,
               itemWidth: 100,
               itemHeight: 20,
               itemDirection: 'left-to-right',

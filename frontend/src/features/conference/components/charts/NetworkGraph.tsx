@@ -31,7 +31,7 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
 
     // Normalize to 0-100 range
     const normalized = (value - minValue) / valueRange;
-    const scaledCount = Math.round(normalized * 100);
+    const scaledCount = Math.round(normalized * 80);
 
     return Math.max(1, scaledCount); // Ensure minimum 1 particle for visibility
   };
@@ -77,7 +77,7 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
       nodeLabel="id"
       nodeAutoColorBy="group"
       linkDirectionalParticles={d => normalizeParticleCount(d.value || 0)}
-      linkDirectionalParticleSpeed={0.0008}
+      linkDirectionalParticleSpeed={0.001}
       nodeRelSize={0}
       linkWidth={2}
       linkDirectionalParticleWidth={4}
