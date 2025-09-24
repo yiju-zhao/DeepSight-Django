@@ -19,16 +19,21 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
   const sortedNodes = [...(data?.nodes || [])].sort((a, b) => (b.val || 0) - (a.val || 0));
   const top5NodeIds = new Set(sortedNodes.slice(0, 5).map(n => n.id));
 
-  // Calculate min/max values for particle speed normalization
+  // Calculate min/max values for particle count normalization
   const linkValues = data?.links?.map(link => link.value || 0) || [];
   const minValue = Math.min(...linkValues);
   const maxValue = Math.max(...linkValues);
   const valueRange = maxValue - minValue;
 
-  // Normalize particle speed to (0,1) range
-  const normalizeParticleSpeed = (value: number) => {
-    if (valueRange === 0) return 0.5; // Default middle speed if all values are the same
-    return (value - minValue) / valueRange;
+  // Scale particle count to preserve real ratios with reasonable visual limits
+  const scaleParticleCount = (value: number) => {
+    if (maxValue === 0) return 1; // Handle edge case
+
+    // Direct proportional scaling with a reasonable maximum
+    const maxParticles = Math.min(12, Math.max(6, maxValue)); // Dynamic max based on data
+    const scaledCount = Math.round((value / maxValue) * maxParticles);
+
+    return Math.max(1, scaledCount); // Ensure minimum 1 particle
   };
 
   // Calculate color based on whether node is in top 5 and theme
@@ -71,8 +76,8 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
       height={height}
       nodeLabel="id"
       nodeAutoColorBy="group"
-      linkDirectionalParticles="value"
-      linkDirectionalParticleSpeed={d => normalizeParticleSpeed(d.value || 0)}
+      linkDirectionalParticles={d => scaleParticleCount(d.value || 0)}
+      linkDirectionalParticleSpeed={0.4}
       nodeRelSize={0}
       linkWidth={2}
       linkDirectionalParticleWidth={4}
