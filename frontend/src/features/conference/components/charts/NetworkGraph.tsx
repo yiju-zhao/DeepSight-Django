@@ -16,6 +16,44 @@ interface NetworkGraphProps {
 const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingMessage, themeColor = 'orange' }: NetworkGraphProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // Get top 5 nodes by publication count
+  const sortedNodes = [...(data?.nodes || [])].sort((a, b) => (b.val || 0) - (a.val || 0));
+  const top5NodeIds = new Set(sortedNodes.slice(0, 5).map(n => n.id));
+
+  // Calculate min/max values for normalization
+  const linkValues = data?.links?.map(link => link.value || 0) || [];
+  const minValue = Math.min(...linkValues);
+  const maxValue = Math.max(...linkValues);
+  const valueRange = maxValue - minValue;
+
+  // Use normalized value (0-500 range) then square root for both speed and particle count
+  const calculateParticleMetrics = (value: number) => {
+    if (!value || value <= 0) return { particles: 1, speed: 0.0005 };
+
+    // First normalize to 0-500 range
+    const normalizedValue = valueRange === 0 ? 250 : ((value - minValue) / valueRange) * 500;
+
+    // Then apply square root
+    const sqrtValue = Math.sqrt(normalizedValue);
+
+    return {
+      particles: Math.max(1, Math.round(sqrtValue)), // Round to integer, minimum 1
+      speed: Math.max(0.0005, sqrtValue * 0.0002) // Scale speed, minimum for visibility
+    };
+  };
+
+  // Calculate color based on whether node is in top 5 and theme
+  const getNodeColor = (nodeId: string, isTop5: boolean, theme: 'orange' | 'purple') => {
+    if (theme === 'orange') {
+      return isTop5
+        ? 'hsl(25, 85%, 30%)' // Dark orange for top 5
+        : 'hsl(25, 85%, 75%)'; // Light orange for rest
+    } else {
+      return isTop5
+        ? 'hsl(260, 85%, 30%)' // Dark purple for top 5
+        : 'hsl(260, 85%, 75%)'; // Light purple for rest
+    }
+  };
 
   if (isLoading) {
     return (
@@ -42,15 +80,28 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
       graphData={data}
       width={width}
       height={height}
-      nodeLabel={(node: any) => `<div><b>${node.entity || node.id}</b></div>`}
-      nodeAutoColorBy="entity"
+      nodeLabel={(node: any) => `<div><b>${node.id}</b>${node.description ? `: ${node.description}` : ''}</div>`}
+      nodeAutoColorBy={(node: any) => {
+        const isTop5 = top5NodeIds.has(node.id);
+        return getNodeColor(node.id, isTop5, themeColor);
+      }}
+      linkDirectionalParticles={(d: any) => calculateParticleMetrics(d.value || 0).particles}
+      linkDirectionalParticleSpeed={(d: any) => calculateParticleMetrics(d.value || 0).speed}
+      linkWidth={2}
+      linkDirectionalParticleWidth={4}
+      backgroundColor="#ffffff"
+      cooldownTicks={100}
+      onEngineStop={() => {}}
       nodeThreeObjectExtend={true}
       nodeThreeObject={(node: any) => {
-        const sprite = new SpriteText(node.entity || node.id);
-        sprite.color = node.color;
+        const sprite = new SpriteText(node.id);
+        const isTop5 = top5NodeIds.has(node.id);
+        sprite.color = getNodeColor(node.id, isTop5, themeColor);
         sprite.textHeight = fontSize * 0.6;
         return sprite;
       }}
+      d3AlphaDecay={0.02}
+      d3VelocityDecay={0.08}
     />
   );
 

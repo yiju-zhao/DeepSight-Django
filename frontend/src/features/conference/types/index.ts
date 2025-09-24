@@ -87,14 +87,8 @@ export interface RatingHistogramItem {
 
 
 export interface ForceGraphData {
-  nodes: Array<{
-    id: string;
-    entity: string; // Country name or organization name
-  }>;
-  links: Array<{
-    source: string;
-    target: string; // Each link represents one co-publication between two entities
-  }>;
+  nodes: Array<{ id: string; val: number; group: number }>;
+  links: Array<{ source: string; target: string; value: number }>;
 }
 
 export interface FineHistogramBin {
