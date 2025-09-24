@@ -109,6 +109,11 @@ export interface OrganizationPublicationData {
   research_areas: { [area: string]: number };
 }
 
+export interface OrganizationPublicationByResearchAreaData {
+  organization: string;
+  [researchArea: string]: string | number; // Dynamic research area fields
+}
+
 export interface ChartData {
   topics: ChartDataItem[];
   top_affiliations: ChartDataItem[];
@@ -125,6 +130,7 @@ export interface ChartData {
   ratings_histogram_fine: FineHistogramBin[];
   keywords_treemap: TreemapData[];
   organization_publications: OrganizationPublicationData[];
+  organization_publications_by_research_area: OrganizationPublicationByResearchAreaData[];
 }
 
 export interface PaginationInfo {

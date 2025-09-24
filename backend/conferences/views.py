@@ -146,6 +146,7 @@ class OverviewViewSet(viewsets.ViewSet):
         # New data structures for visualizations
         countries_per_publication = []
         affiliations_per_publication = []
+        publications_with_affiliations_and_topics = []  # Store full publication data
 
         resource_counts = {'with_github': 0, 'with_site': 0, 'with_pdf': 0}
 
@@ -170,8 +171,18 @@ class OverviewViewSet(viewsets.ViewSet):
                 all_affiliations.extend(affiliations)
                 # Store unique affiliations per publication for collaboration analysis
                 affiliations_per_publication.append(list(set(affiliations)))
+
+                # Store publication with affiliations and research topic for stacked chart
+                publications_with_affiliations_and_topics.append({
+                    'affiliations': list(set(affiliations)),
+                    'research_topic': pub.research_topic
+                })
             else:
                 affiliations_per_publication.append([])
+                publications_with_affiliations_and_topics.append({
+                    'affiliations': [],
+                    'research_topic': pub.research_topic
+                })
 
             # Keywords (semicolon-separated)
             if pub.keywords:
@@ -238,6 +249,7 @@ class OverviewViewSet(viewsets.ViewSet):
             'raw_data': {
                 'countries_per_publication': countries_per_publication,
                 'affiliations_per_publication': affiliations_per_publication,
+                'publications_with_affiliations_and_topics': publications_with_affiliations_and_topics,
                 'all_ratings': all_ratings,  # Keep original float ratings for fine histogram
             }
         }
@@ -269,6 +281,92 @@ class OverviewViewSet(viewsets.ViewSet):
         # Sort by total publications descending and take top 15
         result.sort(key=lambda x: x['total'], reverse=True)
         return result[:15]
+
+    def _build_organization_publications_by_research_area(self, raw_data):
+        """Build organization publications data grouped by research areas (stacked bar chart format)"""
+        publications_data = raw_data.get('publications_with_affiliations_and_topics', [])
+
+        # Count publications by organization and research area
+        org_research_counts = {}
+
+        for pub_data in publications_data:
+            affiliations = pub_data.get('affiliations', [])
+            research_topic = pub_data.get('research_topic', '')
+
+            # Extract research area (part after ->)
+            research_area = research_topic.split('->')[-1].strip() if research_topic and '->' in research_topic else research_topic
+
+            if not research_area:
+                research_area = 'Unknown'
+
+            # Count for each organization
+            for org in affiliations:
+                org = org.strip()
+                if not org:
+                    continue
+
+                if org not in org_research_counts:
+                    org_research_counts[org] = {}
+
+                if research_area not in org_research_counts[org]:
+                    org_research_counts[org][research_area] = 0
+
+                org_research_counts[org][research_area] += 1
+
+        # Get top 15 organizations by total publications
+        org_totals = {}
+        for org, research_areas in org_research_counts.items():
+            org_totals[org] = sum(research_areas.values())
+
+        top_orgs = sorted(org_totals.items(), key=lambda x: x[1], reverse=True)[:15]
+        top_org_names = [org for org, _ in top_orgs]
+
+        # Get all research areas and find top 5
+        all_research_areas = set()
+        for org in top_org_names:
+            if org in org_research_counts:
+                all_research_areas.update(org_research_counts[org].keys())
+
+        # Count total publications per research area to find top 5
+        research_area_totals = {}
+        for research_area in all_research_areas:
+            total = 0
+            for org in top_org_names:
+                if org in org_research_counts and research_area in org_research_counts[org]:
+                    total += org_research_counts[org][research_area]
+            research_area_totals[research_area] = total
+
+        # Get top 5 research areas
+        top_research_areas = sorted(research_area_totals.items(), key=lambda x: x[1], reverse=True)[:5]
+        top_research_area_names = [area for area, _ in top_research_areas]
+
+        # Build result in the requested format
+        result = []
+        for org in top_org_names:
+            org_data = {'organization': org}
+
+            if org in org_research_counts:
+                # Add top 5 research areas
+                for research_area in top_research_area_names:
+                    count = org_research_counts[org].get(research_area, 0)
+                    org_data[research_area] = count
+
+                # Calculate "Others" count
+                others_count = 0
+                for research_area, count in org_research_counts[org].items():
+                    if research_area not in top_research_area_names:
+                        others_count += count
+
+                if others_count > 0:
+                    org_data['Others'] = others_count
+            else:
+                # No publications for this org (shouldn't happen since we filtered)
+                for research_area in top_research_area_names:
+                    org_data[research_area] = 0
+
+            result.append(org_data)
+
+        return result
 
     def _convert_to_force_graph(self, chord_data):
         """Convert chord diagram data to force graph format (nodes and links)"""
@@ -442,6 +540,9 @@ class OverviewViewSet(viewsets.ViewSet):
         # Build organization publications data using exact same logic as collaboration chart
         organization_publications = self._build_organization_publications(raw_data)
 
+        # Build organization publications data grouped by research areas
+        organization_publications_by_research_area = self._build_organization_publications_by_research_area(raw_data)
+
         return {
             'topics': [{'name': k, 'count': v} for k, v in counters['topics'].most_common(10)],
             'top_affiliations': [{'name': k, 'count': v} for k, v in counters['affiliations'].most_common(10)],
@@ -458,6 +559,7 @@ class OverviewViewSet(viewsets.ViewSet):
             'ratings_histogram_fine': ratings_histogram_fine,
             'keywords_treemap': keywords_treemap,
             'organization_publications': organization_publications,
+            'organization_publications_by_research_area': organization_publications_by_research_area,
         }
 
     @method_decorator(cache_page(60 * 15))  # Cache for 15 minutes

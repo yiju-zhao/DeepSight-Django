@@ -67,6 +67,7 @@ const DashboardChartsComponent = ({
         <ChartCard title="Organization Publications (Top 15)" height="h-[500px]">
           <OrganizationPublicationsChart
             data={data.organization_publications || []}
+            stackedData={data.organization_publications_by_research_area || []}
             isLoading={isLoading}
           />
         </ChartCard>
