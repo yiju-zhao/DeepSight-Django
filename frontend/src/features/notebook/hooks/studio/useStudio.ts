@@ -4,6 +4,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
 import studioService from '@/features/notebook/services/StudioService';
 
 // Query keys factory
@@ -255,6 +256,38 @@ export const useNotebookPodcastJobs = (notebookId: string) => {
     jobs: queryResult.data?.jobs || [],
     completedJobs: queryResult.data?.completedJobs || [],
   };
+};
+
+// ─── COMPLETION HANDLERS ────────────────────────────────────────────────────
+
+export const useReportJobComplete = (notebookId: string) => {
+  const queryClient = useQueryClient();
+
+  return useCallback(() => {
+    // Force invalidate and refetch to ensure immediate UI update
+    queryClient.invalidateQueries({
+      queryKey: studioKeys.reportJobs(notebookId),
+    });
+    // Also force an immediate refetch to bypass stale time
+    queryClient.refetchQueries({
+      queryKey: studioKeys.reportJobs(notebookId),
+    });
+  }, [queryClient, notebookId]);
+};
+
+export const usePodcastJobComplete = (notebookId: string) => {
+  const queryClient = useQueryClient();
+
+  return useCallback(() => {
+    // Force invalidate and refetch to ensure immediate UI update
+    queryClient.invalidateQueries({
+      queryKey: studioKeys.podcastJobs(notebookId),
+    });
+    // Also force an immediate refetch to bypass stale time
+    queryClient.refetchQueries({
+      queryKey: studioKeys.podcastJobs(notebookId),
+    });
+  }, [queryClient, notebookId]);
 };
 
 // Export query keys for external use

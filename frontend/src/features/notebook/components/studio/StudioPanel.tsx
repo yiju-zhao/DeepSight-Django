@@ -16,7 +16,7 @@ import studioService from "@/features/notebook/services/StudioService";
 import { config } from "@/config";
 import { PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
 import { useGenerationState, useJobStatus } from "@/features/notebook/hooks";
-import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels, useDeleteReport, useDeletePodcast } from "@/features/notebook/hooks/studio/useStudio";
+import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels, useDeleteReport, useDeletePodcast, useReportJobComplete, usePodcastJobComplete } from "@/features/notebook/hooks/studio/useStudio";
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused UI components
@@ -74,6 +74,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const deleteReportMutation = useDeleteReport(notebookId);
   const deletePodcastMutation = useDeletePodcast(notebookId);
 
+  // ====== COMPLETION: Use optimized completion handlers ======
+  const handleReportJobComplete = useReportJobComplete(notebookId);
+  const handlePodcastJobComplete = usePodcastJobComplete(notebookId);
+
   // ====== SINGLE RESPONSIBILITY: Report generation state ======
   const reportGeneration: GenerationStateHook = useGenerationState({
     topic: '',
@@ -103,7 +107,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   // ====== SINGLE RESPONSIBILITY: Report generation completion ======
   const handleReportComplete = useCallback(() => {
     reportGeneration.completeGeneration();
-    reportJobs.refetch(); // Refresh the entire list to get updated titles
+    handleReportJobComplete(); // Use optimized cache invalidation
     if (reportGeneration.currentJobId) {
       jobStorage.clearJob(reportGeneration.currentJobId);
     }
@@ -111,16 +115,16 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       title: "Report Generated",
       description: "Your research report has been generated successfully."
     });
-  }, [reportGeneration, reportJobs, toast]);
+  }, [reportGeneration, handleReportJobComplete, toast]);
 
   // ====== SINGLE RESPONSIBILITY: Podcast generation completion ======
   const handlePodcastComplete = useCallback(async (result: PodcastItem) => {
     podcastGeneration.completeGeneration();
-    
+
     // Fetch complete podcast data from server to ensure we have audio URL
     try {
       const completeResult = { ...result };
-      
+
       // If the result doesn't have an audio_url, try to fetch complete data
       if (!result.audio_url && result.job_id) {
         try {
@@ -131,22 +135,22 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
           // Still add the result we have, the PodcastAudioPlayer will handle retries
         }
       }
-      
-      podcastJobs.refetch(); // Refresh to get the complete podcast data
+
+      handlePodcastJobComplete(); // Use optimized cache invalidation
     } catch (error) {
       console.error('Error in handlePodcastComplete:', error);
-      // Fallback to refreshing the data
-      podcastJobs.refetch();
+      // Fallback to optimized cache invalidation
+      handlePodcastJobComplete();
     }
-    
+
     if (podcastGeneration.currentJobId) {
       jobStorage.clearJob(podcastGeneration.currentJobId);
     }
     toast({
-      title: "Podcast Generated", 
+      title: "Podcast Generated",
       description: "Your panel discussion has been generated successfully."
     });
-  }, [podcastGeneration, podcastJobs, studioService, notebookId, toast]);
+  }, [podcastGeneration, handlePodcastJobComplete, studioService, notebookId, toast]);
 
   // ====== SINGLE RESPONSIBILITY: Job status monitoring ======
   const handleReportError = useCallback((error: string) => {
