@@ -25,15 +25,15 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
   const maxValue = Math.max(...linkValues);
   const valueRange = maxValue - minValue;
 
-  // Scale particle count to preserve real ratios with reasonable visual limits
-  const scaleParticleCount = (value: number) => {
-    if (maxValue === 0) return 1; // Handle edge case
+  // Normalize particle count to 0-100 scale
+  const normalizeParticleCount = (value: number) => {
+    if (valueRange === 0) return 50; // Default middle value if all values are the same
 
-    // Direct proportional scaling with a reasonable maximum
-    const maxParticles = Math.min(12, Math.max(6, maxValue)); // Dynamic max based on data
-    const scaledCount = Math.round((value / maxValue) * maxParticles);
+    // Normalize to 0-100 range
+    const normalized = (value - minValue) / valueRange;
+    const scaledCount = Math.round(normalized * 100);
 
-    return Math.max(1, scaledCount); // Ensure minimum 1 particle
+    return Math.max(1, scaledCount); // Ensure minimum 1 particle for visibility
   };
 
   // Calculate color based on whether node is in top 5 and theme
@@ -76,7 +76,7 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
       height={height}
       nodeLabel="id"
       nodeAutoColorBy="group"
-      linkDirectionalParticles={d => scaleParticleCount(d.value || 0)}
+      linkDirectionalParticles={d => normalizeParticleCount(d.value || 0)}
       linkDirectionalParticleSpeed={0.4}
       nodeRelSize={0}
       linkWidth={2}
