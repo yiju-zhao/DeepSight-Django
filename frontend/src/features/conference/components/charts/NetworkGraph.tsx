@@ -27,13 +27,19 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
 
   // Normalize particle count to 0-100 scale
   const normalizeParticleCount = (value: number) => {
-    if (valueRange === 0) return 50; // Default middle value if all values are the same
+    if (valueRange === 0) return {
+      particles: 25, // Default middle value if all values are the same
+      speed: 0.0025
+    };
 
     // Normalize to 0-100 range
     const normalized = (value - minValue) / valueRange;
     const scaledCount = Math.round(normalized * 100);
 
-    return Math.max(1, scaledCount); // Ensure minimum 1 particle for visibility
+    return {
+      particles: Math.max(1, scaledCount * 0.5), // Ensure minimum 1 particle for visibility
+      speed: Math.max(0.0005, scaledCount * 0.00005)
+    };
   };
 
   // Calculate color based on whether node is in top 5 and theme
@@ -76,8 +82,8 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
       height={height}
       nodeLabel="id"
       nodeAutoColorBy="group"
-      linkDirectionalParticles={d => normalizeParticleCount(d.value || 0)}
-      linkDirectionalParticleSpeed={0.0008}
+      linkDirectionalParticles={d => normalizeParticleCount(d.value || 0).particles}
+      linkDirectionalParticleSpeed={d => normalizeParticleCount(d.value || 0).speed}
       nodeRelSize={0}
       linkWidth={2}
       linkDirectionalParticleWidth={4}
