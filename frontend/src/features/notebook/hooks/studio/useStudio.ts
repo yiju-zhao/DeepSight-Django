@@ -148,12 +148,8 @@ export const useDeleteReport = (notebookId: string) => {
         queryClient.setQueryData(studioKeys.reportJobs(notebookId), context.previousReports);
       }
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure we have the latest data
-      queryClient.invalidateQueries({
-        queryKey: studioKeys.reportJobs(notebookId),
-      });
-    },
+    // Remove onSettled to prevent immediate refetch that causes items to reappear
+    // The optimistic update will persist, and natural cache invalidation will sync later
   });
 };
 
@@ -187,12 +183,8 @@ export const useDeletePodcast = (notebookId: string) => {
         queryClient.setQueryData(studioKeys.podcastJobs(notebookId), context.previousPodcasts);
       }
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure we have the latest data
-      queryClient.invalidateQueries({
-        queryKey: studioKeys.podcastJobs(notebookId),
-      });
-    },
+    // Remove onSettled to prevent immediate refetch that causes items to reappear
+    // The optimistic update will persist, and natural cache invalidation will sync later
   });
 };
 
