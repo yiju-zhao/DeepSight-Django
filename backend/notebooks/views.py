@@ -481,6 +481,12 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
         return ChatSession.objects.filter(notebook=notebook).order_by("-last_activity")
 
+    def perform_create(self, serializer):
+        """Associate the chat session with the notebook from URL."""
+        notebook_id = self.kwargs.get("notebook_pk")
+        notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
+        serializer.save(notebook=notebook)
+
     @action(detail=True, methods=["post"], url_path="messages")
     def send_message(self, request, notebook_pk=None, pk=None):
         session = self.get_object()
