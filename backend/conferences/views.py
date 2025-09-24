@@ -338,7 +338,7 @@ class OverviewViewSet(viewsets.ViewSet):
             if org in org_research_counts:
                 all_research_areas.update(org_research_counts[org].keys())
 
-        # Count total publications per research area to find top 10
+        # Count total publications per research area to find top 9
         research_area_totals = {}
         for research_area in all_research_areas:
             total = 0
@@ -347,8 +347,8 @@ class OverviewViewSet(viewsets.ViewSet):
                     total += org_research_counts[org][research_area]
             research_area_totals[research_area] = total
 
-        # Get top 10 research areas
-        top_research_areas = sorted(research_area_totals.items(), key=lambda x: x[1], reverse=True)[:10]
+        # Get top 9 research areas
+        top_research_areas = sorted(research_area_totals.items(), key=lambda x: x[1], reverse=True)[:9]
         top_research_area_names = [area for area, _ in top_research_areas]
 
         # Build result in the requested format
@@ -356,17 +356,17 @@ class OverviewViewSet(viewsets.ViewSet):
         for org in top_org_names:
             org_data = {'organization': org}
 
-            # Add top 10 research areas
-            top_10_total = 0
+            # Add top 9 research areas
+            top_9_total = 0
             for research_area in top_research_area_names:
                 count = org_research_counts.get(org, {}).get(research_area, 0)
                 org_data[research_area] = count
-                top_10_total += count
+                top_9_total += count
 
-            # Calculate "Others" as: total_publications - top_10_total
+            # Calculate "Others" as: total_publications - top_9_total
             # This includes unknown/none areas + remaining research areas
             total_pubs = org_total_pubs.get(org, 0)
-            others_count = total_pubs - top_10_total
+            others_count = total_pubs - top_9_total
 
             if others_count > 0:
                 org_data['Others'] = others_count
