@@ -411,34 +411,49 @@ class OverviewViewSet(viewsets.ViewSet):
         """Build force graph data for countries directly from publication data"""
         countries_per_publication = raw_data.get('countries_per_publication', [])
 
-        # Collect all unique countries
-        all_countries = set()
-        # Create individual links for each co-publication
-        links = []
+        # Count total publications per country
+        country_totals = Counter()
+        # Count collaborations between countries
+        country_collaborations = Counter()
 
         for countries in countries_per_publication:
             # Remove empty strings and strip whitespace
             clean_countries = [country.strip() for country in countries if country.strip()]
-            # Add countries to the set
-            all_countries.update(clean_countries)
 
-            # Create individual links for each pair in this publication
+            # Count total publications per country
+            for country in clean_countries:
+                country_totals[country] += 1
+
+            # Count collaborations (pairs of countries in same publication)
             if len(clean_countries) > 1:
                 for i, country1 in enumerate(clean_countries):
                     for j, country2 in enumerate(clean_countries):
                         if i < j:  # Avoid duplicates
-                            links.append({
-                                'source': country1,
-                                'target': country2
-                            })
+                            # Use sorted tuple for consistent ordering
+                            pair = tuple(sorted([country1, country2]))
+                            country_collaborations[pair] += 1
+
+        # Get all countries (not limited to top 8)
+        all_countries = list(country_totals.keys())
 
         # Create nodes for all countries
         nodes = []
         for country in all_countries:
             nodes.append({
                 'id': country,
-                'entity': country  # Country name as entity
+                'val': country_totals[country],  # Node size based on total publications
+                'group': 1
             })
+
+        # Create links between all countries
+        links = []
+        for (country1, country2), collab_count in country_collaborations.items():
+            if country1 in all_countries and country2 in all_countries:
+                links.append({
+                    'source': country1,
+                    'target': country2,
+                    'value': collab_count  # Particle speed based on collaboration count
+                })
 
         return {'nodes': nodes, 'links': links}
 
@@ -448,8 +463,8 @@ class OverviewViewSet(viewsets.ViewSet):
 
         # Count total publications per organization
         org_totals = Counter()
-        # Create individual links for each co-publication
-        all_links = []
+        # Count collaborations between organizations
+        org_collaborations = Counter()
 
         for affiliations in affiliations_per_publication:
             # Remove empty strings and strip whitespace
@@ -459,32 +474,36 @@ class OverviewViewSet(viewsets.ViewSet):
             for org in clean_affiliations:
                 org_totals[org] += 1
 
-            # Create individual links for each pair in this publication
+            # Count collaborations (pairs of organizations in same publication)
             if len(clean_affiliations) > 1:
                 for i, org1 in enumerate(clean_affiliations):
                     for j, org2 in enumerate(clean_affiliations):
                         if i < j:  # Avoid duplicates
-                            all_links.append({
-                                'source': org1,
-                                'target': org2
-                            })
+                            # Use sorted tuple for consistent ordering
+                            pair = tuple(sorted([org1, org2]))
+                            org_collaborations[pair] += 1
 
         # Get top 15 organizations by publication count for cleaner visualization
-        top_orgs = set([org for org, count in org_totals.most_common(15)])
+        top_orgs = [org for org, count in org_totals.most_common(15)]
 
         # Create nodes for top 15 organizations
         nodes = []
         for org in top_orgs:
             nodes.append({
                 'id': org,
-                'entity': org  # Organization name as entity
+                'val': org_totals[org],  # Node size based on total publications
+                'group': 1
             })
 
-        # Filter links to only include top 15 organizations
+        # Create links between top 15 organizations only
         links = []
-        for link in all_links:
-            if link['source'] in top_orgs and link['target'] in top_orgs:
-                links.append(link)
+        for (org1, org2), collab_count in org_collaborations.items():
+            if org1 in top_orgs and org2 in top_orgs:
+                links.append({
+                    'source': org1,
+                    'target': org2,
+                    'value': collab_count  # Particle speed based on collaboration count
+                })
 
         return {'nodes': nodes, 'links': links}
 

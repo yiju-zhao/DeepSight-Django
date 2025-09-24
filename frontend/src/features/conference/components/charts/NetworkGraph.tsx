@@ -10,9 +10,10 @@ interface NetworkGraphProps {
   title: string;
   noDataMessage: string;
   loadingMessage: string;
+  themeColor?: 'orange' | 'purple';
 }
 
-const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingMessage }: NetworkGraphProps) => {
+const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingMessage, themeColor = 'orange' }: NetworkGraphProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
 
