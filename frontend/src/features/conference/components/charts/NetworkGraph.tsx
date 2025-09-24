@@ -19,11 +19,21 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
   const sortedNodes = [...(data?.nodes || [])].sort((a, b) => (b.val || 0) - (a.val || 0));
   const top5NodeIds = new Set(sortedNodes.slice(0, 5).map(n => n.id));
 
-  // Use square root of the value for both speed and particle count
+  // Calculate min/max values for normalization
+  const linkValues = data?.links?.map(link => link.value || 0) || [];
+  const minValue = Math.min(...linkValues);
+  const maxValue = Math.max(...linkValues);
+  const valueRange = maxValue - minValue;
+
+  // Use normalized value (0-500 range) then square root for both speed and particle count
   const calculateParticleMetrics = (value: number) => {
     if (!value || value <= 0) return { particles: 1, speed: 0.0005 };
 
-    const sqrtValue = Math.sqrt(value);
+    // First normalize to 0-500 range
+    const normalizedValue = valueRange === 0 ? 250 : ((value - minValue) / valueRange) * 500;
+
+    // Then apply square root
+    const sqrtValue = Math.sqrt(normalizedValue);
 
     return {
       particles: Math.max(1, Math.round(sqrtValue)), // Round to integer, minimum 1
