@@ -8,15 +8,14 @@ import { useToast } from "@/shared/components/ui/use-toast";
 
 // ====== DEPENDENCY INVERSION PRINCIPLE (DIP) ======
 // Import service abstractions, not concrete implementations
-import { jobStorage } from "@/features/notebook/utils/jobStorage";
 import studioService from "@/features/notebook/services/StudioService";
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused custom hooks for specific concerns
 import { config } from "@/config";
 import { PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
-import { useGenerationState, useJobStatus } from "@/features/notebook/hooks";
-import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels, useDeleteReport, useDeletePodcast, useReportJobComplete, usePodcastJobComplete } from "@/features/notebook/hooks/studio/useStudio";
+import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels, useDeleteReport, useDeletePodcast } from "@/features/notebook/hooks/studio/useStudio";
+import { useGenerationManager } from "@/features/notebook/hooks/studio/useGenerationManager";
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused UI components
@@ -27,13 +26,13 @@ import FileViewer from './FileViewer';
 
 // ====== INTERFACE SEGREGATION PRINCIPLE (ISP) ======
 // Import type definitions and prop creators
-import { 
+import {
   StudioPanelProps,
   FileItem,
   SourceItem,
   ReportItem,
   PodcastItem,
-  GenerationStateHook
+  GenerationState
 } from './types';
 
 // ====== DEPENDENCY INVERSION PRINCIPLE (DIP) ======
@@ -74,170 +73,56 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const deleteReportMutation = useDeleteReport(notebookId);
   const deletePodcastMutation = useDeletePodcast(notebookId);
 
-  // ====== COMPLETION: Use optimized completion handlers ======
-  const handleReportJobComplete = useReportJobComplete(notebookId);
-  const handlePodcastJobComplete = usePodcastJobComplete(notebookId);
+  // ====== SINGLE RESPONSIBILITY: Report generation management ======
+  const reportGeneration = useGenerationManager(notebookId, 'report');
 
-  // ====== SINGLE RESPONSIBILITY: Report generation state ======
-  const reportGeneration: GenerationStateHook = useGenerationState({
-    topic: '',
-    article_title: '',
-    model_provider: 'openai',
-    retriever: 'searxng',
-    prompt_type: 'general',
-    include_image: false,
-    include_domains: false,
-    time_range: 'ALL',
-    model: 'gpt-4'
-  });
+  // ====== SINGLE RESPONSIBILITY: Podcast generation management ======
+  const podcastGeneration = useGenerationManager(notebookId, 'podcast');
 
-  // ====== SINGLE RESPONSIBILITY: Podcast generation state ======
-  const podcastGeneration: GenerationStateHook = useGenerationState({
-    title: '',
-    description: '',
-    topic: '',
-    expert_names: {
-      host: '杨飞飞',
-      expert1: '奥立昆',
-      expert2: '李特曼'
-    },
-    model: 'gpt-4'
-  });
-
-  // ====== SINGLE RESPONSIBILITY: Report generation completion ======
-  const handleReportComplete = useCallback(() => {
-    reportGeneration.completeGeneration();
-    handleReportJobComplete(); // Use optimized cache invalidation
-    if (reportGeneration.currentJobId) {
-      jobStorage.clearJob(reportGeneration.currentJobId);
-    }
-    toast({
-      title: "Report Generated",
-      description: "Your research report has been generated successfully."
-    });
-  }, [reportGeneration, handleReportJobComplete, toast]);
-
-  // ====== SINGLE RESPONSIBILITY: Podcast generation completion ======
-  const handlePodcastComplete = useCallback(async (result: PodcastItem) => {
-    podcastGeneration.completeGeneration();
-
-    // Fetch complete podcast data from server to ensure we have audio URL
-    try {
-      const completeResult = { ...result };
-
-      // If the result doesn't have an audio_url, try to fetch complete data
-      if (!result.audio_url && result.job_id) {
-        try {
-          const freshPodcast = await studioService.getPodcastJobStatus(result.job_id, notebookId);
-          Object.assign(completeResult, freshPodcast);
-        } catch (error) {
-          console.error('Failed to fetch complete podcast data:', error);
-          // Still add the result we have, the PodcastAudioPlayer will handle retries
-        }
-      }
-
-      handlePodcastJobComplete(); // Use optimized cache invalidation
-    } catch (error) {
-      console.error('Error in handlePodcastComplete:', error);
-      // Fallback to optimized cache invalidation
-      handlePodcastJobComplete();
-    }
-
-    if (podcastGeneration.currentJobId) {
-      jobStorage.clearJob(podcastGeneration.currentJobId);
-    }
-    toast({
-      title: "Podcast Generated",
-      description: "Your panel discussion has been generated successfully."
-    });
-  }, [podcastGeneration, handlePodcastJobComplete, studioService, notebookId, toast]);
-
-  // ====== SINGLE RESPONSIBILITY: Job status monitoring ======
-  const handleReportError = useCallback((error: string) => {
-    if (error === 'Job was cancelled') {
-      reportGeneration.cancelGeneration();
-    } else {
-      reportGeneration.failGeneration(error);
-    }
-  }, [reportGeneration]);
-
-  const handlePodcastError = useCallback((error: string) => {
-    if (error === 'Job was cancelled') {
-      podcastGeneration.cancelGeneration();
-    } else {
-      podcastGeneration.failGeneration(error);
-    }
-  }, [podcastGeneration]);
-
-  // Only use job status hooks when there's an active job ID
-  const reportJobStatus = useJobStatus(
-    reportGeneration.currentJobId,
-    handleReportComplete,
-    handleReportError,
-    notebookId,
-    'report'
-  );
-
-  const podcastJobStatus = useJobStatus(
-    podcastGeneration.currentJobId,
-    handlePodcastComplete,
-    handlePodcastError,
-    notebookId,
-    'podcast'
-  );
-
-  // ====== SINGLE RESPONSIBILITY: Job recovery on page load ======
+  // Initialize default configs
   useEffect(() => {
-    const recoverRunningJobs = () => {
-      try {
-        // Use TanStack Query data instead of manual API calls
-        const reports = reportJobs.data?.jobs || [];
-        const podcasts = podcastJobs.data?.jobs || [];
-        
-        // Find running report jobs
-        const runningReport = reports.find((report: any) => 
-          report.status === 'running' || report.status === 'pending'
-        );
-        
-        // Find running podcast jobs
-        const runningPodcast = podcasts.find((podcast: any) => 
-          podcast.status === 'generating' || podcast.status === 'pending'
-        );
-        
-        // Recover report job if found
-        if (runningReport) {
-          reportGeneration.startGeneration(runningReport.job_id);
-          reportGeneration.updateProgress(runningReport.progress || 'Generating report...');
-        }
+    reportGeneration.updateConfig({
+      topic: '',
+      article_title: '',
+      model_provider: 'openai',
+      retriever: 'searxng',
+      prompt_type: 'general',
+      include_image: false,
+      include_domains: false,
+      time_range: 'ALL',
+      model: 'gpt-4'
+    });
 
-        // Recover podcast job if found
-        if (runningPodcast) {
-          podcastGeneration.startGeneration(runningPodcast.job_id);
-          podcastGeneration.updateProgress(runningPodcast.progress || 'Generating podcast...');
-        }
-      } catch (error) {
-        console.error('Error recovering running jobs:', error);
-      }
+    podcastGeneration.updateConfig({
+      title: '',
+      description: '',
+      topic: '',
+      expert_names: {
+        host: '杨飞飞',
+        expert1: '奥立昆',
+        expert2: '李特曼'
+      },
+      model: 'gpt-4'
+    });
+  }, [reportGeneration.updateConfig, podcastGeneration.updateConfig]);
+
+  // Cleanup SSE connections on unmount
+  useEffect(() => {
+    return () => {
+      reportGeneration.cleanup();
+      podcastGeneration.cleanup();
     };
-    
-    // Only recover jobs when data is loaded
-    if (notebookId && reportJobs.data && podcastJobs.data) {
-      recoverRunningJobs();
-    }
-  }, [notebookId, reportJobs.data, podcastJobs.data, reportGeneration, podcastGeneration]);
+  }, [reportGeneration.cleanup, podcastGeneration.cleanup]);
 
-  // ====== SINGLE RESPONSIBILITY: Progress sync ======
-  useEffect(() => {
-    if (reportJobStatus.progress) {
-      reportGeneration.updateProgress(reportJobStatus.progress);
-    }
-  }, [reportJobStatus.progress, reportGeneration.updateProgress]);
+  // ====== COMPLETION HANDLERS ======
+  // The new generation manager handles completion internally
+  // Auto-display logic will be handled by the generation manager's onComplete callback
 
-  useEffect(() => {
-    if (podcastJobStatus.progress) {
-      podcastGeneration.updateProgress(podcastJobStatus.progress);
-    }
-  }, [podcastJobStatus.progress, podcastGeneration.updateProgress]);
+  // ====== JOB STATUS MONITORING ======
+  // The new generation manager handles job status monitoring internally via SSE and React Query
+
+  // ====== JOB RECOVERY & PROGRESS SYNC ======
+  // The new generation manager handles job recovery and progress sync automatically via queries
 
   // ====== SINGLE RESPONSIBILITY: Source selection sync ======
   useEffect(() => {
@@ -258,149 +143,76 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const handleGenerateReport = useCallback(async (configOverrides?: Partial<any>) => {
     try {
       const config = {
-        ...reportGeneration.config,
         ...configOverrides,
-        notebook_id: notebookId,
         selected_files_paths: selectedFiles.map((f: FileItem) => f.id),
         model: configOverrides?.model || reportGeneration.config.model || 'gpt-4'
       };
 
-      const response = await studioService.generateReport(config, notebookId);
-      reportGeneration.startGeneration(response.job_id);
-      jobStorage.saveJob(response.job_id, { 
-        type: 'report', 
-        config, 
-        created_at: new Date().toISOString() 
-      });
-
+      reportGeneration.generate(config);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      reportGeneration.failGeneration(errorMessage);
       toast({
         title: "Generation Failed",
         description: errorMessage,
         variant: "destructive"
       });
     }
-  }, [reportGeneration, notebookId, selectedFiles, toast]);
+  }, [reportGeneration.generate, reportGeneration.config.model, selectedFiles, toast]);
 
   // ====== SINGLE RESPONSIBILITY: Podcast generation handler ======
   const handleGeneratePodcast = useCallback(async (configOverrides?: Partial<any>) => {
     try {
       const config = {
-        ...podcastGeneration.config,
         ...configOverrides,
-        notebook_id: notebookId,
         source_file_ids: selectedFiles.map((f: FileItem) => f.id),
         model: configOverrides?.model || podcastGeneration.config.model || 'gpt-4'
       };
 
-      // Convert config to FormData as expected by the API
-      const formData = new FormData();
-      Object.keys(config).forEach(key => {
-        if (config[key] !== undefined && config[key] !== null) {
-          if (Array.isArray(config[key])) {
-            config[key].forEach((item: any) => {
-              formData.append(key, item);
-            });
-          } else {
-            formData.append(key, config[key]);
-          }
-        }
-      });
-      
-      const response = await studioService.generatePodcast(formData, notebookId);
-      podcastGeneration.startGeneration(response.job_id);
-      podcastGeneration.updateProgress('Starting podcast generation (10%)');
-      jobStorage.saveJob(response.job_id, { 
-        type: 'podcast', 
-        config, 
-        created_at: new Date().toISOString() 
-      });
-
+      podcastGeneration.generate(config);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      podcastGeneration.failGeneration(errorMessage);
       toast({
         title: "Generation Failed",
         description: errorMessage,
         variant: "destructive"
       });
     }
-  }, [podcastGeneration, notebookId, selectedFiles, toast]);
+  }, [podcastGeneration.generate, podcastGeneration.config.model, selectedFiles, toast]);
 
   // ====== SINGLE RESPONSIBILITY: Cancellation handlers ======
   const handleCancelReport = useCallback(async () => {
-    if (reportGeneration.currentJobId) {
-      // Validate job ID is not empty or invalid
-      if (reportGeneration.currentJobId.trim() === '') {
-        reportGeneration.cancelGeneration();
-        jobStorage.clearJob(reportGeneration.currentJobId);
-        toast({
-          title: "Invalid Job",
-          description: "Invalid job detected. Status has been reset.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      try {
-        await studioService.cancelReportJob(reportGeneration.currentJobId, notebookId);
-        
-        // Don't set local state immediately - let SSE handle the status update
-        jobStorage.clearJob(reportGeneration.currentJobId);
-        
-        toast({
-          title: "Cancelled",
-          description: "Report generation cancelled successfully."
-        });
-      } catch (error: unknown) {
-        // Check if it's a 404 (job not found) - clean up state
-        if ((error as any)?.response?.status === 404) {
-          reportGeneration.cancelGeneration();
-          jobStorage.clearJob(reportGeneration.currentJobId);
-          toast({
-            title: "Job Not Found",
-            description: "Job no longer exists. Status has been reset.",
-            variant: "destructive"
-          });
-        } else {
-          // Only set local state if API call failed for other reasons
-          reportGeneration.failGeneration('Failed to cancel generation');
-          toast({
-            title: "Cancel Failed",
-            description: "Failed to cancel report generation. Please try again.",
-            variant: "destructive"
-          });
-        }
-      }
-    } else {
-      // If there's no job ID but we're in a generating state, reset the state
-      if (reportGeneration.state === 'generating') {
-        reportGeneration.cancelGeneration();
-        toast({
-          title: "Invalid State",
-          description: "Invalid generation state detected. Status has been reset.",
-          variant: "destructive"
-        });
-      }
+    try {
+      reportGeneration.cancel();
+      toast({
+        title: "Cancelled",
+        description: "Report generation cancelled successfully."
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({
+        title: "Cancel Failed",
+        description: `Failed to cancel report generation: ${errorMessage}`,
+        variant: "destructive"
+      });
     }
-  }, [reportGeneration, jobStorage, toast]);
+  }, [reportGeneration.cancel, toast]);
 
   const handleCancelPodcast = useCallback(async () => {
-    if (podcastGeneration.currentJobId) {
-      try {
-        await studioService.cancelPodcastJob(podcastGeneration.currentJobId, notebookId);
-        // Don't set local state immediately - let SSE handle the status update
-        // podcastGeneration.cancelGeneration();
-        jobStorage.clearJob(podcastGeneration.currentJobId);
-      } catch (error) {
-        console.error('Failed to cancel podcast generation:', error);
-        // Only set local state if API call failed
-        podcastGeneration.failGeneration('Failed to cancel generation');
-      }
+    try {
+      podcastGeneration.cancel();
+      toast({
+        title: "Cancelled",
+        description: "Podcast generation cancelled successfully."
+      });
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({
+        title: "Cancel Failed",
+        description: `Failed to cancel podcast generation: ${errorMessage}`,
+        variant: "destructive"
+      });
     }
-  }, [podcastGeneration]);
+  }, [podcastGeneration.cancel, toast]);
 
 
   const toggleExpanded = useCallback(() => {
@@ -415,11 +227,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   // ====== SINGLE RESPONSIBILITY: Data refresh ======
   const handleRefresh = useCallback(() => {
-    // Use optimized cache invalidation instead of manual refetch
-    handleReportJobComplete();
-    handlePodcastJobComplete();
-    reportModels.refetch(); // Models don't change often, manual refetch is fine
-  }, [handleReportJobComplete, handlePodcastJobComplete, reportModels]);
+    // Refetch all data
+    reportJobs.refetch();
+    podcastJobs.refetch();
+    reportModels.refetch();
+  }, [reportJobs, podcastJobs, reportModels]);
 
   // ====== SINGLE RESPONSIBILITY: File operations ======
   const handleSelectReport = useCallback(async (report: ReportItem) => {
@@ -619,19 +431,19 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   const handleSaveFile = useCallback(async (content: string) => {
     if (!selectedFile) return;
-    
+
     try {
       // Use job_id if id is not available, as API expects job_id for reports
       const fileId = selectedFile.id || selectedFile.job_id;
       if (!fileId) {
         throw new Error('File ID not found');
       }
-      
+
       await studioService.updateReport(fileId, notebookId, content);
       setSelectedFileContent(content);
 
-      // Use optimized cache invalidation to ensure data is synchronized
-      handleReportJobComplete();
+      // Invalidate report jobs cache to sync changes
+      reportJobs.refetch();
 
       toast({
         title: "File Saved",
@@ -646,7 +458,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [selectedFile, studioService, handleReportJobComplete, notebookId, toast]);
+  }, [selectedFile, studioService, reportJobs, notebookId, toast]);
 
   const handleCloseFile = useCallback(() => {
     setSelectedFile(null);
@@ -812,7 +624,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
               onConfigChange={reportGeneration.updateConfig}
               availableModels={reportModels.data || {}}
               generationState={{
-                state: reportGeneration.state,
+                state: reportGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
                 progress: reportGeneration.progress,
                 error: reportGeneration.error || undefined,
                 isGenerating: reportGeneration.isGenerating
@@ -828,7 +640,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
               config={podcastGeneration.config}
               onConfigChange={podcastGeneration.updateConfig}
               generationState={{
-                state: podcastGeneration.state,
+                state: podcastGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
                 progress: podcastGeneration.progress,
                 error: podcastGeneration.error || undefined
               }}

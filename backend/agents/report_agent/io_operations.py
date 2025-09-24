@@ -18,11 +18,10 @@ FileIOHelper = truncate_filename = None
 
 def _ensure_storm_imported():
     """Ensure STORM modules are imported (delegated to main module)."""
-    from .deep_report_generator import _lazy_import_knowledge_storm
-    _lazy_import_knowledge_storm()
+    from . import deep_report_generator as drg
+    drg._lazy_import_knowledge_storm()
 
     global FileIOHelper, truncate_filename
-    import deep_report_generator as drg
     FileIOHelper = drg.FileIOHelper
     truncate_filename = drg.truncate_filename
 
@@ -187,6 +186,10 @@ class IOManager:
     def setup_output_directory(self, config, article_title: str) -> str:
         """Setup and return the output directory path."""
         _ensure_storm_imported()
+
+        if truncate_filename is None:
+            self.logger.error("truncate_filename function is not available after import")
+            raise RuntimeError("Failed to import truncate_filename function from knowledge_storm")
 
         # Set article directory name (but don't create subfolder - use output_dir directly)
         folder_name = truncate_filename(

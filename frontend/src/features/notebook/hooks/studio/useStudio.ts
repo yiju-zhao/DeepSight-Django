@@ -148,8 +148,13 @@ export const useDeleteReport = (notebookId: string) => {
         queryClient.setQueryData(studioKeys.reportJobs(notebookId), context.previousReports);
       }
     },
-    // Remove onSettled to prevent immediate refetch that causes items to reappear
-    // The optimistic update will persist, and natural cache invalidation will sync later
+    onSuccess: () => {
+      // Only invalidate on success to trigger background refetch for eventual consistency
+      // This ensures optimistic update persists but server state syncs in background
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.reportJobs(notebookId),
+      });
+    },
   });
 };
 
@@ -183,8 +188,13 @@ export const useDeletePodcast = (notebookId: string) => {
         queryClient.setQueryData(studioKeys.podcastJobs(notebookId), context.previousPodcasts);
       }
     },
-    // Remove onSettled to prevent immediate refetch that causes items to reappear
-    // The optimistic update will persist, and natural cache invalidation will sync later
+    onSuccess: () => {
+      // Only invalidate on success to trigger background refetch for eventual consistency
+      // This ensures optimistic update persists but server state syncs in background
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.podcastJobs(notebookId),
+      });
+    },
   });
 };
 
@@ -256,12 +266,8 @@ export const useReportJobComplete = (notebookId: string) => {
   const queryClient = useQueryClient();
 
   return useCallback(() => {
-    // Force invalidate and refetch to ensure immediate UI update
+    // Invalidate and let React Query handle refetching based on stale time strategy
     queryClient.invalidateQueries({
-      queryKey: studioKeys.reportJobs(notebookId),
-    });
-    // Also force an immediate refetch to bypass stale time
-    queryClient.refetchQueries({
       queryKey: studioKeys.reportJobs(notebookId),
     });
   }, [queryClient, notebookId]);
@@ -271,12 +277,8 @@ export const usePodcastJobComplete = (notebookId: string) => {
   const queryClient = useQueryClient();
 
   return useCallback(() => {
-    // Force invalidate and refetch to ensure immediate UI update
+    // Invalidate and let React Query handle refetching based on stale time strategy
     queryClient.invalidateQueries({
-      queryKey: studioKeys.podcastJobs(notebookId),
-    });
-    // Also force an immediate refetch to bypass stale time
-    queryClient.refetchQueries({
       queryKey: studioKeys.podcastJobs(notebookId),
     });
   }, [queryClient, notebookId]);

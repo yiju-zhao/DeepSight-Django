@@ -29,15 +29,12 @@ export { useFileSelection } from './file/useFileSelection';
 export { useFileStatusSSE } from './file/useFileStatusSSE';
 export { useFileUploadStatus } from './file/useFileUploadStatus';
 
-// Generation and job management
-export { useJobStatus } from './generation/useJobStatus';
-export { useGenerationState } from './generation/useGenerationState';
+// Generation and job management (legacy hooks removed - use useGenerationManager from ./studio/)
 
 // Studio functionality - TanStack Query powered
-export { useStudioData } from './studio/useStudioData';
-export { 
-  useReportJobs, 
-  usePodcastJobs, 
+export {
+  useReportJobs,
+  usePodcastJobs,
   useReportModels,
   useNotebookReportJobs,
   useNotebookPodcastJobs,
@@ -46,6 +43,9 @@ export {
   useDeleteReport,
   useDeletePodcast
 } from './studio/useStudio';
+
+// New generation management (replaces useGenerationState + useJobStatus)
+export { useGenerationManager } from './studio/useGenerationManager';
 
 // Sources functionality - TanStack Query powered
 export {
