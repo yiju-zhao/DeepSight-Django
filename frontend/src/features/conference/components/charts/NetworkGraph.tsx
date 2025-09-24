@@ -19,6 +19,18 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
   const sortedNodes = [...(data?.nodes || [])].sort((a, b) => (b.val || 0) - (a.val || 0));
   const top5NodeIds = new Set(sortedNodes.slice(0, 5).map(n => n.id));
 
+  // Calculate min/max values for particle speed normalization
+  const linkValues = data?.links?.map(link => link.value || 0) || [];
+  const minValue = Math.min(...linkValues);
+  const maxValue = Math.max(...linkValues);
+  const valueRange = maxValue - minValue;
+
+  // Normalize particle speed to (0,1) range
+  const normalizeParticleSpeed = (value: number) => {
+    if (valueRange === 0) return 0.5; // Default middle speed if all values are the same
+    return (value - minValue) / valueRange;
+  };
+
   // Calculate color based on whether node is in top 5 and theme
   const getNodeColor = (nodeId: string, isTop5: boolean, theme: 'orange' | 'purple') => {
     if (theme === 'orange') {
@@ -60,7 +72,7 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
       nodeLabel="id"
       nodeAutoColorBy="group"
       linkDirectionalParticles="value"
-      linkDirectionalParticleSpeed={d => d.value * 0.001}
+      linkDirectionalParticleSpeed={d => normalizeParticleSpeed(d.value || 0)}
       nodeRelSize={0}
       linkWidth={2}
       linkDirectionalParticleWidth={4}
