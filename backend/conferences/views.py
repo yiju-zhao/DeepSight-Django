@@ -293,8 +293,8 @@ class OverviewViewSet(viewsets.ViewSet):
             affiliations = pub_data.get('affiliations', [])
             research_topic = pub_data.get('research_topic', '')
 
-            # Extract research area (part after ->)
-            research_area = research_topic.split('->')[-1].strip() if research_topic and '->' in research_topic else research_topic
+            # Extract research area (part before ->)
+            research_area = research_topic.split('->')[0].strip() if research_topic and '->' in research_topic else research_topic
 
             # Skip unknown/empty research areas - they'll be counted in Others later
             if not research_area or research_area.lower() in ['unknown', 'none', '']:
