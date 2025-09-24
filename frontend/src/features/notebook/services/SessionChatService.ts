@@ -34,8 +34,8 @@ class SessionChatService {
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to create session' }));
-      throw new Error(error.error || `HTTP ${response.status}`);
+      const error = await response.json().catch(() => ({ detail: 'Failed to create session' }));
+      throw new Error(error.detail || error.error || `HTTP ${response.status}`);
     }
 
     return response.json();

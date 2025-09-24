@@ -66,16 +66,30 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     onSuccess: (response) => {
       // Update sessions list
       queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
-      
-      // Open new session in a tab
+
+      // Open new session in a tab using the returned session data
       const newSession = response.session;
-      openTab(newSession.id);
-      setActiveSessionId(newSession.id);
-      
-      toast({
-        title: 'Session Created',
-        description: `New chat session "${newSession.title}" started`,
-      });
+      if (newSession && newSession.id) {
+        // Directly add tab instead of using openTab which depends on sessions list
+        setActiveTabs(prev => {
+          if (prev.find(tab => tab.sessionId === newSession.id)) {
+            return prev; // Tab already open
+          }
+
+          return [...prev, {
+            sessionId: newSession.id,
+            title: newSession.title || 'New Chat',
+            isActive: true,
+            lastActivity: newSession.last_activity || new Date().toISOString(),
+          }];
+        });
+        setActiveSessionId(newSession.id);
+
+        toast({
+          title: 'Session Created',
+          description: `New chat session "${newSession.title || 'New Chat'}" started`,
+        });
+      }
     },
     onError: (error) => {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create session';
