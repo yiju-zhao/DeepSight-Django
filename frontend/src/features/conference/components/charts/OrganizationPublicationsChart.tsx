@@ -161,7 +161,12 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
           keys={keys}
           indexBy="organization"
           layout="vertical"
-          margin={{ top: 50, right: 130, bottom: 150, left: 60 }}
+          margin={{
+            top: 20,
+            right: viewMode === 'total' ? 60 : 180,
+            bottom: 150,
+            left: 60
+          }}
           padding={0.3}
           valueScale={{ type: 'linear' }}
           indexScale={{ type: 'band', round: true }}
@@ -172,7 +177,7 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
           axisBottom={{
             tickSize: 5,
             tickPadding: 5,
-            tickRotation: -30,
+            tickRotation: -20,
             legend: '',
             legendPosition: 'middle',
             legendOffset: 100
