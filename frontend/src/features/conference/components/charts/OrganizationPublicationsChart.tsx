@@ -11,6 +11,14 @@ interface OrganizationPublicationsChartProps {
 
 type ViewMode = 'total' | 'research_area';
 
+// Utility function to convert snake_case to Title Case
+const formatResearchAreaLabel = (area: string): string => {
+  return area
+    .split('_')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
+
 const ViewModeSelector = ({ viewMode, onViewModeChange }: {
   viewMode: ViewMode;
   onViewModeChange: (mode: ViewMode) => void;
@@ -97,9 +105,21 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
       // Research area mode - use stacked data
       if (!stackedData?.length) return { data: [], keys: [] };
 
+      // Transform data to use formatted labels as keys
+      const transformedData = stackedData.map(org => {
+        const transformedOrg: any = { organization: org.organization };
+        Object.keys(org).forEach(key => {
+          if (key !== 'organization') {
+            const formattedKey = formatResearchAreaLabel(key);
+            transformedOrg[formattedKey] = org[key];
+          }
+        });
+        return transformedOrg;
+      });
+
       // Extract all possible research area keys (excluding 'organization')
       const allKeys = new Set<string>();
-      stackedData.forEach(org => {
+      transformedData.forEach(org => {
         Object.keys(org).forEach(key => {
           if (key !== 'organization') {
             allKeys.add(key);
@@ -108,7 +128,7 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
       });
 
       return {
-        data: stackedData,
+        data: transformedData,
         keys: Array.from(allKeys)
       };
     }
@@ -145,14 +165,14 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
           padding={0.3}
           valueScale={{ type: 'linear' }}
           indexScale={{ type: 'band', round: true }}
-          colors={{ scheme: 'category10' }}
+          colors={{ scheme: 'nivo' }}
           borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
           axisTop={null}
           axisRight={null}
           axisBottom={{
             tickSize: 5,
             tickPadding: 5,
-            tickRotation: -45,
+            tickRotation: -30,
             legend: '',
             legendPosition: 'middle',
             legendOffset: 100
@@ -190,7 +210,9 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
                     itemOpacity: 1
                   }
                 }
-              ]
+              ],
+              // Custom legend label formatting
+              itemTextColor: '#333'
             }
           ] : []}
           tooltip={({ id, value, indexValue, color }) => (
