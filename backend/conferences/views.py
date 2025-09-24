@@ -296,8 +296,9 @@ class OverviewViewSet(viewsets.ViewSet):
             # Extract research area (part after ->)
             research_area = research_topic.split('->')[-1].strip() if research_topic and '->' in research_topic else research_topic
 
-            if not research_area:
-                research_area = 'Unknown'
+            # Skip unknown/empty research areas - they'll be counted in Others later
+            if not research_area or research_area.lower() in ['unknown', 'none', '']:
+                research_area = None
 
             # Count for each organization
             for org in affiliations:
@@ -308,26 +309,36 @@ class OverviewViewSet(viewsets.ViewSet):
                 if org not in org_research_counts:
                     org_research_counts[org] = {}
 
-                if research_area not in org_research_counts[org]:
-                    org_research_counts[org][research_area] = 0
+                # Only count valid research areas
+                if research_area:
+                    if research_area not in org_research_counts[org]:
+                        org_research_counts[org][research_area] = 0
+                    org_research_counts[org][research_area] += 1
 
-                org_research_counts[org][research_area] += 1
+        # Calculate total publications per organization (including unknown/none)
+        # We need the actual total from the original data, not just the known research areas
+        org_total_pubs = {}
+        for pub_data in publications_data:
+            affiliations = pub_data.get('affiliations', [])
+            for org in affiliations:
+                org = org.strip()
+                if not org:
+                    continue
+                if org not in org_total_pubs:
+                    org_total_pubs[org] = 0
+                org_total_pubs[org] += 1
 
         # Get top 15 organizations by total publications
-        org_totals = {}
-        for org, research_areas in org_research_counts.items():
-            org_totals[org] = sum(research_areas.values())
-
-        top_orgs = sorted(org_totals.items(), key=lambda x: x[1], reverse=True)[:15]
+        top_orgs = sorted(org_total_pubs.items(), key=lambda x: x[1], reverse=True)[:15]
         top_org_names = [org for org, _ in top_orgs]
 
-        # Get all research areas and find top 5
+        # Get all research areas from top organizations
         all_research_areas = set()
         for org in top_org_names:
             if org in org_research_counts:
                 all_research_areas.update(org_research_counts[org].keys())
 
-        # Count total publications per research area to find top 5
+        # Count total publications per research area to find top 6
         research_area_totals = {}
         for research_area in all_research_areas:
             total = 0
@@ -336,8 +347,8 @@ class OverviewViewSet(viewsets.ViewSet):
                     total += org_research_counts[org][research_area]
             research_area_totals[research_area] = total
 
-        # Get top 5 research areas
-        top_research_areas = sorted(research_area_totals.items(), key=lambda x: x[1], reverse=True)[:5]
+        # Get top 6 research areas
+        top_research_areas = sorted(research_area_totals.items(), key=lambda x: x[1], reverse=True)[:6]
         top_research_area_names = [area for area, _ in top_research_areas]
 
         # Build result in the requested format
@@ -345,24 +356,20 @@ class OverviewViewSet(viewsets.ViewSet):
         for org in top_org_names:
             org_data = {'organization': org}
 
-            if org in org_research_counts:
-                # Add top 5 research areas
-                for research_area in top_research_area_names:
-                    count = org_research_counts[org].get(research_area, 0)
-                    org_data[research_area] = count
+            # Add top 6 research areas
+            top_6_total = 0
+            for research_area in top_research_area_names:
+                count = org_research_counts.get(org, {}).get(research_area, 0)
+                org_data[research_area] = count
+                top_6_total += count
 
-                # Calculate "Others" count
-                others_count = 0
-                for research_area, count in org_research_counts[org].items():
-                    if research_area not in top_research_area_names:
-                        others_count += count
+            # Calculate "Others" as: total_publications - top_6_total
+            # This includes unknown/none areas + remaining research areas
+            total_pubs = org_total_pubs.get(org, 0)
+            others_count = total_pubs - top_6_total
 
-                if others_count > 0:
-                    org_data['Others'] = others_count
-            else:
-                # No publications for this org (shouldn't happen since we filtered)
-                for research_area in top_research_area_names:
-                    org_data[research_area] = 0
+            if others_count > 0:
+                org_data['Others'] = others_count
 
             result.append(org_data)
 
