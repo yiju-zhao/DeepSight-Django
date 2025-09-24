@@ -1,7 +1,7 @@
 // ====== SOLID PRINCIPLES REFACTORED STUDIO PANEL ======
 // This component demonstrates all 5 SOLID principles in action
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { RefreshCw, Maximize2, Minimize2, Settings, FileText, Play, Palette, ChevronDown, Trash2, Edit, Download, Save, X, Eye } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { useToast } from "@/shared/components/ui/use-toast";

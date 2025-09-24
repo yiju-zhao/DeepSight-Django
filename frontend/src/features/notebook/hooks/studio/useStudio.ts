@@ -119,10 +119,36 @@ export const useGeneratePodcast = (notebookId: string) => {
 
 export const useDeleteReport = (notebookId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (jobId: string) => studioService.deleteReport(jobId, notebookId),
-    onSuccess: () => {
+    onMutate: async (jobId: string) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: studioKeys.reportJobs(notebookId) });
+
+      // Snapshot the previous value
+      const previousReports = queryClient.getQueryData(studioKeys.reportJobs(notebookId));
+
+      // Optimistically update the cache
+      queryClient.setQueryData(studioKeys.reportJobs(notebookId), (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          jobs: old.jobs.filter((job: any) => job.job_id !== jobId && job.id !== jobId)
+        };
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousReports };
+    },
+    onError: (err, jobId, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousReports) {
+        queryClient.setQueryData(studioKeys.reportJobs(notebookId), context.previousReports);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure we have the latest data
       queryClient.invalidateQueries({
         queryKey: studioKeys.reportJobs(notebookId),
       });
@@ -132,10 +158,36 @@ export const useDeleteReport = (notebookId: string) => {
 
 export const useDeletePodcast = (notebookId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (jobId: string) => studioService.deletePodcast(jobId, notebookId),
-    onSuccess: () => {
+    onMutate: async (jobId: string) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: studioKeys.podcastJobs(notebookId) });
+
+      // Snapshot the previous value
+      const previousPodcasts = queryClient.getQueryData(studioKeys.podcastJobs(notebookId));
+
+      // Optimistically update the cache
+      queryClient.setQueryData(studioKeys.podcastJobs(notebookId), (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          jobs: old.jobs.filter((job: any) => job.job_id !== jobId && job.id !== jobId)
+        };
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousPodcasts };
+    },
+    onError: (err, jobId, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousPodcasts) {
+        queryClient.setQueryData(studioKeys.podcastJobs(notebookId), context.previousPodcasts);
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure we have the latest data
       queryClient.invalidateQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
       });
