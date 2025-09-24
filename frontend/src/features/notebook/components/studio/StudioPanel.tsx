@@ -16,7 +16,7 @@ import studioService from "@/features/notebook/services/StudioService";
 import { config } from "@/config";
 import { PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
 import { useGenerationState, useJobStatus } from "@/features/notebook/hooks";
-import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels } from "@/features/notebook/hooks/studio/useStudio";
+import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels, useDeleteReport, useDeletePodcast } from "@/features/notebook/hooks/studio/useStudio";
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused UI components
@@ -69,6 +69,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const reportJobs = useNotebookReportJobs(notebookId);
   const podcastJobs = useNotebookPodcastJobs(notebookId);
   const reportModels = useReportModels();
+
+  // ====== MUTATIONS: Use optimized deletion hooks ======
+  const deleteReportMutation = useDeleteReport(notebookId);
+  const deletePodcastMutation = useDeletePodcast(notebookId);
 
   // ====== SINGLE RESPONSIBILITY: Report generation state ======
   const reportGeneration: GenerationStateHook = useGenerationState({
@@ -546,30 +550,22 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     if (!confirm('Are you sure you want to delete this report?')) {
       return;
     }
-    
+
     try {
       const reportId = report.id || report.job_id;
       if (!reportId) {
         throw new Error('Report ID not found');
       }
-      
-      // Delete from backend database using the proper API call
-      const result = await studioService.deleteReport(reportId, notebookId);
-      
-      // Verify the deletion was successful by checking the response
-      if (!result || (result.error && result.error !== null)) {
-        throw new Error(result?.error || 'Backend deletion failed');
-      }
-      
-      // Refresh data after confirming backend deletion succeeded
-      reportJobs.refetch();
-      
+
       // Clear selected file if it's the one being deleted, without navigating to another file
       if (selectedFile?.id === reportId || selectedFile?.job_id === reportId) {
         setSelectedFile(null);
         setSelectedFileContent('');
       }
-      
+
+      // Use the mutation hook for optimized deletion with automatic UI updates
+      await deleteReportMutation.mutateAsync(reportId);
+
       toast({
         title: "Report Deleted",
         description: "The report has been deleted successfully"
@@ -577,40 +573,33 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
-        title: "Delete Failed", 
+        title: "Delete Failed",
         description: `Failed to delete report: ${errorMessage}`,
         variant: "destructive"
       });
     }
-  }, [reportJobs, selectedFile, notebookId, toast]);
+  }, [deleteReportMutation, selectedFile, toast]);
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
     if (!confirm('Are you sure you want to delete this podcast?')) {
       return;
     }
-    
+
     try {
       const podcastId = podcast.id || podcast.job_id;
       if (!podcastId) {
         throw new Error('Podcast ID not found');
       }
-      
-      const result = await studioService.deletePodcast(podcastId, notebookId);
-      
-      // Verify the deletion was successful by checking the response
-      // For podcasts, successful deletion returns HTTP 204 (no content)
-      if (result && result.error) {
-        throw new Error(result.error || 'Backend deletion failed');
-      }
-      
-      // Refresh data after confirming backend deletion succeeded
-      podcastJobs.refetch();
-      
+
+      // Clear selected file if it's the one being deleted
       if (selectedFile?.id === podcastId || selectedFile?.job_id === podcastId) {
         setSelectedFile(null);
         setSelectedFileContent('');
       }
-      
+
+      // Use the mutation hook for optimized deletion with automatic UI updates
+      await deletePodcastMutation.mutateAsync(podcastId);
+
       toast({
         title: "Podcast Deleted",
         description: "The podcast has been deleted successfully"
@@ -623,7 +612,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [podcastJobs, selectedFile, notebookId, toast]);
+  }, [deletePodcastMutation, selectedFile, toast]);
 
   const handleSaveFile = useCallback(async (content: string) => {
     if (!selectedFile) return;
@@ -1039,31 +1028,3 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 };
 
 export default StudioPanel;
-
-// ====== SUMMARY: SOLID PRINCIPLES IMPLEMENTATION ======
-/*
-1. SINGLE RESPONSIBILITY PRINCIPLE (SRP):
-   - Each hook manages one specific concern (data, generation state, audio)
-   - Each component has a single, well-defined purpose
-   - Business logic separated from UI logic
-
-2. OPEN/CLOSED PRINCIPLE (OCP):
-   - Service abstraction allows new implementations without changing components
-   - Status configurations can be extended without modifying StatusDisplay
-   - Generation forms can be extended through props
-
-3. LISKOV SUBSTITUTION PRINCIPLE (LSP):
-   - All generation forms follow the same interface contract
-   - Status components have consistent behavior regardless of state
-   - Service implementations can be substituted seamlessly
-
-4. INTERFACE SEGREGATION PRINCIPLE (ISP):
-   - Props are focused and specific to each component's needs
-   - No component receives props it doesn't use
-   - Type definitions provide minimal, focused interfaces
-
-5. DEPENDENCY INVERSION PRINCIPLE (DIP):
-   - Components depend on abstract service interfaces
-   - Concrete implementations are injected as dependencies
-   - High-level components don't depend on low-level modules
-*/
