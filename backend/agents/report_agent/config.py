@@ -19,15 +19,14 @@ load_api_key = None
 
 def _ensure_storm_imported():
     """Ensure STORM modules are imported (delegated to main module)."""
-    from .deep_report_generator import _lazy_import_knowledge_storm
-    _lazy_import_knowledge_storm()
+    from . import deep_report_generator as drg
+    drg._lazy_import_knowledge_storm()
 
     # Update globals from main module
     global STORMWikiLMConfigs, OpenAIModel, GoogleModel
     global BraveRM, TavilySearchRM, SerperRM, YouRM, BingSearch, DuckDuckGoSearchRM, SearXNG, AzureAISearch
     global load_api_key
 
-    import deep_report_generator as drg
     STORMWikiLMConfigs = drg.STORMWikiLMConfigs
     OpenAIModel = drg.OpenAIModel
     GoogleModel = drg.GoogleModel
@@ -52,6 +51,11 @@ class ConfigurationManager:
     def load_api_keys(self):
         """Load API keys from secrets.toml file."""
         _ensure_storm_imported()
+
+        if load_api_key is None:
+            self.logger.error("load_api_key function is not available after import")
+            raise RuntimeError("Failed to import load_api_key function from knowledge_storm")
+
         try:
             load_api_key(toml_file_path=self.secrets_path)
         except Exception as e:
