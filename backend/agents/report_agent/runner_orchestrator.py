@@ -14,11 +14,10 @@ STORMWikiRunner = STORMWikiRunnerArguments = QueryLogger = None
 
 def _ensure_storm_imported():
     """Ensure STORM modules are imported (delegated to main module)."""
-    from .deep_report_generator import _lazy_import_knowledge_storm
-    _lazy_import_knowledge_storm()
+    from . import deep_report_generator as drg
+    drg._lazy_import_knowledge_storm()
 
     global STORMWikiRunner, STORMWikiRunnerArguments, QueryLogger
-    import deep_report_generator as drg
     STORMWikiRunner = drg.STORMWikiRunner
     STORMWikiRunnerArguments = drg.STORMWikiRunnerArguments
     QueryLogger = drg.QueryLogger
@@ -33,6 +32,10 @@ class RunnerOrchestrator:
     def create_engine_arguments(self, config) -> 'STORMWikiRunnerArguments':
         """Create and return STORM engine arguments."""
         _ensure_storm_imported()
+
+        if STORMWikiRunnerArguments is None:
+            self.logger.error("STORMWikiRunnerArguments is not available after import")
+            raise RuntimeError("Failed to import STORMWikiRunnerArguments from knowledge_storm")
 
         return STORMWikiRunnerArguments(
             output_dir=config.output_dir,
@@ -53,6 +56,10 @@ class RunnerOrchestrator:
     def initialize_runner(self, engine_args, lm_configs, rm, config) -> 'STORMWikiRunner':
         """Initialize and configure the STORM runner."""
         _ensure_storm_imported()
+
+        if STORMWikiRunner is None:
+            self.logger.error("STORMWikiRunner is not available after import")
+            raise RuntimeError("Failed to import STORMWikiRunner from knowledge_storm")
 
         runner = STORMWikiRunner(engine_args, lm_configs, rm)
         runner.author_json = config.author_json
