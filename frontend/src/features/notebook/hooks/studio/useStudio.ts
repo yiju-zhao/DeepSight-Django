@@ -29,11 +29,11 @@ export const useReportJobs = (notebookId: string) => {
     queryKey: studioKeys.reportJobs(notebookId),
     queryFn: () => studioService.listReportJobs(notebookId),
     enabled: !!notebookId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - SSE handles real-time updates during generation
+    staleTime: 30 * 1000, // 30 seconds - shorter stale time for more responsive updates
     gcTime: 10 * 60 * 1000, // 10 minutes cache
     retry: 2,
-    refetchOnWindowFocus: false, // Prevent unnecessary refetches on tab focus
-    refetchOnMount: false, // Use cache when component mounts unless stale
+    refetchOnWindowFocus: true, // Enable refetch on tab focus to catch updates
+    refetchOnMount: true, // Always refetch on mount to ensure fresh data
     select: (data) => ({
       ...data,
       jobs: data.jobs || [],
@@ -49,11 +49,11 @@ export const usePodcastJobs = (notebookId: string) => {
     queryKey: studioKeys.podcastJobs(notebookId),
     queryFn: () => studioService.listPodcastJobs(notebookId),
     enabled: !!notebookId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - SSE handles real-time updates during generation
+    staleTime: 30 * 1000, // 30 seconds - shorter stale time for more responsive updates
     gcTime: 10 * 60 * 1000, // 10 minutes cache
     retry: 2,
-    refetchOnWindowFocus: false, // Prevent unnecessary refetches on tab focus
-    refetchOnMount: false, // Use cache when component mounts unless stale
+    refetchOnWindowFocus: true, // Enable refetch on tab focus to catch updates
+    refetchOnMount: true, // Always refetch on mount to ensure fresh data
     select: (data) => ({
       ...data,
       jobs: data.jobs || [],

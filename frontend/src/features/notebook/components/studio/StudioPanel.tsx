@@ -80,32 +80,37 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       description: "Your research report has been generated successfully."
     });
 
-    // Auto-select and display the completed report after a delay
+    // Force immediate refetch of report jobs to ensure completed report appears
+    reportJobs.refetch();
+
+    // Auto-select and display the completed report after a brief delay
     if (jobData && (jobData.id || jobData.jobId)) {
       setTimeout(() => {
-        // Find the completed report in the jobs list
-        const currentReportJobs = reportJobs.data?.jobs || [];
-        const completedReport = currentReportJobs.find((job: any) =>
-          (job.id === jobData.id || job.id === jobData.jobId ||
-           job.job_id === jobData.id || job.job_id === jobData.jobId) &&
-          job.status === 'completed'
-        );
+        // Force another refetch to get the most current data
+        reportJobs.refetch().then(() => {
+          // Find the completed report in the refreshed jobs list
+          const currentReportJobs = reportJobs.data?.jobs || [];
+          const completedReport = currentReportJobs.find((job: any) =>
+            (job.id === jobData.id || job.id === jobData.jobId ||
+             job.job_id === jobData.id || job.job_id === jobData.jobId) &&
+            job.status === 'completed'
+          );
 
-        if (completedReport) {
-          // Trigger a direct API call to select and display the report
-          // This avoids the circular dependency issue
-          studioService.getReportContent(completedReport.id || completedReport.job_id, notebookId)
-            .then(content => {
-              setSelectedFile(completedReport);
-              setSelectedFileContent(content.content || content.markdown_content || '');
-              setViewMode('preview');
-              setIsReportPreview(true);
-            })
-            .catch(error => {
-              console.error('Failed to auto-display completed report:', error);
-            });
-        }
-      }, 1500); // Longer delay to ensure data is available
+          if (completedReport) {
+            // Trigger a direct API call to select and display the report
+            studioService.getReportContent(completedReport.id || completedReport.job_id, notebookId)
+              .then(content => {
+                setSelectedFile(completedReport);
+                setSelectedFileContent(content.content || content.markdown_content || '');
+                setViewMode('preview');
+                setIsReportPreview(true);
+              })
+              .catch(error => {
+                console.error('Failed to auto-display completed report:', error);
+              });
+          }
+        });
+      }, 500); // Shorter delay with explicit refetch
     }
   }, [reportJobs.data, notebookId, toast]);
 
@@ -114,7 +119,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       title: "Podcast Generated",
       description: "Your panel discussion has been generated successfully."
     });
-  }, [toast]);
+
+    // Force immediate refetch of podcast jobs to ensure completed podcast appears
+    podcastJobs.refetch();
+  }, [toast, podcastJobs]);
 
   // ====== SINGLE RESPONSIBILITY: Report generation management ======
   const reportGeneration = useGenerationManager(notebookId, 'report', handleReportComplete);

@@ -171,21 +171,7 @@ const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
               </div>
 
               <div className="space-y-4">
-                {/* Include Image Section */}
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="include-image-checkbox"
-                    className="h-4 w-4 accent-red-500 border-gray-300 rounded focus:ring-red-500 focus:outline-none"
-                    checked={localReportConfig.include_image}
-                    onChange={(e) => handleReportConfigChange({ include_image: e.target.checked })}
-                  />
-                  <label htmlFor="include-image-checkbox" className="text-sm font-medium text-gray-700 select-none">
-                    Include Image
-                  </label>
-                </div>
-
-                {/* White Domain Section - Only show for Tavily */}
+                {/* White Domain Section - Only show for Tavily, moved to be closer to Search Engine */}
                 {localReportConfig.retriever === 'tavily' && (
                   <div className="flex items-center space-x-2">
                     <input
@@ -200,6 +186,20 @@ const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
                     </label>
                   </div>
                 )}
+
+                {/* Include Image Section - moved after whitelist domains */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="include-image-checkbox"
+                    className="h-4 w-4 accent-red-500 border-gray-300 rounded focus:ring-red-500 focus:outline-none"
+                    checked={localReportConfig.include_image}
+                    onChange={(e) => handleReportConfigChange({ include_image: e.target.checked })}
+                  />
+                  <label htmlFor="include-image-checkbox" className="text-sm font-medium text-gray-700 select-none">
+                    Include Image
+                  </label>
+                </div>
               </div>
               
               <div className="space-y-2">

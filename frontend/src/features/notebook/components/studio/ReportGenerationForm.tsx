@@ -2,12 +2,12 @@
 // Component focused solely on report generation configuration
 
 import React, { useState } from 'react';
-import { 
+import {
   Search,
-  FileText
+  FileText,
+  Loader2
 } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
-import StatusDisplay from "./StatusDisplay";
 import { GenerationState } from "./types";
 import { COLORS } from "@/features/notebook/config/uiConfig";
 
@@ -86,20 +86,6 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
       <div className="bg-white rounded-2xl border border-gray-200">
         {/* ====== SINGLE RESPONSIBILITY: Card content ====== */}
         <div className="p-5">
-          {/* Status display */}
-          {(generationState.state !== GenerationState.IDLE) && (
-            <div className="mb-4">
-              <StatusDisplay
-                state={generationState.state}
-                title="Generating Research Report"
-                progress={generationState.progress}
-                error={generationState.error}
-                showCancel={true}
-                onCancel={onCancel}
-              />
-            </div>
-          )}
-
           {/* Card header with icon and info */}
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center border-2 border-gray-300">
@@ -148,8 +134,17 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
                 onClick={() => onGenerate()}
                 disabled={!canGenerate}
               >
-                <FileText className="mr-2 h-4 w-4" />
-                Generate
+                {generationState.state === GenerationState.GENERATING ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="mr-2 h-4 w-4" />
+                    Generate
+                  </>
+                )}
               </Button>
               {!canGenerate && (
                 <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">

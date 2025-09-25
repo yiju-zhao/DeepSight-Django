@@ -2,13 +2,12 @@
 // Component focused solely on podcast generation configuration
 
 import React, { useState } from 'react';
-import { 
-  Play, 
+import {
+  Play,
   Loader2,
   MessageSquare
 } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
-import StatusDisplay from './StatusDisplay';
 import { GenerationState } from './types';
 import { COLORS } from "@/features/notebook/config/uiConfig";
 
@@ -85,20 +84,6 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
       <div className="bg-white rounded-2xl border border-gray-200">
         {/* ====== SINGLE RESPONSIBILITY: Card content ====== */}
         <div className="p-5">
-          {/* Status display */}
-          {(generationState.state !== GenerationState.IDLE) && (
-            <div className="mb-4">
-              <StatusDisplay
-                state={generationState.state}
-                title="Generating Panel Discussion"
-                progress={generationState.progress}
-                error={generationState.error}
-                showCancel={true}
-                onCancel={onCancel}
-              />
-            </div>
-          )}
-
           {/* Card header with icon and info */}
           <div className="flex items-center space-x-3 mb-4">
             <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center border-2 border-gray-300">
