@@ -143,7 +143,7 @@ export default function DashboardPage() {
             {/* Three-Panel Dashboard Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
               {/* Conference Panel */}
-              <div className="lg:col-span-1 flex flex-col h-screen">
+              <div className="lg:col-span-1 flex flex-col h-full">
                 <div className="mb-2 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Conference</span>
@@ -156,7 +156,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Reports Panel */}
-              <div className="lg:col-span-1 flex flex-col h-screen">
+              <div className="lg:col-span-1 flex flex-col h-full">
                 <div className="mb-2 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Reports</span>
@@ -197,7 +197,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Podcasts Panel */}
-              <div className="lg:col-span-1 flex flex-col h-screen">
+              <div className="lg:col-span-1 flex flex-col h-full">
                 <div className="mb-2 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Podcasts</span>
