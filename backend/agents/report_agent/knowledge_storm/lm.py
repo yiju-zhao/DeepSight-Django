@@ -30,6 +30,9 @@ import warnings
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
+    # Suppress Pydantic serialization warnings from LiteLLM
+    warnings.filterwarnings("ignore", message=".*Pydantic serializer warnings.*")
+    warnings.filterwarnings("ignore", message=".*PydanticSerializationUnexpectedValue.*")
     if "LITELLM_LOCAL_MODEL_COST_MAP" not in os.environ:
         os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
     import litellm
@@ -245,7 +248,17 @@ class LitellmModel(LM):
         response = completion(
             ujson.dumps(dict(model=self.model, messages=messages, **kwargs))
         )
-        response_dict = response.json()
+        # response is already a dict from litellm.completion(), no need to call .json()
+        # Handle both dict responses (from litellm) and response objects (from other sources)
+        if hasattr(response, 'json') and callable(getattr(response, 'json')):
+            try:
+                response_dict = response.json()
+            except Exception:
+                # If .json() fails, treat response as already parsed
+                response_dict = response
+        else:
+            # Response is already a dict/object
+            response_dict = response
         self.log_usage(response_dict)
         outputs = [
             c.message.content if hasattr(c, "message") else c["text"]

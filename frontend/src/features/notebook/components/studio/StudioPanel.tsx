@@ -516,9 +516,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   // ====== OPEN/CLOSED PRINCIPLE (OCP) ======
   // Render method that can be extended without modification
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full relative">
       {/* ====== SINGLE RESPONSIBILITY: Header rendering ====== */}
-      <div className={`${PANEL_HEADERS.container}`}>
+      <div className={`${PANEL_HEADERS.container} fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200`}>
         <div className={PANEL_HEADERS.layout}>
           <div className={PANEL_HEADERS.titleContainer}>
             <div className={PANEL_HEADERS.iconContainer}>
@@ -653,7 +653,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
       {/* ====== SINGLE RESPONSIBILITY: Main content area ====== */}
       {!isReportPreview ? (
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden pt-16">
           {/* ====== FIXED SECTIONS: Generation Forms ====== */}
           <div className="flex-shrink-0 p-4 space-y-4 bg-gray-50/50 border-b border-gray-200/60">
             {/* ====== LISKOV SUBSTITUTION PRINCIPLE (LSP) ====== */}
@@ -897,36 +897,38 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
           </div>
         </div>
       ) : (
-        <div className="flex-1 overflow-auto p-0 scrollbar-overlay">
+        <div className="flex-1 pt-16 overflow-hidden">
           {/* Report preview content when viewing a specific report */}
         </div>
       )}
 
       {/* ====== SINGLE RESPONSIBILITY: File viewer overlay ====== */}
       {selectedFile && (
-        <FileViewer
-          file={selectedFile}
-          content={selectedFileContent}
-          isExpanded={isStudioExpanded || false}
-          viewMode={viewMode}
-          onClose={handleCloseFile}
-          onEdit={() => {
-            setViewMode('edit');
-            setIsPreviewingEdits(false);
-          }}
-          onSave={handleSaveFile}
-          onDownload={selectedFile.audio_file ? 
-            () => handleDownloadPodcast(selectedFile) : 
-            () => handleDownloadReport(selectedFile)
-          }
-          onToggleExpand={toggleExpanded}
-          onToggleViewMode={toggleViewMode}
-          onContentChange={setSelectedFileContent}
-          notebookId={notebookId}
-          useMinIOUrls={config.USE_MINIO_URLS}
-          hideHeader={isReportPreview}
-          isPreviewingEdits={isPreviewingEdits}
-        />
+        <div className="fixed inset-0 z-40 pt-16">
+          <FileViewer
+            file={selectedFile}
+            content={selectedFileContent}
+            isExpanded={isStudioExpanded || false}
+            viewMode={viewMode}
+            onClose={handleCloseFile}
+            onEdit={() => {
+              setViewMode('edit');
+              setIsPreviewingEdits(false);
+            }}
+            onSave={handleSaveFile}
+            onDownload={selectedFile.audio_file ?
+              () => handleDownloadPodcast(selectedFile) :
+              () => handleDownloadReport(selectedFile)
+            }
+            onToggleExpand={toggleExpanded}
+            onToggleViewMode={toggleViewMode}
+            onContentChange={setSelectedFileContent}
+            notebookId={notebookId}
+            useMinIOUrls={config.USE_MINIO_URLS}
+            hideHeader={isReportPreview}
+            isPreviewingEdits={isPreviewingEdits}
+          />
+        </div>
       )}
 
     </div>

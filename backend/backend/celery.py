@@ -4,9 +4,16 @@ Celery configuration for Django project.
 
 import os
 import sys
+import warnings
 from celery import Celery
 from celery.signals import worker_init
 from django.conf import settings
+
+# Suppress Pydantic serialization warnings from LiteLLM in Celery workers
+warnings.filterwarnings("ignore", message=".*Pydantic serializer warnings.*")
+warnings.filterwarnings("ignore", message=".*PydanticSerializationUnexpectedValue.*")
+warnings.filterwarnings("ignore", message=".*Expected .* fields but got .*")
+warnings.filterwarnings("ignore", message=".*serialized value may not be as expected.*")
 
 # Set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")

@@ -7,11 +7,18 @@ For development-specific settings, see development.py
 """
 
 import os
+import warnings
 from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Suppress Pydantic serialization warnings from LiteLLM in Celery workers
+warnings.filterwarnings("ignore", message=".*Pydantic serializer warnings.*")
+warnings.filterwarnings("ignore", message=".*PydanticSerializationUnexpectedValue.*")
+warnings.filterwarnings("ignore", message=".*Expected .* fields but got .*")
+warnings.filterwarnings("ignore", message=".*serialized value may not be as expected.*")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent.parent

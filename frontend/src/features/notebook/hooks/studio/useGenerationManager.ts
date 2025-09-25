@@ -72,6 +72,8 @@ export const useGenerationManager = (
     enabled: !!notebookId,
     refetchInterval: false, // Disable polling - SSE handles real-time updates
     staleTime: 30 * 1000, // 30 seconds - SSE provides real-time updates
+    refetchOnMount: true, // Always refetch on component mount to recover active jobs after refresh
+    refetchOnWindowFocus: true, // Refetch when user returns to tab to check for status updates
   });
 
   // SSE connections are managed internally when jobs become active
