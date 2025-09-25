@@ -24,7 +24,7 @@ sys.path.insert(
 )
 from utils.hyperlink_citations import add_hyperlinks_to_citations
 # Import image utilities directly
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..')))
 from reports.image_utils import ImageInsertionService, DatabaseUrlProvider, preserve_figure_formatting
 
 

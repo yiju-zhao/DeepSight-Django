@@ -58,7 +58,7 @@ class DatabaseUrlProvider(ImageUrlProvider):
             from reports.models import ReportImage
             
             try:
-                image = ReportImage.objects.get(figure_id=figure_id, report_id=report_id)
+                image = ReportImage.objects.get(figure_id=figure_id, report__id=report_id)
                 url = image.get_image_url()
                 logger.info(f"Successfully retrieved image URL for figure_id {figure_id} and report_id {report_id}")
                 return url

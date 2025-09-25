@@ -174,7 +174,7 @@ class ReportImageService:
         
         # Django adapts: use passed report_id or get from first image
         if report_id is None:
-            report_id = str(report_images[0].report_id) if report_images else None
+            report_id = str(report_images[0].report.id) if report_images else None
         else:
             report_id = str(report_id)
         return service.insert_figure_images(content, figures, report_id=report_id)

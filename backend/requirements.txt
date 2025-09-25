@@ -41,9 +41,8 @@ ragflow-sdk
 # Document Processing
 PyPDF
 PyMuPDF
-# trafilatura
-# marker-pdf==1.7.5
 python-magic
+markdown-pdf
 
 # Image Processing
 Pillow
