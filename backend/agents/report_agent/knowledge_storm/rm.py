@@ -969,13 +969,42 @@ class TavilySearchRM(dspy.Retrieve):
         self.include_answer = include_answer
         self.include_domains = include_domains
 
-        # Create a list of domains to exclude from the combined set
+        # Create a prioritized list of domains to exclude, limited to Tavily's 130 domain limit
         self.excluded_domains = []
+
+        # Priority order: BLACKLISTED > GENERALLY_UNRELIABLE > DEPRECATED
+        # This ensures the most problematic domains are excluded first
+        priority_sets = [
+            ("BLACKLISTED", BLACKLISTED),
+            ("GENERALLY_UNRELIABLE", GENERALLY_UNRELIABLE),
+            ("DEPRECATED", DEPRECATED)
+        ]
+
+        max_domains = 130  # Tavily's API limit
+        current_count = 0
+
+        for set_name, domain_set in priority_sets:
+            if current_count >= max_domains:
+                break
+
+            # Extract wildcard domains from this priority set
+            wildcard_domains = [pattern[2:] for pattern in domain_set if pattern.startswith("*.")]
+
+            # Add domains until we hit the limit
+            for domain in sorted(wildcard_domains):  # Sort for consistency
+                if current_count >= max_domains:
+                    break
+                self.excluded_domains.append(domain)
+                current_count += 1
+
+        # Log information about domain reduction
+        all_wildcard_domains = []
         combined_set = GENERALLY_UNRELIABLE | DEPRECATED | BLACKLISTED
         for pattern in combined_set:
             if pattern.startswith("*."):
-                # Remove the wildcard and keep the domain
-                self.excluded_domains.append(pattern[2:])
+                all_wildcard_domains.append(pattern[2:])
+
+        logging.info(f"TavilySearchRM: Reduced excluded domains from {len(all_wildcard_domains)} to {len(self.excluded_domains)} (Tavily limit: {max_domains})")
 
         self.is_valid_source = is_valid_source or (lambda x: True)
 
