@@ -751,8 +751,11 @@ class SearXNG(dspy.Retrieve):
                 if self.time_range:
                     params["time_range"] = self.time_range
 
+                # Build correct SearXNG search URL with /search endpoint
+                search_url = self.searxng_api_url.rstrip('/') + '/search'
+
                 response = requests.get(
-                    self.searxng_api_url,
+                    search_url,
                     headers=headers,
                     params=params,
                     timeout=30,
