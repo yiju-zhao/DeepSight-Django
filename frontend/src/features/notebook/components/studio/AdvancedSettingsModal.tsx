@@ -160,10 +160,9 @@ const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
                 <label className="block text-sm font-medium text-gray-700">Search Engine</label>
                 <select
                   className="w-full p-3 border border-gray-300 rounded-lg text-sm accent-red-500 focus:ring-2 focus:ring-red-500 focus:border-transparent focus:outline-none"
-                  value={localReportConfig.retriever || 'searxng'}
-                  onChange={(e) => handleReportConfigChange({ 
-                    retriever: e.target.value,
-                    include_domains: e.target.value === 'tavily' ? true : localReportConfig.include_domains
+                  value={localReportConfig.retriever || 'tavily'}
+                  onChange={(e) => handleReportConfigChange({
+                    retriever: e.target.value
                   })}
                 >
                   <option value="searxng">SearXNG</option>

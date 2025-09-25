@@ -128,7 +128,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       topic: '',
       article_title: '',
       model_provider: 'openai',
-      retriever: 'searxng',
+      retriever: 'tavily',
       prompt_type: 'general',
       include_image: false,
       include_domains: false,
@@ -720,29 +720,56 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                       const itemId = item.id || item.job_id || index.toString();
                       
                       if (item.type === 'report') {
+                        // Check if this report is currently being generated
+                        const isGenerating = item.status === 'running' || item.status === 'pending' ||
+                                            (reportGeneration.activeJob && reportGeneration.activeJob.jobId === (item.id || item.job_id));
+
                         return (
                           <div
                             key={`report-${itemId}`}
-                            className="p-4 bg-white hover:bg-gray-50 rounded-xl transition-all duration-200 cursor-pointer group border border-gray-200 hover:border-gray-300"
+                            className={`p-4 rounded-xl transition-all duration-500 cursor-pointer group border transform hover:scale-[1.01] animate-slide-in ${
+                              isGenerating
+                                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 animate-pulse animate-gentle-bounce shadow-lg relative overflow-hidden'
+                                : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300'
+                            }`}
                             onClick={() => handleSelectReport(item)}
                           >
-                            <div className="flex items-start space-x-3">
-                              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0 mt-1">
+                            {/* Shimmer overlay for generating state */}
+                            {isGenerating && (
+                              <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                            )}
+                            <div className="flex items-start space-x-3 relative z-10">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0 mt-1 ${
+                                isGenerating
+                                  ? 'bg-blue-600 animate-pulse'
+                                  : 'bg-blue-600'
+                              }`}>
                                 <FileText className="h-4 w-4 text-white" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <h4 className="text-sm font-semibold text-gray-900 group-hover:text-blue-700 mb-2 truncate">
+                                <h4 className={`text-sm font-semibold mb-2 truncate ${
+                                  isGenerating ? 'text-blue-700' : 'text-gray-900 group-hover:text-blue-700'
+                                }`}>
                                   {item.title || 'Research Report'}
+                                  {isGenerating && (
+                                    <span className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping mr-1"></div>
+                                      Generating...
+                                    </span>
+                                  )}
                                 </h4>
                                 <p className="text-xs text-gray-600 leading-relaxed mb-2">
-                                  {getReportPreview(item)}
+                                  {isGenerating
+                                    ? (item.progress || reportGeneration.progress || 'Starting report generation...')
+                                    : getReportPreview(item)
+                                  }
                                 </p>
                                 <div className="flex items-center text-xs text-gray-500">
                                   <span>{new Date(item.created_at).toLocaleDateString()}</span>
                                   <span className="mx-2">•</span>
                                   <span>Report</span>
                                   <span className="mx-2">•</span>
-                                  <span>Click to view</span>
+                                  <span>{isGenerating ? 'Generating...' : 'Click to view'}</span>
                                 </div>
                               </div>
                               <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -763,19 +790,32 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         );
                       } else if (item.type === 'podcast') {
                         const isExpanded = expandedPodcasts.has(itemId);
-                        
+                        // Check if this podcast is currently being generated
+                        const isGenerating = item.status === 'running' || item.status === 'pending' ||
+                                            (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === (item.id || item.job_id));
+
                         return (
                           <div
                             key={`podcast-${itemId}`}
-                            className="bg-white rounded-xl border border-gray-200 hover:border-gray-300 transition-all duration-200 overflow-hidden"
+                            className={`rounded-xl border transition-all duration-500 overflow-hidden transform hover:scale-[1.01] animate-slide-in ${
+                              isGenerating
+                                ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 animate-pulse animate-gentle-bounce shadow-lg relative'
+                                : 'bg-white border-gray-200 hover:border-gray-300'
+                            }`}
                           >
+                            {/* Shimmer overlay for generating state */}
+                            {isGenerating && (
+                              <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                            )}
                             {/* Podcast Header */}
                             <div
-                              className="p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200 group"
+                              className="p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200 group relative z-10"
                               onClick={() => handlePodcastClick(item)}
                             >
                               <div className="flex items-center space-x-3">
-                                <div className="w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                                <div className={`w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0 ${
+                                  isGenerating ? 'animate-pulse' : ''
+                                }`}>
                                   {isExpanded ? (
                                     <ChevronDown className="h-4 w-4 text-white" />
                                   ) : (
@@ -783,15 +823,28 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <h4 className="text-sm font-semibold text-gray-900 hover:text-purple-700 truncate">
+                                  <h4 className={`text-sm font-semibold truncate ${
+                                    isGenerating ? 'text-purple-700' : 'text-gray-900 hover:text-purple-700'
+                                  }`}>
                                     {item.title || 'Panel Discussion'}
+                                    {isGenerating && (
+                                      <span className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                                        <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-ping mr-1"></div>
+                                        Generating...
+                                      </span>
+                                    )}
                                   </h4>
                                   <div className="flex items-center text-xs text-gray-500 mt-1">
+                                    {isGenerating && (item.progress || podcastGeneration.progress) && (
+                                      <div className="flex items-center text-purple-600 mb-1">
+                                        <span className="text-xs">{item.progress || podcastGeneration.progress}</span>
+                                      </div>
+                                    )}
                                     <span>{new Date(item.created_at).toLocaleDateString()}</span>
                                     <span className="mx-2">•</span>
                                     <span>Podcast</span>
                                     <span className="mx-2">•</span>
-                                    <span>Click to {isExpanded ? 'collapse' : 'play'}</span>
+                                    <span>{isGenerating ? 'Generating...' : `Click to ${isExpanded ? 'collapse' : 'play'}`}</span>
                                   </div>
                                 </div>
                                 <div className="flex-shrink-0 flex items-center space-x-2">

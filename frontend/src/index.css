@@ -134,3 +134,48 @@
   padding-left: 0.75rem;
   margin-bottom: 0.75rem;
 }
+
+/* Animation keyframes for shimmer effect */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+/* Custom animation classes */
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* Slide-in animation for new items */
+@keyframes slideInFromRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideInFromRight 0.5s ease-out;
+}
+
+/* Bounce animation for generating items */
+@keyframes gentleBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+.animate-gentle-bounce {
+  animation: gentleBounce 2s infinite;
+}
