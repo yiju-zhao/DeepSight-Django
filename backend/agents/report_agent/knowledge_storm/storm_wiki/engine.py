@@ -123,19 +123,19 @@ class STORMWikiLMConfigs(LMConfigs):
         }
         if openai_type and openai_type == "openai":
             self.conv_simulator_lm = LitellmModel(
-                model="gpt-4.1-mini", max_tokens=500, **openai_kwargs
+                model="gpt-5-mini", max_tokens=500, **openai_kwargs
             )
             self.question_asker_lm = LitellmModel(
-                model="gpt-4.1-mini", max_tokens=500, **openai_kwargs
+                model="gpt-5-mini", max_tokens=500, **openai_kwargs
             )
             self.outline_gen_lm = LitellmModel(
-                model="gpt-4.1", max_tokens=3000, **openai_kwargs
+                model="gpt-5", max_tokens=3000, **openai_kwargs
             )
             self.article_gen_lm = LitellmModel(
-                model="gpt-4.1", max_tokens=3000, **openai_kwargs
+                model="gpt-5", max_tokens=3000, **openai_kwargs
             )
             self.article_polish_lm = LitellmModel(
-                model="gpt-4.1", max_tokens=20000, **openai_kwargs
+                model="gpt-5", max_tokens=20000, **openai_kwargs
             )
 
         elif openai_type and openai_type == "azure":
