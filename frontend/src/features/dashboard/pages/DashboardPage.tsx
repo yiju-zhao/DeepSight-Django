@@ -143,92 +143,98 @@ export default function DashboardPage() {
             {/* Three-Panel Dashboard Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
               {/* Conference Panel */}
-              <div className="lg:col-span-1">
-                <div className="mb-2">
+              <div className="lg:col-span-1 flex flex-col h-full">
+                <div className="mb-2 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Conference</span>
                     <div className="h-px bg-gray-200 flex-1" />
                   </div>
                 </div>
-                <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
+                <div className="flex-1 min-h-0">
+                  <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
+                </div>
               </div>
 
               {/* Reports Panel */}
-              <div className="lg:col-span-1">
-                <div className="mb-2">
+              <div className="lg:col-span-1 flex flex-col h-full">
+                <div className="mb-2 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Reports</span>
                     <div className="h-px bg-gray-200 flex-1" />
                   </div>
                 </div>
-                {reports.length > 0 ? (
-                  <ReportsSection
-                    reports={reports}
-                    onReportSelect={handleReportSelect}
-                  />
-                ) : (
-                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6 h-full flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                          <div className="h-6 w-6 bg-gray-300 rounded" />
+                <div className="flex-1 min-h-0">
+                  {reports.length > 0 ? (
+                    <ReportsSection
+                      reports={reports}
+                      onReportSelect={handleReportSelect}
+                    />
+                  ) : (
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6 h-full flex flex-col">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-gray-100 rounded-lg">
+                            <div className="h-6 w-6 bg-gray-300 rounded" />
+                          </div>
+                          <div>
+                            <h2 className="text-base font-semibold text-gray-900">Research Reports</h2>
+                            <p className="text-sm text-gray-600">AI-generated insights</p>
+                          </div>
                         </div>
-                        <div>
-                          <h2 className="text-base font-semibold text-gray-900">Research Reports</h2>
-                          <p className="text-sm text-gray-600">AI-generated insights</p>
+                      </div>
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="h-12 w-12 rounded-full border border-dashed border-gray-300 mx-auto mb-4 flex items-center justify-center text-gray-400">
+                            <span className="text-lg">📊</span>
+                          </div>
+                          <h3 className="text-sm font-medium text-gray-900 mb-1">Coming soon</h3>
+                          <p className="text-gray-500 text-xs">Report generation features in progress</p>
                         </div>
                       </div>
                     </div>
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="h-12 w-12 rounded-full border border-dashed border-gray-300 mx-auto mb-4 flex items-center justify-center text-gray-400">
-                          <span className="text-lg">📊</span>
-                        </div>
-                        <h3 className="text-sm font-medium text-gray-900 mb-1">Coming soon</h3>
-                        <p className="text-gray-500 text-xs">Report generation features in progress</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
 
               {/* Podcasts Panel */}
-              <div className="lg:col-span-1">
-                <div className="mb-2">
+              <div className="lg:col-span-1 flex flex-col h-full">
+                <div className="mb-2 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Podcasts</span>
                     <div className="h-px bg-gray-200 flex-1" />
                   </div>
                 </div>
-                {podcasts.length > 0 ? (
-                  <PodcastsSection
-                    podcasts={podcasts}
-                    onPodcastSelect={handlePodcastSelect}
-                  />
-                ) : (
-                  <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6 h-full flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-gray-100 rounded-lg">
-                          <div className="h-6 w-6 bg-gray-300 rounded" />
+                <div className="flex-1 min-h-0">
+                  {podcasts.length > 0 ? (
+                    <PodcastsSection
+                      podcasts={podcasts}
+                      onPodcastSelect={handlePodcastSelect}
+                    />
+                  ) : (
+                    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6 h-full flex flex-col">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center space-x-3">
+                          <div className="p-2 bg-gray-100 rounded-lg">
+                            <div className="h-6 w-6 bg-gray-300 rounded" />
+                          </div>
+                          <div>
+                            <h2 className="text-base font-semibold text-gray-900">AI Podcasts</h2>
+                            <p className="text-sm text-gray-600">Audio generation</p>
+                          </div>
                         </div>
-                        <div>
-                          <h2 className="text-base font-semibold text-gray-900">AI Podcasts</h2>
-                          <p className="text-sm text-gray-600">Audio generation</p>
+                      </div>
+                      <div className="flex-1 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="h-12 w-12 rounded-full border border-dashed border-gray-300 mx-auto mb-4 flex items-center justify-center text-gray-400">
+                            <span className="text-lg">🎙️</span>
+                          </div>
+                          <h3 className="text-sm font-medium text-gray-900 mb-1">Coming soon</h3>
+                          <p className="text-gray-500 text-xs">Podcast features in progress</p>
                         </div>
                       </div>
                     </div>
-                    <div className="flex-1 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="h-12 w-12 rounded-full border border-dashed border-gray-300 mx-auto mb-4 flex items-center justify-center text-gray-400">
-                          <span className="text-lg">🎙️</span>
-                        </div>
-                        <h3 className="text-sm font-medium text-gray-900 mb-1">Coming soon</h3>
-                        <p className="text-gray-500 text-xs">Podcast features in progress</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </div>

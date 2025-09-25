@@ -51,20 +51,22 @@ const PodcastsSection: React.FC<PodcastsSectionProps> = ({
   }
 
   return (
-    <div className={`mb-8 ${className}`}>
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6">
-        <div className="mb-4">
+    <div className={`h-full ${className}`}>
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm h-full flex flex-col">
+        <div className="p-6 pb-4 flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900">Latest Podcasts</h2>
           <p className="text-xs text-gray-500">Fresh AI-generated audio content</p>
         </div>
-        <div className="space-y-3">
-          {podcasts.map((podcast) => (
-            <PodcastListItem
-              key={podcast.id}
-              podcast={podcast}
-              onSelect={onPodcastSelect}
-            />
-          ))}
+        <div className="flex-1 px-6 pb-6 overflow-y-auto min-h-0">
+          <div className="space-y-3">
+            {podcasts.map((podcast) => (
+              <PodcastListItem
+                key={podcast.id}
+                podcast={podcast}
+                onSelect={onPodcastSelect}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>

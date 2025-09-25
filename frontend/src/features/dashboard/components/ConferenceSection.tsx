@@ -28,8 +28,8 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
   }
 
   return (
-    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 p-6 shadow-sm hover:shadow-md transition h-full flex flex-col">
-      <div className="flex items-center justify-between mb-6">
+    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition h-full flex flex-col">
+      <div className="flex items-center justify-between p-6 pb-4 flex-shrink-0">
         <div className="flex items-center space-x-3">
           <div className="p-2 bg-gray-100 rounded-lg border border-gray-200">
             <BarChart3 className="h-5 w-5 text-blue-600" />
@@ -41,7 +41,7 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
         </div>
       </div>
 
-      <div className="flex-1">
+      <div className="flex-1 px-6 pb-4 overflow-y-auto min-h-0">
         {overviewData ? (
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
@@ -85,6 +85,24 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
                 <p className="text-xs text-gray-600">Avg Papers/Year</p>
               </div>
             </div>
+
+            <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <h3 className="font-medium text-gray-900 mb-2 text-sm">Available Analysis</h3>
+              <div className="space-y-2 text-xs">
+                <div className="flex items-center text-gray-600">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full mr-2" />
+                  Research Topic Trends
+                </div>
+                <div className="flex items-center text-gray-600">
+                  <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
+                  Geographic Distribution
+                </div>
+                <div className="flex items-center text-gray-600">
+                  <div className="w-2 h-2 bg-purple-500 rounded-full mr-2" />
+                  Author Networks
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="text-center py-8">
@@ -94,25 +112,7 @@ export default function ConferenceSection({ onNavigateToConferences }: Conferenc
         )}
       </div>
 
-      <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-        <h3 className="font-medium text-gray-900 mb-2 text-sm">Available Analysis</h3>
-        <div className="space-y-2 text-xs">
-          <div className="flex items-center text-gray-600">
-            <div className="w-2 h-2 bg-blue-500 rounded-full mr-2" />
-            Research Topic Trends
-          </div>
-          <div className="flex items-center text-gray-600">
-            <div className="w-2 h-2 bg-green-500 rounded-full mr-2" />
-            Geographic Distribution
-          </div>
-          <div className="flex items-center text-gray-600">
-            <div className="w-2 h-2 bg-purple-500 rounded-full mr-2" />
-            Author Networks
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-4">
+      <div className="p-6 pt-0 flex-shrink-0">
         <button
           onClick={onNavigateToConferences}
           className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"

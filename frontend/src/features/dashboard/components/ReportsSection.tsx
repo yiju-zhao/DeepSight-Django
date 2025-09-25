@@ -55,20 +55,22 @@ const ReportsSection: React.FC<ReportsSectionProps> = React.memo(({
   }
 
   return (
-    <div className={`mb-8 ${className}`}>
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6">
-        <div className="mb-4">
+    <div className={`h-full ${className}`}>
+      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm h-full flex flex-col">
+        <div className="p-6 pb-4 flex-shrink-0">
           <h2 className="text-base font-semibold text-gray-900">Trending Reports</h2>
           <p className="text-xs text-gray-500">Latest AI-generated research summaries</p>
         </div>
-        <div className="space-y-3">
-          {reports.map((report) => (
-            <ReportListItem
-              key={report.id}
-              report={report}
-              onSelect={onReportSelect}
-            />
-          ))}
+        <div className="flex-1 px-6 pb-6 overflow-y-auto min-h-0">
+          <div className="space-y-3">
+            {reports.map((report) => (
+              <ReportListItem
+                key={report.id}
+                report={report}
+                onSelect={onReportSelect}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
