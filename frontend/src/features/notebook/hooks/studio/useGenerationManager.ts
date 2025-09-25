@@ -32,7 +32,11 @@ const generationKeys = {
 };
 
 // Custom hook for managing generation state with React Query
-export const useGenerationManager = (notebookId: string, type: 'report' | 'podcast') => {
+export const useGenerationManager = (
+  notebookId: string,
+  type: 'report' | 'podcast',
+  onComplete?: (jobData: any) => void
+) => {
   const queryClient = useQueryClient();
   const sseControllerRef = useRef<AbortController | null>(null);
 
@@ -149,9 +153,11 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
 
     // Only invalidate if the job wasn't deleted
     if (jobExists !== false) {
-      queryClient.invalidateQueries({
-        queryKey: type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId),
-      });
+      const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
+
+      // Force immediate refetch to show completed job since polling is disabled
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.refetchQueries({ queryKey });
     }
 
     // Stop SSE
@@ -160,8 +166,13 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
       sseControllerRef.current = null;
     }
 
+    // Call external completion callback if provided
+    if (onComplete && jobExists !== false) {
+      onComplete(jobData);
+    }
+
     return jobData;
-  }, [queryClient, notebookId, type]);
+  }, [queryClient, notebookId, type, onComplete]);
 
   // Job error handler
   const handleJobError = useCallback((error: string) => {
@@ -215,10 +226,10 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
       // Start SSE connection
       connectSSE(response.job_id);
 
-      // Invalidate job lists to show new job
-      queryClient.invalidateQueries({
-        queryKey: type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId),
-      });
+      // Invalidate and refetch job lists to show new job immediately
+      const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.refetchQueries({ queryKey });
     },
   });
 

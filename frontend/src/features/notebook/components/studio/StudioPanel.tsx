@@ -73,11 +73,54 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const deleteReportMutation = useDeleteReport(notebookId);
   const deletePodcastMutation = useDeletePodcast(notebookId);
 
+  // ====== COMPLETION HANDLERS ======
+  const handleReportComplete = useCallback((jobData: any) => {
+    toast({
+      title: "Report Generated",
+      description: "Your research report has been generated successfully."
+    });
+
+    // Auto-select and display the completed report after a delay
+    if (jobData && (jobData.id || jobData.jobId)) {
+      setTimeout(() => {
+        // Find the completed report in the jobs list
+        const currentReportJobs = reportJobs.data?.jobs || [];
+        const completedReport = currentReportJobs.find((job: any) =>
+          (job.id === jobData.id || job.id === jobData.jobId ||
+           job.job_id === jobData.id || job.job_id === jobData.jobId) &&
+          job.status === 'completed'
+        );
+
+        if (completedReport) {
+          // Trigger a direct API call to select and display the report
+          // This avoids the circular dependency issue
+          studioService.getReportContent(completedReport.id || completedReport.job_id, notebookId)
+            .then(content => {
+              setSelectedFile(completedReport);
+              setSelectedFileContent(content.content || content.markdown_content || '');
+              setViewMode('preview');
+              setIsReportPreview(true);
+            })
+            .catch(error => {
+              console.error('Failed to auto-display completed report:', error);
+            });
+        }
+      }, 1500); // Longer delay to ensure data is available
+    }
+  }, [reportJobs.data, notebookId, toast]);
+
+  const handlePodcastComplete = useCallback((jobData: any) => {
+    toast({
+      title: "Podcast Generated",
+      description: "Your panel discussion has been generated successfully."
+    });
+  }, [toast]);
+
   // ====== SINGLE RESPONSIBILITY: Report generation management ======
-  const reportGeneration = useGenerationManager(notebookId, 'report');
+  const reportGeneration = useGenerationManager(notebookId, 'report', handleReportComplete);
 
   // ====== SINGLE RESPONSIBILITY: Podcast generation management ======
-  const podcastGeneration = useGenerationManager(notebookId, 'podcast');
+  const podcastGeneration = useGenerationManager(notebookId, 'podcast', handlePodcastComplete);
 
   // Initialize default configs
   useEffect(() => {
@@ -114,9 +157,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     };
   }, [reportGeneration.cleanup, podcastGeneration.cleanup]);
 
-  // ====== COMPLETION HANDLERS ======
-  // The new generation manager handles completion internally
-  // Auto-display logic will be handled by the generation manager's onComplete callback
 
   // ====== JOB STATUS MONITORING ======
   // The new generation manager handles job status monitoring internally via SSE and React Query
