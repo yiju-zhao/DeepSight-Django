@@ -130,7 +130,7 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col min-h-screen bg-gray-50">
+      <div className="flex flex-col h-screen bg-gray-50">
         <MainPageHeader
           title="Dashboard"
           subtitle="AI-powered insights and analytics"
@@ -138,12 +138,12 @@ export default function DashboardPage() {
           iconColor="from-blue-500 to-blue-600"
         />
 
-        <div className="flex-1 p-6 md:p-8 overflow-hidden">
+        <div className="flex-1 p-6 md:p-8 overflow-hidden min-h-0">
           <div className="max-w-7xl mx-auto h-full">
             {/* Three-Panel Dashboard Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
               {/* Conference Panel */}
-              <div className="lg:col-span-1 flex flex-col h-full">
+              <div className="lg:col-span-1 flex flex-col h-screen">
                 <div className="mb-2 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Conference</span>
@@ -156,7 +156,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Reports Panel */}
-              <div className="lg:col-span-1 flex flex-col h-full">
+              <div className="lg:col-span-1 flex flex-col h-screen">
                 <div className="mb-2 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Reports</span>
@@ -197,7 +197,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Podcasts Panel */}
-              <div className="lg:col-span-1 flex flex-col h-full">
+              <div className="lg:col-span-1 flex flex-col h-screen">
                 <div className="mb-2 flex-shrink-0">
                   <div className="flex items-center space-x-3">
                     <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Podcasts</span>
