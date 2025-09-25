@@ -66,12 +66,8 @@ export const useGenerationManager = (notebookId: string, type: 'report' | 'podca
       return null;
     },
     enabled: !!notebookId,
-    refetchInterval: (query) => {
-      // Only poll if there's an active job
-      const data = query.state.data as ActiveJob | null;
-      return data?.status === 'running' || data?.status === 'pending' ? 5000 : false;
-    },
-    staleTime: 1000, // Very short stale time for active job monitoring
+    refetchInterval: false, // Disable polling - SSE handles real-time updates
+    staleTime: 30 * 1000, // 30 seconds - SSE provides real-time updates
   });
 
   // SSE connections are managed internally when jobs become active

@@ -136,8 +136,12 @@ class ConfigurationManager:
         elif config.retriever.value == "duckduckgo":
             return DuckDuckGoSearchRM(k=config.search_top_k)
         elif config.retriever.value == "searxng":
+            searxng_url = os.getenv("SEARXNG_URL", "http://localhost:8080")
+            searxng_api_key = os.getenv("SEARXNG_API_KEY")
+
             return SearXNG(
-                searxng_api_url=os.getenv("SEARXNG_URL", "http://localhost:8080"),
+                searxng_api_url=searxng_url,
+                searxng_api_key=searxng_api_key,
                 k=config.search_top_k,
             )
         elif config.retriever.value == "azureaisearch":
