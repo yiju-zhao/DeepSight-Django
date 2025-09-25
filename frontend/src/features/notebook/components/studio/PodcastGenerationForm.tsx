@@ -43,7 +43,6 @@ interface PodcastGenerationFormProps {
     error?: string;
   };
   onGenerate: (configOverrides?: Partial<PodcastConfig>) => void;
-  onCancel: () => void;
   
   // File selection props
   selectedFiles: FileItem[];
@@ -64,8 +63,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
   // Generation state props
   generationState,
   onGenerate,
-  onCancel,
-  
+
   // File selection props
   selectedFiles,
   selectedSources,

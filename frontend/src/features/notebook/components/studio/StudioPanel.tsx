@@ -227,40 +227,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     }
   }, [podcastGeneration.generate, podcastGeneration.config.model, selectedFiles, toast]);
 
-  // ====== SINGLE RESPONSIBILITY: Cancellation handlers ======
-  const handleCancelReport = useCallback(async () => {
-    try {
-      reportGeneration.cancel();
-      toast({
-        title: "Cancelled",
-        description: "Report generation cancelled successfully."
-      });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast({
-        title: "Cancel Failed",
-        description: `Failed to cancel report generation: ${errorMessage}`,
-        variant: "destructive"
-      });
-    }
-  }, [reportGeneration.cancel, toast]);
-
-  const handleCancelPodcast = useCallback(async () => {
-    try {
-      podcastGeneration.cancel();
-      toast({
-        title: "Cancelled",
-        description: "Podcast generation cancelled successfully."
-      });
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast({
-        title: "Cancel Failed",
-        description: `Failed to cancel podcast generation: ${errorMessage}`,
-        variant: "destructive"
-      });
-    }
-  }, [podcastGeneration.cancel, toast]);
+  // ====== CANCELLATION HANDLING ======
+  // Cancellation is now handled through delete buttons on generating report/podcast cards
+  // See handleDeleteReport and handleDeletePodcast functions
 
 
   const toggleExpanded = useCallback(() => {
@@ -410,7 +379,15 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, [notebookId, toast]);
 
   const handleDeleteReport = useCallback(async (report: ReportItem) => {
-    if (!confirm('Are you sure you want to delete this report?')) {
+    const isGenerating = report.status === 'running' || report.status === 'pending' ||
+                        (reportGeneration.activeJob && reportGeneration.activeJob.jobId === (report.id || report.job_id));
+
+    const action = isGenerating ? 'cancel' : 'delete';
+    const confirmMessage = isGenerating
+      ? 'Are you sure you want to cancel this report generation?'
+      : 'Are you sure you want to delete this report?';
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -420,31 +397,48 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         throw new Error('Report ID not found');
       }
 
-      // Clear selected file if it's the one being deleted, without navigating to another file
+      // Clear selected file if it's the one being deleted/cancelled
       if (selectedFile?.id === reportId || selectedFile?.job_id === reportId) {
         setSelectedFile(null);
         setSelectedFileContent('');
       }
 
-      // Use the mutation hook for optimized deletion with automatic UI updates
-      await deleteReportMutation.mutateAsync(reportId);
-
-      toast({
-        title: "Report Deleted",
-        description: "The report has been deleted successfully"
-      });
+      if (isGenerating) {
+        // Cancel the generation
+        await reportGeneration.cancel();
+        toast({
+          title: "Generation Cancelled",
+          description: "Report generation has been cancelled successfully"
+        });
+      } else {
+        // Delete the completed report
+        await deleteReportMutation.mutateAsync(reportId);
+        toast({
+          title: "Report Deleted",
+          description: "The report has been deleted successfully"
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const actionText = isGenerating ? 'cancel' : 'delete';
       toast({
-        title: "Delete Failed",
-        description: `Failed to delete report: ${errorMessage}`,
+        title: `${actionText === 'cancel' ? 'Cancel' : 'Delete'} Failed`,
+        description: `Failed to ${actionText} report: ${errorMessage}`,
         variant: "destructive"
       });
     }
-  }, [deleteReportMutation, selectedFile, toast]);
+  }, [deleteReportMutation, selectedFile, toast, reportGeneration]);
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
-    if (!confirm('Are you sure you want to delete this podcast?')) {
+    const isGenerating = podcast.status === 'running' || podcast.status === 'pending' ||
+                        (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === (podcast.id || podcast.job_id));
+
+    const action = isGenerating ? 'cancel' : 'delete';
+    const confirmMessage = isGenerating
+      ? 'Are you sure you want to cancel this podcast generation?'
+      : 'Are you sure you want to delete this podcast?';
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -454,28 +448,37 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         throw new Error('Podcast ID not found');
       }
 
-      // Clear selected file if it's the one being deleted
+      // Clear selected file if it's the one being deleted/cancelled
       if (selectedFile?.id === podcastId || selectedFile?.job_id === podcastId) {
         setSelectedFile(null);
         setSelectedFileContent('');
       }
 
-      // Use the mutation hook for optimized deletion with automatic UI updates
-      await deletePodcastMutation.mutateAsync(podcastId);
-
-      toast({
-        title: "Podcast Deleted",
-        description: "The podcast has been deleted successfully"
-      });
+      if (isGenerating) {
+        // Cancel the generation
+        await podcastGeneration.cancel();
+        toast({
+          title: "Generation Cancelled",
+          description: "Podcast generation has been cancelled successfully"
+        });
+      } else {
+        // Delete the completed podcast
+        await deletePodcastMutation.mutateAsync(podcastId);
+        toast({
+          title: "Podcast Deleted",
+          description: "The podcast has been deleted successfully"
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const actionText = isGenerating ? 'cancel' : 'delete';
       toast({
-        title: "Delete Failed",
-        description: `Failed to delete podcast: ${errorMessage}`,
+        title: `${actionText === 'cancel' ? 'Cancel' : 'Delete'} Failed`,
+        description: `Failed to ${actionText} podcast: ${errorMessage}`,
         variant: "destructive"
       });
     }
-  }, [deletePodcastMutation, selectedFile, toast]);
+  }, [deletePodcastMutation, selectedFile, toast, podcastGeneration]);
 
   const handleSaveFile = useCallback(async (content: string) => {
     if (!selectedFile) return;
@@ -535,12 +538,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
             <h3 className={PANEL_HEADERS.title}>
               {isReportPreview ? 'Studio/Report' : 'Studio'}
             </h3>
-            {(reportGeneration.isGenerating || podcastGeneration.isGenerating) && (
-              <div className="flex items-center space-x-2 text-sm text-red-600">
-                <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
-                <span>Generating...</span>
-              </div>
-            )}
           </div>
           <div className={PANEL_HEADERS.actionsContainer}>
             {isReportPreview && selectedFile ? (
@@ -678,7 +675,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 isGenerating: reportGeneration.isGenerating
               }}
               onGenerate={handleGenerateReport}
-              onCancel={handleCancelReport}
               selectedFiles={selectedFiles}
               onOpenModal={onOpenModal}
               onCloseModal={onCloseModal}
@@ -693,7 +689,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 error: podcastGeneration.error || undefined
               }}
               onGenerate={handleGeneratePodcast}
-              onCancel={handleCancelPodcast}
               selectedFiles={selectedFiles}
               selectedSources={selectedSources}
               onOpenModal={onOpenModal}

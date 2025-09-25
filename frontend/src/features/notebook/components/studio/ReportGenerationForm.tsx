@@ -44,7 +44,6 @@ interface ReportGenerationFormProps {
     isGenerating: boolean;
   };
   onGenerate: (configOverrides?: Partial<ReportConfig>) => void;
-  onCancel: () => void;
   selectedFiles: FileItem[];
   onOpenModal: (id: string, content: React.ReactNode) => void;
   onCloseModal: (id: string) => void;
@@ -61,8 +60,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
   // Generation state props
   generationState,
   onGenerate,
-  onCancel,
-  
+
   // File selection props
   selectedFiles,
   
