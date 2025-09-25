@@ -133,8 +133,11 @@ export const useDeleteReport = (notebookId: string) => {
         return old?.jobId === jobId ? null : old;
       });
 
-      // Simply invalidate and let React Query refetch
+      // Force immediate refetch to ensure UI updates
       queryClient.invalidateQueries({
+        queryKey: studioKeys.reportJobs(notebookId),
+      });
+      queryClient.refetchQueries({
         queryKey: studioKeys.reportJobs(notebookId),
       });
     },
@@ -152,8 +155,11 @@ export const useDeletePodcast = (notebookId: string) => {
         return old?.jobId === jobId ? null : old;
       });
 
-      // Simply invalidate and let React Query refetch
+      // Force immediate refetch to ensure UI updates
       queryClient.invalidateQueries({
+        queryKey: studioKeys.podcastJobs(notebookId),
+      });
+      queryClient.refetchQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
       });
     },

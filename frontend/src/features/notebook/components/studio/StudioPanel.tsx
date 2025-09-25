@@ -404,11 +404,20 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
 
       if (isGenerating) {
-        // Cancel the generation
+        // Cancel the generation first
         await reportGeneration.cancel();
+
+        // Then delete the record to completely remove it (cancel might leave a failed record)
+        try {
+          await deleteReportMutation.mutateAsync(reportId);
+        } catch (deleteError) {
+          // If delete fails, just log it - the cancel was successful
+          console.warn('Failed to delete cancelled report record:', deleteError);
+        }
+
         toast({
           title: "Generation Cancelled",
-          description: "Report generation has been cancelled successfully"
+          description: "Report generation has been cancelled and removed"
         });
       } else {
         // Delete the completed report
@@ -455,11 +464,20 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
 
       if (isGenerating) {
-        // Cancel the generation
+        // Cancel the generation first
         await podcastGeneration.cancel();
+
+        // Then delete the record to completely remove it (cancel might leave a failed record)
+        try {
+          await deletePodcastMutation.mutateAsync(podcastId);
+        } catch (deleteError) {
+          // If delete fails, just log it - the cancel was successful
+          console.warn('Failed to delete cancelled podcast record:', deleteError);
+        }
+
         toast({
           title: "Generation Cancelled",
-          description: "Podcast generation has been cancelled successfully"
+          description: "Podcast generation has been cancelled and removed"
         });
       } else {
         // Delete the completed podcast

@@ -255,10 +255,10 @@ export const useGenerationManager = (
         sseControllerRef.current = null;
       }
 
-      // Invalidate job lists
-      queryClient.invalidateQueries({
-        queryKey: type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId),
-      });
+      // Force immediate refetch of job lists to ensure UI updates
+      const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.refetchQueries({ queryKey });
     },
   });
 
