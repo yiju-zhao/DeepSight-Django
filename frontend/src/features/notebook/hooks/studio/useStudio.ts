@@ -123,44 +123,16 @@ export const useDeleteReport = (notebookId: string) => {
 
   return useMutation({
     mutationFn: (jobId: string) => studioService.deleteReport(jobId, notebookId),
-    onMutate: async (jobId: string) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: studioKeys.reportJobs(notebookId) });
-
-      // Snapshot the previous value
-      const previousReports = queryClient.getQueryData(studioKeys.reportJobs(notebookId));
-
-      // Optimistically update the cache
-      queryClient.setQueryData(studioKeys.reportJobs(notebookId), (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          jobs: old.jobs.filter((job: any) => job.job_id !== jobId && job.id !== jobId)
-        };
-      });
-
-      // Return a context object with the snapshotted value
-      return { previousReports };
-    },
-    onError: (err, jobId, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousReports) {
-        queryClient.setQueryData(studioKeys.reportJobs(notebookId), context.previousReports);
-      }
-    },
     onSuccess: (data, jobId) => {
-      // Also clear any active generation job for this report
+      // Clear any active generation job for this report
       queryClient.setQueryData(['generation', 'notebook', notebookId, 'active-job', 'report'], (old: any) => {
         return old?.jobId === jobId ? null : old;
       });
 
-      // Delay invalidation to give server time to process deletion
-      // This prevents the deleted item from reappearing due to race conditions
-      setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: studioKeys.reportJobs(notebookId),
-        });
-      }, 1000);
+      // Simply invalidate and let React Query refetch
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.reportJobs(notebookId),
+      });
     },
   });
 };
@@ -170,44 +142,16 @@ export const useDeletePodcast = (notebookId: string) => {
 
   return useMutation({
     mutationFn: (jobId: string) => studioService.deletePodcast(jobId, notebookId),
-    onMutate: async (jobId: string) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: studioKeys.podcastJobs(notebookId) });
-
-      // Snapshot the previous value
-      const previousPodcasts = queryClient.getQueryData(studioKeys.podcastJobs(notebookId));
-
-      // Optimistically update the cache
-      queryClient.setQueryData(studioKeys.podcastJobs(notebookId), (old: any) => {
-        if (!old) return old;
-        return {
-          ...old,
-          jobs: old.jobs.filter((job: any) => job.job_id !== jobId && job.id !== jobId)
-        };
-      });
-
-      // Return a context object with the snapshotted value
-      return { previousPodcasts };
-    },
-    onError: (err, jobId, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousPodcasts) {
-        queryClient.setQueryData(studioKeys.podcastJobs(notebookId), context.previousPodcasts);
-      }
-    },
     onSuccess: (data, jobId) => {
-      // Also clear any active generation job for this podcast
+      // Clear any active generation job for this podcast
       queryClient.setQueryData(['generation', 'notebook', notebookId, 'active-job', 'podcast'], (old: any) => {
         return old?.jobId === jobId ? null : old;
       });
 
-      // Delay invalidation to give server time to process deletion
-      // This prevents the deleted item from reappearing due to race conditions
-      setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: studioKeys.podcastJobs(notebookId),
-        });
-      }, 1000);
+      // Simply invalidate and let React Query refetch
+      queryClient.invalidateQueries({
+        queryKey: studioKeys.podcastJobs(notebookId),
+      });
     },
   });
 };
