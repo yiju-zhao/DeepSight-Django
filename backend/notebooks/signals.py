@@ -48,31 +48,6 @@ def _delete_object_keys_after_commit(keys: List[str]) -> None:
         _do_delete()
 
 
-def _delete_ragflow_document_after_commit(dataset_id: str, document_id: str, document_title: str) -> None:
-    """Schedule deletion of RagFlow document after the current transaction commits."""
-    if not dataset_id or not document_id:
-        return
-
-    def _do_delete():
-        try:
-            from infrastructure.ragflow.client import get_ragflow_client
-            ragflow_client = get_ragflow_client()
-
-            success = ragflow_client.delete_document(dataset_id, document_id)
-            if success:
-                logger.info(f"Successfully deleted RagFlow document '{document_title}' (ID: {document_id}) from dataset {dataset_id}")
-            else:
-                logger.warning(f"RagFlow document deletion returned False for document {document_id}")
-        except Exception as e:
-            logger.error(f"Failed to delete RagFlow document {document_id} ('{document_title}') from dataset {dataset_id}: {e}")
-
-    # Ensure deletion runs only after a successful commit
-    try:
-        transaction.on_commit(_do_delete)
-    except Exception:
-        # If no transaction is in progress, run immediately
-        _do_delete()
-
 
 @receiver(pre_delete, sender=KnowledgeBaseImage)
 def delete_image_file_on_pre_delete(sender, instance: KnowledgeBaseImage, using, **kwargs):
@@ -88,17 +63,41 @@ def delete_image_file_on_pre_delete(sender, instance: KnowledgeBaseImage, using,
 
 @receiver(pre_delete, sender=KnowledgeBaseItem)
 def delete_kb_files_on_pre_delete(sender, instance: KnowledgeBaseItem, using, **kwargs):
-    """Delete all MinIO files and RagFlow documents related to a KnowledgeBaseItem when it is deleted.
+    """Delete RagFlow documents first, then MinIO files when a KnowledgeBaseItem is deleted.
+
+    Order of operations:
+    1. Delete RagFlow document immediately (while we still have the ID)
+    2. Schedule MinIO file deletions for after commit
 
     Includes:
+      - RagFlow document deletion if ragflow_document_id exists
       - processed content file (file_object_key)
       - original uploaded file (original_file_object_key)
       - any additional content files recorded in file_metadata (mineru_extraction)
       - image files are handled by KnowledgeBaseImage signal; we also sweep any
         image keys present in metadata as a safety net
-      - RagFlow document deletion if ragflow_document_id exists
     """
     try:
+        # STEP 1: Delete RagFlow document IMMEDIATELY (before DB deletion)
+        # We need to do this now because we need the IDs before they're lost
+        if instance.ragflow_document_id and instance.notebook.ragflow_dataset_id:
+            logger.info(f"Deleting RagFlow document '{instance.title}' (ID: {instance.ragflow_document_id}) from dataset {instance.notebook.ragflow_dataset_id}")
+            try:
+                from infrastructure.ragflow.client import get_ragflow_client
+                ragflow_client = get_ragflow_client()
+
+                success = ragflow_client.delete_document(
+                    instance.notebook.ragflow_dataset_id,
+                    instance.ragflow_document_id
+                )
+                if success:
+                    logger.info(f"Successfully deleted RagFlow document '{instance.title}' (ID: {instance.ragflow_document_id}) from dataset {instance.notebook.ragflow_dataset_id}")
+                else:
+                    logger.warning(f"RagFlow document deletion returned False for document {instance.ragflow_document_id}")
+            except Exception as e:
+                logger.error(f"Failed to delete RagFlow document {instance.ragflow_document_id} ('{instance.title}') from dataset {instance.notebook.ragflow_dataset_id}: {e}")
+
+        # STEP 2: Collect MinIO object keys for later deletion
         keys: List[str] = []
 
         # Primary files
@@ -129,17 +128,9 @@ def delete_kb_files_on_pre_delete(sender, instance: KnowledgeBaseItem, using, **
                             except Exception:
                                 continue
 
-        # Schedule MinIO file deletions
+        # STEP 3: Schedule MinIO file deletions for after commit
         _delete_object_keys_after_commit(keys)
 
-        # Schedule RagFlow document deletion if exists
-        if instance.ragflow_document_id and instance.notebook.ragflow_dataset_id:
-            _delete_ragflow_document_after_commit(
-                instance.notebook.ragflow_dataset_id,
-                instance.ragflow_document_id,
-                instance.title
-            )
-
     except Exception as e:
-        logger.error(f"Error scheduling KB item file deletions for {instance.id}: {e}")
+        logger.error(f"Error during KB item deletion for {instance.id}: {e}")
 

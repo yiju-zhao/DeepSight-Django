@@ -413,9 +413,12 @@ class FileViewSet(viewsets.ModelViewSet):
         """
         Handle file deletion with proper cleanup of storage and RagFlow documents.
 
-        The actual cleanup is handled by Django signals (delete_kb_files_on_pre_delete),
-        which will delete both MinIO files and RagFlow documents when the
-        KnowledgeBaseItem is deleted.
+        Order of operations (handled by Django signals):
+        1. Delete RagFlow document immediately (while IDs are still available)
+        2. Delete the database record
+        3. Delete MinIO files after transaction commit
+
+        The actual cleanup is handled by Django signals (delete_kb_files_on_pre_delete).
         """
         try:
             logger.info(f"Deleting file '{instance.title}' (ID: {instance.id}) from notebook {instance.notebook.id}")
@@ -425,9 +428,9 @@ class FileViewSet(viewsets.ModelViewSet):
             if instance.ragflow_document_id and instance.notebook.ragflow_dataset_id:
                 ragflow_doc_info = f" and RagFlow document {instance.ragflow_document_id} from dataset {instance.notebook.ragflow_dataset_id}"
 
-            logger.info(f"File deletion will clean up MinIO storage{ragflow_doc_info}")
+            logger.info(f"File deletion will clean up RagFlow document first, then MinIO storage{ragflow_doc_info}")
 
-            # Delete the instance - signals will handle cleanup
+            # Delete the instance - signals will handle RAGFlow deletion first, then MinIO cleanup
             instance.delete()
 
         except Exception as e:
