@@ -172,6 +172,39 @@ class STORMWikiLMConfigs(LMConfigs):
                 "No valid OpenAI API provider is provided. Cannot use default LLM configurations."
             )
 
+    def init_google_model(
+        self,
+        google_api_key: str,
+        temperature: Optional[float] = 0.3,
+        top_p: Optional[float] = 0.9,
+    ):
+        """Initialize Google Gemini models using LitellmModel."""
+        google_kwargs = {
+            "api_key": google_api_key,
+            "temperature": temperature,
+            "top_p": top_p,
+        }
+
+        # Setup Google Gemini models using LitellmModel with gemini/ prefix for LiteLLM
+        self.conv_simulator_lm = LitellmModel(
+            model="gemini/gemini-1.5-flash", max_tokens=500, **google_kwargs
+        )
+        self.question_asker_lm = LitellmModel(
+            model="gemini/gemini-1.5-flash", max_tokens=500, **google_kwargs
+        )
+        self.outline_gen_lm = LitellmModel(
+            model="gemini/gemini-1.5-pro", max_tokens=3000, **google_kwargs
+        )
+        self.article_gen_lm = LitellmModel(
+            model="gemini/gemini-1.5-pro", max_tokens=3000, **google_kwargs
+        )
+        self.article_polish_lm = LitellmModel(
+            model="gemini/gemini-1.5-pro", max_tokens=20000, **google_kwargs
+        )
+        self.topic_improver_lm = LitellmModel(
+            model="gemini/gemini-1.5-flash", max_tokens=500, **google_kwargs
+        )
+
     def set_conv_simulator_lm(self, model: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
         self.conv_simulator_lm = model
 

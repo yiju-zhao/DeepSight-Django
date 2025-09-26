@@ -225,69 +225,48 @@ class ReportJobDetailView(APIView):
             return Response({"detail": f"Error updating report: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, job_id):
-        """Delete a report and all its associated files"""
+        """Delete a report and all its associated files - simplified version with task cancellation"""
         try:
             report = self._get_report(job_id)
 
-            # Cancel if running
+            # For running reports: cancel task first, then delete
             if report.status == Report.STATUS_RUNNING:
-                return Response(
-                    {"detail": "Cannot delete a running report."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                try:
+                    # Cancel the running task
+                    success = report_orchestrator.cancel_report_job(job_id)
+                    if success:
+                        logger.info(f"Cancelled running report task {job_id}")
+                    else:
+                        logger.warning(f"Failed to cancel running task {job_id}, proceeding with deletion")
+                except Exception as e:
+                    logger.warning(f"Error cancelling task {job_id}: {e}, proceeding with deletion")
 
-            deleted_files = 0
-            deleted_metadata = False
-
-            # Delete generated files if they exist
+            # Delete MinIO file if exists
             if report.main_report_object_key:
                 try:
-                    # Delete from MinIO storage
                     from notebooks.utils.file_storage import FileStorageService
                     storage_service = FileStorageService()
                     storage_service.minio_backend.delete_file(report.main_report_object_key)
-                    deleted_files = 1
-                    logger.info(f"Deleted report file from MinIO storage")
+                    logger.info(f"Deleted report file from MinIO: {report.main_report_object_key}")
                 except Exception as e:
-                    logger.warning(
-                        f"Could not delete report file for {report.id}: {e}"
-                    )
+                    logger.warning(f"Failed to delete MinIO file for report {job_id}: {e}")
 
-            # Remove job metadata if exists
-            if report.job_id:
-                deleted_metadata = report_orchestrator.delete_report_job(
-                    report.job_id, report.user.id
-                )
-
-            # Delete the report instance
-            report_id = report.id
+            # Delete from database
             report.delete()
+            logger.info(f"Deleted report {job_id} from database")
 
-            response = Response(
-                {
-                    "message": f"Report {report_id} deleted successfully",
-                    "report_id": report_id,
-                    "deleted_files": deleted_files,
-                    "deleted_metadata": deleted_metadata,
-                }
-            )
-
-            # Add cache-busting headers to ensure browsers don't cache delete responses
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
-
-            return response
+            return Response({"success": True}, status=status.HTTP_200_OK)
 
         except Http404:
             return Response(
-                {"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND
+                {"detail": "Report not found"},
+                status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
             logger.error(f"Error deleting report {job_id}: {e}")
             return Response(
-                {"detail": f"Error deleting report: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                {"detail": "Failed to delete report"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 

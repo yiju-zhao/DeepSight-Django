@@ -103,20 +103,15 @@ class ConfigurationManager:
         return lm_configs
 
     def _setup_google_models(self, config, lm_configs) -> 'STORMWikiLMConfigs':
-        """Setup Google language models."""
-        google_kwargs = {
-            "api_key": os.getenv("GOOGLE_API_KEY"),
-            "temperature": config.temperature,
-            "top_p": config.top_p,
-        }
+        """Setup Google language models using LitellmModel."""
+        google_api_key = os.getenv("GOOGLE_API_KEY")
 
-        # Use hardcoded Gemini model names similar to how OpenAI models are handled
-        lm_configs.set_conv_simulator_lm(GoogleModel(model="gemini-1.5-flash", max_tokens=500, **google_kwargs))
-        lm_configs.set_question_asker_lm(GoogleModel(model="gemini-1.5-flash", max_tokens=500, **google_kwargs))
-        lm_configs.set_outline_gen_lm(GoogleModel(model="gemini-1.5-pro", max_tokens=3000, **google_kwargs))
-        lm_configs.set_article_gen_lm(GoogleModel(model="gemini-1.5-pro", max_tokens=3000, **google_kwargs))
-        lm_configs.set_article_polish_lm(GoogleModel(model="gemini-1.5-pro", max_tokens=20000, **google_kwargs))
-        lm_configs.set_topic_improver_lm(GoogleModel(model="gemini-1.5-flash", max_tokens=500, **google_kwargs))
+        # Setup Google model configurations using init_google_model method in engine
+        lm_configs.init_google_model(
+            google_api_key=google_api_key,
+            temperature=config.temperature,
+            top_p=config.top_p,
+        )
 
         return lm_configs
 
