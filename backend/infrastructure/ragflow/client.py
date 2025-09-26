@@ -122,6 +122,13 @@ class RagFlowClient:
                 'description': description,
                 'chunk_method': getattr(settings, 'RAGFLOW_DEFAULT_CHUNK_METHOD', 'naive'),
                 'embedding_model': getattr(settings, 'RAGFLOW_DEFAULT_EMBEDDING_MODEL', 'text-embedding-3-large@OpenAI'),
+                'parser_config': {
+                    "chunk_token_num": 512,
+                    "delimiter": "#",
+                    "html4excel": False,
+                    "layout_recognize": True,
+                    "raptor": {"use_raptor": False}
+                },
                 **kwargs
             }
             
