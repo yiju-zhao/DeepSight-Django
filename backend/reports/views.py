@@ -1,49 +1,48 @@
-# reports/views.py
+"""
+Canonical report job views and SSE endpoints following SOLID principles.
+"""
+
 import json
-import shutil
 import logging
-import time
 from pathlib import Path
-"""
-Canonical report job views and SSE endpoints.
-"""
 
 from django.http import FileResponse, Http404, StreamingHttpResponse, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.db import models
 
- 
-
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
- 
 
 from .models import Report
-from .serializers import (
-    ReportSerializer,
-    ReportCreateSerializer,
-    ReportGenerationRequestSerializer,
-    ReportStatusSerializer,
-)
+from .serializers import ReportGenerationRequestSerializer
 from .orchestrator import report_orchestrator
 from notebooks.models import Notebook
 from .tasks import process_report_generation
-from .services.pdf import PdfService
+from .services import PdfService, DeletionServiceFactory
 
 logger = logging.getLogger(__name__)
 
 
-class ReportJobListCreateView(APIView):
-    """Canonical: List and create report jobs without notebook in the path.
+# ====== DEPENDENCY INVERSION PRINCIPLE (DIP) ======
+# Helper class for common view operations
 
-    - GET /api/v1/reports/jobs/?notebook=<uuid>  -> filter by notebook if provided
-    - POST /api/v1/reports/jobs/ with body {..., notebook: <uuid>} -> create
-    """
-    permission_classes = [permissions.IsAuthenticated]
+class ReportViewHelper:
+    """Helper class containing common operations for report views"""
 
     @staticmethod
-    def _format_report_data(report: Report) -> dict:
+    def get_user_report(job_id: str, user) -> Report:
+        """Get a report for a specific user with proper error handling"""
+        return get_object_or_404(Report.objects.filter(user=user), job_id=job_id)
+
+    @staticmethod
+    def get_user_notebook(notebook_id: str, user) -> 'Notebook':
+        """Get a notebook for a specific user with proper error handling"""
+        return get_object_or_404(Notebook.objects.filter(user=user), pk=notebook_id)
+
+    @staticmethod
+    def format_report_data(report: Report) -> dict:
+        """Format report data for API responses (centralized formatting)"""
         return {
             "job_id": report.job_id,
             "report_id": report.id,
@@ -57,6 +56,17 @@ class ReportJobListCreateView(APIView):
             "has_files": bool(report.main_report_object_key),
             "has_content": bool(report.result_content),
         }
+
+
+class ReportJobListCreateView(APIView):
+    """Canonical: List and create report jobs without notebook in the path.
+
+    - GET /api/v1/reports/jobs/?notebook=<uuid>  -> filter by notebook if provided
+    - POST /api/v1/reports/jobs/ with body {..., notebook: <uuid>} -> create
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    # Use centralized helper for formatting
 
     def get(self, request):
         try:
@@ -81,13 +91,13 @@ class ReportJobListCreateView(APIView):
             for report in reports:
                 if report.status == Report.STATUS_COMPLETED:
                     if report.main_report_object_key or report.result_content:
-                        validated_reports.append(self._format_report_data(report))
+                        validated_reports.append(ReportViewHelper.format_report_data(report))
                     else:
                         logger.warning(
                             f"Skipping phantom job {report.job_id} - no files found"
                         )
                 else:
-                    validated_reports.append(self._format_report_data(report))
+                    validated_reports.append(ReportViewHelper.format_report_data(report))
 
             response = Response({"reports": validated_reports})
             if last_modified:
@@ -114,9 +124,7 @@ class ReportJobListCreateView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            notebook = get_object_or_404(
-                Notebook.objects.filter(user=request.user), pk=notebook_id
-            )
+            notebook = ReportViewHelper.get_user_notebook(notebook_id, request.user)
 
             report_data = serializer.validated_data.copy()
             report_data.pop("notebook", None)
@@ -152,9 +160,7 @@ class ReportJobDetailView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _get_report(self, job_id):
-        return get_object_or_404(
-            Report.objects.filter(user=self.request.user), job_id=job_id
-        )
+        return ReportViewHelper.get_user_report(job_id, self.request.user)
 
     def get(self, request, job_id):
         try:
@@ -225,77 +231,28 @@ class ReportJobDetailView(APIView):
             return Response({"detail": f"Error updating report: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, job_id):
-        """Delete a report and all its associated files - ensures proper Celery task termination"""
+        """Delete a report using the dedicated deletion service (SOLID principles)"""
         try:
             report = self._get_report(job_id)
 
-            # For running/pending reports: terminate task synchronously first
-            if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
-                try:
-                    # Synchronously terminate the Celery task and wait for confirmation
-                    if report.celery_task_id:
-                        from celery.result import AsyncResult
-                        from backend.celery import app as celery_app
-                        import time
+            # Use the dedicated deletion service
+            deletion_service = DeletionServiceFactory.create_standard_deletion_service()
 
-                        task_result = AsyncResult(report.celery_task_id)
-                        initial_state = task_result.state
-                        logger.info(f"Initial task state for {report.celery_task_id}: {initial_state}")
+            result = deletion_service.delete_report(report)
 
-                        if initial_state in ["PENDING", "STARTED", "RETRY"]:
-                            # Revoke and terminate the task
-                            celery_app.control.revoke(
-                                report.celery_task_id,
-                                terminate=True,
-                                signal="SIGTERM"
-                            )
-                            logger.info(f"Sent termination signal to Celery task {report.celery_task_id}")
-
-                            # Wait for task to actually terminate (up to 10 seconds)
-                            termination_timeout = 10
-                            start_time = time.time()
-
-                            while (time.time() - start_time) < termination_timeout:
-                                task_result = AsyncResult(report.celery_task_id)
-                                current_state = task_result.state
-
-                                if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
-                                    logger.info(f"Task {report.celery_task_id} terminated with state: {current_state}")
-                                    break
-
-                                time.sleep(0.5)  # Wait 500ms before checking again
-
-                            else:
-                                # Timeout reached, force proceed but log warning
-                                logger.warning(f"Task {report.celery_task_id} termination timeout after {termination_timeout}s, proceeding with deletion")
-
-                    # Call orchestrator cancellation for cleanup
-                    from .orchestrator import report_orchestrator
-                    report_orchestrator.cancel_generation(job_id)
-
-                    # Update status to cancelled
-                    report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled for deletion")
-                    logger.info(f"Successfully cancelled and cleaned up running report {job_id}")
-
-                except Exception as e:
-                    logger.warning(f"Error cancelling running task for {job_id}: {e}")
-                    # Continue with deletion even if cancellation fails
-
-            # Perform immediate synchronous cleanup instead of using async task
-            try:
-                self._perform_immediate_deletion(report)
-                logger.info(f"Successfully deleted report {job_id} and all associated data")
-
+            if result["success"]:
                 return Response({
                     "success": True,
-                    "message": f"Report {job_id} deleted successfully"
+                    "message": f"Report {job_id} deleted successfully",
+                    "details": result["steps"]
                 }, status=status.HTTP_200_OK)
-
-            except Exception as e:
-                logger.error(f"Error during immediate deletion of report {job_id}: {e}")
+            else:
                 return Response({
                     "success": False,
-                    "message": f"Failed to delete report {job_id}: {str(e)}"
+                    "message": f"Report {job_id} deletion failed",
+                    "error": result.get("error", "Unknown error"),
+                    "failed_steps": result.get("failed_steps", []),
+                    "details": result["steps"]
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Http404:
@@ -306,66 +263,9 @@ class ReportJobDetailView(APIView):
         except Exception as e:
             logger.error(f"Error initiating report deletion {job_id}: {e}")
             return Response(
-                {"detail": "Failed to initiate report deletion"},
+                {"detail": f"Failed to initiate report deletion: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-    def _perform_immediate_deletion(self, report):
-        """Perform immediate synchronous deletion of report and all associated data"""
-        try:
-            # Step 1: Clean up cache
-            from django.core.cache import cache
-            cache_key = f"report_job:{report.job_id}"
-            cache.delete(cache_key)
-            logger.info(f"Cleared cache for report {report.job_id}")
-
-            # Step 2: Clean up MinIO storage files
-            if report.main_report_object_key or report.generated_files:
-                try:
-                    from infrastructure.storage.adapters import get_storage_adapter
-                    storage_adapter = get_storage_adapter()
-
-                    # Delete main report file
-                    if report.main_report_object_key:
-                        storage_adapter.delete_file(report.main_report_object_key, str(report.user.id))
-                        logger.info(f"Deleted main report file: {report.main_report_object_key}")
-
-                    # Delete generated files
-                    if report.generated_files:
-                        for file_path in report.generated_files:
-                            try:
-                                storage_adapter.delete_file(file_path, str(report.user.id))
-                                logger.info(f"Deleted generated file: {file_path}")
-                            except Exception as e:
-                                logger.warning(f"Failed to delete generated file {file_path}: {e}")
-
-                except Exception as e:
-                    logger.warning(f"Error cleaning up MinIO storage for report {report.id}: {e}")
-
-            # Step 3: Clean up ReportImage records
-            try:
-                from .services.image import ImageService
-                image_service = ImageService()
-                image_service.cleanup_report_images(report)
-                logger.info(f"Cleaned up ReportImage records for report {report.id}")
-            except Exception as e:
-                logger.warning(f"Error cleaning up ReportImage records for report {report.id}: {e}")
-
-            # Step 4: Clean up temporary directories if any
-            try:
-                from .orchestrator import report_orchestrator
-                report_orchestrator.cleanup_failed_job(report.job_id)
-                logger.info(f"Cleaned up temporary directories for report {report.job_id}")
-            except Exception as e:
-                logger.warning(f"Error cleaning up temp directories for report {report.job_id}: {e}")
-
-            # Step 5: Finally delete the database record
-            report.delete()
-            logger.info(f"Deleted database record for report {report.id}")
-
-        except Exception as e:
-            logger.error(f"Error in immediate deletion process for report {report.id}: {e}")
-            raise
 
 
 class ReportJobCancelView(APIView):
