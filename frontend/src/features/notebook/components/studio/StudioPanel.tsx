@@ -748,17 +748,13 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         return (
                           <div
                             key={`report-${itemId}`}
-                            className={`relative rounded-xl transition-all duration-300 cursor-pointer group border overflow-hidden backdrop-blur-sm ${
-                              isGenerating
-                                ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 shadow-md hover:shadow-lg'
-                                : 'bg-white/80 hover:bg-emerald-50/50 border-gray-200 hover:border-emerald-300 hover:shadow-md'
-                            }`}
+                            className="relative rounded-xl transition-all duration-300 cursor-pointer group border overflow-hidden bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-md"
                             onClick={() => handleSelectReport(item)}
                           >
-                            {/* Subtle gradient overlay for generating state */}
+                            {/* Highlight sweep for generating state */}
                             {isGenerating && (
-                              <div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-teal-100/30 to-emerald-100/20">
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-sweep"></div>
+                              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 via-blue-100/60 to-blue-50/80">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/40 to-transparent animate-sweep"></div>
                               </div>
                             )}
 
@@ -766,25 +762,19 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                               <div className="flex items-start justify-between">
                                 <div className="flex items-start space-x-3 flex-1 min-w-0">
                                   {/* Report Icon */}
-                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                    isGenerating
-                                      ? 'bg-emerald-500 animate-pulse shadow-sm'
-                                      : 'bg-emerald-500 group-hover:bg-emerald-600 shadow-sm'
-                                  }`}>
+                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-500 group-hover:bg-emerald-600 shadow-sm">
                                     <BookOpen className="h-4 w-4 text-white" />
                                   </div>
 
                                   {/* Content */}
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center space-x-2 mb-1">
-                                      <h4 className={`text-sm font-semibold truncate ${
-                                        isGenerating ? 'text-emerald-900' : 'text-gray-900 group-hover:text-emerald-800'
-                                      }`}>
+                                      <h4 className="text-sm font-semibold truncate text-gray-900 group-hover:text-emerald-800">
                                         {item.title || item.article_title || 'Research Report'}
                                       </h4>
                                       {isGenerating && (
-                                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full">
-                                          <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-ping mr-1"></div>
+                                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                          <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping mr-1"></div>
                                           Generating
                                         </span>
                                       )}
@@ -807,10 +797,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                       <div className="flex items-center text-gray-500">
                                         <Database className="h-3 w-3 mr-1" />
                                         <span>{sourceCount} sources</span>
-                                      </div>
-                                      <div className="flex items-center text-emerald-600">
-                                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1"></div>
-                                        <span className="font-medium">Report</span>
                                       </div>
                                     </div>
                                   </div>
@@ -848,32 +834,24 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         return (
                           <div
                             key={`podcast-${itemId}`}
-                            className={`rounded-xl border transition-all duration-300 overflow-hidden backdrop-blur-sm ${
-                              isGenerating
-                                ? 'bg-gradient-to-r from-violet-50 to-purple-50 border-violet-200 shadow-md hover:shadow-lg'
-                                : 'bg-white/80 hover:bg-violet-50/50 border-gray-200 hover:border-violet-300 hover:shadow-md'
-                            }`}
+                            className="relative rounded-xl border transition-all duration-300 overflow-hidden bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-md"
                           >
-                            {/* Subtle gradient overlay for generating state */}
+                            {/* Highlight sweep for generating state */}
                             {isGenerating && (
-                              <div className="absolute inset-0 bg-gradient-to-r from-violet-100/20 via-purple-100/30 to-violet-100/20">
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-sweep"></div>
+                              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 via-blue-100/60 to-blue-50/80">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/40 to-transparent animate-sweep"></div>
                               </div>
                             )}
 
                             {/* Podcast Header */}
                             <div
-                              className="p-3 cursor-pointer hover:bg-violet-50/30 transition-colors duration-200 group relative z-10"
+                              className="p-3 cursor-pointer hover:bg-gray-50 transition-colors duration-200 group relative z-10"
                               onClick={() => handlePodcastClick(item)}
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex items-start space-x-3 flex-1 min-w-0">
                                   {/* Podcast Icon */}
-                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                                    isGenerating
-                                      ? 'bg-violet-500 animate-pulse shadow-sm'
-                                      : 'bg-violet-500 group-hover:bg-violet-600 shadow-sm'
-                                  }`}>
+                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-violet-500 group-hover:bg-violet-600 shadow-sm">
                                     {isExpanded ? (
                                       <ChevronDown className="h-4 w-4 text-white" />
                                     ) : (
@@ -884,14 +862,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                   {/* Content */}
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center space-x-2 mb-1">
-                                      <h4 className={`text-sm font-semibold truncate ${
-                                        isGenerating ? 'text-violet-900' : 'text-gray-900 group-hover:text-violet-800'
-                                      }`}>
+                                      <h4 className="text-sm font-semibold truncate text-gray-900 group-hover:text-violet-800">
                                         {item.title || 'Panel Discussion'}
                                       </h4>
                                       {isGenerating && (
-                                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-800 rounded-full">
-                                          <div className="w-1.5 h-1.5 bg-violet-600 rounded-full animate-ping mr-1"></div>
+                                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                          <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping mr-1"></div>
                                           Generating
                                         </span>
                                       )}
@@ -899,7 +875,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
                                     {/* Description/Progress */}
                                     {isGenerating && (item.progress || podcastGeneration.progress) && (
-                                      <p className="text-xs text-violet-700 mb-2 font-medium">
+                                      <p className="text-xs text-blue-700 mb-2 font-medium">
                                         {item.progress || podcastGeneration.progress}
                                       </p>
                                     )}
@@ -951,7 +927,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
                             {/* Expanded Audio Player */}
                             {isExpanded && (
-                              <div className="border-t border-violet-100 bg-gradient-to-r from-violet-50/50 to-purple-50/50">
+                              <div className="border-t border-gray-100 bg-gray-50">
                                 <PodcastAudioPlayer
                                   podcast={item}
                                   onDownload={() => handleDownloadPodcast(item)}
