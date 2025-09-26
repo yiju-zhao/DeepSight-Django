@@ -187,22 +187,22 @@ class STORMWikiLMConfigs(LMConfigs):
 
         # Setup Google Gemini models using LitellmModel with gemini/ prefix for LiteLLM
         self.conv_simulator_lm = LitellmModel(
-            model="gemini/gemini-1.5-flash", max_tokens=500, **google_kwargs
+            model="gemini/gemini-2.0-flash", max_tokens=500, **google_kwargs
         )
         self.question_asker_lm = LitellmModel(
-            model="gemini/gemini-1.5-flash", max_tokens=500, **google_kwargs
+            model="gemini/gemini-2.0-flash", max_tokens=500, **google_kwargs
         )
         self.outline_gen_lm = LitellmModel(
-            model="gemini/gemini-1.5-pro", max_tokens=3000, **google_kwargs
+            model="gemini/gemini-1.5-pro-latest", max_tokens=3000, **google_kwargs
         )
         self.article_gen_lm = LitellmModel(
-            model="gemini/gemini-1.5-pro", max_tokens=3000, **google_kwargs
+            model="gemini/gemini-1.5-pro-latest", max_tokens=3000, **google_kwargs
         )
         self.article_polish_lm = LitellmModel(
-            model="gemini/gemini-1.5-pro", max_tokens=20000, **google_kwargs
+            model="gemini/gemini-1.5-pro-latest", max_tokens=20000, **google_kwargs
         )
         self.topic_improver_lm = LitellmModel(
-            model="gemini/gemini-1.5-flash", max_tokens=500, **google_kwargs
+            model="gemini/gemini-2.0-flash", max_tokens=500, **google_kwargs
         )
 
     def set_conv_simulator_lm(self, model: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
