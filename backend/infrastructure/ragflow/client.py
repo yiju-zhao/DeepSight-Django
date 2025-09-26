@@ -404,7 +404,7 @@ class RagFlowClient:
                 return {
                     'id': doc.id,
                     'name': getattr(doc, 'name', ''),
-                    'status': getattr(doc, 'status', 'unknown')
+                    'status': getattr(doc, 'run', 'UNSTART')  # Use 'run' field for processing status
                 }
             
             return None

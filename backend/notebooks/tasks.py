@@ -97,9 +97,13 @@ def upload_to_ragflow_task(self, kb_item_id: str):
         # Fetch the KB item from database to ensure we have the latest content
         kb_item = KnowledgeBaseItem.objects.select_related('notebook').get(id=kb_item_id)
 
+        # Mark as uploading to RagFlow
+        kb_item.mark_ragflow_uploading()
+
         # Check if we have a processed file in MinIO to upload
         if not kb_item.file_object_key:
             logger.warning(f"KB item {kb_item.id} has no processed file to upload to RagFlow")
+            kb_item.mark_ragflow_failed("No processed file available for upload")
             return {"success": False, "error": "No processed file available for upload"}
 
         from infrastructure.ragflow.client import get_ragflow_client
@@ -111,6 +115,7 @@ def upload_to_ragflow_task(self, kb_item_id: str):
         # Upload to RagFlow - we need the notebook's RagFlow dataset ID
         if not kb_item.notebook.ragflow_dataset_id:
             logger.warning(f"No RagFlow dataset ID found for notebook {kb_item.notebook.id}")
+            kb_item.mark_ragflow_failed("No RagFlow dataset ID configured")
             return {"success": False, "error": "No RagFlow dataset ID configured"}
 
         # Get the processed markdown file content from MinIO
@@ -135,21 +140,39 @@ def upload_to_ragflow_task(self, kb_item_id: str):
         except Exception as storage_error:
             error_msg = f"Failed to retrieve processed file from storage: {storage_error}"
             logger.error(error_msg)
+            kb_item.mark_ragflow_failed(error_msg)
             return {"success": False, "error": error_msg}
 
+        logger.info(f"Uploading file '{filename}' to RagFlow dataset {kb_item.notebook.ragflow_dataset_id}")
         upload_result = ragflow_client.upload_document_file(
             dataset_id=kb_item.notebook.ragflow_dataset_id,
             file_content=file_content,
             filename=filename
         )
+        logger.info(f"RagFlow upload result: {upload_result}")
 
         if upload_result and upload_result.get('id'):
             document_id = upload_result.get('id')
             logger.info(f"Successfully uploaded processed file for KB item {kb_item.id} to RagFlow: {document_id}")
 
-            # Store the RagFlow document ID in the model field
-            kb_item.ragflow_document_id = document_id
-            kb_item.save(update_fields=['ragflow_document_id'])
+            # Store the RagFlow document ID and mark as parsing atomically
+            try:
+                kb_item.ragflow_document_id = document_id
+                kb_item.ragflow_processing_status = 'parsing'
+                kb_item.save(update_fields=['ragflow_document_id', 'ragflow_processing_status', 'updated_at'])
+                logger.info(f"Saved RagFlow document ID {document_id} to KB item {kb_item.id} with status 'parsing'")
+
+                # Verify the save was successful by reloading from database
+                kb_item.refresh_from_db()
+                if kb_item.ragflow_document_id == document_id:
+                    logger.info(f"Verified: RagFlow document ID {document_id} successfully saved to database")
+                else:
+                    logger.warning(f"Database verification failed: expected {document_id}, got {kb_item.ragflow_document_id}")
+
+            except Exception as save_error:
+                logger.error(f"Failed to save RagFlow document ID {document_id} to KB item {kb_item.id}: {save_error}")
+                # Still continue with parsing trigger attempt
+                kb_item.ragflow_processing_status = 'parsing'  # At least update status in memory
 
             # Trigger document parsing after successful upload
             try:
@@ -160,22 +183,30 @@ def upload_to_ragflow_task(self, kb_item_id: str):
 
                 if parse_result:
                     logger.info(f"Successfully triggered parsing for RagFlow document {document_id}")
-                    kb_item.metadata['ragflow_parsing_triggered'] = True
-                    kb_item.save(update_fields=['metadata'])
+                    # Mark as parsing in progress
+                    kb_item.mark_ragflow_parsing()
+
+                    # Schedule status checking task
+                    try:
+                        check_ragflow_status_task.apply_async(
+                            args=[str(kb_item.id)],
+                            countdown=30  # Check status after 30 seconds
+                        )
+                    except Exception as schedule_error:
+                        logger.warning(f"Failed to schedule status check for {document_id}: {schedule_error}")
                 else:
                     logger.warning(f"Failed to trigger parsing for RagFlow document {document_id}")
-                    kb_item.metadata['ragflow_parsing_error'] = "Failed to trigger parsing"
-                    kb_item.save(update_fields=['metadata'])
+                    kb_item.mark_ragflow_failed("Failed to trigger parsing")
 
             except Exception as parse_error:
                 logger.error(f"Error triggering parsing for RagFlow document {document_id}: {parse_error}")
-                kb_item.metadata['ragflow_parsing_error'] = str(parse_error)
-                kb_item.save(update_fields=['metadata'])
+                kb_item.mark_ragflow_failed(f"Parsing trigger error: {parse_error}")
                 # Don't fail the main task if parsing trigger fails
 
             return {"success": True, "ragflow_document_id": document_id, "parsing_triggered": parse_result}
         else:
             logger.warning(f"Failed to upload processed file for KB item {kb_item.id} to RagFlow")
+            kb_item.mark_ragflow_failed("Upload failed - no document ID returned")
             return {"success": False, "error": "Upload failed - no document ID returned"}
 
     except KnowledgeBaseItem.DoesNotExist:
@@ -185,6 +216,14 @@ def upload_to_ragflow_task(self, kb_item_id: str):
     except Exception as ragflow_error:
         error_msg = f"RagFlow upload error for KB item {kb_item_id}: {ragflow_error}"
         logger.error(error_msg)
+
+        # Mark as failed if KB item exists
+        try:
+            kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
+            kb_item.mark_ragflow_failed(str(ragflow_error))
+        except KnowledgeBaseItem.DoesNotExist:
+            pass
+
         return {"success": False, "error": str(ragflow_error)}
 
 
@@ -648,11 +687,116 @@ def test_caption_generation_task(kb_item_id: str):
     return {"test": "successful", "kb_item_id": kb_item_id}
 
 
+@shared_task(bind=True)
+def check_ragflow_status_task(self, kb_item_id: str, max_retries: int = 10):
+    """
+    Check RagFlow document processing status and update accordingly.
+
+    Args:
+        kb_item_id: ID of the KnowledgeBaseItem to check
+        max_retries: Maximum number of retry attempts
+
+    Returns:
+        dict: Status check result
+    """
+    try:
+        # Get the KB item
+        kb_item = KnowledgeBaseItem.objects.select_related('notebook').get(id=kb_item_id)
+
+        if not kb_item.ragflow_document_id:
+            logger.warning(f"KB item {kb_item_id} has no RagFlow document ID")
+            return {"success": False, "error": "No RagFlow document ID"}
+
+        if not kb_item.notebook.ragflow_dataset_id:
+            logger.warning(f"KB item {kb_item_id} has no dataset ID")
+            return {"success": False, "error": "No RagFlow dataset ID"}
+
+        from infrastructure.ragflow.client import get_ragflow_client
+        ragflow_client = get_ragflow_client()
+
+        # Get document status from RagFlow
+        doc_status = ragflow_client.get_document_status(
+            dataset_id=kb_item.notebook.ragflow_dataset_id,
+            document_id=kb_item.ragflow_document_id
+        )
+
+        if not doc_status:
+            logger.warning(f"Could not get status for RagFlow document {kb_item.ragflow_document_id}")
+            # Retry if we haven't exceeded max retries
+            if self.request.retries < max_retries:
+                logger.info(f"Retrying status check for KB item {kb_item_id} (attempt {self.request.retries + 1})")
+                raise self.retry(countdown=60, max_retries=max_retries)
+            else:
+                kb_item.mark_ragflow_failed("Could not get status from RagFlow")
+                return {"success": False, "error": "Could not get status from RagFlow"}
+
+        # Parse the status from RagFlow
+        ragflow_status = doc_status.get('status', 'unknown').upper()
+        logger.info(f"RagFlow document {kb_item.ragflow_document_id} status: {ragflow_status}")
+
+        # Update KB item based on RagFlow status
+        if ragflow_status == 'DONE':
+            kb_item.mark_ragflow_completed(kb_item.ragflow_document_id)
+            logger.info(f"KB item {kb_item_id} RagFlow processing completed successfully")
+            return {"success": True, "status": "completed"}
+
+        elif ragflow_status == 'FAIL':
+            kb_item.mark_ragflow_failed("RagFlow processing failed")
+            logger.error(f"KB item {kb_item_id} RagFlow processing failed")
+            return {"success": False, "status": "failed"}
+
+        elif ragflow_status in ['RUNNING', 'UNSTART']:
+            # Still processing, schedule another check
+            if self.request.retries < max_retries:
+                logger.info(f"RagFlow document still processing, scheduling next check for KB item {kb_item_id}")
+                raise self.retry(countdown=60, max_retries=max_retries)
+            else:
+                # Max retries reached, mark as failed
+                kb_item.mark_ragflow_failed("RagFlow processing timeout")
+                logger.error(f"KB item {kb_item_id} RagFlow processing timeout after {max_retries} checks")
+                return {"success": False, "error": "Processing timeout"}
+
+        elif ragflow_status == 'CANCEL':
+            kb_item.mark_ragflow_failed("RagFlow processing was cancelled")
+            logger.warning(f"KB item {kb_item_id} RagFlow processing was cancelled")
+            return {"success": False, "status": "cancelled"}
+
+        else:
+            # Unknown status, retry
+            if self.request.retries < max_retries:
+                logger.warning(f"Unknown RagFlow status '{ragflow_status}' for KB item {kb_item_id}, retrying")
+                raise self.retry(countdown=60, max_retries=max_retries)
+            else:
+                kb_item.mark_ragflow_failed(f"Unknown RagFlow status: {ragflow_status}")
+                return {"success": False, "error": f"Unknown status: {ragflow_status}"}
+
+    except KnowledgeBaseItem.DoesNotExist:
+        error_msg = f"KB item {kb_item_id} not found"
+        logger.error(error_msg)
+        return {"success": False, "error": error_msg}
+
+    except Exception as e:
+        logger.error(f"Error checking RagFlow status for KB item {kb_item_id}: {e}")
+
+        # Retry on unexpected errors
+        if self.request.retries < max_retries:
+            logger.info(f"Retrying status check due to error for KB item {kb_item_id}")
+            raise self.retry(countdown=60, max_retries=max_retries)
+        else:
+            # Mark as failed after max retries
+            try:
+                kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
+                kb_item.mark_ragflow_failed(f"Status check error: {e}")
+            except:
+                pass
+            return {"success": False, "error": str(e)}
+
+
 @shared_task
 def health_check_task():
     """Simple health check task for monitoring Celery workers."""
     from datetime import datetime
-    
+
     logger.info("Health check task executed successfully")
     return {
         "status": "healthy",

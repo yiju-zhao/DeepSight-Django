@@ -214,7 +214,8 @@ MILVUS_SETTINGS = {
 RAGFLOW_API_KEY = os.getenv('RAGFLOW_API_KEY')
 RAGFLOW_BASE_URL = os.getenv('RAGFLOW_BASE_URL', 'https://demo.ragflow.io:9380')
 RAGFLOW_DEFAULT_CHUNK_METHOD = os.getenv('RAGFLOW_CHUNK_METHOD', 'naive')
-RAGFLOW_DEFAULT_EMBEDDING_MODEL = os.getenv('RAGFLOW_EMBEDDING_MODEL', 'Qwen3-Embedding-8B@Xinference')
+RAGFLOW_DEFAULT_EMBEDDING_MODEL = os.getenv('RAGFLOW_EMBEDDING_MODEL', 'Qwen3-Embedding-0.6B@Xinference')
+RAGFLOW_DEFAULT_RERANKING_MODEL = os.getenv('RAGFLOW_RERANKING_MODEL', 'Qwen3-Reranking-0.6B@Xinference')
 
 # Celery Configuration
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
