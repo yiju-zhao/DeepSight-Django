@@ -2,7 +2,7 @@
 // This component demonstrates all 5 SOLID principles in action
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Maximize2, Minimize2, Settings, FileText, Play, Palette, ChevronDown, Trash2, Edit, Download, Save, X, Eye } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, Settings, FileText, Palette, ChevronDown, Trash2, Edit, Download, Save, X, Eye, BookOpen, Headphones, Clock, Database, Users } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { useToast } from "@/shared/components/ui/use-toast";
 
@@ -295,6 +295,23 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     return lines.slice(0, 2).join(' ').substring(0, 120) + (content.length > 120 ? '...' : '');
   }, []);
 
+  const getRelativeTime = useCallback((dateString: string): string => {
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
+    if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`;
+    return date.toLocaleDateString();
+  }, []);
+
+  const getSourceCount = useCallback((item: any): number => {
+    // Extract source count from various possible properties
+    return item.source_count || item.selected_files_count || item.sources?.length || selectedFiles.length || 0;
+  }, [selectedFiles.length]);
+
   const handleDownloadReport = useCallback(async (report: ReportItem) => {
     try {
       const reportId = report.id || report.job_id;
@@ -423,7 +440,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     const isGenerating = podcast.status === 'running' || podcast.status === 'pending' ||
                         (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === (podcast.id || podcast.job_id));
 
-    const action = isGenerating ? 'cancel' : 'delete';
     const confirmMessage = isGenerating
       ? 'Are you sure you want to cancel this podcast generation?'
       : 'Are you sure you want to delete this podcast?';
@@ -462,7 +478,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         });
       } else {
         // Delete the completed podcast
-        await deletePodcastMutation.mutateAsync(podcastId);
+        deletePodcastMutation.mutateAsync(podcastId);
         toast({
           title: "Podcast Deleted",
           description: "The podcast has been deleted successfully"
@@ -726,61 +742,88 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         const isGenerating = item.status === 'running' || item.status === 'pending' ||
                                             (reportGeneration.activeJob && reportGeneration.activeJob.jobId === (item.id || item.job_id));
 
+                        const sourceCount = getSourceCount(item);
+                        const timeAgo = getRelativeTime(item.created_at);
+
                         return (
                           <div
                             key={`report-${itemId}`}
-                            className={`relative rounded-lg transition-all duration-300 cursor-pointer group border overflow-hidden ${
+                            className={`relative rounded-xl transition-all duration-300 cursor-pointer group border overflow-hidden backdrop-blur-sm ${
                               isGenerating
-                                ? 'bg-white border-blue-200 shadow-sm'
-                                : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                                ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200 shadow-md hover:shadow-lg'
+                                : 'bg-white/80 hover:bg-emerald-50/50 border-gray-200 hover:border-emerald-300 hover:shadow-md'
                             }`}
                             onClick={() => handleSelectReport(item)}
                           >
-                            {/* NotebookLM-style highlight sweep for generating state */}
+                            {/* Subtle gradient overlay for generating state */}
                             {isGenerating && (
-                              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 via-blue-100/60 to-blue-50/80">
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/40 to-transparent animate-sweep"></div>
+                              <div className="absolute inset-0 bg-gradient-to-r from-emerald-100/20 via-teal-100/30 to-emerald-100/20">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-sweep"></div>
                               </div>
                             )}
 
-                            <div className="relative z-10 p-4">
+                            <div className="relative z-10 p-3">
                               <div className="flex items-start justify-between">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center space-x-2 mb-2">
-                                    <div className={`w-2 h-2 rounded-full ${
-                                      isGenerating ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'
-                                    }`}></div>
-                                    <h4 className={`text-sm font-medium truncate ${
-                                      isGenerating ? 'text-blue-900' : 'text-gray-900'
-                                    }`}>
-                                      {item.title || 'Research Report'}
-                                    </h4>
-                                    {isGenerating && (
-                                      <span className="text-xs text-blue-600 font-medium">Generating</span>
-                                    )}
+                                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                                  {/* Report Icon */}
+                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                    isGenerating
+                                      ? 'bg-emerald-500 animate-pulse shadow-sm'
+                                      : 'bg-emerald-500 group-hover:bg-emerald-600 shadow-sm'
+                                  }`}>
+                                    <BookOpen className="h-4 w-4 text-white" />
                                   </div>
 
-                                  <p className="text-xs text-gray-600 leading-relaxed mb-3 line-clamp-2">
-                                    {isGenerating
-                                      ? (item.progress || reportGeneration.progress || 'Analyzing sources and generating insights...')
-                                      : getReportPreview(item)
-                                    }
-                                  </p>
+                                  {/* Content */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center space-x-2 mb-1">
+                                      <h4 className={`text-sm font-semibold truncate ${
+                                        isGenerating ? 'text-emerald-900' : 'text-gray-900 group-hover:text-emerald-800'
+                                      }`}>
+                                        {item.title || item.article_title || 'Research Report'}
+                                      </h4>
+                                      {isGenerating && (
+                                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full">
+                                          <div className="w-1.5 h-1.5 bg-emerald-600 rounded-full animate-ping mr-1"></div>
+                                          Generating
+                                        </span>
+                                      )}
+                                    </div>
 
-                                  <div className="flex items-center text-xs text-gray-500 space-x-3">
-                                    <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                    <span>Report</span>
+                                    {/* Preview text */}
+                                    <p className="text-xs text-gray-600 leading-relaxed mb-2 line-clamp-1">
+                                      {isGenerating
+                                        ? (item.progress || reportGeneration.progress || 'Analyzing sources and generating insights...')
+                                        : getReportPreview(item)
+                                      }
+                                    </p>
+
+                                    {/* Metadata */}
+                                    <div className="flex items-center text-xs space-x-3">
+                                      <div className="flex items-center text-gray-500">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        <span>{timeAgo}</span>
+                                      </div>
+                                      <div className="flex items-center text-gray-500">
+                                        <Database className="h-3 w-3 mr-1" />
+                                        <span>{sourceCount} sources</span>
+                                      </div>
+                                      <div className="flex items-center text-emerald-600">
+                                        <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1"></div>
+                                        <span className="font-medium">Report</span>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
 
+                                {/* Actions */}
                                 <div className={`transition-opacity ${
                                   isGenerating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                                 }`}>
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleDeleteReport(item);
@@ -799,79 +842,116 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         const isGenerating = item.status === 'running' || item.status === 'pending' ||
                                             (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === (item.id || item.job_id));
 
+                        const sourceCount = getSourceCount(item);
+                        const timeAgo = getRelativeTime(item.created_at);
+
                         return (
                           <div
                             key={`podcast-${itemId}`}
-                            className={`rounded-xl border transition-all duration-500 overflow-hidden transform hover:scale-[1.01] animate-slide-in ${
+                            className={`rounded-xl border transition-all duration-300 overflow-hidden backdrop-blur-sm ${
                               isGenerating
-                                ? 'bg-gradient-to-r from-purple-50 to-pink-50 border-purple-200 animate-pulse animate-gentle-bounce shadow-lg relative'
-                                : 'bg-white border-gray-200 hover:border-gray-300'
+                                ? 'bg-gradient-to-r from-violet-50 to-purple-50 border-violet-200 shadow-md hover:shadow-lg'
+                                : 'bg-white/80 hover:bg-violet-50/50 border-gray-200 hover:border-violet-300 hover:shadow-md'
                             }`}
                           >
-                            {/* Shimmer overlay for generating state */}
+                            {/* Subtle gradient overlay for generating state */}
                             {isGenerating && (
-                              <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                              <div className="absolute inset-0 bg-gradient-to-r from-violet-100/20 via-purple-100/30 to-violet-100/20">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-sweep"></div>
+                              </div>
                             )}
+
                             {/* Podcast Header */}
                             <div
-                              className="p-4 cursor-pointer hover:bg-gray-50 transition-colors duration-200 group relative z-10"
+                              className="p-3 cursor-pointer hover:bg-violet-50/30 transition-colors duration-200 group relative z-10"
                               onClick={() => handlePodcastClick(item)}
                             >
-                              <div className="flex items-center space-x-3">
-                                <div className={`w-8 h-8 bg-purple-600 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0 ${
-                                  isGenerating ? 'animate-pulse' : ''
-                                }`}>
-                                  {isExpanded ? (
-                                    <ChevronDown className="h-4 w-4 text-white" />
-                                  ) : (
-                                    <Play className="h-4 w-4 text-white" />
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h4 className={`text-sm font-semibold truncate ${
-                                    isGenerating ? 'text-purple-700' : 'text-gray-900 hover:text-purple-700'
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                                  {/* Podcast Icon */}
+                                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                                    isGenerating
+                                      ? 'bg-violet-500 animate-pulse shadow-sm'
+                                      : 'bg-violet-500 group-hover:bg-violet-600 shadow-sm'
                                   }`}>
-                                    {item.title || 'Panel Discussion'}
-                                    {isGenerating && (
-                                      <span className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
-                                        <div className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-ping mr-1"></div>
-                                        Generating...
-                                      </span>
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-4 w-4 text-white" />
+                                    ) : (
+                                      <Headphones className="h-4 w-4 text-white" />
                                     )}
-                                  </h4>
-                                  <div className="flex items-center text-xs text-gray-500 mt-1">
+                                  </div>
+
+                                  {/* Content */}
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center space-x-2 mb-1">
+                                      <h4 className={`text-sm font-semibold truncate ${
+                                        isGenerating ? 'text-violet-900' : 'text-gray-900 group-hover:text-violet-800'
+                                      }`}>
+                                        {item.title || 'Panel Discussion'}
+                                      </h4>
+                                      {isGenerating && (
+                                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-800 rounded-full">
+                                          <div className="w-1.5 h-1.5 bg-violet-600 rounded-full animate-ping mr-1"></div>
+                                          Generating
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    {/* Description/Progress */}
                                     {isGenerating && (item.progress || podcastGeneration.progress) && (
-                                      <div className="flex items-center text-purple-600 mb-1">
-                                        <span className="text-xs">{item.progress || podcastGeneration.progress}</span>
-                                      </div>
+                                      <p className="text-xs text-violet-700 mb-2 font-medium">
+                                        {item.progress || podcastGeneration.progress}
+                                      </p>
                                     )}
-                                    <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                                    <span className="mx-2">•</span>
-                                    <span>Podcast</span>
-                                    <span className="mx-2">•</span>
-                                    <span>{isGenerating ? 'Generating...' : `Click to ${isExpanded ? 'collapse' : 'play'}`}</span>
+                                    {!isGenerating && item.description && (
+                                      <p className="text-xs text-gray-600 leading-relaxed mb-2 line-clamp-1">
+                                        {item.description}
+                                      </p>
+                                    )}
+
+                                    {/* Metadata */}
+                                    <div className="flex items-center text-xs space-x-3">
+                                      <div className="flex items-center text-gray-500">
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        <span>{timeAgo}</span>
+                                      </div>
+                                      <div className="flex items-center text-gray-500">
+                                        <Database className="h-3 w-3 mr-1" />
+                                        <span>{sourceCount} sources</span>
+                                      </div>
+                                      <div className="flex items-center text-gray-500">
+                                        <Users className="h-3 w-3 mr-1" />
+                                        <span>{item.expert_names ? Object.keys(item.expert_names).length : 3} speakers</span>
+                                      </div>
+                                      <div className="flex items-center text-violet-600">
+                                        <div className="w-1.5 h-1.5 bg-violet-500 rounded-full mr-1"></div>
+                                        <span className="font-medium">Podcast</span>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="flex-shrink-0 flex items-center space-x-2">
+
+                                {/* Actions */}
+                                <div className="flex items-center space-x-2">
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleDeletePodcast(item);
                                     }}
                                   >
-                                    <Trash2 className="h-4 w-4" />
+                                    <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
-                                  <div className={`w-2 h-2 rounded-full transition-colors ${isExpanded ? 'bg-purple-400' : 'bg-gray-300'}`}></div>
+                                  <div className={`w-2 h-2 rounded-full transition-colors ${isExpanded ? 'bg-violet-400' : 'bg-gray-300'}`}></div>
                                 </div>
                               </div>
                             </div>
 
                             {/* Expanded Audio Player */}
                             {isExpanded && (
-                              <div className="border-t border-gray-100 p-4 bg-gray-50">
+                              <div className="border-t border-violet-100 bg-gradient-to-r from-violet-50/50 to-purple-50/50">
                                 <PodcastAudioPlayer
                                   podcast={item}
                                   onDownload={() => handleDownloadPodcast(item)}
