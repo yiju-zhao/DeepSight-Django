@@ -729,63 +729,66 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         return (
                           <div
                             key={`report-${itemId}`}
-                            className={`p-4 rounded-xl transition-all duration-500 cursor-pointer group border transform hover:scale-[1.01] animate-slide-in ${
+                            className={`relative rounded-lg transition-all duration-300 cursor-pointer group border overflow-hidden ${
                               isGenerating
-                                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 animate-pulse animate-gentle-bounce shadow-lg relative overflow-hidden'
-                                : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300'
+                                ? 'bg-white border-blue-200 shadow-sm'
+                                : 'bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-sm'
                             }`}
                             onClick={() => handleSelectReport(item)}
                           >
-                            {/* Shimmer overlay for generating state */}
+                            {/* NotebookLM-style highlight sweep for generating state */}
                             {isGenerating && (
-                              <div className="absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-shimmer"></div>
+                              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 via-blue-100/60 to-blue-50/80">
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/40 to-transparent animate-sweep"></div>
+                              </div>
                             )}
-                            <div className="flex items-start space-x-3 relative z-10">
-                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center shadow-sm flex-shrink-0 mt-1 ${
-                                isGenerating
-                                  ? 'bg-blue-600 animate-pulse'
-                                  : 'bg-blue-600'
-                              }`}>
-                                <FileText className="h-4 w-4 text-white" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <h4 className={`text-sm font-semibold mb-2 truncate ${
-                                  isGenerating ? 'text-blue-700' : 'text-gray-900 group-hover:text-blue-700'
-                                }`}>
-                                  {item.title || 'Research Report'}
-                                  {isGenerating && (
-                                    <span className="ml-2 inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                      <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping mr-1"></div>
-                                      Generating...
-                                    </span>
-                                  )}
-                                </h4>
-                                <p className="text-xs text-gray-600 leading-relaxed mb-2">
-                                  {isGenerating
-                                    ? (item.progress || reportGeneration.progress || 'Starting report generation...')
-                                    : getReportPreview(item)
-                                  }
-                                </p>
-                                <div className="flex items-center text-xs text-gray-500">
-                                  <span>{new Date(item.created_at).toLocaleDateString()}</span>
-                                  <span className="mx-2">•</span>
-                                  <span>Report</span>
-                                  <span className="mx-2">•</span>
-                                  <span>{isGenerating ? 'Generating...' : 'Click to view'}</span>
+
+                            <div className="relative z-10 p-4">
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-2 mb-2">
+                                    <div className={`w-2 h-2 rounded-full ${
+                                      isGenerating ? 'bg-blue-500 animate-pulse' : 'bg-gray-400'
+                                    }`}></div>
+                                    <h4 className={`text-sm font-medium truncate ${
+                                      isGenerating ? 'text-blue-900' : 'text-gray-900'
+                                    }`}>
+                                      {item.title || 'Research Report'}
+                                    </h4>
+                                    {isGenerating && (
+                                      <span className="text-xs text-blue-600 font-medium">Generating</span>
+                                    )}
+                                  </div>
+
+                                  <p className="text-xs text-gray-600 leading-relaxed mb-3 line-clamp-2">
+                                    {isGenerating
+                                      ? (item.progress || reportGeneration.progress || 'Analyzing sources and generating insights...')
+                                      : getReportPreview(item)
+                                    }
+                                  </p>
+
+                                  <div className="flex items-center text-xs text-gray-500 space-x-3">
+                                    <span>{new Date(item.created_at).toLocaleDateString()}</span>
+                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                    <span>Report</span>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteReport(item);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+
+                                <div className={`transition-opacity ${
+                                  isGenerating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                }`}>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteReport(item);
+                                    }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           </div>
