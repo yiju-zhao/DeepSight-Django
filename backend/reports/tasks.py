@@ -15,7 +15,6 @@ logger = logging.getLogger(__name__)
 @shared_task(bind=True)
 def process_report_generation(self, report_id: int):
     """Process report generation job - this runs in the background worker"""
-
     try:
         logger.info(f"Starting report generation task for report {report_id}")
         
@@ -44,7 +43,6 @@ def process_report_generation(self, report_id: int):
                     logger.warning(f"No current task ID available for report {report_id}")
             except Exception as e:
                 logger.error(f"Failed to update celery_task_id for report {report_id}: {e}")
-
         except Report.DoesNotExist:
             logger.error(f"Report {report_id} not found")
             raise Exception(f"Report {report_id} not found")
@@ -66,7 +64,7 @@ def process_report_generation(self, report_id: int):
         report_orchestrator.update_job_progress(
             job_id, "Starting report generation", Report.STATUS_RUNNING
         )
-
+        
         # Generate the report
         start_ts = time.time()
         try:
