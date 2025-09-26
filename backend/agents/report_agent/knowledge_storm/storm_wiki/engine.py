@@ -123,7 +123,7 @@ class STORMWikiLMConfigs(LMConfigs):
         }
         if openai_type and openai_type == "openai":
             self.conv_simulator_lm = LitellmModel(
-                model="gpt-4.1-mini", max_tokens=500, **openai_kwargs
+                model="gpt-4.1-nano", max_tokens=500, **openai_kwargs
             )
             self.question_asker_lm = LitellmModel(
                 model="gpt-4.1-mini", max_tokens=500, **openai_kwargs

@@ -179,3 +179,17 @@
 .animate-gentle-bounce {
   animation: gentleBounce 2s infinite;
 }
+
+/* Pulse sweep animation for generating status */
+@keyframes pulseSweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(300%);
+  }
+}
+
+.animate-pulse-sweep {
+  animation: pulseSweep 2s infinite linear;
+}

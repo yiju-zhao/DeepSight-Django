@@ -61,7 +61,12 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
       case 'completed':
         return <Badge variant="default" className="text-xs">Ready</Badge>;
       case 'generating':
-        return <Badge variant="secondary" className="text-xs">Generating</Badge>;
+        return (
+          <div className="relative overflow-hidden bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse-sweep"></div>
+            <span className="relative z-10">•••</span>
+          </div>
+        );
       case 'failed':
         return <Badge variant="destructive" className="text-xs">Failed</Badge>;
       default:
@@ -86,7 +91,7 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
           
           {report.topic && (
             <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-              Topic: {report.topic}
+              {report.topic}
             </p>
           )}
           
