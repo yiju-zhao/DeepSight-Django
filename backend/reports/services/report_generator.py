@@ -34,9 +34,14 @@ class DeepReportGeneratorAdapter:
         if self._generator is None:
             try:
                 from agents.report_agent.deep_report_generator import DeepReportGenerator
-                if not self.secrets_path:
-                    raise ValueError("Secrets file not found")
-                self._generator = DeepReportGenerator(secrets_path=self.secrets_path)
+                # Use secrets_path if available, otherwise rely on environment variables
+                # This allows the system to work without secrets.toml by using Django settings/.env
+                if self.secrets_path:
+                    self._generator = DeepReportGenerator(secrets_path=self.secrets_path)
+                else:
+                    # Initialize with default path, which will fall back to environment variables
+                    # if the file doesn't exist (as per the refactoring plan)
+                    self._generator = DeepReportGenerator(secrets_path="secrets.toml")
             except ImportError as e:
                 raise ImportError(f"Failed to import DeepReportGenerator: {e}")
             except Exception as e:

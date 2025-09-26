@@ -49,7 +49,7 @@ class ConfigurationManager:
         self.logger = logging.getLogger(__name__)
 
     def load_api_keys(self):
-        """Load API keys from secrets.toml file."""
+        """Load API keys from secrets.toml file or use environment variables."""
         _ensure_storm_imported()
 
         if load_api_key is None:
@@ -58,6 +58,11 @@ class ConfigurationManager:
 
         try:
             load_api_key(toml_file_path=self.secrets_path)
+            self.logger.info(f"Loaded API keys from {self.secrets_path}")
+        except FileNotFoundError:
+            # This is expected behavior when using Django settings/.env files
+            # The load_api_key function handles this gracefully by falling back to env vars
+            self.logger.info(f"No secrets file found at {self.secrets_path}, using environment variables")
         except Exception as e:
             self.logger.error(f"Failed to load API keys: {e}")
             raise
