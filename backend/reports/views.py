@@ -29,7 +29,7 @@ from .serializers import (
 from .orchestrator import report_orchestrator
 from notebooks.models import Notebook
 from .tasks import process_report_generation
-from .core.pdf_service import PdfService
+from .services.pdf import PdfService
 
 logger = logging.getLogger(__name__)
 
@@ -225,37 +225,78 @@ class ReportJobDetailView(APIView):
             return Response({"detail": f"Error updating report: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, job_id):
-        """Delete a report and all its associated files - simplified version with task cancellation"""
+        """Delete a report and all its associated files - ensures proper Celery task termination"""
         try:
             report = self._get_report(job_id)
 
-            # For running reports: cancel task first, then delete
-            if report.status == Report.STATUS_RUNNING:
+            # For running/pending reports: terminate task synchronously first
+            if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
                 try:
-                    # Cancel the running task
-                    success = report_orchestrator.cancel_report_job(job_id)
-                    if success:
-                        logger.info(f"Cancelled running report task {job_id}")
-                    else:
-                        logger.warning(f"Failed to cancel running task {job_id}, proceeding with deletion")
+                    # Synchronously terminate the Celery task and wait for confirmation
+                    if report.celery_task_id:
+                        from celery.result import AsyncResult
+                        from backend.celery import app as celery_app
+                        import time
+
+                        task_result = AsyncResult(report.celery_task_id)
+                        initial_state = task_result.state
+                        logger.info(f"Initial task state for {report.celery_task_id}: {initial_state}")
+
+                        if initial_state in ["PENDING", "STARTED", "RETRY"]:
+                            # Revoke and terminate the task
+                            celery_app.control.revoke(
+                                report.celery_task_id,
+                                terminate=True,
+                                signal="SIGTERM"
+                            )
+                            logger.info(f"Sent termination signal to Celery task {report.celery_task_id}")
+
+                            # Wait for task to actually terminate (up to 10 seconds)
+                            termination_timeout = 10
+                            start_time = time.time()
+
+                            while (time.time() - start_time) < termination_timeout:
+                                task_result = AsyncResult(report.celery_task_id)
+                                current_state = task_result.state
+
+                                if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
+                                    logger.info(f"Task {report.celery_task_id} terminated with state: {current_state}")
+                                    break
+
+                                time.sleep(0.5)  # Wait 500ms before checking again
+
+                            else:
+                                # Timeout reached, force proceed but log warning
+                                logger.warning(f"Task {report.celery_task_id} termination timeout after {termination_timeout}s, proceeding with deletion")
+
+                    # Call orchestrator cancellation for cleanup
+                    from .orchestrator import report_orchestrator
+                    report_orchestrator.cancel_generation(job_id)
+
+                    # Update status to cancelled
+                    report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled for deletion")
+                    logger.info(f"Successfully cancelled and cleaned up running report {job_id}")
+
                 except Exception as e:
-                    logger.warning(f"Error cancelling task {job_id}: {e}, proceeding with deletion")
+                    logger.warning(f"Error cancelling running task for {job_id}: {e}")
+                    # Continue with deletion even if cancellation fails
 
-            # Delete MinIO file if exists
-            if report.main_report_object_key:
-                try:
-                    from notebooks.utils.file_storage import FileStorageService
-                    storage_service = FileStorageService()
-                    storage_service.minio_backend.delete_file(report.main_report_object_key)
-                    logger.info(f"Deleted report file from MinIO: {report.main_report_object_key}")
-                except Exception as e:
-                    logger.warning(f"Failed to delete MinIO file for report {job_id}: {e}")
+            # Perform immediate synchronous cleanup instead of using async task
+            try:
+                self._perform_immediate_deletion(report)
+                logger.info(f"Successfully deleted report {job_id} and all associated data")
 
-            # Delete from database
-            report.delete()
-            logger.info(f"Deleted report {job_id} from database")
+                return Response({
+                    "success": True,
+                    "message": f"Report {job_id} deleted successfully"
+                }, status=status.HTTP_200_OK)
 
-            return Response({"success": True}, status=status.HTTP_200_OK)
+            except Exception as e:
+                logger.error(f"Error during immediate deletion of report {job_id}: {e}")
+                return Response({
+                    "success": False,
+                    "message": f"Failed to delete report {job_id}: {str(e)}"
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Http404:
             return Response(
@@ -263,11 +304,68 @@ class ReportJobDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            logger.error(f"Error deleting report {job_id}: {e}")
+            logger.error(f"Error initiating report deletion {job_id}: {e}")
             return Response(
-                {"detail": "Failed to delete report"},
+                {"detail": "Failed to initiate report deletion"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+    def _perform_immediate_deletion(self, report):
+        """Perform immediate synchronous deletion of report and all associated data"""
+        try:
+            # Step 1: Clean up cache
+            from django.core.cache import cache
+            cache_key = f"report_job:{report.job_id}"
+            cache.delete(cache_key)
+            logger.info(f"Cleared cache for report {report.job_id}")
+
+            # Step 2: Clean up MinIO storage files
+            if report.main_report_object_key or report.generated_files:
+                try:
+                    from infrastructure.storage.adapters import get_storage_adapter
+                    storage_adapter = get_storage_adapter()
+
+                    # Delete main report file
+                    if report.main_report_object_key:
+                        storage_adapter.delete_file(report.main_report_object_key, str(report.user.id))
+                        logger.info(f"Deleted main report file: {report.main_report_object_key}")
+
+                    # Delete generated files
+                    if report.generated_files:
+                        for file_path in report.generated_files:
+                            try:
+                                storage_adapter.delete_file(file_path, str(report.user.id))
+                                logger.info(f"Deleted generated file: {file_path}")
+                            except Exception as e:
+                                logger.warning(f"Failed to delete generated file {file_path}: {e}")
+
+                except Exception as e:
+                    logger.warning(f"Error cleaning up MinIO storage for report {report.id}: {e}")
+
+            # Step 3: Clean up ReportImage records
+            try:
+                from .services.image import ImageService
+                image_service = ImageService()
+                image_service.cleanup_report_images(report)
+                logger.info(f"Cleaned up ReportImage records for report {report.id}")
+            except Exception as e:
+                logger.warning(f"Error cleaning up ReportImage records for report {report.id}: {e}")
+
+            # Step 4: Clean up temporary directories if any
+            try:
+                from .orchestrator import report_orchestrator
+                report_orchestrator.cleanup_failed_job(report.job_id)
+                logger.info(f"Cleaned up temporary directories for report {report.job_id}")
+            except Exception as e:
+                logger.warning(f"Error cleaning up temp directories for report {report.job_id}: {e}")
+
+            # Step 5: Finally delete the database record
+            report.delete()
+            logger.info(f"Deleted database record for report {report.id}")
+
+        except Exception as e:
+            logger.error(f"Error in immediate deletion process for report {report.id}: {e}")
+            raise
 
 
 class ReportJobCancelView(APIView):
@@ -286,17 +384,20 @@ class ReportJobCancelView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            success = report_orchestrator.cancel_report_job(job_id)
-            if success:
-                return Response(
-                    {"message": f"Job {job_id} cancelled successfully", "job_id": job_id, "status": Report.STATUS_CANCELLED}
-                )
-            else:
-                return Response({"detail": "Failed to cancel job"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Use dedicated cancellation task following SOLID principles
+            from .tasks import cancel_report_generation
+            cancel_task = cancel_report_generation.delay(job_id)
+            logger.info(f"Submitted cancellation task for job {job_id}")
+
+            return Response({
+                "message": f"Job {job_id} cancellation initiated",
+                "job_id": job_id,
+                "cancel_task_id": cancel_task.id
+            })
         except Http404:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error cancelling job (canonical) {job_id}: {e}")
+            logger.error(f"Error initiating job cancellation {job_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

@@ -126,7 +126,7 @@ class PdfService:
                 optimize=True
             )
             
-            # Determine root directory for any remaining local images
+            # Determine image root for resolving relative paths
             if input_file_path:
                 root_dir = str(Path(input_file_path).parent.resolve())
                 logger.debug(f"Using input file directory as root: {root_dir}")
@@ -265,3 +265,5 @@ class PdfService:
         except Exception as e:
             logger.error(f"Failed to convert report file to PDF: {e}")
             raise Exception(f"Report file PDF conversion failed: {e}")
+
+__all__ = ["PdfService"]

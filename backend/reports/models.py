@@ -390,8 +390,8 @@ class ReportImage(models.Model):
 def cleanup_report_images(sender, instance, **kwargs):
     """Clean up associated images when a report is deleted"""
     try:
-        from reports.core.report_image_service import ReportImageService
-        image_service = ReportImageService()
+        from reports.services.image import ImageService
+        image_service = ImageService()
         image_service.cleanup_report_images(instance)
     except Exception as e:
         import logging

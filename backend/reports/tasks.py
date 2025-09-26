@@ -102,21 +102,32 @@ def cleanup_old_reports():
 
 @shared_task(bind=True)
 def cancel_report_generation(self, job_id: str):
-    """Cancel a report generation job by revoking the Celery task."""
+    """Cancel a report generation job by revoking the Celery task and updating status."""
     try:
         logger.info(f"Cancelling report generation for job {job_id}")
-        
+
         from .models import Report
         report = Report.objects.get(job_id=job_id)
-        
+
         # Revoke the main Celery task if it's running
         if report.celery_task_id:
             try:
+                from celery.result import AsyncResult
                 from backend.celery import app as celery_app
-                celery_app.control.revoke(
-                    report.celery_task_id, terminate=True, signal="SIGTERM"
-                )
-                logger.info(f"Revoked Celery task {report.celery_task_id} for job {job_id}")
+
+                # Check task state first
+                task_result = AsyncResult(report.celery_task_id)
+                logger.info(f"Task {report.celery_task_id} state: {task_result.state}")
+
+                # Only revoke if task is still active
+                if task_result.state in ["PENDING", "STARTED", "RETRY"]:
+                    celery_app.control.revoke(
+                        report.celery_task_id, terminate=True, signal="SIGTERM"
+                    )
+                    logger.info(f"Revoked and terminated Celery task {report.celery_task_id} for job {job_id}")
+                else:
+                    logger.info(f"Celery task {report.celery_task_id} already in final state {task_result.state}, skipping revocation")
+
             except Exception as e:
                 logger.warning(f"Failed to revoke Celery task for job {job_id}: {e}")
 
@@ -126,25 +137,55 @@ def cancel_report_generation(self, job_id: str):
         except Exception as e:
             logger.warning(f"Failed to cleanup during cancellation for job {job_id}: {e}")
 
-        # Cleanup ReportImage records for cancelled jobs
+        # Update job status in database to 'cancelled' - don't delete here
         try:
-            from .core.job_service import JobService
-            job_service = JobService()
-            job_service._cleanup_report_images_on_cancellation(report)
+            report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
         except Exception as e:
-            logger.warning(f"Failed to cleanup ReportImage records for cancelled job {job_id}: {e}")
+            logger.warning(f"Failed to update report status for job {job_id} (record may have been deleted): {e}")
 
-        # Update job status in database to 'cancelled'
-        report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
-        
         logger.info(f"Successfully cancelled report generation for job {job_id}")
         return {"status": "cancelled", "job_id": job_id}
-    
+
     except Report.DoesNotExist:
         logger.error(f"Report with job_id {job_id} not found for cancellation")
         return {"status": "failed", "job_id": job_id, "message": "Job not found"}
     except Exception as e:
         logger.error(f"Error cancelling report generation for job {job_id}: {e}")
+        raise
+
+
+@shared_task(bind=True)
+def delete_report_and_cleanup(self, report_id: int):
+    """Delete a report and perform all associated cleanup operations."""
+    try:
+        logger.info(f"Deleting report {report_id} and performing cleanup")
+
+        from .models import Report
+        report = Report.objects.get(id=report_id)
+        job_id = report.job_id
+
+        # Cleanup ReportImage records
+        try:
+            from .services.job import JobService
+            job_service = JobService()
+            job_service._cleanup_report_images_on_cancellation(report)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup ReportImage records for report {report_id}: {e}")
+
+        # Additional cleanup operations can be added here
+        # (file system cleanup, cache cleanup, etc.)
+
+        # Delete the report record
+        report.delete()
+
+        logger.info(f"Successfully deleted report {report_id} and completed cleanup")
+        return {"status": "deleted", "report_id": report_id, "job_id": job_id}
+
+    except Report.DoesNotExist:
+        logger.error(f"Report {report_id} not found for deletion")
+        return {"status": "failed", "report_id": report_id, "message": "Report not found"}
+    except Exception as e:
+        logger.error(f"Error deleting report {report_id}: {e}")
         raise
 
 

@@ -108,10 +108,12 @@ class JobService:
             
             # Handle figure_data if provided
             if figure_data:
-                from .figure_service import FigureDataService
+                # Import will be updated when figure_service is merged into image service
+                from .image import ImageService
+                image_service = ImageService()
                 # Create knowledge base figure data for direct upload
                 # This will store the figure data in the report's cached data
-                FigureDataService.create_knowledge_base_figure_data(
+                image_service.create_knowledge_base_figure_data(
                     user.pk, f"direct_{report.id}", figure_data
                 )
             
@@ -249,8 +251,8 @@ class JobService:
                 # Note: ReportImage records should already exist from prepare_report_images
                 if report.include_image:
                     try:
-                        from .report_image_service import ReportImageService
-                        image_service = ReportImageService()
+                        from ..services.image import ImageService
+                        image_service = ImageService()
                         
                         # Get existing ReportImage records and update content with proper URLs
                         from ..models import ReportImage
@@ -275,7 +277,7 @@ class JobService:
             # Upload files to MinIO if there are generated files
             if generated_files:
                 try:
-                    from ..factories.storage_factory import StorageFactory
+                    from ..storage import StorageFactory
                     storage = StorageFactory.create_storage('minio')
                     
                     # Upload files to MinIO and get MinIO keys
@@ -314,7 +316,7 @@ class JobService:
             if generated_files:
                 # Use storage factory to identify main report file
                 try:
-                    from ..factories.storage_factory import StorageFactory
+                    from ..storage import StorageFactory
                     storage = StorageFactory.create_storage('minio')
                     main_report_key = storage.get_main_report_file(generated_files)
                 except Exception as e:
@@ -460,7 +462,11 @@ class JobService:
             
             # Also terminate the celery task if it's still running
             if report.celery_task_id:
-                self._terminate_celery_task(report.celery_task_id)
+                try:
+                    self._terminate_celery_task(report.celery_task_id)
+                    logger.info(f"Terminated Celery task {report.celery_task_id} for failed job {job_id}")
+                except Exception as termination_error:
+                    logger.warning(f"Failed to terminate Celery task {report.celery_task_id} for job {job_id}: {termination_error}")
             
             # Cleanup temp directories and prevent MinIO upload for failed jobs
             try:
@@ -516,17 +522,18 @@ class JobService:
             return False
     
     def delete_job(self, job_id: str) -> bool:
-        """Delete a job and its associated data"""
+        """Delete a job and its associated data (cache cleanup only)"""
         try:
-            report = Report.objects.get(job_id=job_id)
-            
+            # Verify the report exists before cache cleanup
+            Report.objects.get(job_id=job_id)
+
             # Remove from cache
             cache_key = f"report_job:{job_id}"
             cache.delete(cache_key)
-            
+
             logger.info(f"Prepared job {job_id} for deletion")
             return True
-            
+
         except Report.DoesNotExist:
             logger.warning(f"Report with job_id {job_id} not found for deletion")
             return False
@@ -789,26 +796,57 @@ class JobService:
                 f"Error synchronising Celery task state for report {report.job_id}: {e}"
             )
 
-    def _terminate_celery_task(self, celery_task_id: str):
+    def _terminate_celery_task(self, celery_task_id: str, wait_for_termination: bool = False):
         """Send a revoke/terminate signal to the given Celery task.
 
         This is a defensive measure to make sure that, once a fatal condition has been
         detected, the worker process is not left running expensive computation that will
         eventually be discarded.  Using ``terminate=True`` ensures the underlying OS
         process gets a ``SIGTERM`` (default) or the provided signal.
+
+        Args:
+            celery_task_id: The ID of the task to terminate
+            wait_for_termination: If True, wait for task to actually terminate
         """
         try:
             if not celery_task_id:
                 return
 
             task_result = AsyncResult(celery_task_id)
+            initial_state = task_result.state
 
             # Only attempt termination if the task is still deemed active by Celery.
-            if task_result.state in ["PENDING", "STARTED", "RETRY"]:
+            if initial_state in ["PENDING", "STARTED", "RETRY"]:
                 task_result.revoke(terminate=True, signal="SIGTERM")
-                logger.info(f"Sent terminate signal to Celery task {celery_task_id}")
+                logger.info(f"Sent terminate signal to Celery task {celery_task_id} (initial state: {initial_state})")
+
+                # Wait for termination if requested
+                if wait_for_termination:
+                    import time
+                    termination_timeout = 10
+                    start_time = time.time()
+
+                    while (time.time() - start_time) < termination_timeout:
+                        current_task_result = AsyncResult(celery_task_id)
+                        current_state = current_task_result.state
+
+                        if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
+                            logger.info(f"Task {celery_task_id} terminated with final state: {current_state}")
+                            return True
+
+                        time.sleep(0.5)  # Wait 500ms before checking again
+
+                    # Timeout reached
+                    logger.warning(f"Task {celery_task_id} termination timeout after {termination_timeout}s")
+                    return False
+
+            else:
+                logger.info(f"Task {celery_task_id} already in final state {initial_state}, no termination needed")
+                return True
+
         except Exception as e:
             logger.error(f"Error terminating Celery task {celery_task_id}: {e}")
+            return False
     
     def prepare_report_images(self, report: Report) -> bool:
         """Prepare ReportImage records before report generation starts.
@@ -826,13 +864,14 @@ class JobService:
             return True
         
         try:
-            from .report_image_service import ReportImageService
-            from .figure_service import FigureDataService
-            
+            from .image import ImageService
+
+            image_service = ImageService()
+
             # Get figure data from cache or direct upload
-            figure_data = FigureDataService.get_cached_figure_data(
+            figure_data = image_service.get_cached_figure_data(
                 report.user.pk, f"direct_{report.id}"
-            ) or FigureDataService.get_cached_figure_data(
+            ) or image_service.get_cached_figure_data(
                 report.user.pk, report.notebooks.id if report.notebooks else None
             )
             
@@ -841,7 +880,6 @@ class JobService:
                 figure_ids = [fig.get("figure_id") for fig in figure_data["figures"] if fig.get("figure_id")]
                 
                 if figure_ids:
-                    image_service = ReportImageService()
                     
                     # Find corresponding images in knowledge base
                     kb_images = image_service.find_images_by_figure_ids(figure_ids, report.user.id)
@@ -871,8 +909,8 @@ class JobService:
             report: Report instance
         """
         try:
-            from .report_image_service import ReportImageService
-            image_service = ReportImageService()
+            from ..services.image import ImageService
+            image_service = ImageService()
             image_service.cleanup_report_images(report)
             logger.info(f"Cleaned up ReportImage records for failed report {report.id}")
         except Exception as e:
@@ -885,8 +923,8 @@ class JobService:
             report: Report instance
         """
         try:
-            from .report_image_service import ReportImageService
-            image_service = ReportImageService()
+            from ..services.image import ImageService
+            image_service = ImageService()
             image_service.cleanup_report_images(report)
             logger.info(f"Cleaned up ReportImage records for cancelled report {report.id}")
         except Exception as e:

@@ -380,7 +380,7 @@ class STORMWikiRunner(Engine):
             
             from reports.models import Report, ReportImage
             from notebooks.models import KnowledgeBaseImage
-            from reports.core.report_image_service import ReportImageService
+            from reports.services.image import ImageService as ReportImageService
             
             # Get the report instance
             try:
