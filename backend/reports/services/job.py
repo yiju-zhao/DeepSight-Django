@@ -14,7 +14,6 @@ from django.conf import settings
 from ..models import Report
 from django.core.files.base import ContentFile
 from celery.result import AsyncResult
-from backend.celery import app as celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -72,34 +71,10 @@ class CriticalErrorDetector:
 
 class JobService:
     """Service responsible for managing report generation jobs"""
-
+    
     def __init__(self):
         self.cache_timeout = getattr(settings, "REPORT_CACHE_TIMEOUT", 3600)  # 1 hour
         self.error_detector = CriticalErrorDetector(max_main_process_errors=1)  # Only 1 MainProcess error should fail the task
-
-    def check_celery_workers(self) -> bool:
-        """Check if Celery workers are running and available"""
-        try:
-            # Get active workers
-            inspect = celery_app.control.inspect()
-            active_workers = inspect.active()
-
-            if not active_workers:
-                logger.warning("No active Celery workers found")
-                return False
-
-            # Check if workers are actually responding
-            stats = inspect.stats()
-            if not stats:
-                logger.warning("Celery workers not responding to stats query")
-                return False
-
-            logger.info(f"Found {len(active_workers)} active Celery worker(s)")
-            return True
-
-        except Exception as e:
-            logger.error(f"Failed to check Celery worker status: {e}")
-            return False
     
     def create_job(self, report_data: Dict[str, Any], user=None, notebook=None) -> Report:
         """Create a new report generation job"""

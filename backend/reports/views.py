@@ -131,35 +131,14 @@ class ReportJobListCreateView(APIView):
             report_data = serializer.validated_data.copy()
             report_data.pop("notebook", None)
 
-            # Check if Celery workers are running before creating the task
-            from .services.job import JobService
-            job_service = JobService()
-
-            if not job_service.check_celery_workers():
-                return Response(
-                    {"detail": "Celery workers are not running. Please contact support."},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE
-                )
-
             report = report_orchestrator.create_report_job(
                 report_data, user=request.user, notebook=notebook
             )
 
-            # Create the Celery task
             task_result = process_report_generation.delay(report.id)
-
-            # Only store task ID if we got a real one from Celery
-            if task_result and task_result.id:
-                report.celery_task_id = task_result.id
-                report.save(update_fields=["celery_task_id"])
-                logger.info(f"Celery task {task_result.id} created for report {report.id}")
-            else:
-                # Clean up the report if task creation failed
-                report.delete()
-                return Response(
-                    {"detail": "Failed to create Celery task. Please try again."},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE
-                )
+            # Store the enqueued task ID temporarily - will be updated by the task itself with actual ID
+            report.celery_task_id = task_result.id
+            report.save(update_fields=["celery_task_id"])
 
             logger.info(
                 f"Report job {report.job_id} created for report {report.id} (canonical)"
