@@ -409,6 +409,31 @@ class FileViewSet(viewsets.ModelViewSet):
             logger.exception(f"Failed to extract video images: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    def perform_destroy(self, instance):
+        """
+        Handle file deletion with proper cleanup of storage and RagFlow documents.
+
+        The actual cleanup is handled by Django signals (delete_kb_files_on_pre_delete),
+        which will delete both MinIO files and RagFlow documents when the
+        KnowledgeBaseItem is deleted.
+        """
+        try:
+            logger.info(f"Deleting file '{instance.title}' (ID: {instance.id}) from notebook {instance.notebook.id}")
+
+            # Log the deletion for audit purposes
+            ragflow_doc_info = ""
+            if instance.ragflow_document_id and instance.notebook.ragflow_dataset_id:
+                ragflow_doc_info = f" and RagFlow document {instance.ragflow_document_id} from dataset {instance.notebook.ragflow_dataset_id}"
+
+            logger.info(f"File deletion will clean up MinIO storage{ragflow_doc_info}")
+
+            # Delete the instance - signals will handle cleanup
+            instance.delete()
+
+        except Exception as e:
+            logger.exception(f"Failed to delete file {instance.id}: {e}")
+            raise
+
 
 # ----------------------------
 # Knowledge base and batch jobs
