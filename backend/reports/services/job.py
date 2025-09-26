@@ -529,18 +529,15 @@ class JobService:
 
             # Terminate the Celery task if it exists
             if report.celery_task_id:
-                success = self._terminate_celery_task_immediate(report.celery_task_id)
-
-                # Always update status to cancelled, even if termination failed
-                # This prevents the job from appearing as "running" in the frontend
-                report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
-
+                success = self._terminate_celery_task(report.celery_task_id)
                 if success:
-                    logger.info(f"Successfully cancelled and terminated task for job {job_id}")
+                    # Update status to cancelled
+                    report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
+                    logger.info(f"Successfully cancelled job {job_id}")
+                    return True
                 else:
-                    logger.warning(f"Task termination uncertain for job {job_id}, but marked as cancelled")
-
-                return True
+                    logger.warning(f"Failed to terminate task for job {job_id}")
+                    return False
             else:
                 # No Celery task ID, just update status
                 report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")

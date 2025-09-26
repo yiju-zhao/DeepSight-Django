@@ -133,24 +133,12 @@ export const useDeleteReport = (notebookId: string) => {
         return old?.jobId === jobId ? null : old;
       });
 
-      // Remove the specific job from cache immediately
-      queryClient.setQueryData(studioKeys.reportJobs(notebookId), (oldData: any) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          jobs: oldData.jobs?.filter((job: any) =>
-            job.id !== jobId && job.job_id !== jobId
-          ) || []
-        };
-      });
-
       // Force immediate refetch to ensure UI updates
       queryClient.invalidateQueries({
         queryKey: studioKeys.reportJobs(notebookId),
       });
       queryClient.refetchQueries({
         queryKey: studioKeys.reportJobs(notebookId),
-        type: 'active'
       });
     },
   });
@@ -167,24 +155,12 @@ export const useDeletePodcast = (notebookId: string) => {
         return old?.jobId === jobId ? null : old;
       });
 
-      // Remove the specific job from cache immediately
-      queryClient.setQueryData(studioKeys.podcastJobs(notebookId), (oldData: any) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          jobs: oldData.jobs?.filter((job: any) =>
-            job.id !== jobId && job.job_id !== jobId
-          ) || []
-        };
-      });
-
       // Force immediate refetch to ensure UI updates
       queryClient.invalidateQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
       });
       queryClient.refetchQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
-        type: 'active'
       });
     },
   });
@@ -192,23 +168,10 @@ export const useDeletePodcast = (notebookId: string) => {
 
 export const useCancelReportJob = (notebookId: string) => {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
     mutationFn: (jobId: string) => studioService.cancelReportJob(jobId, notebookId),
-    onSuccess: (data, jobId) => {
-      // Update the specific job status to cancelled immediately
-      queryClient.setQueryData(studioKeys.reportJobs(notebookId), (oldData: any) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          jobs: oldData.jobs?.map((job: any) =>
-            (job.id === jobId || job.job_id === jobId)
-              ? { ...job, status: 'cancelled', progress: 'Job cancelled by user' }
-              : job
-          ) || []
-        };
-      });
-
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: studioKeys.reportJobs(notebookId),
       });
@@ -218,23 +181,10 @@ export const useCancelReportJob = (notebookId: string) => {
 
 export const useCancelPodcastJob = (notebookId: string) => {
   const queryClient = useQueryClient();
-
+  
   return useMutation({
     mutationFn: (jobId: string) => studioService.cancelPodcastJob(jobId, notebookId),
-    onSuccess: (data, jobId) => {
-      // Update the specific job status to cancelled immediately
-      queryClient.setQueryData(studioKeys.podcastJobs(notebookId), (oldData: any) => {
-        if (!oldData) return oldData;
-        return {
-          ...oldData,
-          jobs: oldData.jobs?.map((job: any) =>
-            (job.id === jobId || job.job_id === jobId)
-              ? { ...job, status: 'cancelled', progress: 'Job cancelled by user' }
-              : job
-          ) || []
-        };
-      });
-
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
       });
