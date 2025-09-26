@@ -529,7 +529,7 @@ class JobService:
 
             # Terminate the Celery task if it exists
             if report.celery_task_id:
-                success = self._terminate_celery_task_immediate(report.celery_task_id)
+                success = self._force_terminate_celery_task(report.celery_task_id)
 
                 # Always update status to cancelled, even if termination failed
                 # This prevents the job from appearing as "running" in the frontend
@@ -552,6 +552,34 @@ class JobService:
             return False
         except Exception as e:
             logger.error(f"Error cancelling job {job_id}: {e}")
+            return False
+
+    def _force_terminate_celery_task(self, celery_task_id: str) -> bool:
+        """Force terminate a Celery task using aggressive SIGKILL approach"""
+        try:
+            from celery.result import AsyncResult
+            import time
+
+            task_result = AsyncResult(celery_task_id)
+            initial_state = task_result.state
+            logger.info(f"Force terminating task {celery_task_id} (state: {initial_state})")
+
+            if initial_state in ["PENDING", "STARTED", "RETRY"]:
+                # Use SIGKILL directly for immediate termination
+                celery_app.control.revoke(celery_task_id, terminate=True, signal="SIGKILL")
+                logger.info(f"Sent SIGKILL to task {celery_task_id}")
+
+                # Brief wait to allow termination
+                time.sleep(1)
+                final_result = AsyncResult(celery_task_id)
+                logger.info(f"Task {celery_task_id} after SIGKILL: {final_result.state}")
+                return True
+            else:
+                logger.info(f"Task {celery_task_id} already in final state: {initial_state}")
+                return True
+
+        except Exception as e:
+            logger.error(f"Error force terminating task {celery_task_id}: {e}")
             return False
     
     def delete_job(self, job_id: str) -> bool:
