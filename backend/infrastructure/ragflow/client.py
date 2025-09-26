@@ -180,10 +180,10 @@ class RagFlowClient:
     def get_dataset(self, dataset_id: str) -> Optional[Dict]:
         """
         Get dataset information.
-        
+
         Args:
             dataset_id: Dataset ID
-            
+
         Returns:
             Dataset information or None if not found
         """
@@ -201,6 +201,54 @@ class RagFlowClient:
         except Exception as e:
             logger.error(f"Failed to get dataset '{dataset_id}': {e}")
             return None
+
+    def update_dataset(self, dataset_id: str, update_config: Dict = None) -> bool:
+        """
+        Update a RagFlow dataset configuration.
+        This triggers re-processing of documents with new settings (embedding model, chunk method, etc.)
+
+        Args:
+            dataset_id: Dataset ID to update
+            update_config: Dictionary of configuration updates. If None, triggers re-processing with current settings.
+
+        Returns:
+            True if update was successful
+
+        Raises:
+            RagFlowDatasetError: If update fails
+        """
+        try:
+            logger.info(f"Updating RagFlow dataset: {dataset_id}")
+
+            # Get the dataset first
+            datasets = self.client.list_datasets(id=dataset_id)
+            if not datasets:
+                raise RagFlowDatasetError(f"Dataset {dataset_id} not found")
+
+            dataset = datasets[0]
+
+            # If no update config provided, use minimal update to trigger re-processing
+            if update_config is None:
+                # Get current embedding model or use default
+                current_embedding = getattr(dataset, 'embedding_model', None)
+                if current_embedding is None:
+                    current_embedding = getattr(settings, 'RAGFLOW_DEFAULT_EMBEDDING_MODEL', 'text-embedding-3-large@OpenAI')
+
+                update_config = {
+                    "embedding_model": current_embedding
+                }
+
+            def _update():
+                dataset.update(update_config)
+                return True
+
+            result = self._retry_on_failure(_update)
+            logger.info(f"Dataset updated successfully: {dataset_id}")
+            return result
+
+        except Exception as e:
+            logger.error(f"Failed to update dataset '{dataset_id}': {e}")
+            raise RagFlowDatasetError(f"Failed to update dataset: {e}")
     
     # Document Management
     def upload_document(self, dataset_id: str, content: str, display_name: str) -> Dict:

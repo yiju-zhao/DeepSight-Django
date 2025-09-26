@@ -92,6 +92,14 @@ def delete_kb_files_on_pre_delete(sender, instance: KnowledgeBaseItem, using, **
                 )
                 if success:
                     logger.info(f"Successfully deleted RagFlow document '{instance.title}' (ID: {instance.ragflow_document_id}) from dataset {instance.notebook.ragflow_dataset_id}")
+
+                    # Trigger dataset update to refresh embeddings after document deletion
+                    try:
+                        ragflow_client.update_dataset(instance.notebook.ragflow_dataset_id)
+                        logger.info(f"Successfully updated RagFlow dataset {instance.notebook.ragflow_dataset_id} after document deletion")
+                    except Exception as update_error:
+                        # Log error but don't fail the deletion process
+                        logger.warning(f"Failed to update dataset {instance.notebook.ragflow_dataset_id} after deletion: {update_error}")
                 else:
                     logger.warning(f"RagFlow document deletion returned False for document {instance.ragflow_document_id}")
             except Exception as e:

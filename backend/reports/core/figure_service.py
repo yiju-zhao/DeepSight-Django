@@ -30,12 +30,12 @@ class FigureDataService:
             str: Success message or None if failed
         """
         try:
-            from notebooks.services.knowledge_base_image_service import KnowledgeBaseImageService
-            
-            image_service = KnowledgeBaseImageService()
+            from notebooks.services.knowledge_base_service import KnowledgeBaseService
+
+            kb_service = KnowledgeBaseService()
             
             # Update images from figure data
-            success = image_service.update_images_from_figure_data(
+            success = kb_service.update_images_from_figure_data(
                 kb_item_id=int(file_id),
                 figure_data=figure_data,
                 user_id=user_id
@@ -66,12 +66,12 @@ class FigureDataService:
             str: Success indicator or None if no figure data found
         """
         try:
-            from notebooks.services.knowledge_base_image_service import KnowledgeBaseImageService
-            
-            image_service = KnowledgeBaseImageService()
+            from notebooks.services.knowledge_base_service import KnowledgeBaseService
+
+            kb_service = KnowledgeBaseService()
             
             # Get combined figure data from database
-            combined_figure_data = image_service.get_combined_figure_data_for_files(
+            combined_figure_data = kb_service.get_combined_figure_data_for_files(
                 file_ids=selected_file_ids,
                 user_id=report.user.pk
             )
@@ -182,11 +182,11 @@ class FigureDataService:
             List of figure data dictionaries
         """
         try:
-            from notebooks.services.knowledge_base_image_service import KnowledgeBaseImageService
+            from notebooks.services.knowledge_base_service import KnowledgeBaseService
+
+            kb_service = KnowledgeBaseService()
             
-            image_service = KnowledgeBaseImageService()
-            
-            return image_service.get_images_for_knowledge_base_item(
+            return kb_service.get_images_for_knowledge_base_item(
                 kb_item_id=int(file_id),
                 user_id=user_id
             )
@@ -227,7 +227,7 @@ class FigureDataService:
                 from notebooks.services.knowledge_base_image_service import KnowledgeBaseImageService
                 
                 image_service = KnowledgeBaseImageService()
-                success = image_service.update_images_from_figure_data(
+                success = kb_service.update_images_from_figure_data(
                     kb_item_id=int(file_id),
                     figure_data=figure_data,
                     user_id=user_id

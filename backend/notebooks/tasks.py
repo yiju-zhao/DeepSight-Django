@@ -174,6 +174,14 @@ def upload_to_ragflow_task(self, kb_item_id: str):
                 # Still continue with parsing trigger attempt
                 kb_item.ragflow_processing_status = 'parsing'  # At least update status in memory
 
+            # Trigger dataset update to refresh embeddings and settings
+            try:
+                ragflow_client.update_dataset(kb_item.notebook.ragflow_dataset_id)
+                logger.info(f"Successfully updated RagFlow dataset {kb_item.notebook.ragflow_dataset_id} after file upload")
+            except Exception as update_error:
+                # Log error but don't fail the entire upload process
+                logger.warning(f"Failed to update dataset {kb_item.notebook.ragflow_dataset_id}: {update_error}")
+
             # Trigger document parsing after successful upload
             try:
                 parse_result = ragflow_client.parse_documents(

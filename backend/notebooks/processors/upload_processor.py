@@ -360,7 +360,7 @@ class UploadProcessor:
 
             # Handle RagFlow upload if requested
             if upload_to_ragflow:
-                await self._handle_ragflow_upload_async(file_id, file_metadata)
+                await self._handle_ragflow_upload_async(file_id, file_metadata, notebook_id)
 
             # Update final status
             if upload_file_id:
@@ -441,7 +441,7 @@ class UploadProcessor:
             )
             raise
 
-    async def _handle_ragflow_upload_async(self, file_id: str, file_metadata: Dict[str, Any]) -> None:
+    async def _handle_ragflow_upload_async(self, file_id: str, file_metadata: Dict[str, Any], notebook_id: Optional[int] = None) -> None:
         """Handle RagFlow upload for immediate processing."""
         try:
             # Import models inside method to avoid circular imports
@@ -486,6 +486,15 @@ class UploadProcessor:
                 await save_kb_item_sync(update_fields=['ragflow_document_id'])
 
                 self.log_operation("ragflow_upload_success", f"Uploaded KB item {file_id} to RagFlow: {upload_result.get('id')}")
+
+                # Trigger dataset update to refresh embeddings and settings
+                try:
+                    update_dataset_sync = sync_to_async(ragflow_client.update_dataset, thread_sensitive=False)
+                    await update_dataset_sync(dataset_id)
+                    self.log_operation("ragflow_dataset_update_success", f"Updated RagFlow dataset {dataset_id} after file upload")
+                except Exception as update_e:
+                    # Log error but don't fail the entire upload process
+                    self.log_operation("ragflow_dataset_update_error", f"Failed to update dataset {dataset_id}: {update_e}", "warning")
             else:
                 self.log_operation("ragflow_upload_failed", f"Failed to upload KB item {file_id} to RagFlow - no document ID returned", "error")
 
