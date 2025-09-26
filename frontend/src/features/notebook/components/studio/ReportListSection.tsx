@@ -60,13 +60,6 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
     switch (status) {
       case 'completed':
         return <Badge variant="default" className="text-xs">Ready</Badge>;
-      case 'generating':
-        return (
-          <div className="relative overflow-hidden bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse-sweep"></div>
-            <span className="relative z-10">•••</span>
-          </div>
-        );
       case 'failed':
         return <Badge variant="destructive" className="text-xs">Failed</Badge>;
       default:
@@ -74,11 +67,46 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
     }
   };
 
+  // Special layout for generating reports
+  if (report.status === 'generating') {
+    return (
+      <div className="relative p-4 border-b border-gray-100/50 last:border-b-0 overflow-hidden">
+        {/* Highlight sweep animation */}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/30 to-transparent animate-pulse-sweep"></div>
+
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
+            <span className="font-medium text-gray-900">Research Report</span>
+            <div className="flex items-center text-xs text-gray-500">
+              <Clock className="h-3 w-3 mr-1" />
+              {formatDate(report.created_at)}
+            </div>
+          </div>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(report);
+            }}
+            className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+            title="Cancel generation"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Normal layout for completed/failed reports
   return (
     <div className={`p-4 ${COLORS.panels.commonBackground}/60 backdrop-blur-sm hover:${COLORS.panels.commonBackground}/80 transition-colors cursor-pointer border-b border-gray-100/50 last:border-b-0`}>
       <div className="flex items-start justify-between">
-        <div 
-          className="flex-1 min-w-0" 
+        <div
+          className="flex-1 min-w-0"
           onClick={() => onSelect(report)}
         >
           <div className="flex items-center space-x-2 mb-2">
@@ -88,19 +116,19 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
             </h4>
             {getStatusBadge(report.status)}
           </div>
-          
+
           {report.topic && (
             <p className="text-sm text-gray-600 mb-2 line-clamp-2">
               {report.topic}
             </p>
           )}
-          
+
           <div className="flex items-center text-xs text-gray-500">
             <Clock className="h-3 w-3 mr-1" />
             {formatDate(report.created_at)}
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-1 ml-2">
           <Button
             variant="ghost"
@@ -114,7 +142,7 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
           >
             <ExternalLink className="h-4 w-4" />
           </Button>
-          
+
           <Button
             variant="ghost"
             size="sm"
@@ -127,7 +155,7 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
           >
             <Edit className="h-4 w-4" />
           </Button>
-          
+
           <Button
             variant="ghost"
             size="sm"
