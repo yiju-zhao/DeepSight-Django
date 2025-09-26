@@ -88,6 +88,18 @@ class ConfigurationManager:
             top_p=config.top_p,
         )
 
+        # Set topic improver LM for OpenAI (needed for consistency)
+        from .knowledge_storm.lm import LitellmModel
+        openai_kwargs = {
+            "api_key": openai_api_key,
+            "temperature": config.temperature,
+            "top_p": config.top_p,
+            "api_base": None,
+        }
+        lm_configs.set_topic_improver_lm(LitellmModel(
+            model="gpt-4.1-mini", max_tokens=500, **openai_kwargs
+        ))
+
         return lm_configs
 
     def _setup_google_models(self, config, lm_configs) -> 'STORMWikiLMConfigs':
@@ -98,11 +110,13 @@ class ConfigurationManager:
             "top_p": config.top_p,
         }
 
-        lm_configs.set_conv_simulator_lm(GoogleModel(model=config.conv_simulator_lm, **google_kwargs))
-        lm_configs.set_question_asker_lm(GoogleModel(model=config.question_asker_lm, **google_kwargs))
-        lm_configs.set_outline_gen_lm(GoogleModel(model=config.outline_gen_lm, **google_kwargs))
-        lm_configs.set_article_gen_lm(GoogleModel(model=config.article_gen_lm, **google_kwargs))
-        lm_configs.set_article_polish_lm(GoogleModel(model=config.article_polish_lm, **google_kwargs))
+        # Use hardcoded Gemini model names similar to how OpenAI models are handled
+        lm_configs.set_conv_simulator_lm(GoogleModel(model="gemini-1.5-flash", max_tokens=500, **google_kwargs))
+        lm_configs.set_question_asker_lm(GoogleModel(model="gemini-1.5-flash", max_tokens=500, **google_kwargs))
+        lm_configs.set_outline_gen_lm(GoogleModel(model="gemini-1.5-pro", max_tokens=3000, **google_kwargs))
+        lm_configs.set_article_gen_lm(GoogleModel(model="gemini-1.5-pro", max_tokens=3000, **google_kwargs))
+        lm_configs.set_article_polish_lm(GoogleModel(model="gemini-1.5-pro", max_tokens=20000, **google_kwargs))
+        lm_configs.set_topic_improver_lm(GoogleModel(model="gemini-1.5-flash", max_tokens=500, **google_kwargs))
 
         return lm_configs
 

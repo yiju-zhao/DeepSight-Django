@@ -4,7 +4,6 @@ import glob
 from pathlib import Path
 from typing import List, Dict, Optional
 from django.conf import settings
-from datetime import datetime
 import logging
 
 # Import extract_figure_data_from_markdown from image_utils
@@ -196,14 +195,6 @@ class FigureDataService:
             logger.error(f"Error getting figure data for kb_item {file_id}: {e}")
             return []
     
-    @staticmethod
-    def migrate_existing_figure_data_to_database(user_id: int, file_id: str) -> bool:
-        """
-        DEPRECATED: No longer needed as we use KnowledgeBaseImage table directly.
-        This method is kept for compatibility but always returns True.
-        """
-        logger.info(f"Migration not needed - using KnowledgeBaseImage table directly for file {file_id}")
-        return True
     
     @staticmethod
     def _create_figure_data_from_images_in_database(user_id: int, file_id: str) -> bool:
@@ -298,28 +289,7 @@ class FigureDataService:
             logger.warning(f"Using MinIO storage - cannot resolve local image paths for file {file_id}")
             return None
     
-    @staticmethod
-    def _get_report_figure_data_path(report) -> str:
-        """DEPRECATED: No longer creates JSON files. Always returns None."""
-        logger.info(f"Using KnowledgeBaseImage table directly - no figure data path needed for report {report.id}")
-        return None
-        
-        user_id = report.user.pk
-        current_date = datetime.now()
-        year_month = current_date.strftime("%Y-%m")
-        report_id = report.pk
-        
-        notebook_id = None
-        if hasattr(report, 'notebooks') and report.notebooks:
-            notebook_id = report.notebooks.pk
-        # This method is disabled for MinIO storage
-        return None
     
-    @staticmethod
-    def _load_knowledge_base_figure_data(user_id: int, file_id: str) -> List[Dict]:
-        """DEPRECATED: Use _load_kb_item_figure_data instead."""
-        logger.info(f"Using KnowledgeBaseImage table directly for file {file_id}")
-        return FigureDataService._load_kb_item_figure_data(int(file_id))
     
     @staticmethod
     def _validate_and_clean_figure_data(figure_data: List[Dict]) -> List[Dict]:
@@ -348,13 +318,6 @@ class FigureDataService:
         
         return cleaned_data
     
-    @staticmethod
-    def _create_figure_data_from_images(user_id: int, file_id: str) -> List[Dict]:
-        """
-        DEPRECATED: No longer creates JSON files. Use KnowledgeBaseImage table directly.
-        """
-        logger.info(f"Using KnowledgeBaseImage table directly for file {file_id} - no JSON creation needed")
-        return FigureDataService._load_kb_item_figure_data(int(file_id))
     
     @staticmethod
     def _get_knowledge_base_content_path(user_id: int, file_id: str) -> str:

@@ -102,32 +102,6 @@ class KnowledgeBaseInputProcessor(InputProcessorInterface):
             logger.error(f"Error processing selected files: {e}")
             return input_data
     
-    def _process_folder_path(self, folder_path_obj: Path, input_data: Dict[str, Any]):
-        """Legacy method to process folder paths (for backward compatibility)"""
-        try:
-            # Process all markdown files as text files
-            all_md_files = list(folder_path_obj.glob("*.md")) + \
-                          list(folder_path_obj.glob("**/*.md"))
-            
-            for md_file in all_md_files:
-                try:
-                    with open(md_file, "r", encoding="utf-8") as f:
-                        content = f.read()
-                    
-                    file_data = {
-                        "content": content,
-                        "filename": md_file.name,
-                        "file_path": str(md_file),
-                    }
-                    input_data["text_files"].append(file_data)
-                    logger.info(f"Loaded text file: {md_file}")
-                except Exception as e:
-                    logger.warning(f"Failed to read file {md_file}: {e}")
-            
-            # Legacy folder processing no longer handles caption files
-                    
-        except Exception as e:
-            logger.warning(f"Failed to process folder path {folder_path_obj}: {e}")
     
     def create_temp_files(self, processed_data: Dict[str, Any]) -> Dict[str, Any]:
         """
