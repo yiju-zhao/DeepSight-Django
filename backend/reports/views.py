@@ -136,7 +136,6 @@ class ReportJobListCreateView(APIView):
             )
 
             task_result = process_report_generation.delay(report.id)
-            # Store the enqueued task ID temporarily - will be updated by the task itself with actual ID
             report.celery_task_id = task_result.id
             report.save(update_fields=["celery_task_id"])
 
