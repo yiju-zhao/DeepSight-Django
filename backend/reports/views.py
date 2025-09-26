@@ -19,7 +19,7 @@ from .serializers import ReportGenerationRequestSerializer
 from .orchestrator import report_orchestrator
 from notebooks.models import Notebook
 from .tasks import process_report_generation
-from .services import PdfService, DeletionServiceFactory
+from .services import PdfService, JobService
 
 logger = logging.getLogger(__name__)
 
@@ -235,24 +235,19 @@ class ReportJobDetailView(APIView):
         try:
             report = self._get_report(job_id)
 
-            # Use the dedicated deletion service
-            deletion_service = DeletionServiceFactory.create_standard_deletion_service()
+            # Use the simplified JobService deletion
+            job_service = JobService()
+            success = job_service.delete_job(job_id)
 
-            result = deletion_service.delete_report(report)
-
-            if result["success"]:
+            if success:
                 return Response({
                     "success": True,
-                    "message": f"Report {job_id} deleted successfully",
-                    "details": result["steps"]
+                    "message": f"Report {job_id} deleted successfully"
                 }, status=status.HTTP_200_OK)
             else:
                 return Response({
                     "success": False,
-                    "message": f"Report {job_id} deletion failed",
-                    "error": result.get("error", "Unknown error"),
-                    "failed_steps": result.get("failed_steps", []),
-                    "details": result["steps"]
+                    "message": f"Report {job_id} deletion failed"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Http404:

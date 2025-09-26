@@ -522,16 +522,37 @@ class JobService:
             return False
     
     def delete_job(self, job_id: str) -> bool:
-        """Delete a job and its associated data (cache cleanup only)"""
+        """Complete deletion of a job - terminate Celery task, cleanup data, and delete record"""
         try:
-            # Verify the report exists before cache cleanup
-            Report.objects.get(job_id=job_id)
+            report = Report.objects.get(job_id=job_id)
 
-            # Remove from cache
+            # Step 1: Terminate Celery task if running
+            if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING] and report.celery_task_id:
+                self._terminate_celery_task_immediate(report.celery_task_id)
+                # Update status to cancelled
+                report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled for deletion")
+
+            # Step 2: Clean up cache
             cache_key = f"report_job:{job_id}"
             cache.delete(cache_key)
+            logger.info(f"Cleared cache for job {job_id}")
 
-            logger.info(f"Prepared job {job_id} for deletion")
+            # Step 3: Clean up storage files
+            self._cleanup_storage_files(report)
+
+            # Step 4: Clean up ReportImage records
+            self._cleanup_report_images(report)
+
+            # Step 5: Clean up temp directories
+            try:
+                from ..orchestrator import report_orchestrator
+                report_orchestrator.cleanup_failed_job(job_id)
+            except Exception as e:
+                logger.warning(f"Error cleaning up temp directories for {job_id}: {e}")
+
+            # Step 6: Delete the database record
+            report.delete()
+            logger.info(f"Successfully deleted job {job_id} and all associated data")
             return True
 
         except Report.DoesNotExist:
@@ -540,7 +561,78 @@ class JobService:
         except Exception as e:
             logger.error(f"Error deleting job {job_id}: {e}")
             return False
-    
+
+    def _terminate_celery_task_immediate(self, celery_task_id: str):
+        """Immediately terminate a Celery task with wait for confirmation"""
+        try:
+            from celery.result import AsyncResult
+            from backend.celery import app as celery_app
+            import time
+
+            task_result = AsyncResult(celery_task_id)
+            initial_state = task_result.state
+            logger.info(f"Terminating task {celery_task_id} (initial state: {initial_state})")
+
+            if initial_state in ["PENDING", "STARTED", "RETRY"]:
+                # Revoke and terminate the task
+                celery_app.control.revoke(celery_task_id, terminate=True, signal="SIGTERM")
+                logger.info(f"Sent termination signal to task {celery_task_id}")
+
+                # Wait for termination (up to 10 seconds)
+                start_time = time.time()
+                while (time.time() - start_time) < 10:
+                    current_result = AsyncResult(celery_task_id)
+                    if current_result.state in ["REVOKED", "FAILURE", "SUCCESS"]:
+                        logger.info(f"Task {celery_task_id} terminated with state: {current_result.state}")
+                        return
+                    time.sleep(0.5)
+
+                logger.warning(f"Task {celery_task_id} termination timeout after 10s")
+            else:
+                logger.info(f"Task {celery_task_id} already in final state {initial_state}")
+
+        except Exception as e:
+            logger.error(f"Error terminating Celery task {celery_task_id}: {e}")
+
+    def _cleanup_storage_files(self, report: Report):
+        """Clean up MinIO storage files for a report"""
+        try:
+            if not (report.main_report_object_key or report.generated_files):
+                return
+
+            from infrastructure.storage.adapters import get_storage_adapter
+            storage_adapter = get_storage_adapter()
+
+            # Delete main report file
+            if report.main_report_object_key:
+                try:
+                    storage_adapter.delete_file(report.main_report_object_key, str(report.user.id))
+                    logger.info(f"Deleted main report file: {report.main_report_object_key}")
+                except Exception as e:
+                    logger.warning(f"Failed to delete main report file: {e}")
+
+            # Delete generated files
+            if report.generated_files:
+                for file_path in report.generated_files:
+                    try:
+                        storage_adapter.delete_file(file_path, str(report.user.id))
+                        logger.info(f"Deleted generated file: {file_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to delete generated file {file_path}: {e}")
+
+        except Exception as e:
+            logger.warning(f"Error cleaning up storage files for report {report.id}: {e}")
+
+    def _cleanup_report_images(self, report: Report):
+        """Clean up ReportImage records for a report"""
+        try:
+            from .image import ImageService
+            image_service = ImageService()
+            image_service.cleanup_report_images(report)
+            logger.info(f"Cleaned up ReportImage records for report {report.id}")
+        except Exception as e:
+            logger.warning(f"Error cleaning up ReportImage records for report {report.id}: {e}")
+
     def list_jobs(self, user_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
         """List report generation jobs"""
         try:

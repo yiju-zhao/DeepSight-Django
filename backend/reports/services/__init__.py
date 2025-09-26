@@ -8,14 +8,11 @@ from .generation import ReportGenerationService
 from .image import ImageService
 from .job import JobService
 from .pdf import PdfService
-from .deletion import ReportDeletionService, DeletionServiceFactory
 
 __all__ = [
     "ReportGenerationService",
     "ImageService",
     "JobService",
     "PdfService",
-    "ReportDeletionService",
-    "DeletionServiceFactory",
 ]
 
