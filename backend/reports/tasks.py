@@ -24,14 +24,18 @@ def process_report_generation(self, report_id: int):
         try:
             report = Report.objects.get(id=report_id)
             job_id = report.job_id
-            # Ensure task id is stored for reliable cancellation, even if enqueued elsewhere
+            # Update with actual executing task ID for reliable cancellation
             try:
                 current_task_id = getattr(self.request, "id", None)
-                if current_task_id and report.celery_task_id != current_task_id:
+                if current_task_id:
+                    # Always update to ensure we have the actual executing task ID
                     report.celery_task_id = current_task_id
                     report.save(update_fields=["celery_task_id"])
+                    logger.info(f"Updated celery_task_id to executing task ID {current_task_id} for report {report_id}")
+                else:
+                    logger.warning(f"No current task ID available for report {report_id}")
             except Exception as e:
-                logger.warning(f"Could not persist celery_task_id for report {report_id}: {e}")
+                logger.error(f"Failed to update celery_task_id for report {report_id}: {e}")
         except Report.DoesNotExist:
             logger.error(f"Report {report_id} not found")
             raise Exception(f"Report {report_id} not found")

@@ -14,7 +14,7 @@ import studioService from "@/features/notebook/services/StudioService";
 // Import focused custom hooks for specific concerns
 import { config } from "@/config";
 import { PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
-import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels, useDeleteReport, useDeletePodcast } from "@/features/notebook/hooks/studio/useStudio";
+import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels, useDeleteReport, useDeletePodcast, useCancelReportJob, useCancelPodcastJob } from "@/features/notebook/hooks/studio/useStudio";
 import { useGenerationManager } from "@/features/notebook/hooks/studio/useGenerationManager";
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
@@ -69,9 +69,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const podcastJobs = useNotebookPodcastJobs(notebookId);
   const reportModels = useReportModels();
 
-  // ====== MUTATIONS: Use optimized deletion hooks ======
+  // ====== MUTATIONS: Use optimized deletion and cancellation hooks ======
   const deleteReportMutation = useDeleteReport(notebookId);
   const deletePodcastMutation = useDeletePodcast(notebookId);
+  const cancelReportMutation = useCancelReportJob(notebookId);
+  const cancelPodcastMutation = useCancelPodcastJob(notebookId);
 
   // ====== COMPLETION HANDLERS ======
   const handleReportComplete = useCallback((jobData: any) => {
@@ -417,7 +419,19 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         setSelectedFileContent('');
       }
 
-      // Backend now handles both cancellation and deletion in one call
+      if (isRunning) {
+        // For running/pending jobs: First cancel, then delete
+        try {
+          await cancelReportMutation.mutateAsync(reportId);
+          // Wait briefly to ensure cancellation is processed
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (cancelError) {
+          console.warn('Cancel failed, proceeding with delete:', cancelError);
+          // Continue with deletion even if cancel fails
+        }
+      }
+
+      // Delete the report (handles cleanup for both cancelled and completed reports)
       await deleteReportMutation.mutateAsync(reportId);
 
       toast({
@@ -434,7 +448,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [deleteReportMutation, selectedFile, toast]);
+  }, [deleteReportMutation, cancelReportMutation, selectedFile, toast]);
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
     const isGenerating = podcast.status === 'running' || podcast.status === 'pending' ||
@@ -461,29 +475,35 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
 
       if (isGenerating) {
-        // Cancel the generation first
-        await podcastGeneration.cancel();
-
-        // Then delete the record to completely remove it (cancel might leave a failed record)
+        // For running/pending jobs: First cancel via API, then delete
         try {
-          await deletePodcastMutation.mutateAsync(podcastId);
-        } catch (deleteError) {
-          // If delete fails, just log it - the cancel was successful
-          console.warn('Failed to delete cancelled podcast record:', deleteError);
+          await cancelPodcastMutation.mutateAsync(podcastId);
+          // Wait briefly to ensure cancellation is processed
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (cancelError) {
+          console.warn('Cancel failed, proceeding with delete:', cancelError);
+          // Continue with deletion even if cancel fails
         }
 
-        toast({
-          title: "Generation Cancelled",
-          description: "Podcast generation has been cancelled and removed"
-        });
-      } else {
-        // Delete the completed podcast
-        deletePodcastMutation.mutateAsync(podcastId);
-        toast({
-          title: "Podcast Deleted",
-          description: "The podcast has been deleted successfully"
-        });
+        // Also cancel via generation manager if it's tracking this job
+        if (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === podcastId) {
+          try {
+            await podcastGeneration.cancel();
+          } catch (generationCancelError) {
+            console.warn('Generation manager cancel failed:', generationCancelError);
+          }
+        }
       }
+
+      // Delete the podcast (handles cleanup for both cancelled and completed podcasts)
+      await deletePodcastMutation.mutateAsync(podcastId);
+
+      toast({
+        title: isGenerating ? "Generation Cancelled" : "Podcast Deleted",
+        description: isGenerating
+          ? "Podcast generation has been cancelled and removed"
+          : "The podcast has been deleted successfully"
+      });
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       const actionText = isGenerating ? 'cancel' : 'delete';
@@ -493,7 +513,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [deletePodcastMutation, selectedFile, toast, podcastGeneration]);
+  }, [deletePodcastMutation, cancelPodcastMutation, selectedFile, toast, podcastGeneration]);
 
   const handleSaveFile = useCallback(async (content: string) => {
     if (!selectedFile) return;
