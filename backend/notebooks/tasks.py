@@ -147,10 +147,9 @@ def upload_to_ragflow_task(self, kb_item_id: str):
             document_id = upload_result.get('id')
             logger.info(f"Successfully uploaded processed file for KB item {kb_item.id} to RagFlow: {document_id}")
 
-            # Store the RagFlow document ID in the knowledge base item metadata
-            kb_item.metadata = kb_item.metadata or {}
-            kb_item.metadata['ragflow_document_id'] = document_id
-            kb_item.save(update_fields=['metadata'])
+            # Store the RagFlow document ID in the model field
+            kb_item.ragflow_document_id = document_id
+            kb_item.save(update_fields=['ragflow_document_id'])
 
             # Trigger document parsing after successful upload
             try:

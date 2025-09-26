@@ -479,12 +479,11 @@ class UploadProcessor:
             )
 
             if upload_result and upload_result.get('id'):
-                # Store RagFlow document ID in KB item metadata
-                kb_item.metadata = kb_item.metadata or {}
-                kb_item.metadata['ragflow_document_id'] = upload_result.get('id')
+                # Store RagFlow document ID in KB item model field
+                kb_item.ragflow_document_id = upload_result.get('id')
 
                 save_kb_item_sync = sync_to_async(kb_item.save, thread_sensitive=False)
-                await save_kb_item_sync(update_fields=['metadata'])
+                await save_kb_item_sync(update_fields=['ragflow_document_id'])
 
                 self.log_operation("ragflow_upload_success", f"Uploaded KB item {file_id} to RagFlow: {upload_result.get('id')}")
             else:
