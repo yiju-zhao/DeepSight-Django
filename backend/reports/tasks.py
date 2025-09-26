@@ -27,12 +27,19 @@ def process_report_generation(self, report_id: int):
             # Update with actual executing task ID for reliable cancellation
             try:
                 current_task_id = getattr(self.request, "id", None)
-                if current_task_id:
-                    # Always update to ensure we have the actual executing task ID
-                    report.celery_task_id = current_task_id
-                    report.save(update_fields=["celery_task_id"])
-                    logger.info(f"Updated celery_task_id to executing task ID {current_task_id} for report {report_id}")
-                else:
+                if current_task_id and current_task_id != report.celery_task_id:
+                    # Verify this is a real Celery task ID by checking if it's valid
+                    from celery.result import AsyncResult
+                    task_result = AsyncResult(current_task_id)
+
+                    # Only update if we have a valid task ID
+                    if task_result and current_task_id:
+                        report.celery_task_id = current_task_id
+                        report.save(update_fields=["celery_task_id"])
+                        logger.info(f"Updated celery_task_id to executing task ID {current_task_id} for report {report_id}")
+                    else:
+                        logger.warning(f"Invalid task ID {current_task_id} for report {report_id}")
+                elif not current_task_id:
                     logger.warning(f"No current task ID available for report {report_id}")
             except Exception as e:
                 logger.error(f"Failed to update celery_task_id for report {report_id}: {e}")
