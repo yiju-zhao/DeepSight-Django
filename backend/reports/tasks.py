@@ -24,6 +24,14 @@ def process_report_generation(self, report_id: int):
         try:
             report = Report.objects.get(id=report_id)
             job_id = report.job_id
+            # Ensure task id is stored for reliable cancellation, even if enqueued elsewhere
+            try:
+                current_task_id = getattr(self.request, "id", None)
+                if current_task_id and report.celery_task_id != current_task_id:
+                    report.celery_task_id = current_task_id
+                    report.save(update_fields=["celery_task_id"])
+            except Exception as e:
+                logger.warning(f"Could not persist celery_task_id for report {report_id}: {e}")
         except Report.DoesNotExist:
             logger.error(f"Report {report_id} not found")
             raise Exception(f"Report {report_id} not found")
@@ -109,27 +117,46 @@ def cancel_report_generation(self, job_id: str):
         from .models import Report
         report = Report.objects.get(job_id=job_id)
 
-        # Revoke the main Celery task if it's running
+        # Revoke the main Celery task if it's running (with confirmation + fallback)
         if report.celery_task_id:
             try:
                 from celery.result import AsyncResult
                 from backend.celery import app as celery_app
 
-                # Check task state first
-                task_result = AsyncResult(report.celery_task_id)
-                logger.info(f"Task {report.celery_task_id} state: {task_result.state}")
+                task_id = report.celery_task_id
+                task_result = AsyncResult(task_id)
+                logger.info(f"Task {task_id} state before cancel: {task_result.state}")
 
                 # Only revoke if task is still active
                 if task_result.state in ["PENDING", "STARTED", "RETRY"]:
-                    celery_app.control.revoke(
-                        report.celery_task_id, terminate=True, signal="SIGTERM"
-                    )
-                    logger.info(f"Revoked and terminated Celery task {report.celery_task_id} for job {job_id}")
+                    # Try graceful terminate first
+                    celery_app.control.revoke(task_id, terminate=True, signal="SIGTERM")
+                    logger.info(f"Sent SIGTERM to Celery task {task_id} for job {job_id}")
+
+                    # Wait up to 10s for termination
+                    start_time = time.time()
+                    while time.time() - start_time < 10:
+                        current = AsyncResult(task_id)
+                        if current.state in ["REVOKED", "FAILURE", "SUCCESS"]:
+                            logger.info(f"Task {task_id} terminated with state: {current.state}")
+                            break
+                        time.sleep(0.5)
+
+                    # If still running, force kill as a last resort
+                    current = AsyncResult(task_id)
+                    if current.state in ["PENDING", "STARTED", "RETRY"]:
+                        logger.warning(f"Task {task_id} still active after SIGTERM; sending SIGKILL")
+                        try:
+                            celery_app.control.revoke(task_id, terminate=True, signal="SIGKILL")
+                        except Exception as kill_err:
+                            logger.warning(f"SIGKILL revoke failed for task {task_id}: {kill_err}")
                 else:
-                    logger.info(f"Celery task {report.celery_task_id} already in final state {task_result.state}, skipping revocation")
+                    logger.info(
+                        f"Celery task {task_id} already in final state {task_result.state}, skipping revocation"
+                    )
 
             except Exception as e:
-                logger.warning(f"Failed to revoke Celery task for job {job_id}: {e}")
+                logger.warning(f"Failed to revoke/terminate Celery task for job {job_id}: {e}")
 
         # Call generator cancellation to clean up temp directories
         try:
