@@ -26,11 +26,15 @@ def process_report_generation(self, report_id: int):
     job_id = None
     progress_handler = None
     root_logger = None
+    cancellation_requested = False
 
     def graceful_termination_handler(signum, frame):
         """Handle termination signals gracefully by updating database status"""
-        nonlocal job_id
+        nonlocal job_id, cancellation_requested
         logger.warning(f"Task {self.request.id} received termination signal {signum}")
+
+        # Set cancellation flag
+        cancellation_requested = True
 
         if job_id:
             try:
@@ -51,8 +55,31 @@ def process_report_generation(self, report_id: int):
             except Exception:
                 pass
 
-        # Exit gracefully
-        sys.exit(1)
+        # Force termination by raising an exception that will be caught by Celery
+        logger.info(f"Task {self.request.id} exiting due to termination signal {signum}")
+        raise KeyboardInterrupt(f"Task terminated by signal {signum}")
+
+    def check_cancellation():
+        """Check if cancellation has been requested and raise KeyboardInterrupt if so"""
+        nonlocal job_id, cancellation_requested
+
+        if cancellation_requested:
+            logger.info(f"Task {self.request.id} detected cancellation flag")
+            raise KeyboardInterrupt("Task cancellation detected via flag")
+
+        if job_id:
+            try:
+                # Check database status
+                report = Report.objects.get(job_id=job_id)
+                if report.status == Report.STATUS_CANCELLED:
+                    logger.info(f"Task {self.request.id} detected cancellation in database")
+                    raise KeyboardInterrupt("Task was cancelled (detected in database)")
+            except Report.DoesNotExist:
+                logger.warning(f"Report {job_id} no longer exists - treating as cancellation")
+                raise KeyboardInterrupt("Report record no longer exists")
+            except Exception as e:
+                logger.warning(f"Failed to check cancellation status: {e}")
+                # Don't raise here - just continue
 
     # Set up signal handlers for graceful termination
     signal.signal(signal.SIGTERM, graceful_termination_handler)
@@ -85,9 +112,18 @@ def process_report_generation(self, report_id: int):
                 job_id, "Starting report generation", Report.STATUS_RUNNING
             )
 
-            # Generate the report
+            # Check for cancellation before starting
+            check_cancellation()
+
+            # Generate the report with periodic cancellation checks
             start_ts = time.time()
+
+            # Set up a cancellation-aware wrapper around the report generation
+            logger.info(f"Starting report generation for job {job_id}")
             result = report_orchestrator.generate_report(report_id)
+
+            # Check for cancellation after generation (in case it was a long-running operation)
+            check_cancellation()
 
             if result.get('success', False):
                 # Update job with success
@@ -112,6 +148,12 @@ def process_report_generation(self, report_id: int):
                     root_logger.removeHandler(progress_handler)
                 except Exception as e:
                     logger.warning(f"Failed to remove progress handler: {e}")
+
+    except KeyboardInterrupt as e:
+        logger.info(f"Task {self.request.id} was cancelled: {e}")
+        # Don't update status here - it was already updated by the signal handler or DELETE operation
+        # Just exit cleanly
+        return {"status": "cancelled", "message": str(e)}
 
     except Exception as e:
         logger.error(f"Error processing report generation for report {report_id}: {e}")
