@@ -396,8 +396,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, [notebookId, toast]);
 
   const handleDeleteReport = useCallback(async (report: ReportItem) => {
-    const isRunning = report.status === 'running' || report.status === 'pending';
-    const confirmMessage = isRunning
+    const isGenerating = report.status === 'running' || report.status === 'pending' ||
+                        (reportGeneration.activeJob && reportGeneration.activeJob.jobId === (report.id || report.job_id));
+
+    const confirmMessage = isGenerating
       ? 'Are you sure you want to cancel and delete this report?'
       : 'Are you sure you want to delete this report?';
 
@@ -417,24 +419,40 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         setSelectedFileContent('');
       }
 
-      // Backend now handles both cancellation and deletion in one call
-      await deleteReportMutation.mutateAsync(reportId);
+      if (isGenerating) {
+        // Cancel the generation first
+        await reportGeneration.cancel();
 
-      toast({
-        title: isRunning ? "Report Cancelled" : "Report Deleted",
-        description: isRunning
-          ? "Report generation has been cancelled and removed"
-          : "The report has been deleted successfully"
-      });
+        // Then delete the record to completely remove it (cancel might leave a failed record)
+        try {
+          await deleteReportMutation.mutateAsync(reportId);
+        } catch (deleteError) {
+          // If delete fails, just log it - the cancel was successful
+          console.warn('Failed to delete cancelled report record:', deleteError);
+        }
+
+        toast({
+          title: "Report Cancelled",
+          description: "Report generation has been cancelled and removed"
+        });
+      } else {
+        // Delete the completed report
+        await deleteReportMutation.mutateAsync(reportId);
+        toast({
+          title: "Report Deleted",
+          description: "The report has been deleted successfully"
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      const actionText = isGenerating ? 'cancel' : 'delete';
       toast({
-        title: "Delete Failed",
-        description: `Failed to delete report: ${errorMessage}`,
+        title: `${actionText === 'cancel' ? 'Cancel' : 'Delete'} Failed`,
+        description: `Failed to ${actionText} report: ${errorMessage}`,
         variant: "destructive"
       });
     }
-  }, [deleteReportMutation, selectedFile, toast]);
+  }, [deleteReportMutation, selectedFile, toast, reportGeneration]);
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
     const isGenerating = podcast.status === 'running' || podcast.status === 'pending' ||
@@ -478,7 +496,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         });
       } else {
         // Delete the completed podcast
-        deletePodcastMutation.mutateAsync(podcastId);
+        await deletePodcastMutation.mutateAsync(podcastId);
         toast({
           title: "Podcast Deleted",
           description: "The podcast has been deleted successfully"
