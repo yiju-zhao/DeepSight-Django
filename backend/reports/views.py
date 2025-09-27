@@ -135,23 +135,20 @@ class ReportJobListCreateView(APIView):
                 report_data, user=request.user, notebook=notebook
             )
 
-            # Dispatch task to Celery and get real task ID or fail
+            # Dispatch task using Celery best practices
             try:
-                task_result = process_report_generation.apply_async(args=[report.id])
-                celery_task_id = task_result.id
+                # Use delay() - the standard Celery method
+                task_result = process_report_generation.delay(report.id)
 
-                # Verify Celery actually accepted the task
-                if not celery_task_id:
-                    raise Exception("No task ID returned from Celery")
-
-                # Save the real Celery task ID
-                report.celery_task_id = celery_task_id
+                # Store the task ID for cancellation
+                report.celery_task_id = task_result.id
                 report.save(update_fields=["celery_task_id"])
-                logger.info(f"Task dispatched to Celery with ID: {celery_task_id}")
+
+                logger.info(f"Report generation task started with ID: {task_result.id}")
 
             except Exception as e:
-                logger.error(f"Failed to dispatch task to Celery: {e}")
-                # Clean up the report since task dispatch failed
+                logger.error(f"Failed to start report generation task: {e}")
+                # Clean up report if task dispatch failed
                 report.delete()
                 return Response(
                     {"detail": f"Failed to start report generation: {str(e)}"},

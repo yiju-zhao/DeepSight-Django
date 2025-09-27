@@ -548,45 +548,30 @@ class JobService:
 
     def _terminate_celery_task_robust(self, celery_task_id: str) -> bool:
         """
-        Terminate a Celery task using app.control.revoke().
-        Returns True if revocation command is sent successfully, False otherwise.
+        Terminate a Celery task using standard Celery revocation.
+        Returns True if revocation is successful, False otherwise.
         """
         try:
-            from backend.celery import app as celery_app
+            from backend.celery import app
             from celery.result import AsyncResult
-            import time
 
-            task_result = AsyncResult(celery_task_id)
-            initial_state = task_result.state
-            logger.info(f"Attempting to revoke task {celery_task_id} (initial state: {initial_state})")
+            # Get task result to check current state
+            task_result = AsyncResult(celery_task_id, app=app)
+            logger.info(f"Revoking task {celery_task_id} (state: {task_result.state})")
 
-            # If task is already in final state, consider it successfully terminated
-            if initial_state in ["REVOKED", "FAILURE", "SUCCESS"]:
-                logger.info(f"Task {celery_task_id} already in final state {initial_state}")
+            # If already finished, no need to revoke
+            if task_result.state in ['SUCCESS', 'FAILURE', 'REVOKED']:
+                logger.info(f"Task {celery_task_id} already finished with state: {task_result.state}")
                 return True
 
-            # Use Celery app control to revoke the task (terminate=True kills the process)
-            celery_app.control.revoke(celery_task_id, terminate=True)
-            logger.info(f"Sent revocation command with terminate=True to task {celery_task_id}")
+            # Revoke the task with termination
+            app.control.revoke(celery_task_id, terminate=True)
+            logger.info(f"Revoked task {celery_task_id}")
 
-            # Give it a moment to process the revocation
-            time.sleep(1)
-
-            # Check if revocation was successful
-            current_result = AsyncResult(celery_task_id)
-            current_state = current_result.state
-
-            if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
-                logger.info(f"Task {celery_task_id} successfully revoked with state: {current_state}")
-                return True
-            else:
-                logger.info(f"Task {celery_task_id} revocation command sent, current state: {current_state}")
-                # Return True because the revocation command was sent successfully
-                # The task will detect revocation via self.is_revoked() and exit cleanly
-                return True
+            return True
 
         except Exception as e:
-            logger.error(f"Exception during task revocation for {celery_task_id}: {e}")
+            logger.error(f"Failed to revoke task {celery_task_id}: {e}")
             return False
 
     def _cleanup_all_job_data(self, report: Report) -> bool:
