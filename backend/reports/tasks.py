@@ -15,75 +15,43 @@ logger = logging.getLogger(__name__)
 @shared_task(bind=True)
 def process_report_generation(self, report_id: int):
     """
-    Process report generation job with graceful termination handling.
-    This task is designed to handle termination signals gracefully and update
-    the database status appropriately even when cancelled.
+    Process report generation job with Celery-native cancellation checking.
+    Uses Celery's built-in revocation mechanism instead of signal handling.
     """
     from .models import Report
-    import signal
-    import sys
+    from celery.exceptions import Revoked
 
     job_id = None
     progress_handler = None
     root_logger = None
-    cancellation_requested = False
 
-    def graceful_termination_handler(signum, frame):
-        """Handle termination signals gracefully by updating database status"""
-        nonlocal job_id, cancellation_requested
-        logger.warning(f"Task {self.request.id} received termination signal {signum}")
+    def check_revocation():
+        """Check if this task has been revoked and handle it gracefully"""
+        if self.is_revoked():
+            logger.info(f"Task {self.request.id} detected revocation")
 
-        # Set cancellation flag
-        cancellation_requested = True
+            # Update database status if we have the job_id
+            if job_id:
+                try:
+                    report = Report.objects.get(job_id=job_id)
+                    if report.status not in [Report.STATUS_CANCELLED, Report.STATUS_FAILED, Report.STATUS_COMPLETED]:
+                        report.update_status(
+                            Report.STATUS_CANCELLED,
+                            progress="Task cancelled by user request"
+                        )
+                        logger.info(f"Updated job {job_id} status to CANCELLED due to revocation")
+                except Exception as e:
+                    logger.error(f"Failed to update status during revocation for job {job_id}: {e}")
 
-        if job_id:
-            try:
-                # Update job status to cancelled in database
-                report = Report.objects.get(job_id=job_id)
-                report.update_status(
-                    Report.STATUS_CANCELLED,
-                    progress="Task terminated by cancellation request"
-                )
-                logger.info(f"Updated job {job_id} status to CANCELLED due to termination signal")
-            except Exception as e:
-                logger.error(f"Failed to update status during termination for job {job_id}: {e}")
+            # Clean up progress handler
+            if progress_handler and root_logger:
+                try:
+                    root_logger.removeHandler(progress_handler)
+                except Exception:
+                    pass
 
-        # Clean up progress handler
-        if progress_handler and root_logger:
-            try:
-                root_logger.removeHandler(progress_handler)
-            except Exception:
-                pass
-
-        # Force termination by raising an exception that will be caught by Celery
-        logger.info(f"Task {self.request.id} exiting due to termination signal {signum}")
-        raise KeyboardInterrupt(f"Task terminated by signal {signum}")
-
-    def check_cancellation():
-        """Check if cancellation has been requested and raise KeyboardInterrupt if so"""
-        nonlocal job_id, cancellation_requested
-
-        if cancellation_requested:
-            logger.info(f"Task {self.request.id} detected cancellation flag")
-            raise KeyboardInterrupt("Task cancellation detected via flag")
-
-        if job_id:
-            try:
-                # Check database status
-                report = Report.objects.get(job_id=job_id)
-                if report.status == Report.STATUS_CANCELLED:
-                    logger.info(f"Task {self.request.id} detected cancellation in database")
-                    raise KeyboardInterrupt("Task was cancelled (detected in database)")
-            except Report.DoesNotExist:
-                logger.warning(f"Report {job_id} no longer exists - treating as cancellation")
-                raise KeyboardInterrupt("Report record no longer exists")
-            except Exception as e:
-                logger.warning(f"Failed to check cancellation status: {e}")
-                # Don't raise here - just continue
-
-    # Set up signal handlers for graceful termination
-    signal.signal(signal.SIGTERM, graceful_termination_handler)
-    signal.signal(signal.SIGINT, graceful_termination_handler)
+            # Raise Revoked exception to properly terminate the task
+            raise Revoked("Task was cancelled by user request")
 
     try:
         logger.info(f"Starting robust report generation task for report {report_id}")
@@ -112,18 +80,19 @@ def process_report_generation(self, report_id: int):
                 job_id, "Starting report generation", Report.STATUS_RUNNING
             )
 
-            # Check for cancellation before starting
-            check_cancellation()
+            # Check for revocation before starting
+            check_revocation()
 
-            # Generate the report with periodic cancellation checks
+            # Generate the report with periodic revocation checks
             start_ts = time.time()
-
-            # Set up a cancellation-aware wrapper around the report generation
             logger.info(f"Starting report generation for job {job_id}")
+
+            # For now, run generation normally but check revocation after
+            # TODO: Could add periodic checks within the orchestrator if needed
             result = report_orchestrator.generate_report(report_id)
 
-            # Check for cancellation after generation (in case it was a long-running operation)
-            check_cancellation()
+            # Check for revocation after generation
+            check_revocation()
 
             if result.get('success', False):
                 # Update job with success
@@ -149,10 +118,9 @@ def process_report_generation(self, report_id: int):
                 except Exception as e:
                     logger.warning(f"Failed to remove progress handler: {e}")
 
-    except KeyboardInterrupt as e:
-        logger.info(f"Task {self.request.id} was cancelled: {e}")
-        # Don't update status here - it was already updated by the signal handler or DELETE operation
-        # Just exit cleanly
+    except Revoked as e:
+        logger.info(f"Task {self.request.id} was revoked: {e}")
+        # Status was already updated by check_revocation()
         return {"status": "cancelled", "message": str(e)}
 
     except Exception as e:

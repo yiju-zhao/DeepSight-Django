@@ -547,8 +547,8 @@ class JobService:
 
     def _terminate_celery_task_robust(self, celery_task_id: str) -> bool:
         """
-        Robustly terminate a Celery task with multiple strategies and confirmation.
-        Returns True only if termination is confirmed, False otherwise.
+        Terminate a Celery task using native revocation mechanism.
+        Returns True if revocation is successful, False otherwise.
         """
         try:
             from celery.result import AsyncResult
@@ -557,55 +557,35 @@ class JobService:
 
             task_result = AsyncResult(celery_task_id)
             initial_state = task_result.state
-            logger.info(f"Attempting robust termination of task {celery_task_id} (initial state: {initial_state})")
+            logger.info(f"Attempting to revoke task {celery_task_id} (initial state: {initial_state})")
 
             # If task is already in final state, consider it successfully terminated
             if initial_state in ["REVOKED", "FAILURE", "SUCCESS"]:
                 logger.info(f"Task {celery_task_id} already in final state {initial_state}")
                 return True
 
-            # Strategy 1: Standard revoke with terminate
-            if initial_state in ["PENDING", "STARTED", "RETRY"]:
-                logger.info(f"Sending SIGTERM to task {celery_task_id}")
-                celery_app.control.revoke(celery_task_id, terminate=True, signal="SIGTERM")
+            # Use Celery's native revocation - this is much more reliable
+            task_result.revoke(terminate=True)
+            logger.info(f"Sent revocation signal to task {celery_task_id}")
 
-                # Wait for termination confirmation (up to 15 seconds)
-                start_time = time.time()
-                while (time.time() - start_time) < 15:
-                    current_result = AsyncResult(celery_task_id)
-                    current_state = current_result.state
+            # Wait for revocation confirmation (up to 10 seconds)
+            start_time = time.time()
+            while (time.time() - start_time) < 10:
+                current_result = AsyncResult(celery_task_id)
+                current_state = current_result.state
 
-                    if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
-                        logger.info(f"Task {celery_task_id} terminated successfully with state: {current_state}")
-                        return True
+                if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
+                    logger.info(f"Task {celery_task_id} successfully revoked with state: {current_state}")
+                    return True
 
-                    time.sleep(0.5)
+                time.sleep(0.5)
 
-                # Strategy 2: Force termination with SIGKILL
-                logger.warning(f"SIGTERM failed for task {celery_task_id}, trying SIGKILL")
-                celery_app.control.revoke(celery_task_id, terminate=True, signal="SIGKILL")
-
-                # Wait for force termination (up to 10 seconds)
-                start_time = time.time()
-                while (time.time() - start_time) < 10:
-                    current_result = AsyncResult(celery_task_id)
-                    current_state = current_result.state
-
-                    if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
-                        logger.info(f"Task {celery_task_id} force-terminated with state: {current_state}")
-                        return True
-
-                    time.sleep(0.5)
-
-                logger.error(f"CRITICAL: Task {celery_task_id} could not be terminated after 25 seconds")
-                return False
-
-            else:
-                logger.warning(f"Task {celery_task_id} in unknown state {initial_state}, cannot terminate")
-                return False
+            # If still not revoked after 10 seconds, consider it failed
+            logger.warning(f"Task {celery_task_id} revocation timeout after 10 seconds")
+            return False
 
         except Exception as e:
-            logger.error(f"Exception during task termination for {celery_task_id}: {e}")
+            logger.error(f"Exception during task revocation for {celery_task_id}: {e}")
             return False
 
     def _cleanup_all_job_data(self, report: Report) -> bool:
