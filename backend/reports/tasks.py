@@ -15,20 +15,19 @@ logger = logging.getLogger(__name__)
 @shared_task(bind=True)
 def process_report_generation(self, report_id: int):
     """
-    Process report generation job with Celery-native cancellation checking.
-    Uses Celery's built-in revocation mechanism instead of signal handling.
+    Process report generation job with simple Celery revocation checking.
+    Task will check if it's been revoked and exit cleanly if so.
     """
     from .models import Report
-    from celery.exceptions import Revoked
 
     job_id = None
     progress_handler = None
     root_logger = None
 
     def check_revocation():
-        """Check if this task has been revoked and handle it gracefully"""
+        """Check if this task has been revoked and exit cleanly if so"""
         if self.is_revoked():
-            logger.info(f"Task {self.request.id} detected revocation")
+            logger.info(f"Task {self.request.id} has been revoked, exiting cleanly")
 
             # Update database status if we have the job_id
             if job_id:
@@ -50,8 +49,8 @@ def process_report_generation(self, report_id: int):
                 except Exception:
                     pass
 
-            # Raise Revoked exception to properly terminate the task
-            raise Revoked("Task was cancelled by user request")
+            # Return cancelled status instead of raising exception
+            return {"status": "cancelled", "message": "Task was revoked by user request"}
 
     try:
         logger.info(f"Starting robust report generation task for report {report_id}")
@@ -81,7 +80,9 @@ def process_report_generation(self, report_id: int):
             )
 
             # Check for revocation before starting
-            check_revocation()
+            revocation_result = check_revocation()
+            if revocation_result:
+                return revocation_result
 
             # Generate the report with periodic revocation checks
             start_ts = time.time()
@@ -92,7 +93,9 @@ def process_report_generation(self, report_id: int):
             result = report_orchestrator.generate_report(report_id)
 
             # Check for revocation after generation
-            check_revocation()
+            revocation_result = check_revocation()
+            if revocation_result:
+                return revocation_result
 
             if result.get('success', False):
                 # Update job with success
@@ -118,10 +121,8 @@ def process_report_generation(self, report_id: int):
                 except Exception as e:
                     logger.warning(f"Failed to remove progress handler: {e}")
 
-    except Revoked as e:
-        logger.info(f"Task {self.request.id} was revoked: {e}")
-        # Status was already updated by check_revocation()
-        return {"status": "cancelled", "message": str(e)}
+    # No need for special revocation exception handling -
+    # check_revocation() handles it and returns appropriate result
 
     except Exception as e:
         logger.error(f"Error processing report generation for report {report_id}: {e}")

@@ -547,12 +547,12 @@ class JobService:
 
     def _terminate_celery_task_robust(self, celery_task_id: str) -> bool:
         """
-        Terminate a Celery task using native revocation mechanism.
-        Returns True if revocation is successful, False otherwise.
+        Terminate a Celery task using app.control.revoke().
+        Returns True if revocation command is sent successfully, False otherwise.
         """
         try:
-            from celery.result import AsyncResult
             from backend.celery import app as celery_app
+            from celery.result import AsyncResult
             import time
 
             task_result = AsyncResult(celery_task_id)
@@ -564,25 +564,25 @@ class JobService:
                 logger.info(f"Task {celery_task_id} already in final state {initial_state}")
                 return True
 
-            # Use Celery's native revocation - this is much more reliable
-            task_result.revoke(terminate=True)
-            logger.info(f"Sent revocation signal to task {celery_task_id}")
+            # Use Celery app control to revoke the task
+            celery_app.control.revoke(celery_task_id, terminate=True)
+            logger.info(f"Sent revocation command to task {celery_task_id}")
 
-            # Wait for revocation confirmation (up to 10 seconds)
-            start_time = time.time()
-            while (time.time() - start_time) < 10:
-                current_result = AsyncResult(celery_task_id)
-                current_state = current_result.state
+            # Give it a moment to process the revocation
+            time.sleep(1)
 
-                if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
-                    logger.info(f"Task {celery_task_id} successfully revoked with state: {current_state}")
-                    return True
+            # Check if revocation was successful
+            current_result = AsyncResult(celery_task_id)
+            current_state = current_result.state
 
-                time.sleep(0.5)
-
-            # If still not revoked after 10 seconds, consider it failed
-            logger.warning(f"Task {celery_task_id} revocation timeout after 10 seconds")
-            return False
+            if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
+                logger.info(f"Task {celery_task_id} successfully revoked with state: {current_state}")
+                return True
+            else:
+                logger.info(f"Task {celery_task_id} revocation command sent, current state: {current_state}")
+                # Return True because the revocation command was sent successfully
+                # The task will detect revocation via self.is_revoked() and exit cleanly
+                return True
 
         except Exception as e:
             logger.error(f"Exception during task revocation for {celery_task_id}: {e}")
