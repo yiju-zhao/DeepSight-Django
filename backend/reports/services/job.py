@@ -508,10 +508,14 @@ class JobService:
 
             # Step 1: Terminate Celery task if we have a task ID
             if report.celery_task_id:
+                logger.info(f"Found celery_task_id: {report.celery_task_id} for job {job_id}")
                 termination_success = self._terminate_celery_task_robust(report.celery_task_id)
 
                 if not termination_success:
+                    logger.error(f"Termination failed for celery_task_id: {report.celery_task_id}")
                     return False  # Fail fast - don't proceed if task termination failed
+            else:
+                logger.warning(f"No celery_task_id found for job {job_id}, skipping termination")
 
                 # Update status to cancelled only after confirmed termination
                 try:
