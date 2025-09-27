@@ -233,23 +233,45 @@ class ReportJobDetailView(APIView):
             return Response({"detail": f"Error updating report: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def delete(self, request, job_id):
-        """Delete a report using the dedicated deletion service (SOLID principles)"""
+        """
+        Delete/cancel a report using robust termination and cleanup.
+        This is the single, authoritative endpoint for all cancellation and deletion operations.
+        """
         try:
             report = self._get_report(job_id)
-
-            # Use the simplified JobService deletion
             job_service = JobService()
+
+            logger.info(f"DELETE request for job {job_id} (status: {report.status})")
+
+            # Perform robust deletion with confirmed termination
             success = job_service.delete_job(job_id)
 
             if success:
+                message = f"Job {job_id} successfully "
+                if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
+                    message += "cancelled and deleted"
+                else:
+                    message += "deleted"
+
                 return Response({
                     "success": True,
-                    "message": f"Report {job_id} deleted successfully"
+                    "message": message,
+                    "job_id": job_id,
+                    "previous_status": report.status
                 }, status=status.HTTP_200_OK)
             else:
+                # Deletion failed - this could be due to termination failure
+                error_message = f"Failed to delete job {job_id}"
+                if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
+                    error_message += " - could not terminate running task"
+
+                logger.error(f"Robust deletion failed for job {job_id}")
                 return Response({
                     "success": False,
-                    "message": f"Report {job_id} deletion failed"
+                    "message": error_message,
+                    "job_id": job_id,
+                    "previous_status": report.status,
+                    "detail": "Task termination may have failed - check logs for details"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Http404:
@@ -258,9 +280,13 @@ class ReportJobDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            logger.error(f"Error initiating report deletion {job_id}: {e}")
+            logger.error(f"Unexpected error during report deletion {job_id}: {e}")
             return Response(
-                {"detail": f"Failed to initiate report deletion: {str(e)}"},
+                {
+                    "success": False,
+                    "detail": f"Unexpected error during deletion: {str(e)}",
+                    "job_id": job_id
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 

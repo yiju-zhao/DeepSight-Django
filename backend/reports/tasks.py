@@ -14,74 +14,119 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True)
 def process_report_generation(self, report_id: int):
-    """Process report generation job - this runs in the background worker"""
+    """
+    Process report generation job with graceful termination handling.
+    This task is designed to handle termination signals gracefully and update
+    the database status appropriately even when cancelled.
+    """
+    from .models import Report
+    import signal
+    import sys
+
+    job_id = None
+    progress_handler = None
+    root_logger = None
+
+    def graceful_termination_handler(signum, frame):
+        """Handle termination signals gracefully by updating database status"""
+        nonlocal job_id
+        logger.warning(f"Task {self.request.id} received termination signal {signum}")
+
+        if job_id:
+            try:
+                # Update job status to cancelled in database
+                report = Report.objects.get(job_id=job_id)
+                report.update_status(
+                    Report.STATUS_CANCELLED,
+                    progress="Task terminated by cancellation request"
+                )
+                logger.info(f"Updated job {job_id} status to CANCELLED due to termination signal")
+            except Exception as e:
+                logger.error(f"Failed to update status during termination for job {job_id}: {e}")
+
+        # Clean up progress handler
+        if progress_handler and root_logger:
+            try:
+                root_logger.removeHandler(progress_handler)
+            except Exception:
+                pass
+
+        # Exit gracefully
+        sys.exit(1)
+
+    # Set up signal handlers for graceful termination
+    signal.signal(signal.SIGTERM, graceful_termination_handler)
+    signal.signal(signal.SIGINT, graceful_termination_handler)
+
     try:
-        logger.info(f"Starting report generation task for report {report_id}")
-        
-        # Update job status to running
-        # First get job_id from report
-        from .models import Report
+        logger.info(f"Starting robust report generation task for report {report_id}")
+
+        # Get job_id from report
         try:
             report = Report.objects.get(id=report_id)
             job_id = report.job_id
         except Report.DoesNotExist:
             logger.error(f"Report {report_id} not found")
             raise Exception(f"Report {report_id} not found")
-        
-        # -------------------------------------------------------------------
-        # Attach progress-log handler so INFO messages update frontend
-        # -------------------------------------------------------------------
-        progress_handler = ReportProgressLogHandler(job_id, report_orchestrator)
-        root_logger = logging.getLogger()  # capture logs from all modules
-        root_logger.addHandler(progress_handler)
-        
+
         # Check if job was cancelled before we start
         if report.status == Report.STATUS_CANCELLED:
             logger.info(f"Report {report_id} was cancelled before processing started")
-            root_logger.removeHandler(progress_handler)
             return {"status": "cancelled", "message": "Report was cancelled"}
-        
-        # Update job status to running
-        report_orchestrator.update_job_progress(
-            job_id, "Starting report generation", Report.STATUS_RUNNING
-        )
-        
-        # Generate the report
-        start_ts = time.time()
+
+        # Set up progress handler
+        progress_handler = ReportProgressLogHandler(job_id, report_orchestrator)
+        root_logger = logging.getLogger()
+        root_logger.addHandler(progress_handler)
+
         try:
-            result = report_orchestrator.generate_report(report_id)
-        finally:
-            # Detach handler regardless of success/failure to avoid leaks
-            root_logger.removeHandler(progress_handler)
-        
-        if result.get('success', False):
-            # Update job with success
-            report_orchestrator.update_job_result(job_id, result, Report.STATUS_COMPLETED)
-            # Push final success progress so that frontend can display last stage
-            elapsed = time.time() - start_ts
-            success_msg = (
-                f"Task reports.tasks.process_report_generation[{self.request.id}] succeeded in {elapsed:.1f}s"
+            # Update job status to running
+            report_orchestrator.update_job_progress(
+                job_id, "Starting report generation", Report.STATUS_RUNNING
             )
-            report_orchestrator.update_job_progress(job_id, success_msg)
-            logger.info(f"Successfully completed report generation for report {report_id}")
-            return result
-        else:
-            # Handle generation failure
-            error_msg = result.get('error_message', 'Report generation failed')
-            report_orchestrator.update_job_error(job_id, error_msg)
-            raise Exception(error_msg)
-    
+
+            # Generate the report
+            start_ts = time.time()
+            result = report_orchestrator.generate_report(report_id)
+
+            if result.get('success', False):
+                # Update job with success
+                report_orchestrator.update_job_result(job_id, result, Report.STATUS_COMPLETED)
+                elapsed = time.time() - start_ts
+                success_msg = (
+                    f"Task reports.tasks.process_report_generation[{self.request.id}] succeeded in {elapsed:.1f}s"
+                )
+                report_orchestrator.update_job_progress(job_id, success_msg)
+                logger.info(f"Successfully completed report generation for report {report_id}")
+                return result
+            else:
+                # Handle generation failure
+                error_msg = result.get('error_message', 'Report generation failed')
+                report_orchestrator.update_job_error(job_id, error_msg)
+                raise Exception(error_msg)
+
+        finally:
+            # Always clean up progress handler
+            if progress_handler and root_logger:
+                try:
+                    root_logger.removeHandler(progress_handler)
+                except Exception as e:
+                    logger.warning(f"Failed to remove progress handler: {e}")
+
     except Exception as e:
         logger.error(f"Error processing report generation for report {report_id}: {e}")
-        
-        # Update job with error
-        try:
-            from .models import Report
-            report = Report.objects.get(id=report_id)
-            report_orchestrator.update_job_error(report.job_id, str(e))
-        except Report.DoesNotExist:
-            logger.error(f"Could not update error for report {report_id} - report not found")
-        
+
+        # Update job with error (only if not already cancelled)
+        if job_id:
+            try:
+                report = Report.objects.get(id=report_id)
+                if report.status != Report.STATUS_CANCELLED:
+                    report_orchestrator.update_job_error(job_id, str(e))
+            except Report.DoesNotExist:
+                logger.error(f"Could not update error for report {report_id} - report not found")
+            except Exception as update_error:
+                logger.error(f"Failed to update job error: {update_error}")
+
         # Re-raise for Celery to handle
         raise
 

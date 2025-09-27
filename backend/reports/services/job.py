@@ -463,7 +463,7 @@ class JobService:
             # Also terminate the celery task if it's still running
             if report.celery_task_id:
                 try:
-                    self._terminate_celery_task(report.celery_task_id)
+                    self._terminate_celery_task_robust(report.celery_task_id)
                     logger.info(f"Terminated Celery task {report.celery_task_id} for failed job {job_id}")
                 except Exception as termination_error:
                     logger.warning(f"Failed to terminate Celery task {report.celery_task_id} for job {job_id}: {termination_error}")
@@ -498,48 +498,58 @@ class JobService:
     # This eliminates the dual cancellation mechanisms
     
     def delete_job(self, job_id: str) -> bool:
-        """Complete deletion of a job - terminate Celery task, cleanup data, and delete record"""
+        """
+        Complete deletion of a job with robust termination handling.
+        Returns True only if ALL operations succeed, False otherwise.
+        """
         try:
             report = Report.objects.get(job_id=job_id)
+            logger.info(f"Starting deletion of job {job_id} (status: {report.status})")
 
-            # Step 1: Terminate Celery task if running
+            # Step 1: Terminate Celery task if running (CRITICAL - must succeed)
             if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING] and report.celery_task_id:
-                self._terminate_celery_task_immediate(report.celery_task_id)
-                # Update status to cancelled
-                report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled for deletion")
+                logger.info(f"Terminating active Celery task {report.celery_task_id} for job {job_id}")
 
-            # Step 2: Clean up cache
-            cache_key = f"report_job:{job_id}"
-            cache.delete(cache_key)
-            logger.info(f"Cleared cache for job {job_id}")
+                termination_success = self._terminate_celery_task_robust(report.celery_task_id)
 
-            # Step 3: Clean up storage files
-            self._cleanup_storage_files(report)
+                if not termination_success:
+                    logger.error(f"CRITICAL: Failed to terminate Celery task {report.celery_task_id} for job {job_id}")
+                    return False  # Fail fast - don't proceed if task is still running
 
-            # Step 4: Clean up ReportImage records
-            self._cleanup_report_images(report)
+                # Update status to cancelled only after confirmed termination
+                try:
+                    report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled - task terminated")
+                    logger.info(f"Updated job {job_id} status to CANCELLED")
+                except Exception as e:
+                    logger.warning(f"Failed to update status for job {job_id}: {e}")
 
-            # Step 5: Clean up temp directories
+            # Step 2: Clean up all associated data
+            cleanup_success = self._cleanup_all_job_data(report)
+
+            if not cleanup_success:
+                logger.warning(f"Some cleanup operations failed for job {job_id}, but proceeding with deletion")
+
+            # Step 3: Delete the database record (final step)
             try:
-                from ..orchestrator import report_orchestrator
-                report_orchestrator.cleanup_failed_job(job_id)
+                report.delete()
+                logger.info(f"Successfully deleted job {job_id} and all associated data")
+                return True
             except Exception as e:
-                logger.warning(f"Error cleaning up temp directories for {job_id}: {e}")
-
-            # Step 6: Delete the database record
-            report.delete()
-            logger.info(f"Successfully deleted job {job_id} and all associated data")
-            return True
+                logger.error(f"Failed to delete database record for job {job_id}: {e}")
+                return False
 
         except Report.DoesNotExist:
             logger.warning(f"Report with job_id {job_id} not found for deletion")
             return False
         except Exception as e:
-            logger.error(f"Error deleting job {job_id}: {e}")
+            logger.error(f"Unexpected error deleting job {job_id}: {e}")
             return False
 
-    def _terminate_celery_task_immediate(self, celery_task_id: str):
-        """Immediately terminate a Celery task with wait for confirmation"""
+    def _terminate_celery_task_robust(self, celery_task_id: str) -> bool:
+        """
+        Robustly terminate a Celery task with multiple strategies and confirmation.
+        Returns True only if termination is confirmed, False otherwise.
+        """
         try:
             from celery.result import AsyncResult
             from backend.celery import app as celery_app
@@ -547,28 +557,96 @@ class JobService:
 
             task_result = AsyncResult(celery_task_id)
             initial_state = task_result.state
-            logger.info(f"Terminating task {celery_task_id} (initial state: {initial_state})")
+            logger.info(f"Attempting robust termination of task {celery_task_id} (initial state: {initial_state})")
 
+            # If task is already in final state, consider it successfully terminated
+            if initial_state in ["REVOKED", "FAILURE", "SUCCESS"]:
+                logger.info(f"Task {celery_task_id} already in final state {initial_state}")
+                return True
+
+            # Strategy 1: Standard revoke with terminate
             if initial_state in ["PENDING", "STARTED", "RETRY"]:
-                # Revoke and terminate the task
+                logger.info(f"Sending SIGTERM to task {celery_task_id}")
                 celery_app.control.revoke(celery_task_id, terminate=True, signal="SIGTERM")
-                logger.info(f"Sent termination signal to task {celery_task_id}")
 
-                # Wait for termination (up to 10 seconds)
+                # Wait for termination confirmation (up to 15 seconds)
+                start_time = time.time()
+                while (time.time() - start_time) < 15:
+                    current_result = AsyncResult(celery_task_id)
+                    current_state = current_result.state
+
+                    if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
+                        logger.info(f"Task {celery_task_id} terminated successfully with state: {current_state}")
+                        return True
+
+                    time.sleep(0.5)
+
+                # Strategy 2: Force termination with SIGKILL
+                logger.warning(f"SIGTERM failed for task {celery_task_id}, trying SIGKILL")
+                celery_app.control.revoke(celery_task_id, terminate=True, signal="SIGKILL")
+
+                # Wait for force termination (up to 10 seconds)
                 start_time = time.time()
                 while (time.time() - start_time) < 10:
                     current_result = AsyncResult(celery_task_id)
-                    if current_result.state in ["REVOKED", "FAILURE", "SUCCESS"]:
-                        logger.info(f"Task {celery_task_id} terminated with state: {current_result.state}")
-                        return
+                    current_state = current_result.state
+
+                    if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
+                        logger.info(f"Task {celery_task_id} force-terminated with state: {current_state}")
+                        return True
+
                     time.sleep(0.5)
 
-                logger.warning(f"Task {celery_task_id} termination timeout after 10s")
+                logger.error(f"CRITICAL: Task {celery_task_id} could not be terminated after 25 seconds")
+                return False
+
             else:
-                logger.info(f"Task {celery_task_id} already in final state {initial_state}")
+                logger.warning(f"Task {celery_task_id} in unknown state {initial_state}, cannot terminate")
+                return False
 
         except Exception as e:
-            logger.error(f"Error terminating Celery task {celery_task_id}: {e}")
+            logger.error(f"Exception during task termination for {celery_task_id}: {e}")
+            return False
+
+    def _cleanup_all_job_data(self, report: Report) -> bool:
+        """
+        Clean up all data associated with a report job.
+        Returns True if all cleanup succeeds, False if any cleanup fails.
+        """
+        cleanup_success = True
+
+        # Clean up cache
+        try:
+            cache_key = f"report_job:{report.job_id}"
+            cache.delete(cache_key)
+            logger.info(f"Cleared cache for job {report.job_id}")
+        except Exception as e:
+            logger.warning(f"Failed to clear cache for job {report.job_id}: {e}")
+            cleanup_success = False
+
+        # Clean up storage files
+        try:
+            self._cleanup_storage_files(report)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup storage files for job {report.job_id}: {e}")
+            cleanup_success = False
+
+        # Clean up ReportImage records
+        try:
+            self._cleanup_report_images(report)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup ReportImage records for job {report.job_id}: {e}")
+            cleanup_success = False
+
+        # Clean up temp directories
+        try:
+            from ..orchestrator import report_orchestrator
+            report_orchestrator.cleanup_failed_job(report.job_id)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup temp directories for job {report.job_id}: {e}")
+            cleanup_success = False
+
+        return cleanup_success
 
     def _cleanup_storage_files(self, report: Report):
         """Clean up MinIO storage files for a report"""
@@ -815,7 +893,7 @@ class JobService:
                     )
 
                     # Best-effort attempt to stop any lingering task processes.
-                    self._terminate_celery_task(report.celery_task_id)
+                    self._terminate_celery_task_robust(report.celery_task_id)
 
                     # Reflect same update in cache so that subsequent queries are consistent
                     cache_key = f"report_job:{report.job_id}"
@@ -839,7 +917,7 @@ class JobService:
                     )
 
                     # Ensure the task is fully terminated on the worker side.
-                    self._terminate_celery_task(report.celery_task_id)
+                    self._terminate_celery_task_robust(report.celery_task_id)
 
                     cache_key = f"report_job:{report.job_id}"
                     job_data = cache.get(cache_key, {})
@@ -864,57 +942,7 @@ class JobService:
                 f"Error synchronising Celery task state for report {report.job_id}: {e}"
             )
 
-    def _terminate_celery_task(self, celery_task_id: str, wait_for_termination: bool = False):
-        """Send a revoke/terminate signal to the given Celery task.
-
-        This is a defensive measure to make sure that, once a fatal condition has been
-        detected, the worker process is not left running expensive computation that will
-        eventually be discarded.  Using ``terminate=True`` ensures the underlying OS
-        process gets a ``SIGTERM`` (default) or the provided signal.
-
-        Args:
-            celery_task_id: The ID of the task to terminate
-            wait_for_termination: If True, wait for task to actually terminate
-        """
-        try:
-            if not celery_task_id:
-                return
-
-            task_result = AsyncResult(celery_task_id)
-            initial_state = task_result.state
-
-            # Only attempt termination if the task is still deemed active by Celery.
-            if initial_state in ["PENDING", "STARTED", "RETRY"]:
-                task_result.revoke(terminate=True, signal="SIGTERM")
-                logger.info(f"Sent terminate signal to Celery task {celery_task_id} (initial state: {initial_state})")
-
-                # Wait for termination if requested
-                if wait_for_termination:
-                    import time
-                    termination_timeout = 10
-                    start_time = time.time()
-
-                    while (time.time() - start_time) < termination_timeout:
-                        current_task_result = AsyncResult(celery_task_id)
-                        current_state = current_task_result.state
-
-                        if current_state in ["REVOKED", "FAILURE", "SUCCESS"]:
-                            logger.info(f"Task {celery_task_id} terminated with final state: {current_state}")
-                            return True
-
-                        time.sleep(0.5)  # Wait 500ms before checking again
-
-                    # Timeout reached
-                    logger.warning(f"Task {celery_task_id} termination timeout after {termination_timeout}s")
-                    return False
-
-            else:
-                logger.info(f"Task {celery_task_id} already in final state {initial_state}, no termination needed")
-                return True
-
-        except Exception as e:
-            logger.error(f"Error terminating Celery task {celery_task_id}: {e}")
-            return False
+    # Removed: old _terminate_celery_task method - replaced with _terminate_celery_task_robust
     
     def prepare_report_images(self, report: Report) -> bool:
         """Prepare ReportImage records before report generation starts.
