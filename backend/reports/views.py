@@ -265,38 +265,6 @@ class ReportJobDetailView(APIView):
             )
 
 
-class ReportJobCancelView(APIView):
-    """Canonical: Cancel a running or pending report job"""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def post(self, request, job_id):
-        try:
-            report = get_object_or_404(
-                Report.objects.filter(user=request.user), job_id=job_id
-            )
-
-            if report.status not in [Report.STATUS_PENDING, Report.STATUS_RUNNING]:
-                return Response(
-                    {"detail": f"Cannot cancel job in status: {report.status}"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # Use dedicated cancellation task following SOLID principles
-            from .tasks import cancel_report_generation
-            cancel_task = cancel_report_generation.delay(job_id)
-            logger.info(f"Submitted cancellation task for job {job_id}")
-
-            return Response({
-                "message": f"Job {job_id} cancellation initiated",
-                "job_id": job_id,
-                "cancel_task_id": cancel_task.id
-            })
-        except Http404:
-            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Error initiating job cancellation {job_id}: {e}")
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 
 class ReportJobDownloadView(APIView):
     """Canonical: Download generated report files"""

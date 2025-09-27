@@ -494,32 +494,8 @@ class JobService:
         except Exception as e:
             logger.error(f"Error updating job error for {job_id}: {e}")
     
-    def cancel_job(self, job_id: str) -> bool:
-        """Dispatch a task to cancel a running or pending job."""
-        try:
-            # Clean up error detector for this job since it's being cancelled
-            self.error_detector.reset_job_errors(job_id)
-            
-            report = Report.objects.get(job_id=job_id)
-
-            # Check if job is in a cancellable state
-            if report.status not in [Report.STATUS_PENDING, Report.STATUS_RUNNING]:
-                logger.warning(f"Report job {job_id} is not in a cancellable state (status: {report.status})")
-                return False
-
-            # Dispatch the cancellation task
-            from ..tasks import cancel_report_generation
-            cancel_report_generation.delay(job_id)
-            
-            logger.info(f"Cancellation task queued for report job {job_id}")
-            return True
-            
-        except Report.DoesNotExist:
-            logger.warning(f"Report with job_id {job_id} not found for cancellation")
-            return False
-        except Exception as e:
-            logger.error(f"Error dispatching cancellation for job {job_id}: {e}")
-            return False
+    # Removed: cancel_job method - now handled by delete_job for consistency
+    # This eliminates the dual cancellation mechanisms
     
     def delete_job(self, job_id: str) -> bool:
         """Complete deletion of a job - terminate Celery task, cleanup data, and delete record"""

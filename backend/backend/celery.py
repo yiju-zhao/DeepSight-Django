@@ -41,7 +41,6 @@ app.conf.update(
         "podcast.tasks.cleanup_old_podcast_jobs": {"queue": "maintenance"},
         "reports.tasks.process_report_generation": {"queue": "reports"},
         "reports.tasks.cleanup_old_reports": {"queue": "maintenance"},
-        "reports.tasks.cancel_report_generation": {"queue": "reports"},
         "reports.tasks.validate_report_configuration": {"queue": "validation"},
         "notebooks.tasks.process_url_task": {"queue": "notebook_processing"},
         "notebooks.tasks.process_url_media_task": {"queue": "notebook_processing"},

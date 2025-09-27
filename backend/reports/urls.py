@@ -44,11 +44,6 @@ urlpatterns = [
         name='report-job-detail'
     ),
     path(
-        'jobs/<str:job_id>/cancel/',
-        views.ReportJobCancelView.as_view(),
-        name='report-job-cancel'
-    ),
-    path(
         'jobs/<str:job_id>/download/',
         views.ReportJobDownloadView.as_view(),
         name='report-job-download'
@@ -89,7 +84,6 @@ Generated URL Patterns (canonical only):
 - GET  /api/v1/reports/jobs/{job_id}/
 - PUT  /api/v1/reports/jobs/{job_id}/
 - DEL  /api/v1/reports/jobs/{job_id}/
-- POST /api/v1/reports/jobs/{job_id}/cancel/
 - GET  /api/v1/reports/jobs/{job_id}/files/
 - GET  /api/v1/reports/jobs/{job_id}/content/
 - GET  /api/v1/reports/jobs/{job_id}/download/
