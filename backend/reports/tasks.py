@@ -26,7 +26,11 @@ def process_report_generation(self, report_id: int):
 
     def check_revocation():
         """Check if this task has been revoked and exit cleanly if so"""
-        if self.is_revoked():
+        from celery.result import AsyncResult
+
+        # Check if task is revoked by checking the task result
+        task_result = AsyncResult(self.request.id)
+        if task_result.state == 'REVOKED':
             logger.info(f"Task {self.request.id} has been revoked, exiting cleanly")
 
             # Update database status if we have the job_id
