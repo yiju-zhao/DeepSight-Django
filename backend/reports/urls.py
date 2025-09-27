@@ -64,6 +64,11 @@ urlpatterns = [
         name='report-job-content'
     ),
     path(
+        'jobs/<str:job_id>/cancel/',
+        views.ReportJobCancelView.as_view(),
+        name='report-job-cancel'
+    ),
+    path(
         'jobs/<str:job_id>/stream/',
         csrf_exempt(views.report_status_stream),
         name='report-job-status-stream'
@@ -86,6 +91,7 @@ Generated URL Patterns (canonical only):
 - DEL  /api/v1/reports/jobs/{job_id}/
 - GET  /api/v1/reports/jobs/{job_id}/files/
 - GET  /api/v1/reports/jobs/{job_id}/content/
+- POST /api/v1/reports/jobs/{job_id}/cancel/
 - GET  /api/v1/reports/jobs/{job_id}/download/
 - GET  /api/v1/reports/jobs/{job_id}/download-pdf/
 - GET  /api/v1/reports/jobs/{job_id}/stream/

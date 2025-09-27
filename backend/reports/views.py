@@ -234,8 +234,8 @@ class ReportJobDetailView(APIView):
 
     def delete(self, request, job_id):
         """
-        Delete/cancel a report using robust termination and cleanup.
-        This is the single, authoritative endpoint for all cancellation and deletion operations.
+        Delete a completed, failed, or cancelled report job.
+        For cancelling running jobs, use POST /jobs/{job_id}/cancel/ instead.
         """
         try:
             report = self._get_report(job_id)
@@ -243,35 +243,32 @@ class ReportJobDetailView(APIView):
 
             logger.info(f"DELETE request for job {job_id} (status: {report.status})")
 
-            # Perform robust deletion with confirmed termination
+            # Check if job is in a deletable state (not running or pending)
+            if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
+                return Response({
+                    "detail": f"Cannot delete job in '{report.status}' status. Use POST /jobs/{job_id}/cancel/ to cancel running jobs first.",
+                    "current_status": report.status
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Only delete completed, failed, or cancelled jobs
             success = job_service.delete_job(job_id)
 
             if success:
-                message = f"Job {job_id} successfully "
-                if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
-                    message += "cancelled and deleted"
-                else:
-                    message += "deleted"
-
                 return Response({
                     "success": True,
-                    "message": message,
+                    "message": f"Job {job_id} successfully deleted",
                     "job_id": job_id,
                     "previous_status": report.status
                 }, status=status.HTTP_200_OK)
             else:
-                # Deletion failed - this could be due to termination failure
                 error_message = f"Failed to delete job {job_id}"
-                if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
-                    error_message += " - could not terminate running task"
-
-                logger.error(f"Robust deletion failed for job {job_id}")
+                logger.error(f"Deletion failed for job {job_id}")
                 return Response({
                     "success": False,
                     "message": error_message,
                     "job_id": job_id,
                     "previous_status": report.status,
-                    "detail": "Task termination may have failed - check logs for details"
+                    "detail": "Job deletion failed - check logs for details"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         except Http404:
@@ -464,6 +461,48 @@ class ReportJobContentView(APIView):
         except Exception as e:
             logger.error(f"Error getting report content (canonical) for job {job_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ReportJobCancelView(APIView):
+    """Canonical: Cancel a running or pending report job"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _get_report(self, job_id):
+        return ReportViewHelper.get_user_report(job_id, self.request.user)
+
+    def post(self, request, job_id):
+        """Cancel a running or pending report job"""
+        try:
+            report = self._get_report(job_id)
+
+            # Check if job is in a cancellable state
+            if report.status not in [Report.STATUS_PENDING, Report.STATUS_RUNNING]:
+                return Response(
+                    {"detail": f"Job cannot be cancelled. Current status: {report.status}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Use JobService to cancel the job
+            job_service = JobService()
+            success = job_service.cancel_job(job_id)
+
+            if success:
+                return Response({
+                    "job_id": job_id,
+                    "status": "cancellation_requested",
+                    "message": "Job cancellation has been initiated"
+                }, status=status.HTTP_200_OK)
+            else:
+                return Response(
+                    {"detail": "Failed to cancel job"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        except Report.DoesNotExist:
+            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            logger.error(f"Error cancelling job {job_id}: {e}")
+            return Response({"detail": f"Error cancelling job: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ReportModelsView(APIView):
