@@ -135,9 +135,28 @@ class ReportJobListCreateView(APIView):
                 report_data, user=request.user, notebook=notebook
             )
 
-            task_result = process_report_generation.delay(report.id)
-            report.celery_task_id = task_result.id
-            report.save(update_fields=["celery_task_id"])
+            # Dispatch task to Celery and get real task ID or fail
+            try:
+                task_result = process_report_generation.apply_async(args=[report.id])
+                celery_task_id = task_result.id
+
+                # Verify Celery actually accepted the task
+                if not celery_task_id:
+                    raise Exception("No task ID returned from Celery")
+
+                # Save the real Celery task ID
+                report.celery_task_id = celery_task_id
+                report.save(update_fields=["celery_task_id"])
+                logger.info(f"Task dispatched to Celery with ID: {celery_task_id}")
+
+            except Exception as e:
+                logger.error(f"Failed to dispatch task to Celery: {e}")
+                # Clean up the report since task dispatch failed
+                report.delete()
+                return Response(
+                    {"detail": f"Failed to start report generation: {str(e)}"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
             logger.info(
                 f"Report job {report.job_id} created for report {report.id} (canonical)"
