@@ -506,15 +506,12 @@ class JobService:
             report = Report.objects.get(job_id=job_id)
             logger.info(f"Starting deletion of job {job_id} (status: {report.status})")
 
-            # Step 1: Terminate Celery task if running (CRITICAL - must succeed)
-            if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING] and report.celery_task_id:
-                logger.info(f"Terminating active Celery task {report.celery_task_id} for job {job_id}")
-
+            # Step 1: Terminate Celery task if we have a task ID
+            if report.celery_task_id:
                 termination_success = self._terminate_celery_task_robust(report.celery_task_id)
 
                 if not termination_success:
-                    logger.error(f"CRITICAL: Failed to terminate Celery task {report.celery_task_id} for job {job_id}")
-                    return False  # Fail fast - don't proceed if task is still running
+                    return False  # Fail fast - don't proceed if task termination failed
 
                 # Update status to cancelled only after confirmed termination
                 try:
@@ -564,9 +561,9 @@ class JobService:
                 logger.info(f"Task {celery_task_id} already in final state {initial_state}")
                 return True
 
-            # Use Celery app control to revoke the task
+            # Use Celery app control to revoke the task (terminate=True kills the process)
             celery_app.control.revoke(celery_task_id, terminate=True)
-            logger.info(f"Sent revocation command to task {celery_task_id}")
+            logger.info(f"Sent revocation command with terminate=True to task {celery_task_id}")
 
             # Give it a moment to process the revocation
             time.sleep(1)
