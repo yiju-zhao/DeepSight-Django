@@ -135,30 +135,9 @@ class ReportJobListCreateView(APIView):
                 report_data, user=request.user, notebook=notebook
             )
 
-            # Validate Celery broker connection before dispatching task
-            try:
-                from backend.celery import app
-
-                # Test broker connection - this will fail if broker is down
-                app.broker_connection().ensure_connection(max_retries=3, interval_start=0.1, interval_step=0.1)
-
-                # Dispatch task using standard Celery method
-                task_result = process_report_generation.delay(report.id)
-
-                # Store the task ID for cancellation
-                report.celery_task_id = task_result.id
-                report.save(update_fields=["celery_task_id"])
-
-                logger.info(f"Report generation task started with ID: {task_result.id}")
-
-            except Exception as e:
-                logger.error(f"Celery broker unavailable: {e}")
-                # Clean up report if task dispatch failed
-                report.delete()
-                return Response(
-                    {"detail": f"Report generation service unavailable: {str(e)}"},
-                    status=status.HTTP_503_SERVICE_UNAVAILABLE
-                )
+            task_result = process_report_generation.delay(report.id)
+            report.celery_task_id = task_result.id
+            report.save(update_fields=["celery_task_id"])
 
             logger.info(
                 f"Report job {report.job_id} created for report {report.id} (canonical)"

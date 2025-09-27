@@ -14,52 +14,13 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True)
 def process_report_generation(self, report_id: int):
-    """
-    Process report generation job with simple Celery revocation checking.
-    Task will check if it's been revoked and exit cleanly if so.
-    """
-    from .models import Report
-
-    job_id = None
-    progress_handler = None
-    root_logger = None
-
-    def check_revocation():
-        """Check if this task has been revoked and exit cleanly if so"""
-        from celery.result import AsyncResult
-
-        # Check if task is revoked by checking the task result
-        task_result = AsyncResult(self.request.id)
-        if task_result.state == 'REVOKED':
-            logger.info(f"Task {self.request.id} has been revoked, exiting cleanly")
-
-            # Update database status if we have the job_id
-            if job_id:
-                try:
-                    report = Report.objects.get(job_id=job_id)
-                    if report.status not in [Report.STATUS_CANCELLED, Report.STATUS_FAILED, Report.STATUS_COMPLETED]:
-                        report.update_status(
-                            Report.STATUS_CANCELLED,
-                            progress="Task cancelled by user request"
-                        )
-                        logger.info(f"Updated job {job_id} status to CANCELLED due to revocation")
-                except Exception as e:
-                    logger.error(f"Failed to update status during revocation for job {job_id}: {e}")
-
-            # Clean up progress handler
-            if progress_handler and root_logger:
-                try:
-                    root_logger.removeHandler(progress_handler)
-                except Exception:
-                    pass
-
-            # Return cancelled status instead of raising exception
-            return {"status": "cancelled", "message": "Task was revoked by user request"}
-
+    """Process report generation job - this runs in the background worker"""
     try:
-        logger.info(f"Starting robust report generation task for report {report_id}")
+        logger.info(f"Starting report generation task for report {report_id}")
 
-        # Get job_id from report
+        # Update job status to running
+        # First get job_id from report
+        from .models import Report
         try:
             report = Report.objects.get(id=report_id)
             job_id = report.job_id
@@ -67,80 +28,59 @@ def process_report_generation(self, report_id: int):
             logger.error(f"Report {report_id} not found")
             raise Exception(f"Report {report_id} not found")
 
+        # -------------------------------------------------------------------
+        # Attach progress-log handler so INFO messages update frontend
+        # -------------------------------------------------------------------
+        progress_handler = ReportProgressLogHandler(job_id, report_orchestrator)
+        root_logger = logging.getLogger()  # capture logs from all modules
+        root_logger.addHandler(progress_handler)
+
         # Check if job was cancelled before we start
         if report.status == Report.STATUS_CANCELLED:
             logger.info(f"Report {report_id} was cancelled before processing started")
+            root_logger.removeHandler(progress_handler)
             return {"status": "cancelled", "message": "Report was cancelled"}
 
-        # Set up progress handler
-        progress_handler = ReportProgressLogHandler(job_id, report_orchestrator)
-        root_logger = logging.getLogger()
-        root_logger.addHandler(progress_handler)
+        # Update job status to running
+        report_orchestrator.update_job_progress(
+            job_id, "Starting report generation", Report.STATUS_RUNNING
+        )
 
+        # Generate the report
+        start_ts = time.time()
         try:
-            # Update job status to running
-            report_orchestrator.update_job_progress(
-                job_id, "Starting report generation", Report.STATUS_RUNNING
-            )
-
-            # Check for revocation before starting
-            revocation_result = check_revocation()
-            if revocation_result:
-                return revocation_result
-
-            # Generate the report with periodic revocation checks
-            start_ts = time.time()
-            logger.info(f"Starting report generation for job {job_id}")
-
-            # For now, run generation normally but check revocation after
-            # TODO: Could add periodic checks within the orchestrator if needed
             result = report_orchestrator.generate_report(report_id)
-
-            # Check for revocation after generation
-            revocation_result = check_revocation()
-            if revocation_result:
-                return revocation_result
-
-            if result.get('success', False):
-                # Update job with success
-                report_orchestrator.update_job_result(job_id, result, Report.STATUS_COMPLETED)
-                elapsed = time.time() - start_ts
-                success_msg = (
-                    f"Task reports.tasks.process_report_generation[{self.request.id}] succeeded in {elapsed:.1f}s"
-                )
-                report_orchestrator.update_job_progress(job_id, success_msg)
-                logger.info(f"Successfully completed report generation for report {report_id}")
-                return result
-            else:
-                # Handle generation failure
-                error_msg = result.get('error_message', 'Report generation failed')
-                report_orchestrator.update_job_error(job_id, error_msg)
-                raise Exception(error_msg)
-
         finally:
-            # Always clean up progress handler
-            if progress_handler and root_logger:
-                try:
-                    root_logger.removeHandler(progress_handler)
-                except Exception as e:
-                    logger.warning(f"Failed to remove progress handler: {e}")
+            # Detach handler regardless of success/failure to avoid leaks
+            root_logger.removeHandler(progress_handler)
 
-    # No need for special revocation exception handling -
-    # check_revocation() handles it and returns appropriate result
+        if result.get('success', False):
+            # Update job with success
+            report_orchestrator.update_job_result(job_id, result, Report.STATUS_COMPLETED)
+            # Push final success progress so that frontend can display last stage
+            elapsed = time.time() - start_ts
+            success_msg = (
+                f"Task reports.tasks.process_report_generation[{self.request.id}] succeeded in {elapsed:.1f}s"
+            )
+            report_orchestrator.update_job_progress(job_id, success_msg)
+            logger.info(f"Successfully completed report generation for report {report_id}")
+            return result
+        else:
+            # Handle generation failure
+            error_msg = result.get('error_message', 'Report generation failed')
+            report_orchestrator.update_job_error(job_id, error_msg)
+            raise Exception(error_msg)
 
     except Exception as e:
         logger.error(f"Error processing report generation for report {report_id}: {e}")
 
-        # Update job with error (only if not already cancelled)
-        if job_id:
-            try:
-                report = Report.objects.get(id=report_id)
-                if report.status != Report.STATUS_CANCELLED:
-                    report_orchestrator.update_job_error(job_id, str(e))
-            except Report.DoesNotExist:
-                logger.error(f"Could not update error for report {report_id} - report not found")
-            except Exception as update_error:
-                logger.error(f"Failed to update job error: {update_error}")
+        # Update job with error
+        try:
+            from .models import Report
+            report = Report.objects.get(id=report_id)
+            report_orchestrator.update_job_error(report.job_id, str(e))
+        except Report.DoesNotExist:
+            logger.error(f"Could not update error for report {report_id} - report not found")
 
         # Re-raise for Celery to handle
         raise
@@ -160,8 +100,44 @@ def cleanup_old_reports():
         raise
 
 
-# Removed: cancel_report_generation task - now handled synchronously by JobService.delete_job()
-# This eliminates the dual cancellation mechanisms and unreliable async cancellation
+@shared_task(bind=True)
+def cancel_report_generation(self, job_id: str):
+    """Cancel a report generation job by revoking the Celery task."""
+    try:
+        logger.info(f"Cancelling report generation for job {job_id}")
+
+        from .models import Report
+        report = Report.objects.get(job_id=job_id)
+
+        # Revoke the main Celery task if it's running
+        if report.celery_task_id:
+            try:
+                from backend.celery import app as celery_app
+                celery_app.control.revoke(
+                    report.celery_task_id, terminate=True, signal="SIGTERM"
+                )
+                logger.info(f"Revoked Celery task {report.celery_task_id} for job {job_id}")
+            except Exception as e:
+                logger.warning(f"Failed to revoke Celery task for job {job_id}: {e}")
+
+        # Call generator cancellation to clean up temp directories
+        try:
+            report_orchestrator.cancel_generation(job_id)
+        except Exception as e:
+            logger.warning(f"Failed to cleanup during cancellation for job {job_id}: {e}")
+
+        # Update job status in database to 'cancelled'
+        report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
+
+        logger.info(f"Successfully cancelled report generation for job {job_id}")
+        return {"status": "cancelled", "job_id": job_id}
+
+    except Report.DoesNotExist:
+        logger.error(f"Report with job_id {job_id} not found for cancellation")
+        return {"status": "failed", "job_id": job_id, "message": "Job not found"}
+    except Exception as e:
+        logger.error(f"Error cancelling report generation for job {job_id}: {e}")
+        raise
 
 
 @shared_task(bind=True)
