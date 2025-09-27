@@ -471,7 +471,7 @@ class ReportJobCancelView(APIView):
         return ReportViewHelper.get_user_report(job_id, self.request.user)
 
     def post(self, request, job_id):
-        """Cancel a running or pending report job"""
+        """Cancel and delete a running or pending report job"""
         try:
             report = self._get_report(job_id)
 
@@ -482,21 +482,55 @@ class ReportJobCancelView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Use JobService to cancel the job
+            # Use JobService to cancel and delete the job synchronously
             job_service = JobService()
-            success = job_service.cancel_job(job_id)
 
-            if success:
-                return Response({
-                    "job_id": job_id,
-                    "status": "cancellation_requested",
-                    "message": "Job cancellation has been initiated"
-                }, status=status.HTTP_200_OK)
-            else:
+            # First cancel the job
+            cancel_success = job_service.cancel_job(job_id)
+            if not cancel_success:
                 return Response(
                     {"detail": "Failed to cancel job"},
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR
                 )
+
+            # Wait for cancellation to complete (synchronously)
+            # The cancel_job dispatches a Celery task, so we need to wait for it
+            import time
+            max_wait_time = 10  # Maximum 10 seconds
+            wait_interval = 0.5  # Check every 500ms
+            waited_time = 0
+
+            while waited_time < max_wait_time:
+                # Refresh report from database
+                report.refresh_from_db()
+                if report.status == Report.STATUS_CANCELLED:
+                    break
+                time.sleep(wait_interval)
+                waited_time += wait_interval
+
+            # Now delete the cancelled job
+            if report.status == Report.STATUS_CANCELLED:
+                delete_success = job_service.delete_job(job_id)
+                if delete_success:
+                    return Response({
+                        "job_id": job_id,
+                        "status": "cancelled_and_deleted",
+                        "message": "Job has been cancelled and deleted successfully"
+                    }, status=status.HTTP_200_OK)
+                else:
+                    return Response({
+                        "job_id": job_id,
+                        "status": "cancelled_only",
+                        "message": "Job was cancelled but deletion failed",
+                        "detail": "The job has been cancelled but could not be deleted from the database"
+                    }, status=status.HTTP_206_PARTIAL_CONTENT)
+            else:
+                return Response({
+                    "job_id": job_id,
+                    "status": "cancel_timeout",
+                    "message": "Job cancellation initiated but did not complete within timeout",
+                    "detail": f"Job status is still '{report.status}' after {max_wait_time} seconds"
+                }, status=status.HTTP_202_ACCEPTED)
 
         except Report.DoesNotExist:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
