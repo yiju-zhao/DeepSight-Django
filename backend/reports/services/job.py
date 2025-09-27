@@ -530,16 +530,14 @@ class JobService:
             report = Report.objects.get(job_id=job_id)
             logger.info(f"Starting deletion of job {job_id} (status: {report.status})")
 
-            # Step 1: Terminate Celery task if we have a task ID
-            if report.celery_task_id:
+            # Step 1: Terminate Celery task if we have a task ID and job is still running
+            if report.celery_task_id and report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
                 logger.info(f"Found celery_task_id: {report.celery_task_id} for job {job_id}")
                 termination_success = self._terminate_celery_task_robust(report.celery_task_id)
 
                 if not termination_success:
                     logger.error(f"Termination failed for celery_task_id: {report.celery_task_id}")
                     return False  # Fail fast - don't proceed if task termination failed
-            else:
-                logger.warning(f"No celery_task_id found for job {job_id}, skipping termination")
 
                 # Update status to cancelled only after confirmed termination
                 try:
@@ -547,6 +545,8 @@ class JobService:
                     logger.info(f"Updated job {job_id} status to CANCELLED")
                 except Exception as e:
                     logger.warning(f"Failed to update status for job {job_id}: {e}")
+            else:
+                logger.info(f"Skipping task termination for job {job_id} - status: {report.status}, celery_task_id: {bool(report.celery_task_id)}")
 
             # Step 2: Clean up all associated data
             cleanup_success = self._cleanup_all_job_data(report)

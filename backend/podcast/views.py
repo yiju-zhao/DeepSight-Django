@@ -133,6 +133,7 @@ class PodcastJobCancelView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, job_id):
+        """Cancel and delete a running or pending podcast job"""
         try:
             job = get_object_or_404(Podcast.objects.filter(user=request.user), id=job_id)
             if job.status in ["pending", "generating"]:
@@ -141,8 +142,24 @@ class PodcastJobCancelView(APIView):
                 result = task_result.get(timeout=10)
                 if result.get("status") == "cancelled":
                     job.refresh_from_db()
-                    serializer = PodcastSerializer(job)
-                    return Response(serializer.data)
+
+                    # Now delete the cancelled job
+                    if job.status == "cancelled":
+                        job.delete()
+                        return Response({
+                            "job_id": str(job_id),
+                            "status": "cancelled_and_deleted",
+                            "message": "Podcast has been cancelled and deleted successfully"
+                        }, status=status.HTTP_200_OK)
+                    else:
+                        # Job was cancelled but not deleted
+                        serializer = PodcastSerializer(job)
+                        return Response({
+                            "job_id": str(job_id),
+                            "status": "cancelled_only",
+                            "message": "Podcast was cancelled but not deleted",
+                            "detail": serializer.data
+                        }, status=status.HTTP_206_PARTIAL_CONTENT)
                 else:
                     return Response({"error": result.get("message", "Failed to cancel job")}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             else:
