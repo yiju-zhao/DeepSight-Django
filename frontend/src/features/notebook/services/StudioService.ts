@@ -57,8 +57,16 @@ class StudioService {
 
   async listReportJobs(notebookId: string): Promise<{ jobs: any[]; }> {
     const response = await apiClient.get(`/reports/jobs/?notebook=${encodeURIComponent(notebookId)}`);
-    return { 
-      jobs: response.reports || response.jobs || response || []
+    const jobs = response.reports || response.jobs || response || [];
+
+    // Normalize backend field names: map report_id -> id (backend returns report_id)
+    const normalizedJobs = jobs.map((job: any) => ({
+      ...job,
+      id: job.id || job.report_id,
+    }));
+
+    return {
+      jobs: normalizedJobs
     };
   }
 

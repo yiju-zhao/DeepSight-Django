@@ -100,12 +100,10 @@ export interface FileItem {
 export interface ReportItem extends FileItem {
   article_title?: string;
   markdown_content?: string;
-  job_id?: string;
 }
 
 export interface PodcastItem extends FileItem {
   audio_file?: string;
-  job_id?: string;
 }
 
 export interface SourceItem {

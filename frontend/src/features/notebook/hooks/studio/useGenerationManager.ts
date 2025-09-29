@@ -58,7 +58,7 @@ export const useGenerationManager = (
 
       if (runningJob) {
         return {
-          jobId: runningJob.job_id || runningJob.id,
+          jobId: runningJob.id,
           type,
           status: runningJob.status,
           progress: runningJob.progress || `Generating ${type}...`,

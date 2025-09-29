@@ -253,8 +253,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   // ====== SINGLE RESPONSIBILITY: File operations ======
   const handleSelectReport = useCallback(async (report: ReportItem) => {
     try {
-      // Use job_id if id is not available, as API might return job_id instead of id
-      const reportId = report.id || report.job_id;
+      const reportId = report.id;
       if (!reportId) {
         throw new Error('Report ID not found');
       }
@@ -276,7 +275,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, [studioService, notebookId, toast]);
 
   const handlePodcastClick = useCallback((podcast: PodcastItem) => {
-    const podcastId = podcast.id || podcast.job_id || '';
+    const podcastId = podcast.id || '';
     setExpandedPodcasts(prev => {
       const newSet = new Set(prev);
       if (newSet.has(podcastId)) {
@@ -314,7 +313,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   const handleDownloadReport = useCallback(async (report: ReportItem) => {
     try {
-      const reportId = report.id || report.job_id;
+      const reportId = report.id;
       if (!reportId) {
         throw new Error('Report ID not found');
       }
@@ -359,7 +358,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   const handleDownloadPodcast = useCallback(async (podcast: PodcastItem) => {
     try {
-      const podcastId = podcast.id || podcast.job_id;
+      const podcastId = podcast.id;
       if (!podcastId) {
         throw new Error('Podcast ID not found');
       }
@@ -397,7 +396,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   const handleDeleteReport = useCallback(async (report: ReportItem) => {
     const isGenerating = report.status === 'running' || report.status === 'pending' ||
-                        (reportGeneration.activeJob && reportGeneration.activeJob.jobId === (report.id || report.job_id));
+                        (reportGeneration.activeJob && reportGeneration.activeJob.jobId === report.id);
 
     const confirmMessage = isGenerating
       ? 'Are you sure you want to cancel and delete this report?'
@@ -408,13 +407,13 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     }
 
     try {
-      const reportId = report.id || report.job_id;
+      const reportId = report.id;
       if (!reportId) {
         throw new Error('Report ID not found');
       }
 
       // Clear selected file if it's the one being deleted
-      if (selectedFile?.id === reportId || selectedFile?.job_id === reportId) {
+      if (selectedFile?.id === reportId) {
         setSelectedFile(null);
         setSelectedFileContent('');
       }
@@ -451,7 +450,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
     const isGenerating = podcast.status === 'running' || podcast.status === 'pending' ||
-                        (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === (podcast.id || podcast.job_id));
+                        (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === podcast.id);
 
     const confirmMessage = isGenerating
       ? 'Are you sure you want to cancel this podcast generation?'
@@ -462,13 +461,13 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     }
 
     try {
-      const podcastId = podcast.id || podcast.job_id;
+      const podcastId = podcast.id;
       if (!podcastId) {
         throw new Error('Podcast ID not found');
       }
 
       // Clear selected file if it's the one being deleted/cancelled
-      if (selectedFile?.id === podcastId || selectedFile?.job_id === podcastId) {
+      if (selectedFile?.id === podcastId) {
         setSelectedFile(null);
         setSelectedFileContent('');
       }
@@ -507,8 +506,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     if (!selectedFile) return;
 
     try {
-      // Use job_id if id is not available, as API expects job_id for reports
-      const fileId = selectedFile.id || selectedFile.job_id;
+      const fileId = selectedFile.id;
       if (!fileId) {
         throw new Error('File ID not found');
       }
@@ -743,12 +741,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <div className="p-6">
                   <div className="space-y-3">
                     {allItems.map((item: any, index: number) => {
-                      const itemId = item.id || item.job_id || index.toString();
-                      
+                      const itemId = item.id || index.toString();
+
                       if (item.type === 'report') {
                         // Check if this report is currently being generated
                         const isGenerating = item.status === 'running' || item.status === 'pending' ||
-                                            (reportGeneration.activeJob && reportGeneration.activeJob.jobId === (item.id || item.job_id));
+                                            (reportGeneration.activeJob && reportGeneration.activeJob.jobId === item.id);
 
                         const sourceCount = getSourceCount(item);
                         const timeAgo = getRelativeTime(item.created_at);
@@ -834,7 +832,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         const isExpanded = expandedPodcasts.has(itemId);
                         // Check if this podcast is currently being generated
                         const isGenerating = item.status === 'running' || item.status === 'pending' ||
-                                            (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === (item.id || item.job_id));
+                                            (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === item.id);
 
                         const sourceCount = getSourceCount(item);
                         const timeAgo = getRelativeTime(item.created_at);
