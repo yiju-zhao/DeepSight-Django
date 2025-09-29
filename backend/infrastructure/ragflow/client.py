@@ -7,6 +7,7 @@ import time
 from typing import Dict, List, Optional, Any
 from django.conf import settings
 from ragflow_sdk import RAGFlow
+from ragflow_sdk.modules.dataset import DataSet
 
 logger = logging.getLogger(__name__)
 
@@ -116,19 +117,23 @@ class RagFlowClient:
         try:
             logger.info(f"Creating RagFlow dataset: {name}")
             
+            # Create parser config object
+            parser_config_dict = {
+                "chunk_token_num": 512,
+                "delimiter": "#",
+                "html4excel": False,
+                "layout_recognize": True,
+                "raptor": {"use_raptor": False}
+            }
+            parser_config = DataSet.ParserConfig(**parser_config_dict)
+
             # Set default configuration
             dataset_config = {
                 'name': name,
                 'description': description,
                 'chunk_method': getattr(settings, 'RAGFLOW_DEFAULT_CHUNK_METHOD', 'naive'),
                 'embedding_model': getattr(settings, 'RAGFLOW_DEFAULT_EMBEDDING_MODEL', 'text-embedding-3-large@OpenAI'),
-                'parser_config': {
-                    "chunk_token_num": 512,
-                    "delimiter": "#",
-                    "html4excel": False,
-                    "layout_recognize": True,
-                    "raptor": {"use_raptor": False}
-                },
+                'parser_config': parser_config,
                 **kwargs
             }
             
