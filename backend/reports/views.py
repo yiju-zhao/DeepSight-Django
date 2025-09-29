@@ -482,10 +482,19 @@ class ReportJobCancelView(APIView):
             if report.celery_task_id:
                 try:
                     from backend.celery import app as celery_app
-                    celery_app.control.revoke(report.celery_task_id, terminate=True, signal='SIGTERM')
-                    logger.info(f"Revoked Celery task {report.celery_task_id}")
+
+                    # Method 1: Revoke via control (sends message to workers)
+                    celery_app.control.revoke(report.celery_task_id, terminate=True)
+                    logger.info(f"Sent revoke command to workers for task {report.celery_task_id}")
+
+                    # Method 2: Also mark in result backend (ensures state is tracked)
+                    from celery.result import AsyncResult
+                    task = AsyncResult(report.celery_task_id, app=celery_app)
+                    task.revoke(terminate=True)
+                    logger.info(f"Marked task {report.celery_task_id} as revoked in result backend")
+
                 except Exception as e:
-                    logger.warning(f"Failed to revoke Celery task {report.celery_task_id}: {e}")
+                    logger.error(f"Failed to revoke Celery task {report.celery_task_id}: {e}", exc_info=True)
 
             # Step 2: Use JobService to cleanup and delete (no status update needed - just delete)
             job_service = JobService()

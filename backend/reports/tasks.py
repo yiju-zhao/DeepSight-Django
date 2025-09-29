@@ -41,6 +41,15 @@ def process_report_generation(self, report_id: int):
             root_logger.removeHandler(progress_handler)
             return {"status": "cancelled", "message": "Report was cancelled"}
 
+        # Check if task was revoked by Celery
+        if self.request.called_directly is False:  # Only check if running in worker
+            from celery.result import AsyncResult
+            task_result = AsyncResult(self.request.id)
+            if task_result.state == 'REVOKED':
+                logger.info(f"Task {self.request.id} was revoked, aborting report generation")
+                root_logger.removeHandler(progress_handler)
+                return {"status": "revoked", "message": "Task was revoked"}
+
         # Update job status to running
         report_orchestrator.update_job_progress(
             report_id, "Starting report generation", Report.STATUS_RUNNING
