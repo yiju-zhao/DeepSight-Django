@@ -478,7 +478,7 @@ class ReportJobCancelView(APIView):
 
             logger.info(f"Starting cancellation for report {report_id} (status: {report.status}, celery_task_id: {report.celery_task_id})")
 
-            # Step 1: Revoke Celery task if it exists
+            # Step 1: Revoke Celery task directly if it exists (before changing status)
             if report.celery_task_id:
                 try:
                     from backend.celery import app as celery_app
@@ -487,17 +487,23 @@ class ReportJobCancelView(APIView):
                     task_result = AsyncResult(report.celery_task_id, app=celery_app)
                     logger.info(f"Celery task {report.celery_task_id} current state: {task_result.state}")
 
-                    # Revoke with termination
-                    celery_app.control.revoke(report.celery_task_id, terminate=True, signal='SIGTERM')
-                    logger.info(f"Revoked Celery task {report.celery_task_id}")
+                    # Revoke with termination using SIGKILL for immediate termination
+                    celery_app.control.revoke(report.celery_task_id, terminate=True, signal='SIGKILL')
+                    logger.info(f"Revoked Celery task {report.celery_task_id} with SIGKILL")
+
+                    # Give a moment for termination to propagate
+                    import time
+                    time.sleep(0.5)
                 except Exception as e:
                     logger.warning(f"Failed to revoke Celery task {report.celery_task_id}: {e}")
+            else:
+                logger.info(f"No celery_task_id found for report {report_id}")
 
             # Step 2: Update status to cancelled
             report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
             logger.info(f"Updated report {report_id} status to CANCELLED")
 
-            # Step 3: Use JobService to delete the job and cleanup
+            # Step 3: Use JobService to cleanup and delete (skip task termination since we already did it)
             job_service = JobService()
             delete_success = job_service.delete_job(report_id)
 
