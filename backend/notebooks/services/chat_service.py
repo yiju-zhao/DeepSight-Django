@@ -695,105 +695,137 @@ class ChatService(NotebookBaseService):
             agent_description = f"Specialized agent for dataset {dataset_id}"
 
             # Check if agent already exists
-            existing_agents = self.ragflow_client.list_agents(title=agent_title)
+            try:
+                existing_agents = self.ragflow_client.list_agents(title=agent_title)
+                if existing_agents:
+                    agent_id = existing_agents[0]['id']
+                    logger.info(f"Using existing agent {agent_id} for dataset {dataset_id}")
 
-            if existing_agents:
-                agent_id = existing_agents[0]['id']
-                logger.info(f"Using existing agent {agent_id} for dataset {dataset_id}")
-            else:
-                # Create a simplified DSL for the agent
-                dsl = {
-                    "components": {
-                        "begin": {
-                            "downstream": ["Agent:KnowledgeBot"],
-                            "obj": {
-                                "component_name": "Begin",
-                                "params": {
-                                    "mode": "conversational",
-                                    "prologue": "Hi! I'm your knowledge base assistant. What would you like to know?",
-                                    "inputs": {
-                                        "knowledge base": {
-                                            "name": "knowledge base",
-                                            "type": "options",
-                                            "optional": False,
-                                            "options": [dataset_id]
-                                        }
+                    # Cache the agent ID
+                    cache.set(cache_key, agent_id, timeout=self._agent_cache_timeout)
+
+                    return {
+                        "success": True,
+                        "agent_id": agent_id,
+                        "cached": False
+                    }
+                else:
+                    # No agents found, create new one
+                    logger.info(f"No existing agents found with title '{agent_title}', creating new one")
+            except RagFlowClientError as e:
+                # If error contains "doesn't exist", it means no agents exist yet
+                if "doesn't exist" in str(e).lower():
+                    logger.info(f"No agents exist yet, creating first agent for dataset {dataset_id}")
+                else:
+                    # Some other error occurred
+                    logger.error(f"Error checking for existing agents: {e}")
+                    return {
+                        "error": f"Failed to check existing agents: {str(e)}",
+                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        "details": {"error": str(e)}
+                    }
+
+            # Create new agent
+            # Create a simplified DSL for the agent
+            dsl = {
+                "components": {
+                    "begin": {
+                        "downstream": ["Agent:KnowledgeBot"],
+                        "obj": {
+                            "component_name": "Begin",
+                            "params": {
+                                "mode": "conversational",
+                                "prologue": "Hi! I'm your knowledge base assistant. What would you like to know?",
+                                "inputs": {
+                                    "knowledge base": {
+                                        "name": "knowledge base",
+                                        "type": "options",
+                                        "optional": False,
+                                        "options": [dataset_id]
                                     }
                                 }
-                            },
-                            "upstream": []
+                            }
                         },
-                        "Agent:KnowledgeBot": {
-                            "downstream": ["Message:Response"],
-                            "obj": {
-                                "component_name": "Agent",
-                                "params": {
-                                    "llm_id": getattr(settings, 'RAGFLOW_CHAT_MODEL', 'deepseek-chat@DeepSeek'),
-                                    "temperature": 0.1,
-                                    "max_tokens": 1024,
-                                    "max_rounds": 1,
-                                    "sys_prompt": "You are a helpful knowledge base assistant. Answer questions based strictly on the information available in the knowledge base. If information is not available, clearly state that you cannot find it in the knowledge base.",
-                                    "prompts": [
-                                        {
-                                            "role": "user",
-                                            "content": "{sys.query}"
+                        "upstream": []
+                    },
+                    "Agent:KnowledgeBot": {
+                        "downstream": ["Message:Response"],
+                        "obj": {
+                            "component_name": "Agent",
+                            "params": {
+                                "llm_id": getattr(settings, 'RAGFLOW_CHAT_MODEL', 'deepseek-chat@DeepSeek'),
+                                "temperature": 0.1,
+                                "max_tokens": 1024,
+                                "max_rounds": 1,
+                                "sys_prompt": "You are a helpful knowledge base assistant. Answer questions based strictly on the information available in the knowledge base. If information is not available, clearly state that you cannot find it in the knowledge base.",
+                                "prompts": [
+                                    {
+                                        "role": "user",
+                                        "content": "{sys.query}"
+                                    }
+                                ],
+                                "tools": [
+                                    {
+                                        "component_name": "Retrieval",
+                                        "name": "Retrieval",
+                                        "params": {
+                                            "kb_ids": [dataset_id],
+                                            "top_n": 5,
+                                            "similarity_threshold": 0.2,
+                                            "keywords_similarity_weight": 0.7,
+                                            "empty_response": "No relevant information found in the knowledge base."
                                         }
-                                    ],
-                                    "tools": [
-                                        {
-                                            "component_name": "Retrieval",
-                                            "name": "Retrieval",
-                                            "params": {
-                                                "kb_ids": [dataset_id],
-                                                "top_n": 5,
-                                                "similarity_threshold": 0.2,
-                                                "keywords_similarity_weight": 0.7,
-                                                "empty_response": "No relevant information found in the knowledge base."
-                                            }
-                                        }
-                                    ]
-                                }
-                            },
-                            "upstream": ["begin"]
+                                    }
+                                ]
+                            }
                         },
-                        "Message:Response": {
-                            "downstream": [],
-                            "obj": {
-                                "component_name": "Message",
-                                "params": {
-                                    "content": ["{Agent:KnowledgeBot@content}"]
-                                }
-                            },
-                            "upstream": ["Agent:KnowledgeBot"]
-                        }
+                        "upstream": ["begin"]
+                    },
+                    "Message:Response": {
+                        "downstream": [],
+                        "obj": {
+                            "component_name": "Message",
+                            "params": {
+                                "content": ["{Agent:KnowledgeBot@content}"]
+                            }
+                        },
+                        "upstream": ["Agent:KnowledgeBot"]
                     }
                 }
+            }
 
-                # Create the agent
-                create_result = self.ragflow_client.create_agent(
-                    title=agent_title,
-                    dsl=dsl,
-                    description=agent_description
-                )
+            # Create the agent
+            create_result = self.ragflow_client.create_agent(
+                title=agent_title,
+                dsl=dsl,
+                description=agent_description
+            )
 
-                if not create_result.get('success'):
-                    logger.error(f"RagFlow agent creation failed: {create_result}")
-                    return {
-                        "error": "Failed to create knowledge base agent",
-                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        "details": create_result
-                    }
+            if not create_result.get('success'):
+                logger.error(f"RagFlow agent creation failed: {create_result}")
+                return {
+                    "error": "Failed to create knowledge base agent",
+                    "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "details": create_result
+                }
 
-                # Get the created agent ID
+            # Get the created agent ID by listing agents with the same title
+            try:
                 created_agents = self.ragflow_client.list_agents(title=agent_title)
                 if not created_agents:
                     return {
-                        "error": "Agent created but not found",
+                        "error": "Agent created but not found when listing",
                         "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR
                     }
-
                 agent_id = created_agents[0]['id']
                 logger.info(f"Created new agent {agent_id} for dataset {dataset_id}")
+            except RagFlowClientError as e:
+                logger.error(f"Failed to find created agent: {e}")
+                return {
+                    "error": "Agent was created but could not be retrieved",
+                    "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    "details": {"error": str(e)}
+                }
 
             # Cache the agent ID
             cache.set(cache_key, agent_id, timeout=self._agent_cache_timeout)
