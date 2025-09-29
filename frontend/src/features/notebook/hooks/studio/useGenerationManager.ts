@@ -235,34 +235,32 @@ export const useGenerationManager = (
     },
   });
 
-  // Cancel mutation
-  const cancelMutation = useMutation({
-    mutationFn: async (explicitJobId?: string) => {
-      const jobId = explicitJobId || activeJobQuery.data?.jobId;
-      if (!jobId) {
-        throw new Error('Report ID not found');
-      }
+  // Cancel function - simple async function instead of mutation
+  const cancel = useCallback(async (explicitJobId?: string) => {
+    const jobId = explicitJobId || activeJobQuery.data?.jobId;
+    if (!jobId) {
+      throw new Error('Report ID not found');
+    }
 
-      return type === 'report'
-        ? studioService.cancelReportJob(jobId, notebookId)
-        : studioService.cancelPodcastJob(jobId, notebookId);
-    },
-    onSuccess: () => {
-      // Clear active job
-      queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
+    // Call backend to cancel and delete
+    await (type === 'report'
+      ? studioService.cancelReportJob(jobId, notebookId)
+      : studioService.cancelPodcastJob(jobId, notebookId));
 
-      // Stop SSE
-      if (sseControllerRef.current) {
-        sseControllerRef.current.abort();
-        sseControllerRef.current = null;
-      }
+    // Clear active job
+    queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
 
-      // Force immediate refetch of job lists to ensure UI updates
-      const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
-      queryClient.invalidateQueries({ queryKey });
-      queryClient.refetchQueries({ queryKey });
-    },
-  });
+    // Stop SSE
+    if (sseControllerRef.current) {
+      sseControllerRef.current.abort();
+      sseControllerRef.current = null;
+    }
+
+    // Force immediate refetch of job lists to ensure UI updates
+    const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
+    queryClient.invalidateQueries({ queryKey });
+    await queryClient.refetchQueries({ queryKey });
+  }, [type, notebookId, activeJobQuery.data?.jobId, queryClient, sseControllerRef]);
 
   // Config management
   const updateConfig = useCallback((updates: Partial<GenerationConfig>) => {
@@ -287,13 +285,12 @@ export const useGenerationManager = (
 
     // Actions
     generate: generateMutation.mutate,
-    cancel: cancelMutation.mutate,
+    cancel, // Simple async function
     updateConfig,
     cleanup,
 
     // Loading states
     isGeneratePending: generateMutation.isPending,
-    isCancelPending: cancelMutation.isPending,
 
     // For completion handlers (backward compatibility)
     onComplete: handleJobComplete,
