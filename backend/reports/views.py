@@ -482,16 +482,24 @@ class ReportJobCancelView(APIView):
             if report.celery_task_id:
                 try:
                     from backend.celery import app as celery_app
-
-                    # Method 1: Revoke via control (sends message to workers)
-                    celery_app.control.revoke(report.celery_task_id, terminate=True)
-                    logger.info(f"Sent revoke command to workers for task {report.celery_task_id}")
-
-                    # Method 2: Also mark in result backend (ensures state is tracked)
                     from celery.result import AsyncResult
+
                     task = AsyncResult(report.celery_task_id, app=celery_app)
-                    task.revoke(terminate=True)
-                    logger.info(f"Marked task {report.celery_task_id} as revoked in result backend")
+                    logger.info(f"Attempting to revoke task {report.celery_task_id}, current state: {task.state}")
+
+                    # Revoke via control interface (broadcasts to all workers with terminate signal)
+                    celery_app.control.revoke(report.celery_task_id, terminate=True, signal='SIGTERM')
+                    logger.info(f"Sent SIGTERM revoke command via control.revoke() for task {report.celery_task_id}")
+
+                    # Also mark in result backend so task checks see it
+                    task.revoke(terminate=True, signal='SIGTERM')
+                    logger.info(f"Marked task {report.celery_task_id} as REVOKED in result backend")
+
+                    # Verify state changed
+                    import time
+                    time.sleep(0.3)
+                    task = AsyncResult(report.celery_task_id, app=celery_app)
+                    logger.info(f"Task {report.celery_task_id} state after revocation: {task.state}")
 
                 except Exception as e:
                     logger.error(f"Failed to revoke Celery task {report.celery_task_id}: {e}", exc_info=True)
