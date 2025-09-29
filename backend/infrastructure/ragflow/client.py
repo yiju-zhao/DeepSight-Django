@@ -123,7 +123,7 @@ class RagFlowClient:
                 "delimiter": "#",
                 "html4excel": "false",
                 "layout_recognize": "true",
-                "raptor": {"use_raptor": "true"}
+                "raptor": {"use_raptor": true}
             }
             # Create a ParserConfig object with proper rag and res_dict parameters
             parser_config = DataSet.ParserConfig(self.client, parser_config_dict)
