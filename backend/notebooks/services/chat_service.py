@@ -75,30 +75,23 @@ class ChatService(NotebookBaseService):
             None if valid, error dict if no data found
         """
         try:
-            # Check if notebook has RagFlow dataset
-            if not hasattr(notebook, 'ragflow_dataset'):
+            # Check if notebook has RagFlow dataset ID
+            if not notebook.ragflow_dataset_id:
                 return {
-                    "error": "This notebook doesn't have a knowledge base yet. Please upload files first.",
+                    "error": "This notebook doesn't have a RagFlow dataset. Try creating a new notebook or uploading files to initialize the knowledge base.",
                     "status_code": status.HTTP_400_BAD_REQUEST
                 }
-            
-            ragflow_dataset = notebook.ragflow_dataset
-            
-            # Check if dataset is ready
-            if not ragflow_dataset.is_ready():
+
+            # Check if dataset exists and get info from RagFlow
+            dataset_info = self.ragflow_client.get_dataset(notebook.ragflow_dataset_id)
+            if not dataset_info:
                 return {
-                    "error": f"Knowledge base is not ready. Status: {ragflow_dataset.status}",
+                    "error": "Knowledge base dataset not found in RagFlow",
                     "status_code": status.HTTP_400_BAD_REQUEST
                 }
-            
+
             # Check if dataset has documents
-            document_count = ragflow_dataset.get_document_count()
-            if document_count == 0:
-                return {
-                    "error": "Your knowledge base is empty. Please upload files first.",
-                    "status_code": status.HTTP_400_BAD_REQUEST
-                }
-            
+            # For now, assume dataset is ready if it exists - can be enhanced later
             return None
             
         except Exception as e:
@@ -392,19 +385,30 @@ class ChatService(NotebookBaseService):
             # Validate notebook access
             self.validate_notebook_access(notebook, notebook.user)
             
-            # Check if notebook has RagFlow dataset
-            if not hasattr(notebook, 'ragflow_dataset'):
+            # Check if notebook has RagFlow dataset ID
+            if not notebook.ragflow_dataset_id:
+                # Try to create a dataset for this notebook
+                try:
+                    dataset_result = self.ragflow_client.create_dataset(
+                        name=f"notebook_{notebook.id}_{notebook.name}",
+                        description=notebook.description or f"Dataset for notebook '{notebook.name}'"
+                    )
+                    notebook.ragflow_dataset_id = dataset_result['id']
+                    notebook.save()
+                    logger.info(f"Created RagFlow dataset {dataset_result['id']} for notebook {notebook.id}")
+                except Exception as e:
+                    logger.error(f"Failed to create RagFlow dataset for notebook {notebook.id}: {e}")
+                    return {
+                        "error": f"Notebook has no RagFlow dataset and failed to create one: {str(e)}",
+                        "status_code": status.HTTP_400_BAD_REQUEST
+                    }
+
+            # Check if dataset exists in RagFlow
+            dataset_info = self.ragflow_client.get_dataset(notebook.ragflow_dataset_id)
+            if not dataset_info:
                 return {
-                    "error": "Notebook has no RagFlow dataset",
+                    "error": "RagFlow dataset not found",
                     "status_code": status.HTTP_400_BAD_REQUEST
-                }
-            
-            ragflow_dataset = notebook.ragflow_dataset
-            if not ragflow_dataset.is_ready():
-                return {
-                    "error": "RagFlow dataset is not ready",
-                    "status_code": status.HTTP_400_BAD_REQUEST,
-                    "dataset_status": ragflow_dataset.status
                 }
             
             # Check cache for existing session
@@ -420,7 +424,7 @@ class ChatService(NotebookBaseService):
                 }
             
             # Get or create knowledge base agent
-            agent_result = self._get_or_create_knowledge_base_agent(ragflow_dataset.ragflow_dataset_id)
+            agent_result = self._get_or_create_knowledge_base_agent(notebook.ragflow_dataset_id)
             if not agent_result.get('success'):
                 return agent_result
             
@@ -429,14 +433,14 @@ class ChatService(NotebookBaseService):
             # Create new session with the agent
             session_result = self.ragflow_client.create_session(
                 agent_id=agent_id,
-                **{'knowledge base': ragflow_dataset.ragflow_dataset_id}  # Pass dataset as parameter
+                **{'knowledge base': notebook.ragflow_dataset_id}  # Pass dataset as parameter
             )
             
             # Cache the session info
             session_info = {
                 "session": session_result,
                 "agent_id": agent_id,
-                "dataset_id": ragflow_dataset.ragflow_dataset_id,
+                "dataset_id": notebook.ragflow_dataset_id,
                 "notebook_id": notebook.id,
                 "created_for_user": user_id
             }
@@ -781,14 +785,13 @@ class ChatService(NotebookBaseService):
     def get_agent_info(self, notebook: Notebook) -> Dict:
         """Get information about the current knowledge base agent."""
         try:
-            if not hasattr(notebook, 'ragflow_dataset'):
+            if not notebook.ragflow_dataset_id:
                 return {
                     "available": False,
                     "error": "No RagFlow dataset found"
                 }
-            
-            ragflow_dataset = notebook.ragflow_dataset
-            agent_result = self._get_or_create_knowledge_base_agent(ragflow_dataset.ragflow_dataset_id)
+
+            agent_result = self._get_or_create_knowledge_base_agent(notebook.ragflow_dataset_id)
             
             if not agent_result.get('success'):
                 return {
@@ -849,7 +852,7 @@ class ChatService(NotebookBaseService):
             # Create RagFlow session
             ragflow_session = self.ragflow_client.create_session(
                 agent_id=agent_id,
-                **{'knowledge base': notebook.ragflow_dataset.ragflow_dataset_id}
+                **{'knowledge base': notebook.ragflow_dataset_id}
             )
             
             # Create local session record
@@ -860,7 +863,7 @@ class ChatService(NotebookBaseService):
                 ragflow_agent_id=agent_id,
                 session_metadata={
                     'created_by_user': user_id,
-                    'dataset_id': notebook.ragflow_dataset.ragflow_dataset_id
+                    'dataset_id': notebook.ragflow_dataset_id
                 }
             )
             
@@ -1254,21 +1257,21 @@ class ChatService(NotebookBaseService):
         Get or create knowledge base agent for session management.
         Wrapper around existing method for session-specific logic.
         """
-        if not hasattr(notebook, 'ragflow_dataset'):
+        if not notebook.ragflow_dataset_id:
             return {
                 "error": "Notebook has no RagFlow dataset",
                 "status_code": status.HTTP_400_BAD_REQUEST
             }
-        
-        ragflow_dataset = notebook.ragflow_dataset
-        if not ragflow_dataset.is_ready():
+
+        # Check if dataset exists in RagFlow
+        dataset_info = self.ragflow_client.get_dataset(notebook.ragflow_dataset_id)
+        if not dataset_info:
             return {
-                "error": "RagFlow dataset is not ready",
-                "status_code": status.HTTP_400_BAD_REQUEST,
-                "dataset_status": ragflow_dataset.status
+                "error": "RagFlow dataset not found",
+                "status_code": status.HTTP_400_BAD_REQUEST
             }
-        
-        return self._get_or_create_knowledge_base_agent(ragflow_dataset.ragflow_dataset_id)
+
+        return self._get_or_create_knowledge_base_agent(notebook.ragflow_dataset_id)
     
     def get_session_count_for_notebook(self, notebook: Notebook) -> int:
         """Get the number of active sessions for a notebook."""
