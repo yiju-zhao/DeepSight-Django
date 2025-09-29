@@ -485,15 +485,32 @@ class ReportJobCancelView(APIView):
                     from celery.result import AsyncResult
 
                     task_result = AsyncResult(report.celery_task_id, app=celery_app)
-                    logger.info(f"Celery task {report.celery_task_id} current state: {task_result.state}")
+                    current_state = task_result.state
+                    logger.info(f"Celery task {report.celery_task_id} current state: {current_state}")
 
-                    # Revoke with termination using SIGKILL for immediate termination
-                    celery_app.control.revoke(report.celery_task_id, terminate=True, signal='SIGKILL')
-                    logger.info(f"Revoked Celery task {report.celery_task_id} with SIGKILL")
+                    # Only revoke if task is still running
+                    if current_state not in ['SUCCESS', 'FAILURE', 'REVOKED']:
+                        # Revoke with termination - use terminate=True to send signal to worker
+                        celery_app.control.revoke(
+                            report.celery_task_id,
+                            terminate=True,
+                            signal='SIGTERM'  # Use SIGTERM for graceful termination
+                        )
+                        logger.info(f"Sent revocation signal (SIGTERM) to Celery task {report.celery_task_id}")
 
-                    # Give a moment for termination to propagate
-                    import time
-                    time.sleep(0.5)
+                        # Mark task as revoked in Celery result backend
+                        task_result.revoke(terminate=True)
+                        logger.info(f"Marked task {report.celery_task_id} as REVOKED in result backend")
+
+                        # Give a moment for termination to propagate
+                        import time
+                        time.sleep(0.5)
+
+                        # Check final state
+                        task_result = AsyncResult(report.celery_task_id, app=celery_app)
+                        logger.info(f"Celery task {report.celery_task_id} final state after revocation: {task_result.state}")
+                    else:
+                        logger.info(f"Task {report.celery_task_id} already in terminal state: {current_state}")
                 except Exception as e:
                     logger.warning(f"Failed to revoke Celery task {report.celery_task_id}: {e}")
             else:
