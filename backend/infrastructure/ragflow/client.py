@@ -603,8 +603,16 @@ class RagFlowClient:
                     id=id,
                     title=title
                 )
-            
-            agents = self._retry_on_failure(_list)
+
+            try:
+                agents = _list()
+            except Exception as e:
+                # If "doesn't exist" is in the error, it means no agents exist - return empty list
+                if "doesn't exist" in str(e).lower() or "agent doesn't exist" in str(e).lower():
+                    logger.info("No agents exist yet - returning empty list")
+                    return []
+                # For other errors, still use retry logic
+                agents = self._retry_on_failure(_list)
             
             # Convert to dict format for consistency
             agent_list = []

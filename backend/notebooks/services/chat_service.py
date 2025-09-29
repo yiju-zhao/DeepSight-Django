@@ -433,8 +433,7 @@ class ChatService(NotebookBaseService):
             
             # Create new session with the agent
             session_result = self.ragflow_client.create_session(
-                agent_id=agent_id,
-                **{'knowledge base': notebook.ragflow_dataset_id}  # Pass dataset as parameter
+                agent_id=agent_id
             )
             
             # Cache the session info
@@ -791,7 +790,10 @@ class ChatService(NotebookBaseService):
                         },
                         "upstream": ["Agent:KnowledgeBot"]
                     }
-                }
+                },
+                "path": ["begin", "Agent:KnowledgeBot", "Message:Response"],
+                "history": [],
+                "messages": []
             }
 
             # Create the agent
@@ -927,8 +929,7 @@ class ChatService(NotebookBaseService):
             
             # Create RagFlow session
             ragflow_session = self.ragflow_client.create_session(
-                agent_id=agent_id,
-                **{'knowledge base': notebook.ragflow_dataset_id}
+                agent_id=agent_id
             )
             
             # Create local session record
