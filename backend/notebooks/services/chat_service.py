@@ -8,6 +8,7 @@ from typing import Dict, List, Optional, Generator, Any
 from django.db import transaction
 from django.core.exceptions import ValidationError
 from django.core.cache import cache
+from django.conf import settings
 from rest_framework import status
 
 from ..models import Notebook, NotebookChatMessage, ChatSession, SessionChatMessage
@@ -669,11 +670,11 @@ class ChatService(NotebookBaseService):
     
     def _get_or_create_knowledge_base_agent(self, dataset_id: str) -> Dict:
         """
-        Get or create knowledge base agent for the dataset using the template DSL.
-        
+        Get or create knowledge base agent for the dataset using a simplified DSL.
+
         Args:
             dataset_id: RagFlow dataset ID
-            
+
         Returns:
             Dict with agent info or error
         """
@@ -681,65 +682,108 @@ class ChatService(NotebookBaseService):
             # Check cache first
             cache_key = f"ragflow_kb_agent_{dataset_id}"
             cached_agent = cache.get(cache_key)
-            
+
             if cached_agent:
                 return {
                     "success": True,
                     "agent_id": cached_agent,
                     "cached": True
                 }
-            
-            # Load the knowledge base agent DSL template
-            import os
-            template_path = os.path.join(
-                os.path.dirname(__file__), 
-                '../../infrastructure/ragflow/template/knowledge_base_agent.json'
-            )
-            
-            with open(template_path, 'r') as f:
-                template = json.load(f)
-            
-            # Customize the DSL for this specific dataset
-            dsl = template['dsl'].copy()
-            
-            # Update the retrieval tool to use this dataset
-            for component in dsl['components'].values():
-                if 'tools' in component.get('obj', {}).get('params', {}):
-                    for tool in component['obj']['params']['tools']:
-                        if tool['component_name'] == 'Retrieval':
-                            tool['params']['kb_ids'] = [dataset_id]
-            
-            # Update the begin component to use this dataset
-            if 'begin' in dsl['components']:
-                begin_params = dsl['components']['begin']['obj']['params']
-                if 'inputs' in begin_params and 'knowledge base' in begin_params['inputs']:
-                    begin_params['inputs']['knowledge base']['options'] = [dataset_id]
-            
+
             # Create unique agent title
             agent_title = f"Knowledge Base Agent - Dataset {dataset_id[:8]}"
             agent_description = f"Specialized agent for dataset {dataset_id}"
-            
+
             # Check if agent already exists
             existing_agents = self.ragflow_client.list_agents(title=agent_title)
-            
+
             if existing_agents:
                 agent_id = existing_agents[0]['id']
                 logger.info(f"Using existing agent {agent_id} for dataset {dataset_id}")
             else:
+                # Create a simplified DSL for the agent
+                dsl = {
+                    "components": {
+                        "begin": {
+                            "downstream": ["Agent:KnowledgeBot"],
+                            "obj": {
+                                "component_name": "Begin",
+                                "params": {
+                                    "mode": "conversational",
+                                    "prologue": "Hi! I'm your knowledge base assistant. What would you like to know?",
+                                    "inputs": {
+                                        "knowledge base": {
+                                            "name": "knowledge base",
+                                            "type": "options",
+                                            "optional": False,
+                                            "options": [dataset_id]
+                                        }
+                                    }
+                                }
+                            },
+                            "upstream": []
+                        },
+                        "Agent:KnowledgeBot": {
+                            "downstream": ["Message:Response"],
+                            "obj": {
+                                "component_name": "Agent",
+                                "params": {
+                                    "llm_id": getattr(settings, 'RAGFLOW_CHAT_MODEL', 'deepseek-chat@DeepSeek'),
+                                    "temperature": 0.1,
+                                    "max_tokens": 1024,
+                                    "max_rounds": 1,
+                                    "sys_prompt": "You are a helpful knowledge base assistant. Answer questions based strictly on the information available in the knowledge base. If information is not available, clearly state that you cannot find it in the knowledge base.",
+                                    "prompts": [
+                                        {
+                                            "role": "user",
+                                            "content": "{sys.query}"
+                                        }
+                                    ],
+                                    "tools": [
+                                        {
+                                            "component_name": "Retrieval",
+                                            "name": "Retrieval",
+                                            "params": {
+                                                "kb_ids": [dataset_id],
+                                                "top_n": 5,
+                                                "similarity_threshold": 0.2,
+                                                "keywords_similarity_weight": 0.7,
+                                                "empty_response": "No relevant information found in the knowledge base."
+                                            }
+                                        }
+                                    ]
+                                }
+                            },
+                            "upstream": ["begin"]
+                        },
+                        "Message:Response": {
+                            "downstream": [],
+                            "obj": {
+                                "component_name": "Message",
+                                "params": {
+                                    "content": ["{Agent:KnowledgeBot@content}"]
+                                }
+                            },
+                            "upstream": ["Agent:KnowledgeBot"]
+                        }
+                    }
+                }
+
                 # Create the agent
                 create_result = self.ragflow_client.create_agent(
                     title=agent_title,
                     dsl=dsl,
                     description=agent_description
                 )
-                
+
                 if not create_result.get('success'):
+                    logger.error(f"RagFlow agent creation failed: {create_result}")
                     return {
                         "error": "Failed to create knowledge base agent",
                         "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                         "details": create_result
                     }
-                
+
                 # Get the created agent ID
                 created_agents = self.ragflow_client.list_agents(title=agent_title)
                 if not created_agents:
@@ -747,19 +791,19 @@ class ChatService(NotebookBaseService):
                         "error": "Agent created but not found",
                         "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR
                     }
-                
+
                 agent_id = created_agents[0]['id']
                 logger.info(f"Created new agent {agent_id} for dataset {dataset_id}")
-            
+
             # Cache the agent ID
             cache.set(cache_key, agent_id, timeout=self._agent_cache_timeout)
-            
+
             return {
                 "success": True,
                 "agent_id": agent_id,
                 "cached": False
             }
-            
+
         except Exception as e:
             logger.exception(f"Error creating knowledge base agent for dataset {dataset_id}: {e}")
             return {
