@@ -22,10 +22,9 @@ class ReportAdmin(admin.ModelAdmin):
         "created_at",
         "user",
     )
-    search_fields = ("article_title", "topic", "user__username", "job_id")
+    search_fields = ("article_title", "topic", "user__username")
     readonly_fields = (
         "id",
-        "job_id",
         "created_at",
         "updated_at",
         "result_content",
@@ -132,7 +131,7 @@ class ReportAdmin(admin.ModelAdmin):
         (
             "System Information",
             {
-                "fields": ("job_id", "created_at", "updated_at"),
+                "fields": ("id", "created_at", "updated_at"),
                 "classes": ("collapse",),
             },
         ),

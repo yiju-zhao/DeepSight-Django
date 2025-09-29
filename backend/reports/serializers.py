@@ -46,7 +46,6 @@ class ReportSerializer(serializers.ModelSerializer):
             "file_metadata",
             "generated_files",
             "processing_logs",
-            "job_id",
             "created_at",
             "updated_at",
         ]
@@ -306,7 +305,6 @@ class ReportStatusSerializer(serializers.ModelSerializer):
         model = Report
         fields = [
             "id",
-            "job_id",
             "status",
             "progress",
             "article_title",

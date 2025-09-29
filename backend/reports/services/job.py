@@ -39,34 +39,34 @@ class CriticalErrorDetector:
         self.max_main_process_errors = max_main_process_errors
         self.main_process_error_counts = {}
     
-    def should_fail_task(self, job_id: str, log_message: str) -> bool:
+    def should_fail_task(self, report_id: str, log_message: str) -> bool:
         """Check if log message contains MainProcess critical errors and if task should fail"""
-        
+
         # Check if this is a MainProcess ERROR message (critical)
         if self.MAIN_PROCESS_ERROR_PATTERN.search(log_message):
-            # Initialize counter for this job if not exists
-            if job_id not in self.main_process_error_counts:
-                self.main_process_error_counts[job_id] = 0
-            
+            # Initialize counter for this report if not exists
+            if report_id not in self.main_process_error_counts:
+                self.main_process_error_counts[report_id] = 0
+
             # Increment error count
-            self.main_process_error_counts[job_id] += 1
-            
-            logger.error(f"MainProcess ERROR detected for job {job_id} (count: {self.main_process_error_counts[job_id]}): {log_message[:200]}")
-            
+            self.main_process_error_counts[report_id] += 1
+
+            logger.error(f"MainProcess ERROR detected for report {report_id} (count: {self.main_process_error_counts[report_id]}): {log_message[:200]}")
+
             # Check if we've exceeded the threshold
-            if self.main_process_error_counts[job_id] >= self.max_main_process_errors:
-                logger.error(f"Job {job_id} exceeded maximum MainProcess errors ({self.max_main_process_errors}), failing task")
+            if self.main_process_error_counts[report_id] >= self.max_main_process_errors:
+                logger.error(f"Report {report_id} exceeded maximum MainProcess errors ({self.max_main_process_errors}), failing task")
                 return True
-        
+
         return False
     
     def is_error_message(self, log_message: str) -> bool:
         """Check if message is any Celery ERROR (for display in SSE without failing task)"""
         return bool(self.ANY_ERROR_PATTERN.search(log_message))
     
-    def reset_job_errors(self, job_id: str):
-        """Reset error count for a job"""
-        self.main_process_error_counts.pop(job_id, None)
+    def reset_job_errors(self, report_id: str):
+        """Reset error count for a report"""
+        self.main_process_error_counts.pop(report_id, None)
 
 
 class JobService:
@@ -88,24 +88,20 @@ class JobService:
             for field in string_fields:
                 if field not in report_data or report_data.get(field) is None:
                     report_data[field] = ""
-            
-            # Generate unique job ID first
-            job_id = str(uuid.uuid4())
-            
+
             job_data = {
                 "user": user,
                 "status": Report.STATUS_PENDING,
                 "progress": "Report generation job has been queued",
-                "job_id": job_id,  # Set job_id during creation
                 **report_data,
             }
             
             if notebook:
                 job_data["notebooks"] = notebook
-            
-            # Create the report with job_id already set
+
+            # Create the report
             report = Report.objects.create(**job_data)
-            
+
             # Handle figure_data if provided
             if figure_data:
                 # Import will be updated when figure_service is merged into image service
@@ -116,10 +112,9 @@ class JobService:
                 image_service.create_knowledge_base_figure_data(
                     user.pk, f"direct_{report.id}", figure_data
                 )
-            
+
             # Create job metadata for caching
             job_metadata = {
-                "job_id": report.job_id,
                 "report_id": str(report.id),  # Convert UUID to string for JSON serialization
                 "user_id": str(report.user.pk),  # Convert UUID to string for JSON serialization
                 "status": report.status,
@@ -128,24 +123,24 @@ class JobService:
                 "updated_at": report.updated_at.isoformat(),
                 "configuration": report.get_configuration_dict(),
             }
-            
-            # Store job metadata in cache
-            cache_key = f"report_job:{report.job_id}"
+
+            # Store job metadata in cache using report_id
+            cache_key = f"report_job:{report.id}"
             cache.set(cache_key, job_metadata, timeout=self.cache_timeout)
-            
-            logger.info(f"Created report job {report.job_id} for report {report.id}")
+
+            logger.info(f"Created report job for report {report.id}")
             return report
             
         except Exception as e:
             logger.error(f"Error creating report job: {e}")
             raise
     
-    def get_job_status(self, job_id: str) -> Optional[Dict[str, Any]]:
+    def get_job_status(self, report_id: str) -> Optional[Dict[str, Any]]:
         """Get the status of a report generation job"""
         try:
             # First try to get from Django model
             try:
-                report = Report.objects.get(job_id=job_id)
+                report = Report.objects.get(id=report_id)
                 
                 # Always try to synchronise the database status with the underlying Celery task
                 # so that errors such as `FAILURE`, `REVOKED`, or worker crashes are surfaced to
@@ -160,16 +155,15 @@ class JobService:
                         # Update report status to failed with actual error message
                         error_msg = crash_info.get('error_message', 'Celery worker crashed (SIGSEGV or similar fatal error)')
                         progress_msg = crash_info.get('progress_message', 'Worker crashed during report generation')
-                        
+
                         report.update_status(
                             Report.STATUS_FAILED,
                             progress=progress_msg,
                             error=error_msg
                         )
-                        logger.error(f"Detected worker crash for job {job_id}: {error_msg}")
-                
+                        logger.error(f"Detected worker crash for report {report_id}: {error_msg}")
+
                 job_data = {
-                    "job_id": job_id,
                     "report_id": str(report.id),  # Convert UUID to string for JSON serialization
                     "user_id": str(report.user.pk),  # Convert UUID to string for JSON serialization
                     "status": report.status,
@@ -184,40 +178,40 @@ class JobService:
                 return job_data
             except Report.DoesNotExist:
                 pass
-            
+
             # Fallback to cache
-            cache_key = f"report_job:{job_id}"
+            cache_key = f"report_job:{report_id}"
             job_data = cache.get(cache_key)
             return job_data
-            
+
         except Exception as e:
-            logger.error(f"Error getting job status for {job_id}: {e}")
+            logger.error(f"Error getting job status for {report_id}: {e}")
             return None
     
-    def update_job_progress(self, job_id: str, progress: str, status: Optional[str] = None):
+    def update_job_progress(self, report_id: str, progress: str, status: Optional[str] = None):
         """Update job progress and optionally status"""
         try:
             # Check if the progress message contains MainProcess critical errors that should fail the task
-            if self.error_detector.should_fail_task(job_id, progress):
+            if self.error_detector.should_fail_task(report_id, progress):
                 # Force fail the task due to MainProcess critical errors
-                self.update_job_error(job_id, f"Task failed due to MainProcess critical error: {progress[:200]}")
+                self.update_job_error(report_id, f"Task failed due to MainProcess critical error: {progress[:200]}")
                 return
-            
+
             # For non-MainProcess ERROR messages, just log them but continue processing
             if self.error_detector.is_error_message(progress):
-                logger.warning(f"Non-critical ERROR message for job {job_id}: {progress[:200]}")
-            
+                logger.warning(f"Non-critical ERROR message for report {report_id}: {progress[:200]}")
+
             # Update in database
             try:
-                report = Report.objects.get(job_id=job_id)
+                report = Report.objects.get(id=report_id)
                 if status:
                     report.update_status(status, progress=progress)
                 else:
                     report.progress = progress
                     report.save(update_fields=["progress", "updated_at"])
-                
+
                 # Update cache
-                cache_key = f"report_job:{job_id}"
+                cache_key = f"report_job:{report_id}"
                 job_data = cache.get(cache_key, {})
                 job_data.update({
                     "progress": progress,
@@ -226,21 +220,21 @@ class JobService:
                 if status:
                     job_data["status"] = status
                 cache.set(cache_key, job_data, timeout=self.cache_timeout)
-                
+
             except Report.DoesNotExist:
-                logger.warning(f"Report with job_id {job_id} not found for progress update")
-                
+                logger.warning(f"Report with id {report_id} not found for progress update")
+
         except Exception as e:
-            logger.error(f"Error updating job progress for {job_id}: {e}")
+            logger.error(f"Error updating job progress for {report_id}: {e}")
     
 
-    def update_job_result(self, job_id: str, result: Dict[str, Any], status: str = Report.STATUS_COMPLETED):
+    def update_job_result(self, report_id: str, result: Dict[str, Any], status: str = Report.STATUS_COMPLETED):
         """Update job with final result"""
         try:
             # Clean up error detector for this job since it's completing
-            self.error_detector.reset_job_errors(job_id)
+            self.error_detector.reset_job_errors(report_id)
             
-            report = Report.objects.get(job_id=job_id)
+            report = Report.objects.get(id=report_id)
             
             # Store the main content (prefer processed content from result data)
             if "report_content" in result and result["report_content"]:
@@ -426,7 +420,7 @@ class JobService:
             report.update_status(status, progress="Report generation completed successfully")
             
             # Update cache
-            cache_key = f"report_job:{job_id}"
+            cache_key = f"report_job:{report_id}"
             job_data = cache.get(cache_key, {})
             job_data.update({
                 "status": status,
@@ -436,20 +430,20 @@ class JobService:
             })
             cache.set(cache_key, job_data, timeout=self.cache_timeout)
             
-            logger.info(f"Updated job {job_id} with final result, status: {status}")
+            logger.info(f"Updated report {report_id} with final result, status: {status}")
             
         except Report.DoesNotExist:
-            logger.error(f"Report with job_id {job_id} not found for result update")
+            logger.error(f"Report with report_id {report_id} not found for result update")
         except Exception as e:
-            logger.error(f"Error updating job result for {job_id}: {e}")
+            logger.error(f"Error updating job result for {report_id}: {e}")
     
-    def update_job_error(self, job_id: str, error: str):
+    def update_job_error(self, report_id: str, error: str):
         """Update job with error information"""
         try:
             # Clean up error detector for this job since it's failing
-            self.error_detector.reset_job_errors(job_id)
+            self.error_detector.reset_job_errors(report_id)
             
-            report = Report.objects.get(job_id=job_id)
+            report = Report.objects.get(id=report_id)
             
             # Cleanup ReportImage records for failed jobs
             self._cleanup_report_images_on_failure(report)
@@ -464,20 +458,20 @@ class JobService:
             if report.celery_task_id:
                 try:
                     self._terminate_celery_task_robust(report.celery_task_id)
-                    logger.info(f"Terminated Celery task {report.celery_task_id} for failed job {job_id}")
+                    logger.info(f"Terminated Celery task {report.celery_task_id} for failed report {report_id}")
                 except Exception as termination_error:
-                    logger.warning(f"Failed to terminate Celery task {report.celery_task_id} for job {job_id}: {termination_error}")
+                    logger.warning(f"Failed to terminate Celery task {report.celery_task_id} for report {report_id}: {termination_error}")
             
             # Cleanup temp directories and prevent MinIO upload for failed jobs
             try:
                 from ..orchestrator import report_orchestrator
-                report_orchestrator.cleanup_failed_job(job_id)
-                logger.info(f"Cleaned up temp directories for failed job {job_id}")
+                report_orchestrator.cleanup_failed_job(report_id)
+                logger.info(f"Cleaned up temp directories for failed report {report_id}")
             except Exception as cleanup_error:
-                logger.warning(f"Failed to cleanup temp directories for failed job {job_id}: {cleanup_error}")
+                logger.warning(f"Failed to cleanup temp directories for failed report {report_id}: {cleanup_error}")
             
             # Update cache
-            cache_key = f"report_job:{job_id}"
+            cache_key = f"report_job:{report_id}"
             job_data = cache.get(cache_key, {})
             job_data.update({
                 "status": Report.STATUS_FAILED,
@@ -487,52 +481,52 @@ class JobService:
             })
             cache.set(cache_key, job_data, timeout=self.cache_timeout)
             
-            logger.error(f"Updated job {job_id} with error: {error}")
+            logger.error(f"Updated report {report_id} with error: {error}")
             
         except Report.DoesNotExist:
-            logger.error(f"Report with job_id {job_id} not found for error update")
+            logger.error(f"Report with report_id {report_id} not found for error update")
         except Exception as e:
-            logger.error(f"Error updating job error for {job_id}: {e}")
+            logger.error(f"Error updating job error for {report_id}: {e}")
     
-    def cancel_job(self, job_id: str) -> bool:
+    def cancel_job(self, report_id: str) -> bool:
         """Dispatch a task to cancel a running or pending job."""
         try:
             # Clean up error detector for this job since it's being cancelled
-            self.error_detector.reset_job_errors(job_id)
+            self.error_detector.reset_job_errors(report_id)
 
-            report = Report.objects.get(job_id=job_id)
+            report = Report.objects.get(id=report_id)
 
             # Check if job is in a cancellable state
             if report.status not in [Report.STATUS_PENDING, Report.STATUS_RUNNING]:
-                logger.warning(f"Report job {job_id} is not in a cancellable state (status: {report.status})")
+                logger.warning(f"Report report {report_id} is not in a cancellable state (status: {report.status})")
                 return False
 
             # Dispatch the cancellation task
             from ..tasks import cancel_report_generation
-            cancel_report_generation.delay(job_id)
+            cancel_report_generation.delay(report_id)
 
-            logger.info(f"Cancellation task queued for report job {job_id}")
+            logger.info(f"Cancellation task queued for report report {report_id}")
             return True
 
         except Report.DoesNotExist:
-            logger.warning(f"Report with job_id {job_id} not found for cancellation")
+            logger.warning(f"Report with report_id {report_id} not found for cancellation")
             return False
         except Exception as e:
-            logger.error(f"Error dispatching cancellation for job {job_id}: {e}")
+            logger.error(f"Error dispatching cancellation for report {report_id}: {e}")
             return False
     
-    def delete_job(self, job_id: str) -> bool:
+    def delete_job(self, report_id: str) -> bool:
         """
         Complete deletion of a job with robust termination handling.
         Returns True only if ALL operations succeed, False otherwise.
         """
         try:
-            report = Report.objects.get(job_id=job_id)
-            logger.info(f"Starting deletion of job {job_id} (status: {report.status})")
+            report = Report.objects.get(id=report_id)
+            logger.info(f"Starting deletion of report {report_id} (status: {report.status})")
 
             # Step 1: Terminate Celery task if we have a task ID and job is still running
             if report.celery_task_id and report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
-                logger.info(f"Found celery_task_id: {report.celery_task_id} for job {job_id}")
+                logger.info(f"Found celery_task_id: {report.celery_task_id} for report {report_id}")
                 termination_success = self._terminate_celery_task_robust(report.celery_task_id)
 
                 if not termination_success:
@@ -542,32 +536,32 @@ class JobService:
                 # Update status to cancelled only after confirmed termination
                 try:
                     report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled - task terminated")
-                    logger.info(f"Updated job {job_id} status to CANCELLED")
+                    logger.info(f"Updated report {report_id} status to CANCELLED")
                 except Exception as e:
-                    logger.warning(f"Failed to update status for job {job_id}: {e}")
+                    logger.warning(f"Failed to update status for report {report_id}: {e}")
             else:
-                logger.info(f"Skipping task termination for job {job_id} - status: {report.status}, celery_task_id: {bool(report.celery_task_id)}")
+                logger.info(f"Skipping task termination for report {report_id} - status: {report.status}, celery_task_id: {bool(report.celery_task_id)}")
 
             # Step 2: Clean up all associated data
             cleanup_success = self._cleanup_all_job_data(report)
 
             if not cleanup_success:
-                logger.warning(f"Some cleanup operations failed for job {job_id}, but proceeding with deletion")
+                logger.warning(f"Some cleanup operations failed for report {report_id}, but proceeding with deletion")
 
             # Step 3: Delete the database record (final step)
             try:
                 report.delete()
-                logger.info(f"Successfully deleted job {job_id} and all associated data")
+                logger.info(f"Successfully deleted report {report_id} and all associated data")
                 return True
             except Exception as e:
-                logger.error(f"Failed to delete database record for job {job_id}: {e}")
+                logger.error(f"Failed to delete database record for report {report_id}: {e}")
                 return False
 
         except Report.DoesNotExist:
-            logger.warning(f"Report with job_id {job_id} not found for deletion")
+            logger.warning(f"Report with report_id {report_id} not found for deletion")
             return False
         except Exception as e:
-            logger.error(f"Unexpected error deleting job {job_id}: {e}")
+            logger.error(f"Unexpected error deleting report {report_id}: {e}")
             return False
 
     def _terminate_celery_task_robust(self, celery_task_id: str) -> bool:
@@ -607,33 +601,33 @@ class JobService:
 
         # Clean up cache
         try:
-            cache_key = f"report_job:{report.job_id}"
+            cache_key = f"report_job:{report.id}"
             cache.delete(cache_key)
-            logger.info(f"Cleared cache for job {report.job_id}")
+            logger.info(f"Cleared cache for job {report.id}")
         except Exception as e:
-            logger.warning(f"Failed to clear cache for job {report.job_id}: {e}")
+            logger.warning(f"Failed to clear cache for job {report.id}: {e}")
             cleanup_success = False
 
         # Clean up storage files
         try:
             self._cleanup_storage_files(report)
         except Exception as e:
-            logger.warning(f"Failed to cleanup storage files for job {report.job_id}: {e}")
+            logger.warning(f"Failed to cleanup storage files for job {report.id}: {e}")
             cleanup_success = False
 
         # Clean up ReportImage records
         try:
             self._cleanup_report_images(report)
         except Exception as e:
-            logger.warning(f"Failed to cleanup ReportImage records for job {report.job_id}: {e}")
+            logger.warning(f"Failed to cleanup ReportImage records for job {report.id}: {e}")
             cleanup_success = False
 
         # Clean up temp directories
         try:
             from ..orchestrator import report_orchestrator
-            report_orchestrator.cleanup_failed_job(report.job_id)
+            report_orchestrator.cleanup_failed_job(report.id)
         except Exception as e:
-            logger.warning(f"Failed to cleanup temp directories for job {report.job_id}: {e}")
+            logger.warning(f"Failed to cleanup temp directories for job {report.id}: {e}")
             cleanup_success = False
 
         return cleanup_success
@@ -690,7 +684,6 @@ class JobService:
             jobs = []
             for report in reports:
                 jobs.append({
-                    "job_id": report.job_id,
                     "report_id": str(report.id),  # Convert UUID to string for JSON serialization
                     "user_id": str(report.user.pk),  # Convert UUID to string for JSON serialization
                     "status": report.status,
@@ -720,8 +713,8 @@ class JobService:
             count = 0
             for report in old_reports:
                 # Clean up cache
-                if report.job_id:
-                    cache_key = f"report_job:{report.job_id}"
+                if report.id:
+                    cache_key = f"report_job:{report.id}"
                     cache.delete(cache_key)
                 count += 1
             
@@ -767,7 +760,7 @@ class JobService:
                 time_since_update = datetime.now(timezone.utc) - report.updated_at
                 # Consider job crashed if no updates for 60 minutes
                 if time_since_update > timedelta(minutes=60):
-                    logger.warning(f"Job {report.job_id} has not been updated for {time_since_update}")
+                    logger.warning(f"Job {report.id} has not been updated for {time_since_update}")
                     
                     # If we have a celery_task_id, check the actual task state
                     if report.celery_task_id:
@@ -783,7 +776,7 @@ class JobService:
             return {'crashed': False}
             
         except Exception as e:
-            logger.error(f"Error checking worker crash for job {report.job_id}: {e}")
+            logger.error(f"Error checking worker crash for job {report.id}: {e}")
             return {'crashed': False}
     
     def _check_celery_task_state(self, celery_task_id: str) -> Dict[str, Any]:
@@ -886,7 +879,7 @@ class JobService:
                     self._terminate_celery_task_robust(report.celery_task_id)
 
                     # Reflect same update in cache so that subsequent queries are consistent
-                    cache_key = f"report_job:{report.job_id}"
+                    cache_key = f"report_job:{report.id}"
                     job_data = cache.get(cache_key, {})
                     job_data.update(
                         {
@@ -909,7 +902,7 @@ class JobService:
                     # Ensure the task is fully terminated on the worker side.
                     self._terminate_celery_task_robust(report.celery_task_id)
 
-                    cache_key = f"report_job:{report.job_id}"
+                    cache_key = f"report_job:{report.id}"
                     job_data = cache.get(cache_key, {})
                     job_data.update(
                         {
@@ -929,7 +922,7 @@ class JobService:
         except Exception as e:
             # Failure to synchronise should not blow up the polling endpoint; just log.
             logger.error(
-                f"Error synchronising Celery task state for report {report.job_id}: {e}"
+                f"Error synchronising Celery task state for report {report.id}: {e}"
             )
 
     # Removed: old _terminate_celery_task method - replaced with _terminate_celery_task_robust

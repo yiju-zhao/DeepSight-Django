@@ -29,35 +29,35 @@ class ReportOrchestrator:
         return self.generation_service.generate_report(report_id)
     
     def update_job_progress(
-        self, job_id: str, progress: str, status: Optional[str] = None
+        self, report_id: str, progress: str, status: Optional[str] = None
     ):
         """Update job progress and optionally status"""
-        self.job_service.update_job_progress(job_id, progress, status)
+        self.job_service.update_job_progress(report_id, progress, status)
     
-    def update_job_result(self, job_id: str, result: Dict, status: str = "completed"):
+    def update_job_result(self, report_id: str, result: Dict, status: str = "completed"):
         """Update job with final result"""
-        self.job_service.update_job_result(job_id, result, status)
+        self.job_service.update_job_result(report_id, result, status)
     
-    def update_job_error(self, job_id: str, error: str):
+    def update_job_error(self, report_id: str, error: str):
         """Update job with error information"""
-        self.job_service.update_job_error(job_id, error)
+        self.job_service.update_job_error(report_id, error)
     
-    def get_job_status(self, job_id: str) -> Optional[Dict]:
+    def get_job_status(self, report_id: str) -> Optional[Dict]:
         """Get the status of a report generation job"""
-        return self.job_service.get_job_status(job_id)
+        return self.job_service.get_job_status(report_id)
     
-    def cancel_report_job(self, job_id: str) -> bool:
+    def cancel_report_job(self, report_id: str) -> bool:
         """Cancel a report generation job by dispatching a background task."""
-        return self.job_service.cancel_job(job_id)
+        return self.job_service.cancel_job(report_id)
     
     def list_report_jobs(self, user_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
         """List report generation jobs"""
         return self.job_service.list_jobs(user_id, limit)
     
-    def delete_report_job(self, job_id: str, user_id: int) -> bool:
+    def delete_report_job(self, report_id: str, user_id: int) -> bool:
         """Delete a report generation job and its associated files"""
         # Get report ID from job
-        job_status = self.get_job_status(job_id)
+        job_status = self.get_job_status(report_id)
         if not job_status:
             return False
         
@@ -67,7 +67,7 @@ class ReportOrchestrator:
         storage_deleted = True
         
         # Delete job metadata
-        job_deleted = self.job_service.delete_job(job_id)
+        job_deleted = self.job_service.delete_job(report_id)
         
         return storage_deleted and job_deleted
     
@@ -108,19 +108,19 @@ class ReportOrchestrator:
         """Clean up old jobs"""
         self.job_service.cleanup_old_jobs(days)
     
-    def cleanup_failed_job(self, job_id: str):
+    def cleanup_failed_job(self, report_id: str):
         """Clean up temp directories and resources for a failed job"""
         try:
             # Use generator cancellation to clean temp dirs as needed
-            self.cancel_generation(job_id)
-            logger.info(f"Completed cleanup for failed job {job_id}")
+            self.cancel_generation(report_id)
+            logger.info(f"Completed cleanup for failed report {report_id}")
         except Exception as e:
-            logger.warning(f"Error cleaning up failed job {job_id}: {e}")
+            logger.warning(f"Error cleaning up failed report {report_id}: {e}")
 
-    def cancel_generation(self, job_id: str) -> bool:
+    def cancel_generation(self, report_id: str) -> bool:
         """Cancel generation and cleanup temp data where supported."""
         try:
-            return self.generation_service.cancel_generation(job_id)
+            return self.generation_service.cancel_generation(report_id)
         except Exception:
             return False
 

@@ -212,15 +212,6 @@ class Report(models.Model):
 
     # Celery task tracking (optional – used for cancellation of background task)
     celery_task_id = models.CharField(max_length=255, null=True, blank=True)
-    
-
-    # Job management
-    job_id = models.CharField(
-        max_length=100,
-        unique=True,
-        blank=True,
-        help_text="Background job ID for tracking",
-    )
 
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -233,7 +224,6 @@ class Report(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["user", "status"]),
-            models.Index(fields=["job_id"]),
             # MinIO-specific indexes
             models.Index(fields=["main_report_object_key"]),
         ]

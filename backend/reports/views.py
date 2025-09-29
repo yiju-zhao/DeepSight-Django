@@ -33,9 +33,9 @@ class ReportViewHelper:
     """Helper class containing common operations for report views"""
 
     @staticmethod
-    def get_user_report(job_id: str, user) -> Report:
+    def get_user_report(report_id: str, user) -> Report:
         """Get a report for a specific user with proper error handling"""
-        return get_object_or_404(Report.objects.filter(user=user), job_id=job_id)
+        return get_object_or_404(Report.objects.filter(user=user), id=report_id)
 
     @staticmethod
     def get_user_notebook(notebook_id: str, user) -> 'Notebook':
@@ -46,8 +46,7 @@ class ReportViewHelper:
     def format_report_data(report: Report) -> dict:
         """Format report data for API responses (centralized formatting)"""
         return {
-            "job_id": report.job_id,
-            "report_id": report.id,
+            "report_id": str(report.id),
             "status": report.status,
             "progress": report.progress,
             "title": report.article_title,
@@ -82,7 +81,7 @@ class ReportJobListCreateView(APIView):
 
             # Use only() to limit fields for better performance
             reports = qs.only(
-                'id', 'job_id', 'status', 'progress', 'article_title', 'created_at',
+                'id', 'status', 'progress', 'article_title', 'created_at',
                 'updated_at', 'error_message', 'main_report_object_key', 'result_content'
             ).order_by('-created_at')
 
@@ -96,7 +95,7 @@ class ReportJobListCreateView(APIView):
                         validated_reports.append(ReportViewHelper.format_report_data(report))
                     else:
                         logger.warning(
-                            f"Skipping phantom job {report.job_id} - no files found"
+                            f"Skipping phantom report {report.id} - no files found"
                         )
                 else:
                     validated_reports.append(ReportViewHelper.format_report_data(report))
@@ -140,13 +139,12 @@ class ReportJobListCreateView(APIView):
             report.save(update_fields=["celery_task_id"])
 
             logger.info(
-                f"Report job {report.job_id} created for report {report.id} (canonical)"
+                f"Report {report.id} created (canonical)"
             )
 
             return Response(
                 {
-                    "job_id": report.job_id,
-                    "report_id": report.id,
+                    "report_id": str(report.id),
                     "status": report.status,
                     "message": "Report generation job has been queued",
                 },
@@ -158,22 +156,21 @@ class ReportJobListCreateView(APIView):
 
 
 class ReportJobDetailView(APIView):
-    """Canonical: Get or update a report job by job_id (no notebook in path)."""
+    """Canonical: Get or update a report job by report_id (no notebook in path)."""
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_report(self, job_id):
-        return ReportViewHelper.get_user_report(job_id, self.request.user)
+    def _get_report(self, report_id):
+        return ReportViewHelper.get_user_report(report_id, self.request.user)
 
-    def get(self, request, job_id):
+    def get(self, request, report_id):
         try:
-            report = self._get_report(job_id)
-            job_data = report_orchestrator.get_job_status(job_id)
+            report = self._get_report(report_id)
+            job_data = report_orchestrator.get_job_status(report_id)
             if not job_data:
                 return Response({"detail": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
             response_data = {
-                "job_id": job_id,
-                "report_id": report.id,
+                "report_id": str(report.id),
                 "status": report.status,
                 "progress": report.progress,
                 "result": job_data.get("result"),
@@ -185,12 +182,12 @@ class ReportJobDetailView(APIView):
         except Http404:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error getting report status (canonical) for {job_id}: {e}")
+            logger.error(f"Error getting report status (canonical) for report {report_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def put(self, request, job_id):
+    def put(self, request, report_id):
         try:
-            report = self._get_report(job_id)
+            report = self._get_report(report_id)
             if report.status != Report.STATUS_COMPLETED:
                 return Response(
                     {"detail": "Only completed reports can be edited"},
@@ -214,59 +211,58 @@ class ReportJobDetailView(APIView):
                         content=content.encode('utf-8'),
                         content_type='text/markdown'
                     )
-                    logger.info(f"Updated report file for job {job_id}")
+                    logger.info(f"Updated report file for report {report_id}")
                 except Exception as e:
-                    logger.warning(f"Could not update report file for {job_id}: {e}")
+                    logger.warning(f"Could not update report file for report {report_id}: {e}")
 
             return Response(
                 {
                     "message": "Report updated successfully",
-                    "job_id": job_id,
-                    "report_id": report.id,
+                    "report_id": str(report.id),
                     "updated_at": report.updated_at.isoformat(),
                 }
             )
         except Http404:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error updating report (canonical) {job_id}: {e}")
+            logger.error(f"Error updating report (canonical) report {report_id}: {e}")
             return Response({"detail": f"Error updating report: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    def delete(self, request, job_id):
+    def delete(self, request, report_id):
         """
         Delete a completed, failed, or cancelled report job.
-        For cancelling running jobs, use POST /jobs/{job_id}/cancel/ instead.
+        For cancelling running jobs, use POST /jobs/{report_id}/cancel/ instead.
         """
         try:
-            report = self._get_report(job_id)
+            report = self._get_report(report_id)
             job_service = JobService()
 
-            logger.info(f"DELETE request for job {job_id} (status: {report.status})")
+            logger.info(f"DELETE request for report {report_id} (status: {report.status})")
 
             # Check if job is in a deletable state (not running or pending)
             if report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
                 return Response({
-                    "detail": f"Cannot delete job in '{report.status}' status. Use POST /jobs/{job_id}/cancel/ to cancel running jobs first.",
+                    "detail": f"Cannot delete job in '{report.status}' status. Use POST /jobs/{report_id}/cancel/ to cancel running jobs first.",
                     "current_status": report.status
                 }, status=status.HTTP_400_BAD_REQUEST)
 
             # Only delete completed, failed, or cancelled jobs
-            success = job_service.delete_job(job_id)
+            success = job_service.delete_job(report_id)
 
             if success:
                 return Response({
                     "success": True,
-                    "message": f"Job {job_id} successfully deleted",
-                    "job_id": job_id,
+                    "message": f"Job report {report_id} successfully deleted",
+                    "report_id": report_id,
                     "previous_status": report.status
                 }, status=status.HTTP_200_OK)
             else:
-                error_message = f"Failed to delete job {job_id}"
-                logger.error(f"Deletion failed for job {job_id}")
+                error_message = f"Failed to delete job report {report_id}"
+                logger.error(f"Deletion failed for report {report_id}")
                 return Response({
                     "success": False,
                     "message": error_message,
-                    "job_id": job_id,
+                    "report_id": report_id,
                     "previous_status": report.status,
                     "detail": "Job deletion failed - check logs for details"
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -277,12 +273,12 @@ class ReportJobDetailView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
         except Exception as e:
-            logger.error(f"Unexpected error during report deletion {job_id}: {e}")
+            logger.error(f"Unexpected error during report deletion report {report_id}: {e}")
             return Response(
                 {
                     "success": False,
                     "detail": f"Unexpected error during deletion: {str(e)}",
-                    "job_id": job_id
+                    "report_id": report_id
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -293,9 +289,9 @@ class ReportJobDownloadView(APIView):
     """Canonical: Download generated report files"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, job_id):
+    def get(self, request, report_id):
         try:
-            report = get_object_or_404(Report.objects.filter(user=request.user), job_id=job_id)
+            report = get_object_or_404(Report.objects.filter(user=request.user), id=report_id)
 
             if report.status != Report.STATUS_COMPLETED:
                 return Response({"detail": "Job is not completed yet"}, status=status.HTTP_400_BAD_REQUEST)
@@ -319,7 +315,7 @@ class ReportJobDownloadView(APIView):
         except Http404:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error downloading report (canonical) for job {job_id}: {e}")
+            logger.error(f"Error downloading report (canonical) for report {report_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -327,9 +323,9 @@ class ReportJobPdfDownloadView(APIView):
     """Canonical: Download generated report files as PDF"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, job_id):
+    def get(self, request, report_id):
         try:
-            report = get_object_or_404(Report.objects.filter(user=request.user), job_id=job_id)
+            report = get_object_or_404(Report.objects.filter(user=request.user), id=report_id)
             if report.status != Report.STATUS_COMPLETED:
                 return Response({"detail": "Job is not completed yet"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -348,7 +344,7 @@ class ReportJobPdfDownloadView(APIView):
                     else:
                         markdown_content = content_bytes
                 except Exception as e:
-                    logger.error(f"Error reading report file for {job_id}: {e}")
+                    logger.error(f"Error reading report file for report {report_id}: {e}")
 
             if not markdown_content:
                 return Response({"detail": "No report content found to convert to PDF"}, status=status.HTTP_404_NOT_FOUND)
@@ -371,13 +367,13 @@ class ReportJobPdfDownloadView(APIView):
                 logger.info(f"PDF generated successfully: {pdf_file_path}")
                 return response
             except Exception as e:
-                logger.error(f"Error converting report to PDF for job {job_id}: {e}")
+                logger.error(f"Error converting report to PDF for report {report_id}: {e}")
                 shutil.rmtree(temp_dir, ignore_errors=True)
                 return Response({"detail": f"PDF conversion failed: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Http404:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error downloading PDF report (canonical) for job {job_id}: {e}")
+            logger.error(f"Error downloading PDF report (canonical) for report {report_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -385,9 +381,9 @@ class ReportJobFilesView(APIView):
     """Canonical: List all files generated for a specific report job"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, job_id):
+    def get(self, request, report_id):
         try:
-            report = get_object_or_404(Report.objects.filter(user=request.user), job_id=job_id)
+            report = get_object_or_404(Report.objects.filter(user=request.user), id=report_id)
             files = []
             if report.main_report_object_key:
                 try:
@@ -400,16 +396,16 @@ class ReportJobFilesView(APIView):
                             "filename": filename,
                             "size": size,
                             "type": file_type,
-                            "download_url": f"/api/v1/reports/jobs/{job_id}/download?filename={filename}",
+                            "download_url": f"/api/v1/reports/jobs/{report_id}/download?filename={filename}",
                         }
                     )
                 except Exception as e:
-                    logger.warning(f"Error listing files for job {job_id}: {e}")
+                    logger.warning(f"Error listing files for report {report_id}: {e}")
             return Response({"files": files})
         except Http404:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error listing files (canonical) for job {job_id}: {e}")
+            logger.error(f"Error listing files (canonical) for report {report_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -417,17 +413,16 @@ class ReportJobContentView(APIView):
     """Canonical: Get the main report content as text/markdown"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def get(self, request, job_id):
+    def get(self, request, report_id):
         try:
-            report = get_object_or_404(Report.objects.filter(user=request.user), job_id=job_id)
+            report = get_object_or_404(Report.objects.filter(user=request.user), id=report_id)
             if report.status != Report.STATUS_COMPLETED:
                 return Response({"detail": "Job is not completed yet"}, status=status.HTTP_400_BAD_REQUEST)
 
             if report.result_content:
                 return Response(
                     {
-                        "job_id": job_id,
-                        "report_id": report.id,
+                        "report_id": str(report.id),
                         "content": report.result_content,
                         "article_title": report.article_title,
                         "generated_files": report.generated_files,
@@ -445,21 +440,20 @@ class ReportJobContentView(APIView):
                         content = content_bytes
                     return Response(
                         {
-                            "job_id": job_id,
-                            "report_id": report.id,
+                            "report_id": str(report.id),
                             "content": content,
                             "article_title": report.article_title,
                             "generated_files": report.generated_files,
                         }
                     )
                 except Exception as e:
-                    logger.error(f"Error reading report file for {job_id}: {e}")
+                    logger.error(f"Error reading report file for report {report_id}: {e}")
 
             return Response({"detail": "Report content not found"}, status=status.HTTP_404_NOT_FOUND)
         except Http404:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error getting report content (canonical) for job {job_id}: {e}")
+            logger.error(f"Error getting report content (canonical) for report {report_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -467,13 +461,13 @@ class ReportJobCancelView(APIView):
     """Canonical: Cancel a running or pending report job"""
     permission_classes = [permissions.IsAuthenticated]
 
-    def _get_report(self, job_id):
-        return ReportViewHelper.get_user_report(job_id, self.request.user)
+    def _get_report(self, report_id):
+        return ReportViewHelper.get_user_report(report_id, self.request.user)
 
-    def post(self, request, job_id):
+    def post(self, request, report_id):
         """Cancel and delete a running or pending report job"""
         try:
-            report = self._get_report(job_id)
+            report = self._get_report(report_id)
 
             # Check if job is in a cancellable state
             if report.status not in [Report.STATUS_PENDING, Report.STATUS_RUNNING]:
@@ -486,7 +480,7 @@ class ReportJobCancelView(APIView):
             job_service = JobService()
 
             # First cancel the job
-            cancel_success = job_service.cancel_job(job_id)
+            cancel_success = job_service.cancel_job(report_id)
             if not cancel_success:
                 return Response(
                     {"detail": "Failed to cancel job"},
@@ -510,23 +504,23 @@ class ReportJobCancelView(APIView):
 
             # Now delete the cancelled job
             if report.status == Report.STATUS_CANCELLED:
-                delete_success = job_service.delete_job(job_id)
+                delete_success = job_service.delete_job(report_id)
                 if delete_success:
                     return Response({
-                        "job_id": job_id,
+                        "report_id": report_id,
                         "status": "cancelled_and_deleted",
                         "message": "Job has been cancelled and deleted successfully"
                     }, status=status.HTTP_200_OK)
                 else:
                     return Response({
-                        "job_id": job_id,
+                        "report_id": report_id,
                         "status": "cancelled_only",
                         "message": "Job was cancelled but deletion failed",
                         "detail": "The job has been cancelled but could not be deleted from the database"
                     }, status=status.HTTP_206_PARTIAL_CONTENT)
             else:
                 return Response({
-                    "job_id": job_id,
+                    "report_id": report_id,
                     "status": "cancel_timeout",
                     "message": "Job cancellation initiated but did not complete within timeout",
                     "detail": f"Job status is still '{report.status}' after {max_wait_time} seconds"
@@ -535,7 +529,7 @@ class ReportJobCancelView(APIView):
         except Report.DoesNotExist:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error cancelling job {job_id}: {e}")
+            logger.error(f"Error cancelling job report {report_id}: {e}")
             return Response({"detail": f"Error cancelling job: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -574,8 +568,8 @@ class ReportModelsView(APIView):
 
 
 
-def report_status_stream(request, job_id):
-    """Canonical SSE endpoint: real-time report-job status updates by job_id."""
+def report_status_stream(request, report_id):
+    """Canonical SSE endpoint: real-time report-job status updates by report_id."""
 
     if request.method == "OPTIONS":
         response = HttpResponse(status=200)
@@ -596,7 +590,7 @@ def report_status_stream(request, job_id):
         return response
 
     try:
-        if not Report.objects.filter(job_id=job_id, user=request.user).exists():
+        if not Report.objects.filter(id=report_id, user=request.user).exists():
             response = StreamingHttpResponse(
                 f"data: {json.dumps({'type': 'error', 'message': 'Report not found'})}\n\n",
                 content_type="text/event-stream",
@@ -614,17 +608,16 @@ def report_status_stream(request, job_id):
 
             while time.time() - start_time < max_duration:
                 try:
-                    status_data = report_orchestrator.get_job_status(job_id)
+                    status_data = report_orchestrator.get_job_status(report_id)
                     if not status_data:
                         # Use only() to limit database fields for better performance
-                        current_report = Report.objects.filter(job_id=job_id).only(
-                            'id', 'job_id', 'status', 'progress', 'error_message', 'updated_at'
+                        current_report = Report.objects.filter(id=report_id).only(
+                            'id', 'status', 'progress', 'error_message', 'updated_at'
                         ).first()
                         if not current_report:
                             yield f"data: {json.dumps({'type': 'error', 'message': 'Report not found'})}\n\n"
                             break
                         status_data = {
-                            "job_id": job_id,
                             "report_id": str(current_report.id),
                             "status": current_report.status,
                             "progress": current_report.progress,
@@ -644,7 +637,7 @@ def report_status_stream(request, job_id):
                     time.sleep(poll_interval)
 
                 except Exception as e:
-                    logger.error(f"Error in SSE stream for job {job_id}: {e}")
+                    logger.error(f"Error in SSE stream for report {report_id}: {e}")
                     yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
                     break
 
@@ -657,7 +650,7 @@ def report_status_stream(request, job_id):
         response["Access-Control-Allow-Credentials"] = "true"
         return response
     except Exception as e:
-        logger.error(f"Error setting up SSE stream (canonical) for job {job_id}: {e}")
+        logger.error(f"Error setting up SSE stream (canonical) for report {report_id}: {e}")
         response = StreamingHttpResponse(
             f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n",
             content_type="text/event-stream",

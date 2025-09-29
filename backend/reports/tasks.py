@@ -23,7 +23,7 @@ def process_report_generation(self, report_id: int):
         from .models import Report
         try:
             report = Report.objects.get(id=report_id)
-            job_id = report.job_id
+            
         except Report.DoesNotExist:
             logger.error(f"Report {report_id} not found")
             raise Exception(f"Report {report_id} not found")
@@ -31,7 +31,7 @@ def process_report_generation(self, report_id: int):
         # -------------------------------------------------------------------
         # Attach progress-log handler so INFO messages update frontend
         # -------------------------------------------------------------------
-        progress_handler = ReportProgressLogHandler(job_id, report_orchestrator)
+        progress_handler = ReportProgressLogHandler(report_id, report_orchestrator)
         root_logger = logging.getLogger()  # capture logs from all modules
         root_logger.addHandler(progress_handler)
 
@@ -43,7 +43,7 @@ def process_report_generation(self, report_id: int):
 
         # Update job status to running
         report_orchestrator.update_job_progress(
-            job_id, "Starting report generation", Report.STATUS_RUNNING
+            report_id, "Starting report generation", Report.STATUS_RUNNING
         )
 
         # Generate the report
@@ -56,19 +56,19 @@ def process_report_generation(self, report_id: int):
 
         if result.get('success', False):
             # Update job with success
-            report_orchestrator.update_job_result(job_id, result, Report.STATUS_COMPLETED)
+            report_orchestrator.update_job_result(report_id, result, Report.STATUS_COMPLETED)
             # Push final success progress so that frontend can display last stage
             elapsed = time.time() - start_ts
             success_msg = (
                 f"Task reports.tasks.process_report_generation[{self.request.id}] succeeded in {elapsed:.1f}s"
             )
-            report_orchestrator.update_job_progress(job_id, success_msg)
+            report_orchestrator.update_job_progress(report_id, success_msg)
             logger.info(f"Successfully completed report generation for report {report_id}")
             return result
         else:
             # Handle generation failure
             error_msg = result.get('error_message', 'Report generation failed')
-            report_orchestrator.update_job_error(job_id, error_msg)
+            report_orchestrator.update_job_error(report_id, error_msg)
             raise Exception(error_msg)
 
     except Exception as e:
@@ -78,7 +78,7 @@ def process_report_generation(self, report_id: int):
         try:
             from .models import Report
             report = Report.objects.get(id=report_id)
-            report_orchestrator.update_job_error(report.job_id, str(e))
+            report_orchestrator.update_job_error(str(report.id), str(e))
         except Report.DoesNotExist:
             logger.error(f"Could not update error for report {report_id} - report not found")
 
@@ -101,13 +101,13 @@ def cleanup_old_reports():
 
 
 @shared_task(bind=True)
-def cancel_report_generation(self, job_id: str):
+def cancel_report_generation(self, report_id: str):
     """Cancel a report generation job by revoking the Celery task."""
     try:
-        logger.info(f"Cancelling report generation for job {job_id}")
+        logger.info(f"Cancelling report generation for report {report_id}")
 
         from .models import Report
-        report = Report.objects.get(job_id=job_id)
+        report = Report.objects.get(id=report_id)
 
         # Revoke the main Celery task if it's running
         if report.celery_task_id:
@@ -116,27 +116,27 @@ def cancel_report_generation(self, job_id: str):
                 celery_app.control.revoke(
                     report.celery_task_id, terminate=True, signal="SIGTERM"
                 )
-                logger.info(f"Revoked Celery task {report.celery_task_id} for job {job_id}")
+                logger.info(f"Revoked Celery task {report.celery_task_id} for report {report_id}")
             except Exception as e:
-                logger.warning(f"Failed to revoke Celery task for job {job_id}: {e}")
+                logger.warning(f"Failed to revoke Celery task for report {report_id}: {e}")
 
         # Call generator cancellation to clean up temp directories
         try:
-            report_orchestrator.cancel_generation(job_id)
+            report_orchestrator.cancel_generation(report_id)
         except Exception as e:
-            logger.warning(f"Failed to cleanup during cancellation for job {job_id}: {e}")
+            logger.warning(f"Failed to cleanup during cancellation for report {report_id}: {e}")
 
         # Update job status in database to 'cancelled'
         report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
 
-        logger.info(f"Successfully cancelled report generation for job {job_id}")
-        return {"status": "cancelled", "job_id": job_id}
+        logger.info(f"Successfully cancelled report generation for report {report_id}")
+        return {"status": "cancelled", "report_id": report_id}
 
     except Report.DoesNotExist:
-        logger.error(f"Report with job_id {job_id} not found for cancellation")
-        return {"status": "failed", "job_id": job_id, "message": "Job not found"}
+        logger.error(f"Report with report_id {report_id} not found for cancellation")
+        return {"status": "failed", "report_id": report_id, "message": "Job not found"}
     except Exception as e:
-        logger.error(f"Error cancelling report generation for job {job_id}: {e}")
+        logger.error(f"Error cancelling report generation for report {report_id}: {e}")
         raise
 
 
@@ -148,7 +148,7 @@ def delete_report_and_cleanup(self, report_id: int):
 
         from .models import Report
         report = Report.objects.get(id=report_id)
-        job_id = report.job_id
+        
 
         # Cleanup ReportImage records
         try:
@@ -165,7 +165,7 @@ def delete_report_and_cleanup(self, report_id: int):
         report.delete()
 
         logger.info(f"Successfully deleted report {report_id} and completed cleanup")
-        return {"status": "deleted", "report_id": report_id, "job_id": job_id}
+        return {"status": "deleted", "report_id": report_id}
 
     except Report.DoesNotExist:
         logger.error(f"Report {report_id} not found for deletion")
@@ -227,9 +227,9 @@ class ReportProgressLogHandler(logging.Handler):
         re.compile(r"Task reports\.tasks\.process_report_generation\[.*?\] succeeded", re.IGNORECASE),
     ]
 
-    def __init__(self, job_id: str, orchestrator):
+    def __init__(self, report_id: str, orchestrator):
         super().__init__(level=logging.INFO)  # Monitor both INFO and ERROR levels
-        self.job_id = job_id
+        self.report_id = report_id
         self.orchestrator = orchestrator
 
     def emit(self, record: logging.LogRecord):
@@ -240,10 +240,10 @@ class ReportProgressLogHandler(logging.Handler):
             # The orchestrator will decide whether to fail the task (MainProcess) or just display (others)
             if record.levelno == logging.ERROR:
                 try:
-                    self.orchestrator.update_job_progress(self.job_id, msg)
+                    self.orchestrator.update_job_progress(self.report_id, msg)
                 except Exception as e:  # pragma: no cover – never crash handler
                     logging.getLogger(__name__).warning(
-                        f"Failed to process error message for {self.job_id}: {e}"
+                        f"Failed to process error message for {self.report_id}: {e}"
                     )
                 return
             
@@ -253,10 +253,10 @@ class ReportProgressLogHandler(logging.Handler):
                     if pattern.search(msg):
                         # Push raw log line to progress – keeps message identical to log
                         try:
-                            self.orchestrator.update_job_progress(self.job_id, msg)
+                            self.orchestrator.update_job_progress(self.report_id, msg)
                         except Exception as e:  # pragma: no cover – never crash handler
                             logging.getLogger(__name__).warning(
-                                f"Failed to update progress for {self.job_id}: {e}"
+                                f"Failed to update progress for {self.report_id}: {e}"
                             )
                         break  # Stop after first match
         except Exception:
