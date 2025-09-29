@@ -236,10 +236,35 @@ export const useGenerationManager = (
       // Start SSE connection
       connectSSE(jobId);
 
-      // Invalidate and refetch job lists to show new job immediately
+      // Optimistically add the new job to the cache for immediate UI feedback
       const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
-      queryClient.invalidateQueries({ queryKey });
+
+      // Optimistically update the query data
+      queryClient.setQueryData(queryKey, (old: any) => {
+        const newJobItem = {
+          id: jobId,
+          status: 'pending',
+          progress: `Starting ${type} generation...`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          title: config.article_title || config.topic || `New ${type}`,
+          article_title: config.article_title || config.topic || `New ${type}`,
+        };
+
+        const existingJobs = old?.jobs || [];
+        return {
+          ...old,
+          jobs: [newJobItem, ...existingJobs]
+        };
+      });
+
+      // Refetch to get accurate server data
       queryClient.refetchQueries({ queryKey });
+
+      // Refetch again after delay to ensure backend has committed the data
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey });
+      }, 500);
     },
   });
 
