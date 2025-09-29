@@ -117,13 +117,13 @@ class RagFlowClient:
         try:
             logger.info(f"Creating RagFlow dataset: {name}")
             
-            # Create parser config object with string values for boolean fields
+            # Create parser config object with mixed data types as required by API
             parser_config_dict = {
                 "chunk_token_num": 512,
                 "delimiter": "#",
-                "html4excel": "false",
-                "layout_recognize": "true",
-                "raptor": {"use_raptor": true}
+                "html4excel": False,  # boolean expected
+                "layout_recognize": "true",  # string expected
+                "raptor": {"use_raptor": True}  # boolean expected
             }
             # Create a ParserConfig object with proper rag and res_dict parameters
             parser_config = DataSet.ParserConfig(self.client, parser_config_dict)
