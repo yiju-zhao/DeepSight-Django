@@ -510,10 +510,35 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         return ChatSession.objects.filter(notebook=notebook).order_by("-last_activity")
 
     def perform_create(self, serializer):
-        """Associate the chat session with the notebook from URL."""
+        """Create a chat session with proper RagFlow integration."""
         notebook_id = self.kwargs.get("notebook_pk")
         notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
-        serializer.save(notebook=notebook)
+
+        # Get title from validated data
+        title = serializer.validated_data.get('title', 'New Chat')
+
+        # Use ChatService to create session with RagFlow integration
+        result = self.chat_service.create_chat_session(
+            notebook=notebook,
+            user_id=self.request.user.id,
+            title=title
+        )
+
+        if not result.get('success'):
+            error_msg = result.get('error', 'Failed to create chat session')
+            raise ValidationError(error_msg)
+
+        # Get the created session from database
+        session_data = result.get('session', {})
+        session_id = session_data.get('id')
+
+        if session_id:
+            # Get the actual ChatSession instance
+            chat_session = ChatSession.objects.get(session_id=session_id)
+            # Set the instance on the serializer
+            serializer.instance = chat_session
+        else:
+            raise ValidationError("Session was created but ID not returned")
 
     @action(detail=True, methods=["post"], url_path="messages")
     def send_message(self, request, notebook_pk=None, pk=None):
