@@ -240,13 +240,17 @@ interface MarkdownContentProps {
 
 
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
-  // Remove non-standard HTML tags (think, results, answer, information) that cause React warnings
+  // Remove non-standard HTML tags (think, result, results, answer, information) that cause React warnings
   const sanitizedContent = React.useMemo(() => {
     return content
       // Remove <think> tags
       .replace(/<think>/gi, '')
       .replace(/<\/think>/gi, '')
       .replace(/<think\s*\/>/gi, '')
+      // Remove <result> tags
+      .replace(/<result>/gi, '')
+      .replace(/<\/result>/gi, '')
+      .replace(/<result\s*\/>/gi, '')
       // Remove <results> tags
       .replace(/<results>/gi, '')
       .replace(/<\/results>/gi, '')
