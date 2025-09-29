@@ -240,6 +240,26 @@ interface MarkdownContentProps {
 
 
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
+  // Remove non-standard HTML tags (think, results, answer, information) that cause React warnings
+  const sanitizedContent = React.useMemo(() => {
+    return content
+      // Remove <think> tags
+      .replace(/<think>/gi, '')
+      .replace(/<\/think>/gi, '')
+      .replace(/<think\s*\/>/gi, '')
+      // Remove <results> tags
+      .replace(/<results>/gi, '')
+      .replace(/<\/results>/gi, '')
+      .replace(/<results\s*\/>/gi, '')
+      // Remove <answer> tags
+      .replace(/<answer>/gi, '')
+      .replace(/<\/answer>/gi, '')
+      .replace(/<answer\s*\/>/gi, '')
+      // Remove <information> tags
+      .replace(/<information>/gi, '')
+      .replace(/<\/information>/gi, '')
+      .replace(/<information\s*\/>/gi, '');
+  }, [content]);
 
   return (
     <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
@@ -292,7 +312,7 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
           ),
         }}
       >
-        {content}
+        {sanitizedContent}
       </ReactMarkdown>
     </div>
   );
