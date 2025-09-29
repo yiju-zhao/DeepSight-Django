@@ -465,7 +465,7 @@ class ReportJobCancelView(APIView):
         return ReportViewHelper.get_user_report(report_id, self.request.user)
 
     def post(self, request, report_id):
-        """Cancel and delete a running or pending report job"""
+        """Cancel and delete a running or pending report job - simplified synchronous approach"""
         try:
             report = self._get_report(report_id)
 
@@ -476,60 +476,50 @@ class ReportJobCancelView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Use JobService to cancel and delete the job synchronously
+            logger.info(f"Starting cancellation for report {report_id} (status: {report.status}, celery_task_id: {report.celery_task_id})")
+
+            # Step 1: Revoke Celery task if it exists
+            if report.celery_task_id:
+                try:
+                    from backend.celery import app as celery_app
+                    from celery.result import AsyncResult
+
+                    task_result = AsyncResult(report.celery_task_id, app=celery_app)
+                    logger.info(f"Celery task {report.celery_task_id} current state: {task_result.state}")
+
+                    # Revoke with termination
+                    celery_app.control.revoke(report.celery_task_id, terminate=True, signal='SIGTERM')
+                    logger.info(f"Revoked Celery task {report.celery_task_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to revoke Celery task {report.celery_task_id}: {e}")
+
+            # Step 2: Update status to cancelled
+            report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
+            logger.info(f"Updated report {report_id} status to CANCELLED")
+
+            # Step 3: Use JobService to delete the job and cleanup
             job_service = JobService()
+            delete_success = job_service.delete_job(report_id)
 
-            # First cancel the job
-            cancel_success = job_service.cancel_job(report_id)
-            if not cancel_success:
-                return Response(
-                    {"detail": "Failed to cancel job"},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-            # Wait for cancellation to complete (synchronously)
-            # The cancel_job dispatches a Celery task, so we need to wait for it
-            import time
-            max_wait_time = 10  # Maximum 10 seconds
-            wait_interval = 0.5  # Check every 500ms
-            waited_time = 0
-
-            while waited_time < max_wait_time:
-                # Refresh report from database
-                report.refresh_from_db()
-                if report.status == Report.STATUS_CANCELLED:
-                    break
-                time.sleep(wait_interval)
-                waited_time += wait_interval
-
-            # Now delete the cancelled job
-            if report.status == Report.STATUS_CANCELLED:
-                delete_success = job_service.delete_job(report_id)
-                if delete_success:
-                    return Response({
-                        "report_id": report_id,
-                        "status": "cancelled_and_deleted",
-                        "message": "Job has been cancelled and deleted successfully"
-                    }, status=status.HTTP_200_OK)
-                else:
-                    return Response({
-                        "report_id": report_id,
-                        "status": "cancelled_only",
-                        "message": "Job was cancelled but deletion failed",
-                        "detail": "The job has been cancelled but could not be deleted from the database"
-                    }, status=status.HTTP_206_PARTIAL_CONTENT)
-            else:
+            if delete_success:
+                logger.info(f"Successfully cancelled and deleted report {report_id}")
                 return Response({
                     "report_id": report_id,
-                    "status": "cancel_timeout",
-                    "message": "Job cancellation initiated but did not complete within timeout",
-                    "detail": f"Job status is still '{report.status}' after {max_wait_time} seconds"
-                }, status=status.HTTP_202_ACCEPTED)
+                    "status": "cancelled_and_deleted",
+                    "message": "Job has been cancelled and deleted successfully"
+                }, status=status.HTTP_200_OK)
+            else:
+                logger.error(f"Deletion failed for report {report_id}")
+                return Response({
+                    "report_id": report_id,
+                    "status": "cancelled_only",
+                    "message": "Job was cancelled but deletion failed"
+                }, status=status.HTTP_206_PARTIAL_CONTENT)
 
         except Report.DoesNotExist:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error cancelling job report {report_id}: {e}")
+            logger.error(f"Error cancelling job report {report_id}: {e}", exc_info=True)
             return Response({"detail": f"Error cancelling job: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
