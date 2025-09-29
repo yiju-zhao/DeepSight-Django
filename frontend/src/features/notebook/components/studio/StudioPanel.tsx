@@ -421,7 +421,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
       if (isGenerating) {
         // Cancel and delete the generation synchronously via the backend
-        await reportGeneration.cancel();
+        await reportGeneration.cancel(reportId);
 
         // Force immediate refresh of the job list to remove the cancelled job
         await reportJobs.refetch();
@@ -475,7 +475,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
       if (isGenerating) {
         // Cancel and delete the generation synchronously via the backend
-        await podcastGeneration.cancel();
+        await podcastGeneration.cancel(podcastId);
 
         // Force immediate refresh of the job list to remove the cancelled job
         await podcastJobs.refetch();

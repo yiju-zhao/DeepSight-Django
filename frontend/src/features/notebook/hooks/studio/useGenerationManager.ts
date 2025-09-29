@@ -237,9 +237,11 @@ export const useGenerationManager = (
 
   // Cancel mutation
   const cancelMutation = useMutation({
-    mutationFn: async () => {
-      const jobId = activeJobQuery.data?.jobId;
-      if (!jobId) return;
+    mutationFn: async (explicitJobId?: string) => {
+      const jobId = explicitJobId || activeJobQuery.data?.jobId;
+      if (!jobId) {
+        throw new Error('Report ID not found');
+      }
 
       return type === 'report'
         ? studioService.cancelReportJob(jobId, notebookId)
