@@ -869,27 +869,32 @@ class JobService:
 
                 # Update the report only if we have not already marked it as FAILED
                 if report.status not in [Report.STATUS_FAILED, Report.STATUS_COMPLETED, Report.STATUS_CANCELLED]:
-                    report.update_status(
-                        Report.STATUS_FAILED,
-                        progress="Task failed during execution",
-                        error=error_msg,
-                    )
+                    try:
+                        report.update_status(
+                            Report.STATUS_FAILED,
+                            progress="Task failed during execution",
+                            error=error_msg,
+                        )
 
-                    # Best-effort attempt to stop any lingering task processes.
-                    self._terminate_celery_task_robust(report.celery_task_id)
+                        # Best-effort attempt to stop any lingering task processes.
+                        self._terminate_celery_task_robust(report.celery_task_id)
 
-                    # Reflect same update in cache so that subsequent queries are consistent
-                    cache_key = f"report_job:{report.id}"
-                    job_data = cache.get(cache_key, {})
-                    job_data.update(
-                        {
-                            "status": Report.STATUS_FAILED,
-                            "progress": "Task failed during execution",
-                            "error": error_msg,
-                            "updated_at": datetime.now(timezone.utc).isoformat(),
-                        }
-                    )
-                    cache.set(cache_key, job_data, timeout=self.cache_timeout)
+                        # Reflect same update in cache so that subsequent queries are consistent
+                        cache_key = f"report_job:{report.id}"
+                        job_data = cache.get(cache_key, {})
+                        job_data.update(
+                            {
+                                "status": Report.STATUS_FAILED,
+                                "progress": "Task failed during execution",
+                                "error": error_msg,
+                                "updated_at": datetime.now(timezone.utc).isoformat(),
+                            }
+                        )
+                        cache.set(cache_key, job_data, timeout=self.cache_timeout)
+                    except Report.DoesNotExist:
+                        logger.info(f"Report {report.id} was deleted during sync, skipping status update")
+                    except Exception as update_error:
+                        logger.warning(f"Failed to update report {report.id} status to FAILED: {update_error}")
 
             elif task_result.state == "REVOKED":
                 if report.status not in [Report.STATUS_CANCELLED, Report.STATUS_COMPLETED]:

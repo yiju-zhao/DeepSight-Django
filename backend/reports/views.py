@@ -476,51 +476,18 @@ class ReportJobCancelView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            logger.info(f"Starting cancellation for report {report_id} (status: {report.status}, celery_task_id: {report.celery_task_id})")
+            logger.info(f"Starting cancel and delete for report {report_id} (status: {report.status}, celery_task_id: {report.celery_task_id})")
 
-            # Step 1: Revoke Celery task directly if it exists (before changing status)
+            # Step 1: Revoke Celery task if it exists
             if report.celery_task_id:
                 try:
                     from backend.celery import app as celery_app
-                    from celery.result import AsyncResult
-
-                    task_result = AsyncResult(report.celery_task_id, app=celery_app)
-                    current_state = task_result.state
-                    logger.info(f"Celery task {report.celery_task_id} current state: {current_state}")
-
-                    # Only revoke if task is still running
-                    if current_state not in ['SUCCESS', 'FAILURE', 'REVOKED']:
-                        # Revoke with termination - use terminate=True to send signal to worker
-                        celery_app.control.revoke(
-                            report.celery_task_id,
-                            terminate=True,
-                            signal='SIGTERM'  # Use SIGTERM for graceful termination
-                        )
-                        logger.info(f"Sent revocation signal (SIGTERM) to Celery task {report.celery_task_id}")
-
-                        # Mark task as revoked in Celery result backend
-                        task_result.revoke(terminate=True)
-                        logger.info(f"Marked task {report.celery_task_id} as REVOKED in result backend")
-
-                        # Give a moment for termination to propagate
-                        import time
-                        time.sleep(0.5)
-
-                        # Check final state
-                        task_result = AsyncResult(report.celery_task_id, app=celery_app)
-                        logger.info(f"Celery task {report.celery_task_id} final state after revocation: {task_result.state}")
-                    else:
-                        logger.info(f"Task {report.celery_task_id} already in terminal state: {current_state}")
+                    celery_app.control.revoke(report.celery_task_id, terminate=True, signal='SIGTERM')
+                    logger.info(f"Revoked Celery task {report.celery_task_id}")
                 except Exception as e:
                     logger.warning(f"Failed to revoke Celery task {report.celery_task_id}: {e}")
-            else:
-                logger.info(f"No celery_task_id found for report {report_id}")
 
-            # Step 2: Update status to cancelled
-            report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
-            logger.info(f"Updated report {report_id} status to CANCELLED")
-
-            # Step 3: Use JobService to cleanup and delete (skip task termination since we already did it)
+            # Step 2: Use JobService to cleanup and delete (no status update needed - just delete)
             job_service = JobService()
             delete_success = job_service.delete_job(report_id)
 
