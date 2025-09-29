@@ -125,7 +125,8 @@ class RagFlowClient:
                 "layout_recognize": True,
                 "raptor": {"use_raptor": False}
             }
-            parser_config = DataSet.ParserConfig(**parser_config_dict)
+            # Create a ParserConfig object with proper rag and res_dict parameters
+            parser_config = DataSet.ParserConfig(self.client, parser_config_dict)
 
             # Set default configuration
             dataset_config = {
@@ -133,8 +134,7 @@ class RagFlowClient:
                 'description': description,
                 'chunk_method': getattr(settings, 'RAGFLOW_DEFAULT_CHUNK_METHOD', 'naive'),
                 'embedding_model': getattr(settings, 'RAGFLOW_DEFAULT_EMBEDDING_MODEL', 'text-embedding-3-large@OpenAI'),
-                'parser_config': parser_config,
-                **kwargs
+                'parser_config': parser_config
             }
             
             def _create():
