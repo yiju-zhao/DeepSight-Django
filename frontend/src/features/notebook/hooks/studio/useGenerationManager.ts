@@ -213,9 +213,17 @@ export const useGenerationManager = (
       }
     },
     onSuccess: (response) => {
+      // Backend returns report_id, not job_id
+      const jobId = response.report_id || response.job_id || response.id;
+
+      if (!jobId) {
+        console.error('[useGenerationManager] No job ID in response:', response);
+        return;
+      }
+
       // Set active job in cache
       const newJob: ActiveJob = {
-        jobId: response.job_id,
+        jobId,
         type,
         status: 'pending',
         progress: `Starting ${type} generation...`,
@@ -226,7 +234,7 @@ export const useGenerationManager = (
       queryClient.setQueryData(generationKeys.activeJob(notebookId, type), newJob);
 
       // Start SSE connection
-      connectSSE(response.job_id);
+      connectSSE(jobId);
 
       // Invalidate and refetch job lists to show new job immediately
       const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
