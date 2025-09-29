@@ -287,7 +287,7 @@ export const useGenerationManager = (
 
     // Actions
     generate: generateMutation.mutate,
-    cancel: cancelMutation.mutate,
+    cancel: cancelMutation.mutateAsync, // Use mutateAsync so it returns a Promise for await
     updateConfig,
     cleanup,
 
