@@ -17,6 +17,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
 }) => {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
+  const [closingSessionId, setClosingSessionId] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
   const handleStartEdit = (sessionId: string, currentTitle: string) => {
@@ -105,12 +106,16 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-5 w-5 p-0 rounded hover:bg-gray-300 transition-opacity ${
+                    disabled={closingSessionId === session.id}
+                    className={`h-5 w-5 p-0 rounded hover:bg-gray-300 transition-opacity disabled:opacity-50 ${
                       isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (closingSessionId) return;
+                      setClosingSessionId(session.id);
                       onCloseSession(session.id);
+                      setTimeout(() => setClosingSessionId(null), 1000);
                     }}
                   >
                     <X className="h-3 w-3" />

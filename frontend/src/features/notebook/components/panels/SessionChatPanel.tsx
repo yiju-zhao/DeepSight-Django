@@ -73,8 +73,8 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     return await sendMessage(activeSessionId, message);
   };
 
-  const handleCloseSession = async (sessionId: string) => {
-    await closeSession(sessionId);
+  const handleCloseSession = (sessionId: string) => {
+    closeSession(sessionId);
   };
 
   const handleUpdateTitle = async (sessionId: string, title: string) => {
