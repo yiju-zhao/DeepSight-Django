@@ -580,21 +580,22 @@ class ChatService(NotebookBaseService):
             agent_title = f"Knowledge Base Agent - Dataset {dataset_id[:8]}"
             agent_description = f"Specialized agent for dataset {dataset_id}"
 
-            # Check if agent already exists
+            # Check if agent already exists and delete it to recreate with new DSL
             try:
                 existing_agents = self.ragflow_client.list_agents(title=agent_title)
                 if existing_agents:
                     agent_id = existing_agents[0]['id']
-                    logger.info(f"Using existing agent {agent_id} for dataset {dataset_id}")
+                    logger.info(f"Found existing agent {agent_id} for dataset {dataset_id}, deleting to recreate with new DSL")
 
-                    # Cache the agent ID
-                    cache.set(cache_key, agent_id, timeout=self._agent_cache_timeout)
+                    # Delete the old agent to recreate with simplified DSL
+                    try:
+                        self.ragflow_client.delete_agent(agent_id)
+                        logger.info(f"Deleted old agent {agent_id}")
+                    except Exception as del_error:
+                        logger.warning(f"Failed to delete old agent {agent_id}: {del_error}")
 
-                    return {
-                        "success": True,
-                        "agent_id": agent_id,
-                        "cached": False
-                    }
+                    # Clear cache
+                    cache.delete(cache_key)
                 else:
                     # No agents found, create new one
                     logger.info(f"No existing agents found with title '{agent_title}', creating new one")
