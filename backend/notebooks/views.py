@@ -585,12 +585,15 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         try:
             notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
 
+            message = serializer.validated_data["message"]
+            logger.info(f"Received chat message for session {session.session_id}: {message[:100]}")
+
             # Create streaming response using ChatService
             stream = self.chat_service.create_session_chat_stream(
                 session_id=str(session.session_id),
                 notebook=notebook,
                 user_id=request.user.id,
-                question=serializer.validated_data["message"]
+                question=message
             )
 
             response = StreamingHttpResponse(stream, content_type="text/event-stream")

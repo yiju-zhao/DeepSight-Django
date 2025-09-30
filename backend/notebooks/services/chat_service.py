@@ -1181,6 +1181,7 @@ class ChatService(NotebookBaseService):
                         return
 
                     logger.info(f"Starting streaming ask for session {session.ragflow_session_id} with agent {session.ragflow_agent_id}")
+                    logger.info(f"User question: {question[:200]}")  # Log first 200 chars of question
 
                     # Ask the agent with streaming
                     try:
@@ -1190,7 +1191,7 @@ class ChatService(NotebookBaseService):
                             question=question,
                             stream=True
                         )
-                        logger.info(f"Successfully initiated streaming response from RagFlow")
+                        logger.info(f"Successfully initiated streaming response from RagFlow for question: {question[:50]}...")
                     except Exception as ask_error:
                         logger.exception(f"Failed to ask RagFlow session: {ask_error}")
                         error_payload = json.dumps({'type': 'error', 'message': f'Failed to contact agent: {str(ask_error)}'})
