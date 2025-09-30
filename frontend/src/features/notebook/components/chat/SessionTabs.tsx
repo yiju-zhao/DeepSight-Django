@@ -14,7 +14,6 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
   onCloseSession,
   onUpdateTitle,
   isLoading = false,
-  isClosing = false,
 }) => {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -101,25 +100,22 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                   </span>
                 )}
 
-                {/* Close Button - shown on hover or when active */}
+                {/* Close Button */}
                 {!isEditing && (
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={isClosing}
-                    className={`h-5 w-5 p-0 rounded hover:bg-gray-300 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`h-5 w-5 p-0 rounded hover:bg-gray-300 transition-opacity ${
                       isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                     }`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      onCloseSession(session.id);
+                      if (window.confirm(`Close "${session.title}"?`)) {
+                        onCloseSession(session.id);
+                      }
                     }}
                   >
-                    {isClosing ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <X className="h-3 w-3" />
-                    )}
+                    <X className="h-3 w-3" />
                   </Button>
                 )}
               </motion.div>

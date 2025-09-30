@@ -26,7 +26,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [currentMessages, setCurrentMessages] = useState<SessionChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
-  
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const streamingControllerRef = useRef<AbortController | null>(null);
@@ -92,32 +92,40 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   // Mutation for closing session
   const closeSessionMutation = useMutation({
     mutationFn: (sessionId: string) => sessionChatService.closeSession(notebookId, sessionId),
-    onSuccess: async (_, sessionId) => {
-      // First switch away from the closed session to prevent queries
+    onMutate: async (sessionId) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: sessionKeys.sessions(notebookId) });
+
+      // Snapshot the previous value
+      const previousSessions = queryClient.getQueryData(sessionKeys.sessions(notebookId));
+
+      // Optimistically update to remove the session
+      queryClient.setQueryData(sessionKeys.sessions(notebookId), (old: any) => {
+        if (!old?.sessions) return old;
+        return {
+          ...old,
+          sessions: old.sessions.filter((s: any) => s.id !== sessionId),
+          total_count: old.total_count - 1,
+        };
+      });
+
+      // Switch to another session if needed
       if (activeSessionId === sessionId) {
         const remainingSessions = sessions.filter(s => s.id !== sessionId);
-        if (remainingSessions.length > 0) {
-          setActiveSessionId(remainingSessions[0].id);
-        } else {
-          setActiveSessionId(null);
-          setCurrentMessages([]);
-        }
+        setActiveSessionId(remainingSessions.length > 0 ? remainingSessions[0].id : null);
+        if (remainingSessions.length === 0) setCurrentMessages([]);
       }
 
-      // Then update sessions list
-      await queryClient.refetchQueries({ queryKey: sessionKeys.sessions(notebookId) });
-
-      toast({
-        title: 'Session Closed',
-        description: 'Chat session has been closed',
-      });
+      return { previousSessions };
     },
-    onError: (error) => {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to close session';
-      setError(errorMessage);
+    onError: (error, sessionId, context) => {
+      // Rollback on error
+      if (context?.previousSessions) {
+        queryClient.setQueryData(sessionKeys.sessions(notebookId), context.previousSessions);
+      }
       toast({
         title: 'Error',
-        description: errorMessage,
+        description: error instanceof Error ? error.message : 'Failed to close session',
         variant: 'destructive',
       });
     },
@@ -165,7 +173,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   }, [createSessionMutation]);
 
   const closeSession = useCallback((sessionId: string) => {
-    closeSessionMutation.mutate(sessionId);
+    if (!closeSessionMutation.isPending) {
+      closeSessionMutation.mutate(sessionId);
+    }
   }, [closeSessionMutation]);
 
   const updateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<boolean> => {
@@ -327,32 +337,19 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   }, []);
 
   return {
-    // Session management
     sessions,
     activeSessionId,
     activeSession,
-
-    // Messages
     currentMessages,
-
-    // Loading states
     isLoading: isLoadingSessions || isLoadingSession,
     isCreatingSession: createSessionMutation.isPending,
-    isClosingSession: closeSessionMutation.isPending,
-    isSendingMessage: false, // Will be managed per session
-
-    // Error handling
     error,
-
-    // Actions
     createSession,
     closeSession,
     switchSession,
     updateSessionTitle,
     sendMessage,
     loadSessionMessages,
-
-    // Utility
     refreshSessions,
     clearError,
   };

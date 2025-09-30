@@ -21,24 +21,14 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
   onSelectionChange,
 }) => {
   const {
-    // Session management
     sessions,
     activeSessionId,
     activeSession,
-
-    // Messages
     currentMessages,
-
-    // Loading states
     isLoading,
     isCreatingSession,
-    isClosingSession,
-
-    // Error handling
     error,
     clearError,
-
-    // Actions
     createSession,
     closeSession,
     switchSession,
@@ -141,7 +131,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
           onCloseSession={handleCloseSession}
           onUpdateTitle={handleUpdateTitle}
           isLoading={isCreatingSession}
-          isClosing={isClosingSession}
         />
       )}
 
