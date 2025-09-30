@@ -952,10 +952,10 @@ class ChatService(NotebookBaseService):
                 title=title,
                 ragflow_session_id=ragflow_session.get('id'),
                 ragflow_agent_id=agent_id,
-                session_metadata={
+                session_metadata=json.dumps({
                     'created_by_user': user_id,
                     'dataset_id': notebook.ragflow_dataset_id
-                }
+                })
             )
             
             self.log_notebook_operation(
