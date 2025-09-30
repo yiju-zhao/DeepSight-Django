@@ -1115,148 +1115,133 @@ class ChatService(NotebookBaseService):
     def create_session_chat_stream(self, session_id: str, notebook: Notebook, user_id: int, question: str) -> Generator:
         """
         Create chat stream for a specific session.
-        
+
         Args:
             session_id: Session UUID
             notebook: Notebook instance
             user_id: User ID
             question: User's question
-            
+
         Returns:
             Generator yielding chat stream chunks
         """
-        try:
-            # Validate notebook access
-            self.validate_notebook_access(notebook, notebook.user)
-            
-            # Get the session
-            session = ChatSession.objects.filter(
-                session_id=session_id, 
-                notebook=notebook,
-                status='active'
-            ).first()
-            
-            if not session:
-                error_payload = json.dumps({'type': 'error', 'message': 'Session not found or inactive'})
-                yield f"data: {error_payload}\n\n"
-                return
-            
-            # Record user message
-            user_message = SessionChatMessage.objects.create(
-                session=session,
-                notebook=notebook,
-                sender='user',
-                message=question
-            )
-            
-            self.log_notebook_operation(
-                "session_user_message_recorded",
-                str(notebook.id),
-                user_id,
-                session_id=str(session.session_id),
-                message_id=str(user_message.id)
-            )
-            
-            # Get conversation history for context
-            history = []
-            recent_messages = session.messages.order_by('timestamp')[:20]  # Last 20 messages
-            for msg in recent_messages:
-                if msg.id != user_message.id:  # Don't include the current message
-                    role = "user" if msg.sender == "user" else "assistant"
-                    history.append({"role": role, "content": msg.message})
-            
-            # Stream response from agent
-            def session_stream():
-                accumulated_content = ""
+        def session_stream():
+            accumulated_content = ""
 
-                try:
-                    # Send initial keepalive to establish SSE connection
-                    keepalive_payload = json.dumps({'type': 'status', 'message': 'Connected'})
-                    yield f"data: {keepalive_payload}\n\n"
+            try:
+                # Send immediate keepalive to establish SSE connection
+                keepalive_payload = json.dumps({'type': 'status', 'message': 'Connected'})
+                yield f"data: {keepalive_payload}\n\n"
 
-                    # Use RagFlow session directly
-                    if not session.ragflow_session_id or not session.ragflow_agent_id:
-                        error_payload = json.dumps({'type': 'error', 'message': 'Session not properly initialized'})
-                        yield f"data: {error_payload}\n\n"
-                        return
+                # Validate notebook access
+                self.validate_notebook_access(notebook, notebook.user)
 
-                    logger.info(f"Starting streaming ask for session {session.ragflow_session_id} with agent {session.ragflow_agent_id}")
-                    logger.info(f"User question: {question[:200]}")  # Log first 200 chars of question
+                # Get the session
+                session = ChatSession.objects.filter(
+                    session_id=session_id,
+                    notebook=notebook,
+                    status='active'
+                ).first()
 
-                    # Ask the agent with streaming
-                    try:
-                        response = self.ragflow_client.ask_session(
-                            agent_id=session.ragflow_agent_id,
-                            session_id=session.ragflow_session_id,
-                            question=question,
-                            stream=True
-                        )
-                        logger.info(f"Successfully initiated streaming response from RagFlow for question: {question[:50]}...")
-                    except Exception as ask_error:
-                        logger.exception(f"Failed to ask RagFlow session: {ask_error}")
-                        error_payload = json.dumps({'type': 'error', 'message': f'Failed to contact agent: {str(ask_error)}'})
-                        yield f"data: {error_payload}\n\n"
-                        return
-
-                    # According to RagFlow SDK docs, streaming returns an iterator of Message objects
-                    # where each Message has a .content attribute that accumulates the full response
-                    message_count = 0
-                    for message in response:
-                        message_count += 1
-                        try:
-                            if hasattr(message, 'content') and message.content:
-                                # Get the new content (delta from accumulated content)
-                                new_content = message.content[len(accumulated_content):]
-
-                                if new_content:
-                                    # Format as SSE - use proper JSON encoding
-                                    payload = json.dumps({'type': 'token', 'text': new_content})
-                                    yield f"data: {payload}\n\n"
-                                    logger.debug(f"Yielded {len(new_content)} new characters (message #{message_count})")
-
-                                # Update accumulated content
-                                accumulated_content = message.content
-                            else:
-                                logger.warning(f"Message #{message_count} has no content attribute or empty content")
-
-                        except Exception as chunk_error:
-                            logger.error(f"Error processing message chunk #{message_count}: {chunk_error}")
-                            continue
-
-                    logger.info(f"Streaming completed, processed {message_count} messages, accumulated {len(accumulated_content)} characters")
-
-                    # Send completion signal
-                    completion_payload = json.dumps({'type': 'done', 'message': 'Response complete'})
-                    yield f"data: {completion_payload}\n\n"
-
-                    # Save assistant response
-                    if accumulated_content:
-                        SessionChatMessage.objects.create(
-                            session=session,
-                            notebook=notebook,
-                            sender='assistant',
-                            message=accumulated_content
-                        )
-
-                        self.log_notebook_operation(
-                            "session_assistant_message_recorded",
-                            str(notebook.id),
-                            user_id,
-                            session_id=str(session.session_id),
-                            response_length=len(accumulated_content)
-                        )
-
-                except Exception as e:
-                    logger.exception(f"Error in session stream: {e}")
-                    error_payload = json.dumps({'type': 'error', 'message': f'Response generation failed: {str(e)}'})
+                if not session:
+                    error_payload = json.dumps({'type': 'error', 'message': 'Session not found or inactive'})
                     yield f"data: {error_payload}\n\n"
+                    return
 
-            return session_stream()
-            
-        except Exception as e:
-            logger.exception(f"Failed to create session chat stream: {e}")
-            error_payload = json.dumps({'type': 'error', 'message': 'Failed to initialize chat stream'})
-            yield f"data: {error_payload}\n\n"
+                # Record user message
+                user_message = SessionChatMessage.objects.create(
+                    session=session,
+                    notebook=notebook,
+                    sender='user',
+                    message=question
+                )
+
+                self.log_notebook_operation(
+                    "session_user_message_recorded",
+                    str(notebook.id),
+                    user_id,
+                    session_id=str(session.session_id),
+                    message_id=str(user_message.id)
+                )
+
+                # Use RagFlow session directly
+                if not session.ragflow_session_id or not session.ragflow_agent_id:
+                    error_payload = json.dumps({'type': 'error', 'message': 'Session not properly initialized'})
+                    yield f"data: {error_payload}\n\n"
+                    return
+
+                logger.info(f"Starting streaming ask for session {session.ragflow_session_id} with agent {session.ragflow_agent_id}")
+                logger.info(f"User question: {question[:200]}")
+
+                # Ask the agent with streaming
+                try:
+                    response = self.ragflow_client.ask_session(
+                        agent_id=session.ragflow_agent_id,
+                        session_id=session.ragflow_session_id,
+                        question=question,
+                        stream=True
+                    )
+                    logger.info(f"Successfully initiated streaming response from RagFlow for question: {question[:50]}...")
+                except Exception as ask_error:
+                    logger.exception(f"Failed to ask RagFlow session: {ask_error}")
+                    error_payload = json.dumps({'type': 'error', 'message': f'Failed to contact agent: {str(ask_error)}'})
+                    yield f"data: {error_payload}\n\n"
+                    return
+
+                # According to RagFlow SDK docs, streaming returns an iterator of Message objects
+                # where each Message has a .content attribute that accumulates the full response
+                message_count = 0
+                for message in response:
+                    message_count += 1
+                    try:
+                        if hasattr(message, 'content') and message.content:
+                            # Get the new content (delta from accumulated content)
+                            new_content = message.content[len(accumulated_content):]
+
+                            if new_content:
+                                # Format as SSE - use proper JSON encoding
+                                payload = json.dumps({'type': 'token', 'text': new_content})
+                                yield f"data: {payload}\n\n"
+                                logger.debug(f"Yielded {len(new_content)} new characters (message #{message_count})")
+
+                            # Update accumulated content
+                            accumulated_content = message.content
+                        else:
+                            logger.warning(f"Message #{message_count} has no content attribute or empty content")
+
+                    except Exception as chunk_error:
+                        logger.error(f"Error processing message chunk #{message_count}: {chunk_error}")
+                        continue
+
+                logger.info(f"Streaming completed, processed {message_count} messages, accumulated {len(accumulated_content)} characters")
+
+                # Send completion signal
+                completion_payload = json.dumps({'type': 'done', 'message': 'Response complete'})
+                yield f"data: {completion_payload}\n\n"
+
+                # Save assistant response
+                if accumulated_content:
+                    SessionChatMessage.objects.create(
+                        session=session,
+                        notebook=notebook,
+                        sender='assistant',
+                        message=accumulated_content
+                    )
+
+                    self.log_notebook_operation(
+                        "session_assistant_message_recorded",
+                        str(notebook.id),
+                        user_id,
+                        session_id=str(session.session_id),
+                        response_length=len(accumulated_content)
+                    )
+
+            except Exception as e:
+                logger.exception(f"Error in session stream: {e}")
+                error_payload = json.dumps({'type': 'error', 'message': f'Response generation failed: {str(e)}'})
+                yield f"data: {error_payload}\n\n"
+
+        return session_stream()
     
     def _get_or_create_knowledge_base_agent_for_session(self, notebook: Notebook) -> Dict:
         """
