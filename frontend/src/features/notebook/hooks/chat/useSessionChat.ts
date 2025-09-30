@@ -114,8 +114,10 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
       return { previousSessions };
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       closingSessionRef.current = null;
+      // Refetch to ensure cache is in sync with server
+      await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
     },
     onError: (error, sessionId, context) => {
       closingSessionRef.current = null;
