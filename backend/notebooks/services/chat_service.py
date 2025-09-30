@@ -612,29 +612,9 @@ class ChatService(NotebookBaseService):
                         "details": {"error": str(e)}
                     }
 
-            # Create new agent
-            # Create a simplified DSL for the agent
+            # Create simplified DSL without begin node
             dsl = {
                 "components": {
-                    "begin": {
-                        "downstream": ["Agent:KnowledgeBot"],
-                        "obj": {
-                            "component_name": "Begin",
-                            "params": {
-                                "mode": "conversational",
-                                "prologue": "Hi! I'm your knowledge base assistant. What would you like to know?",
-                                "inputs": {
-                                    "dataset": {
-                                        "name": "dataset",
-                                        "type": "options",
-                                        "optional": False,
-                                        "options": [dataset_id]
-                                    }
-                                }
-                            }
-                        },
-                        "upstream": []
-                    },
                     "Agent:KnowledgeBot": {
                         "downstream": ["Message:Response"],
                         "obj": {
@@ -659,7 +639,7 @@ class ChatService(NotebookBaseService):
                                             "cross_languages": [],
                                             "description": "Retrieve from the knowledge bases.",
                                             "empty_response": "No relevant information found in the knowledge base.",
-                                            "kb_ids": ["begin@dataset"],
+                                            "kb_ids": [dataset_id],
                                             "keywords_similarity_weight": 0.7,
                                             "outputs": {
                                                 "formalized_content": {
@@ -677,7 +657,7 @@ class ChatService(NotebookBaseService):
                                 ]
                             }
                         },
-                        "upstream": ["begin"]
+                        "upstream": []
                     },
                     "Message:Response": {
                         "downstream": [],
@@ -690,7 +670,7 @@ class ChatService(NotebookBaseService):
                         "upstream": ["Agent:KnowledgeBot"]
                     }
                 },
-                "path": ["begin", "Agent:KnowledgeBot", "Message:Response"],
+                "path": ["Agent:KnowledgeBot", "Message:Response"],
                 "history": [],
                 "messages": [],
                 "retrieval": []
