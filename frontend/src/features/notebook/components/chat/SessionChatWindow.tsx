@@ -227,20 +227,17 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                       </div>
                     )}
 
-                    {/* Message Bubble */}
+                    {/* Message Content */}
                     <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
-                      <div className={`px-4 py-3 rounded-2xl ${
-                        message.sender === 'user'
-                          ? 'bg-gray-200 text-gray-900 rounded-br-md'
-                          : 'bg-gray-100 text-gray-900 border border-gray-200 rounded-bl-md'
-                      }`}>
-                        {message.sender === 'user' ? (
+                      {message.sender === 'user' ? (
+                        <div className="px-4 py-3 rounded-2xl bg-gray-200 text-gray-900 rounded-br-md">
                           <p className="text-sm leading-relaxed">{message.message}</p>
-                        ) : (
+                        </div>
+                      ) : (
+                        <div className="py-2">
                           <MarkdownContent content={message.message} />
-                        )}
-                      </div>
-
+                        </div>
+                      )}
                     </div>
                   </div>
                 </motion.div>
