@@ -105,10 +105,12 @@ class Notebook(BaseModel, UserOwnedMixin):
     
     @property
     def chat_message_count(self):
-        """Get the count of chat messages in this notebook."""
+        """Get the count of chat messages across all sessions in this notebook."""
         if hasattr(self, '_chat_message_count'):
             return self._chat_message_count
-        return self.chat_messages.count()
+        # Count messages across all sessions
+        from .chat_session import SessionChatMessage
+        return SessionChatMessage.objects.filter(notebook=self).count()
     
     def get_processing_status_summary(self):
         """Get summary of processing status for all knowledge items."""

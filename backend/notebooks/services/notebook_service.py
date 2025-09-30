@@ -251,7 +251,7 @@ class NotebookService(ModelService):
         stats = {
             'notebook_name': notebook.name,
             'knowledge_items_count': notebook.knowledge_base_items.count(),
-            'chat_messages_count': notebook.chat_messages.count(),
+            'chat_sessions_count': notebook.chat_sessions.count(),
             'batch_jobs_count': notebook.batch_jobs.count(),
         }
         
@@ -299,10 +299,16 @@ class NotebookService(ModelService):
         recent_items = notebook.knowledge_base_items.filter(
             created_at__gte=last_week
         ).count()
-        recent_messages = notebook.chat_messages.filter(
+
+        # Count recent messages across all sessions
+        from ..models import SessionChatMessage
+        recent_messages = SessionChatMessage.objects.filter(
+            notebook=notebook,
             timestamp__gte=last_week
         ).count()
-        
+
+        total_messages = SessionChatMessage.objects.filter(notebook=notebook).count()
+
         stats = {
             'basic_info': {
                 'name': notebook.name,
@@ -312,7 +318,8 @@ class NotebookService(ModelService):
             },
             'content_counts': {
                 'knowledge_items': notebook.knowledge_base_items.count(),
-                'chat_messages': notebook.chat_messages.count(),
+                'chat_sessions': notebook.chat_sessions.count(),
+                'chat_messages': total_messages,
                 'batch_jobs': notebook.batch_jobs.count(),
                 'images': notebook.knowledge_base_items.with_images().count(),
             },
