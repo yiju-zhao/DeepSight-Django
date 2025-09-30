@@ -478,20 +478,23 @@ class BatchJobViewSet(viewsets.ReadOnlyModelViewSet):
 # ----------------------------
 class SessionChatViewSet(viewsets.ModelViewSet):
     class ChatSessionSerializer(serializers.ModelSerializer):
+        id = serializers.CharField(source='session_id', read_only=True)
+        message_count = serializers.SerializerMethodField()
+        created_at = serializers.DateTimeField(source='started_at', read_only=True)
+
         class Meta:
             model = ChatSession
             fields = [
                 "id",
-                "session_id",
                 "title",
                 "status",
-                "ragflow_session_id",
-                "ragflow_agent_id",
-                "session_metadata",
+                "message_count",
+                "created_at",
                 "last_activity",
-                "started_at",
-                "ended_at",
             ]
+
+        def get_message_count(self, obj):
+            return obj.messages.count() if hasattr(obj, 'messages') else 0
 
     serializer_class = ChatSessionSerializer
     permission_classes = [permissions.IsAuthenticated, IsNotebookOwner]
@@ -507,7 +510,14 @@ class SessionChatViewSet(viewsets.ModelViewSet):
 
         notebook_id = self.kwargs.get("notebook_pk")
         notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
-        return ChatSession.objects.filter(notebook=notebook).order_by("-last_activity")
+
+        # Filter by include_closed parameter
+        queryset = ChatSession.objects.filter(notebook=notebook)
+        include_closed = self.request.query_params.get('include_closed', 'false').lower() == 'true'
+        if not include_closed:
+            queryset = queryset.filter(status='active')
+
+        return queryset.order_by("-last_activity")
 
     def perform_create(self, serializer):
         """Create a chat session with proper RagFlow integration."""

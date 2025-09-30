@@ -54,7 +54,13 @@ class SessionChatService {
       throw new Error('Failed to fetch sessions');
     }
 
-    return response.json();
+    const sessions = await response.json();
+
+    return {
+      success: true,
+      sessions,
+      total_count: sessions.length
+    };
   }
 
   /**
