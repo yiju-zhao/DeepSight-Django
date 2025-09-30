@@ -30,7 +30,7 @@ export default function SignupPage() {
     }
 
     try {
-      await signupMutation.mutateAsync({ username, email, password });
+      await signupMutation.mutateAsync({ username, email, password, password_confirm: passwordConfirm });
       // Redirect to the originally requested page
       navigate(from, { replace: true });
     } catch (error) {

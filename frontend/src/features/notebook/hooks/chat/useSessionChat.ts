@@ -26,6 +26,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [currentMessages, setCurrentMessages] = useState<SessionChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const closingSessionRef = useRef<string | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -93,13 +94,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const closeSessionMutation = useMutation({
     mutationFn: (sessionId: string) => sessionChatService.closeSession(notebookId, sessionId),
     onMutate: async (sessionId) => {
-      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: sessionKeys.sessions(notebookId) });
-
-      // Snapshot the previous value
       const previousSessions = queryClient.getQueryData(sessionKeys.sessions(notebookId));
 
-      // Optimistically update to remove the session
       queryClient.setQueryData(sessionKeys.sessions(notebookId), (old: any) => {
         if (!old?.sessions) return old;
         return {
@@ -109,7 +106,6 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
         };
       });
 
-      // Switch to another session if needed
       if (activeSessionId === sessionId) {
         const remainingSessions = sessions.filter(s => s.id !== sessionId);
         setActiveSessionId(remainingSessions.length > 0 ? remainingSessions[0].id : null);
@@ -118,8 +114,11 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
       return { previousSessions };
     },
+    onSuccess: () => {
+      closingSessionRef.current = null;
+    },
     onError: (error, sessionId, context) => {
-      // Rollback on error
+      closingSessionRef.current = null;
       if (context?.previousSessions) {
         queryClient.setQueryData(sessionKeys.sessions(notebookId), context.previousSessions);
       }
@@ -173,9 +172,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   }, [createSessionMutation]);
 
   const closeSession = useCallback((sessionId: string) => {
-    if (!closeSessionMutation.isPending) {
-      closeSessionMutation.mutate(sessionId);
-    }
+    if (closingSessionRef.current === sessionId) return;
+    closingSessionRef.current = sessionId;
+    closeSessionMutation.mutate(sessionId);
   }, [closeSessionMutation]);
 
   const updateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<boolean> => {

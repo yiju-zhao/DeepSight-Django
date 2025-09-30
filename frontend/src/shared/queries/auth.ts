@@ -96,7 +96,7 @@ const loginUser = async (credentials: { username: string; password: string }): P
   return transformUser(backendUser);
 };
 
-const signupUser = async (userData: { username: string; email: string; password: string }): Promise<User> => {
+const signupUser = async (userData: { username: string; email: string; password: string; password_confirm: string }): Promise<User> => {
   const response = await fetch(`${config.API_BASE_URL}/users/signup/`, {
     method: 'POST',
     headers: {
