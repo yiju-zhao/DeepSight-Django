@@ -171,10 +171,14 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     }
   }, [createSessionMutation]);
 
-  const closeSession = useCallback((sessionId: string) => {
+  const closeSession = useCallback(async (sessionId: string) => {
     if (closingSessionRef.current === sessionId) return;
     closingSessionRef.current = sessionId;
-    closeSessionMutation.mutate(sessionId);
+    try {
+      await closeSessionMutation.mutateAsync(sessionId);
+    } catch (error) {
+      // Error already handled in mutation's onError
+    }
   }, []);
 
   const updateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<boolean> => {
