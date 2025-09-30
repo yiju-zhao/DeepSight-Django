@@ -611,9 +611,20 @@ class ChatService(NotebookBaseService):
                         "details": {"error": str(e)}
                     }
 
-            # Create simplified DSL without begin node
+            # Create simplified DSL with minimal begin node (no inputs)
             dsl = {
                 "components": {
+                    "begin": {
+                        "downstream": ["Agent:KnowledgeBot"],
+                        "obj": {
+                            "component_name": "Begin",
+                            "params": {
+                                "mode": "conversational",
+                                "prologue": ""
+                            }
+                        },
+                        "upstream": []
+                    },
                     "Agent:KnowledgeBot": {
                         "downstream": ["Message:Response"],
                         "obj": {
@@ -656,7 +667,7 @@ class ChatService(NotebookBaseService):
                                 ]
                             }
                         },
-                        "upstream": []
+                        "upstream": ["begin"]
                     },
                     "Message:Response": {
                         "downstream": [],
@@ -669,7 +680,7 @@ class ChatService(NotebookBaseService):
                         "upstream": ["Agent:KnowledgeBot"]
                     }
                 },
-                "path": ["Agent:KnowledgeBot", "Message:Response"],
+                "path": ["begin", "Agent:KnowledgeBot", "Message:Response"],
                 "history": [],
                 "messages": [],
                 "retrieval": []
