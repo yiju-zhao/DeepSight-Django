@@ -32,6 +32,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     // Loading states
     isLoading,
     isCreatingSession,
+    isClosingSession,
 
     // Error handling
     error,
@@ -140,6 +141,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
           onCloseSession={handleCloseSession}
           onUpdateTitle={handleUpdateTitle}
           isLoading={isCreatingSession}
+          isClosing={isClosingSession}
         />
       )}
 

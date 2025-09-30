@@ -334,6 +334,7 @@ export interface UseSessionChatReturn {
   // Loading states
   isLoading: boolean;
   isCreatingSession: boolean;
+  isClosingSession: boolean;
   isSendingMessage: boolean;
 
   // Error handling
@@ -366,6 +367,7 @@ export interface SessionTabsProps {
   onCloseSession: (sessionId: string) => void;
   onUpdateTitle: (sessionId: string, title: string) => void;
   isLoading?: boolean;
+  isClosing?: boolean;
 }
 
 export interface SessionChatWindowProps {

@@ -338,6 +338,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     // Loading states
     isLoading: isLoadingSessions || isLoadingSession,
     isCreatingSession: createSessionMutation.isPending,
+    isClosingSession: closeSessionMutation.isPending,
     isSendingMessage: false, // Will be managed per session
 
     // Error handling
