@@ -244,24 +244,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
               ))}
             </AnimatePresence>
 
-            {/* Typing Indicator */}
-            {(isLoading || isSending) && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex justify-start"
-              >
-                <div className="flex space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-100 to-rose-100 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-red-600" />
-                  </div>
-                  <div className="bg-gray-100 rounded-2xl rounded-bl-md px-4 py-3 flex items-center space-x-2 border border-gray-200">
-                    <Loader2 className="h-4 w-4 animate-spin text-gray-500" />
-                    <span className="text-sm text-gray-600">Thinking...</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
 
             <div ref={messagesEndRef} />
           </div>
