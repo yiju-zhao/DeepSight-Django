@@ -116,12 +116,36 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
     }
   };
 
-  const copyMessage = (content: string) => {
-    navigator.clipboard.writeText(content);
-    toast({
-      title: 'Copied',
-      description: 'Message copied to clipboard',
-    });
+  const copyMessage = async (content: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(content);
+        toast({
+          title: 'Copied',
+          description: 'Message copied to clipboard',
+        });
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = content;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        toast({
+          title: 'Copied',
+          description: 'Message copied to clipboard',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: 'Copy Failed',
+        description: 'Failed to copy message to clipboard',
+        variant: 'destructive',
+      });
+    }
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -185,7 +209,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
             </div>
           </div>
         ) : (
-          <div className="p-6 space-y-4">
+          <div className="p-6 space-y-6">
             <AnimatePresence>
               {messages.map((message) => (
                 <motion.div
@@ -195,25 +219,19 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                   exit={{ opacity: 0, y: -10 }}
                   className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex space-x-3 max-w-[85%] ${message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                    {/* Avatar */}
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.sender === 'user' 
-                        ? 'bg-gray-700 text-white' 
-                        : 'bg-gradient-to-br from-red-100 to-rose-100 text-red-600'
-                    }`}>
-                      {message.sender === 'user' ? (
+                  <div className={`flex space-x-3 ${message.sender === 'user' ? 'max-w-[85%] flex-row-reverse space-x-reverse' : 'w-full'}`}>
+                    {/* Avatar - only for user messages */}
+                    {message.sender === 'user' && (
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-700 text-white">
                         <User className="h-4 w-4" />
-                      ) : (
-                        <Bot className="h-4 w-4" />
-                      )}
-                    </div>
+                      </div>
+                    )}
 
                     {/* Message Bubble */}
-                    <div className="group relative">
+                    <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
                       <div className={`px-4 py-3 rounded-2xl ${
                         message.sender === 'user'
-                          ? 'bg-gray-900 text-white rounded-br-md'
+                          ? 'bg-gray-200 text-gray-900 rounded-br-md'
                           : 'bg-gray-100 text-gray-900 border border-gray-200 rounded-bl-md'
                       }`}>
                         {message.sender === 'user' ? (
@@ -223,21 +241,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                         )}
                       </div>
 
-                      {/* Message Actions */}
-                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 absolute -bottom-8 left-0 flex items-center space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700"
-                          onClick={() => copyMessage(message.message)}
-                        >
-                          <Copy className="h-3 w-3 mr-1" />
-                          Copy
-                        </Button>
-                        <span className="text-xs text-gray-400">
-                          {formatTimestamp(message.timestamp)}
-                        </span>
-                      </div>
                     </div>
                   </div>
                 </motion.div>
