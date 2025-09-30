@@ -611,7 +611,7 @@ class ChatService(NotebookBaseService):
                         "details": {"error": str(e)}
                     }
 
-            # Create simplified DSL with minimal begin node (no inputs)
+            # Create DSL based on the original template with proper dataset configuration
             dsl = {
                 "components": {
                     "begin": {
@@ -619,8 +619,9 @@ class ChatService(NotebookBaseService):
                         "obj": {
                             "component_name": "Begin",
                             "params": {
+                                "enablePrologue": True,
                                 "mode": "conversational",
-                                "prologue": ""
+                                "prologue": "Hi! I'm your knowledge base assistant. What would you like to know?"
                             }
                         },
                         "upstream": []
@@ -630,17 +631,37 @@ class ChatService(NotebookBaseService):
                         "obj": {
                             "component_name": "Agent",
                             "params": {
+                                "delay_after_error": 1,
+                                "description": "",
+                                "exception_default_value": "",
+                                "exception_goto": [],
+                                "exception_method": "",
+                                "frequencyPenaltyEnabled": False,
+                                "frequency_penalty": 0.7,
                                 "llm_id": getattr(settings, 'RAGFLOW_CHAT_MODEL', 'deepseek-chat@DeepSeek'),
-                                "temperature": 0.1,
-                                "max_tokens": 1024,
+                                "maxTokensEnabled": False,
+                                "max_retries": 3,
                                 "max_rounds": 1,
-                                "sys_prompt": "You are a helpful knowledge base assistant. Answer questions based strictly on the information available in the knowledge base. If information is not available, clearly state that you cannot find it in the knowledge base.",
+                                "max_tokens": 1024,
+                                "mcp": [],
+                                "message_history_window_size": 12,
+                                "outputs": {
+                                    "content": {
+                                        "type": "string",
+                                        "value": ""
+                                    }
+                                },
+                                "presencePenaltyEnabled": False,
+                                "presence_penalty": 0.4,
                                 "prompts": [
                                     {
-                                        "role": "user",
-                                        "content": "{sys.query}"
+                                        "content": "{sys.query}",
+                                        "role": "user"
                                     }
                                 ],
+                                "sys_prompt": "#Role\nYou are a **Docs QA Agent**, a specialized knowledge base assistant responsible for providing accurate answers based strictly on the connected documentation repository.\n\n# Core Principles\n1. **Rapid Output**\nRetrieve and answer questions directly from the knowledge base using the retrieval tool. Immediately return results upon successful retrieval without additional reflection rounds. Prioritize rapid output even before reaching maximum iteration limits.\n2. **Knowledge Base Only**: Answer questions EXCLUSIVELY based on information retrieved from the connected knowledge base.\n3. **No Content Creation**: Never generate, infer, or create information that is not explicitly present in the retrieved documents.\n4. **Source Transparency**: Always indicate when information comes from the knowledge base vs. when it's unavailable.\n5. **Accuracy Over Completeness**: Prefer incomplete but accurate answers over complete but potentially inaccurate ones.\n# Response Guidelines\n## When Information is Available\n- Provide direct answers based on retrieved content\n- Quote relevant sections when helpful\n- Cite the source document/section if available\n- Use phrases like: \"According to the documentation...\" or \"Based on the knowledge base...\"\n## When Information is Unavailable\n- Clearly state: \"I cannot find this information in the current knowledge base.\"\n- Do NOT attempt to fill gaps with general knowledge\n- Suggest alternative questions that might be covered in the docs\n- Use phrases like: \"The documentation does not cover...\" or \"This information is not available in the knowledge base.\"\n# Response Format\n```markdown\n## Answer\n[Your response based strictly on knowledge base content]\n**Always do these:**\n- Use the Retrieval tool for every question\n- Be transparent about information availability\n- Stick to documented facts only\n- Acknowledge knowledge base limitations",
+                                "temperature": 0.1,
+                                "temperatureEnabled": True,
                                 "tools": [
                                     {
                                         "component_name": "Retrieval",
@@ -648,7 +669,7 @@ class ChatService(NotebookBaseService):
                                         "params": {
                                             "cross_languages": [],
                                             "description": "Retrieve from the knowledge bases.",
-                                            "empty_response": "No relevant information found in the knowledge base.",
+                                            "empty_response": "",
                                             "kb_ids": [dataset_id],
                                             "keywords_similarity_weight": 0.7,
                                             "outputs": {
@@ -664,7 +685,11 @@ class ChatService(NotebookBaseService):
                                             "use_kg": False
                                         }
                                     }
-                                ]
+                                ],
+                                "topPEnabled": False,
+                                "top_p": 0.3,
+                                "user_prompt": "",
+                                "visual_files_var": ""
                             }
                         },
                         "upstream": ["begin"]
@@ -674,21 +699,21 @@ class ChatService(NotebookBaseService):
                         "obj": {
                             "component_name": "Message",
                             "params": {
-                                "content": ["{Agent:KnowledgeBot@content}"],
-                                "outputs": {
-                                    "answer": {
-                                        "type": "string",
-                                        "value": "{Agent:KnowledgeBot@content}"
-                                    }
-                                }
+                                "content": ["{Agent:KnowledgeBot@content}"]
                             }
                         },
                         "upstream": ["Agent:KnowledgeBot"]
                     }
                 },
-                "path": ["begin", "Agent:KnowledgeBot", "Message:Response"],
+                "globals": {
+                    "sys.conversation_turns": 0,
+                    "sys.files": [],
+                    "sys.query": "",
+                    "sys.user_id": ""
+                },
                 "history": [],
                 "messages": [],
+                "path": ["begin", "Agent:KnowledgeBot", "Message:Response"],
                 "retrieval": []
             }
 
