@@ -63,9 +63,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   // Mutation for creating new session
   const createSessionMutation = useMutation({
     mutationFn: (title?: string) => sessionChatService.createSession(notebookId, { title }),
-    onSuccess: (response) => {
-      // Update sessions list
-      queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+    onSuccess: async (response) => {
+      // Update sessions list and wait for refetch
+      await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
 
       // Open new session in a tab using the returned session data
       const newSession = response.session;
