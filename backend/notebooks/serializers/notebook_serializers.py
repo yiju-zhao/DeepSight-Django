@@ -45,21 +45,21 @@ class NotebookSerializer(serializers.ModelSerializer):
         return obj.knowledge_base_items.filter(parsing_status='done').count()
     
     def get_chat_message_count(self, obj):
-        """Get count of chat messages in the notebook."""
-        return obj.chat_messages.count()
-    
+        """Get count of chat messages in the notebook (across all sessions)."""
+        return obj.session_chat_messages.count()
+
     def get_last_activity(self, obj):
         """Get the timestamp of the last activity in the notebook."""
         latest_kb_item = obj.knowledge_base_items.order_by('-updated_at').first()
-        latest_chat = obj.chat_messages.order_by('-timestamp').first()
-        
+        latest_session = obj.chat_sessions.order_by('-last_activity').first()
+
         last_activity = obj.updated_at
-        
+
         if latest_kb_item and latest_kb_item.updated_at > last_activity:
             last_activity = latest_kb_item.updated_at
-        
-        if latest_chat and latest_chat.timestamp > last_activity:
-            last_activity = latest_chat.timestamp
+
+        if latest_session and latest_session.last_activity > last_activity:
+            last_activity = latest_session.last_activity
         
         return last_activity
     
