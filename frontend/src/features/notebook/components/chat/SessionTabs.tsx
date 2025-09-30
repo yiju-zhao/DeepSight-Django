@@ -109,10 +109,9 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                       isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                     }`}
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
-                      if (window.confirm(`Close "${session.title}"?`)) {
-                        onCloseSession(session.id);
-                      }
+                      onCloseSession(session.id);
                     }}
                   >
                     <X className="h-3 w-3" />
