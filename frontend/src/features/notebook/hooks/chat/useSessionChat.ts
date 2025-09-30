@@ -47,11 +47,6 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   const sessions = Array.isArray(sessionsResponse?.sessions) ? sessionsResponse.sessions : [];
 
-  // Log whenever sessions change
-  useEffect(() => {
-    console.log('[useSessionChat] Sessions updated:', sessions.map(s => ({ id: s.id, title: s.title })));
-  }, [sessions]);
-
   // Query for active session details
   const {
     data: activeSessionResponse,
@@ -97,46 +92,45 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   // Mutation for closing session
   const closeSessionMutation = useMutation({
-    mutationFn: (sessionId: string) => {
-      console.log('[closeSession] API call starting for:', sessionId);
-      return sessionChatService.closeSession(notebookId, sessionId);
-    },
+    mutationFn: (sessionId: string) => sessionChatService.closeSession(notebookId, sessionId),
     onMutate: async (sessionId) => {
-      console.log('[closeSession] onMutate called for:', sessionId);
+      // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: sessionKeys.sessions(notebookId) });
-      const previousSessions = queryClient.getQueryData(sessionKeys.sessions(notebookId));
-      console.log('[closeSession] Previous sessions:', previousSessions);
 
+      // Get current sessions from cache
+      const previousSessions = queryClient.getQueryData(sessionKeys.sessions(notebookId));
+
+      // Get fresh sessions list from the cache data
+      const currentSessionsList = (previousSessions as any)?.sessions || [];
+      const remainingSessions = currentSessionsList.filter((s: any) => s.id !== sessionId);
+
+      // Optimistically update to remove the session
       queryClient.setQueryData(sessionKeys.sessions(notebookId), (old: any) => {
         if (!old?.sessions) return old;
-        const updated = {
+        return {
           ...old,
-          sessions: old.sessions.filter((s: any) => s.id !== sessionId),
-          total_count: old.total_count - 1,
+          sessions: remainingSessions,
+          total_count: Math.max(0, (old.total_count || 0) - 1),
         };
-        console.log('[closeSession] Optimistic update, new sessions:', updated.sessions);
-        return updated;
       });
 
+      // Switch to another session or clear if this was the active one
       if (activeSessionId === sessionId) {
-        const remainingSessions = sessions.filter(s => s.id !== sessionId);
-        setActiveSessionId(remainingSessions.length > 0 ? remainingSessions[0].id : null);
-        if (remainingSessions.length === 0) setCurrentMessages([]);
+        const newActiveId = remainingSessions.length > 0 ? remainingSessions[0].id : null;
+        setActiveSessionId(newActiveId);
+        setCurrentMessages([]);
       }
 
       return { previousSessions };
     },
     onSuccess: async (data, sessionId) => {
-      console.log('[closeSession] onSuccess called for:', sessionId, 'Response:', data);
       closingSessionRef.current = null;
-      // Refetch to ensure cache is in sync with server
-      console.log('[closeSession] Invalidating queries...');
+      // Refetch sessions to ensure cache is in sync with server
       await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
-      console.log('[closeSession] Queries invalidated');
     },
     onError: (error, sessionId, context) => {
-      console.log('[closeSession] onError called for:', sessionId, 'Error:', error);
       closingSessionRef.current = null;
+      // Rollback optimistic update on error
       if (context?.previousSessions) {
         queryClient.setQueryData(sessionKeys.sessions(notebookId), context.previousSessions);
       }
@@ -190,19 +184,13 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   }, [createSessionMutation]);
 
   const closeSession = useCallback(async (sessionId: string) => {
-    console.log('[closeSession] Function called with:', sessionId);
-    console.log('[closeSession] Current ref value:', closingSessionRef.current);
     if (closingSessionRef.current === sessionId) {
-      console.log('[closeSession] BLOCKED - Already closing this session');
       return;
     }
     closingSessionRef.current = sessionId;
-    console.log('[closeSession] Starting mutation...');
     try {
       await closeSessionMutation.mutateAsync(sessionId);
-      console.log('[closeSession] Mutation completed successfully');
     } catch (error) {
-      console.log('[closeSession] Mutation failed:', error);
       // Error already handled in mutation's onError
     }
   }, []);
@@ -352,9 +340,13 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   // Load messages when active session changes
   useEffect(() => {
     if (activeSessionId) {
-      loadSessionMessages(activeSessionId);
+      // Only load messages if the session exists in the sessions list
+      const sessionExists = sessions.some(s => s.id === activeSessionId);
+      if (sessionExists) {
+        loadSessionMessages(activeSessionId);
+      }
     }
-  }, [activeSessionId, loadSessionMessages]);
+  }, [activeSessionId, sessions, loadSessionMessages]);
 
   // Cleanup streaming on unmount
   useEffect(() => {

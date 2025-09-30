@@ -101,7 +101,6 @@ class SessionChatService {
    * Close/delete a chat session
    */
   async closeSession(notebookId: string, sessionId: string): Promise<CloseSessionResponse> {
-    console.log('[SessionChatService] Sending DELETE request for session:', sessionId);
     const response = await fetch(`${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/sessions/${sessionId}/`, {
       method: 'DELETE',
       credentials: 'include',
@@ -110,8 +109,6 @@ class SessionChatService {
       },
     });
 
-    console.log('[SessionChatService] Response status:', response.status, 'OK:', response.ok);
-
     if (!response.ok) {
       const error = await response.json().catch(() => ({ error: 'Failed to close session' }));
       throw new Error(error.error || `HTTP ${response.status}`);
@@ -119,13 +116,10 @@ class SessionChatService {
 
     // Handle 204 No Content response from DRF
     if (response.status === 204) {
-      console.log('[SessionChatService] Got 204 No Content, returning success');
       return { success: true, message: 'Session closed successfully' };
     }
 
-    const data = await response.json();
-    console.log('[SessionChatService] Response data:', data);
-    return data;
+    return response.json();
   }
 
   /**
