@@ -478,7 +478,6 @@ class BatchJobViewSet(viewsets.ReadOnlyModelViewSet):
 # ----------------------------
 class SessionChatViewSet(viewsets.ModelViewSet):
     class ChatSessionSerializer(serializers.ModelSerializer):
-        id = serializers.CharField(source='session_id', read_only=True)
         message_count = serializers.SerializerMethodField()
         created_at = serializers.DateTimeField(source='started_at', read_only=True)
 
