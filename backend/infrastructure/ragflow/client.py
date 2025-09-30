@@ -874,7 +874,12 @@ class RagFlowClient:
 
             def _ask():
                 logger.debug(f"Calling session.ask() with question: {question[:100]}, stream: {stream}")
-                return session.ask(question=question, stream=stream)
+                try:
+                    return session.ask(question=question, stream=stream)
+                except KeyError as ke:
+                    logger.error(f"KeyError in session.ask(): {ke}. This may indicate response format mismatch.")
+                    # Try to catch and re-raise with more context
+                    raise RagFlowSessionError(f"Session response format error: {ke}. The agent may not be configured correctly.")
 
             response = self._retry_on_failure(_ask)
             logger.info(f"Question asked successfully in session {session_id}, response type: {type(response)}")

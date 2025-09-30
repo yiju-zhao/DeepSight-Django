@@ -674,7 +674,13 @@ class ChatService(NotebookBaseService):
                         "obj": {
                             "component_name": "Message",
                             "params": {
-                                "content": ["{Agent:KnowledgeBot@content}"]
+                                "content": ["{Agent:KnowledgeBot@content}"],
+                                "outputs": {
+                                    "answer": {
+                                        "type": "string",
+                                        "value": "{Agent:KnowledgeBot@content}"
+                                    }
+                                }
                             }
                         },
                         "upstream": ["Agent:KnowledgeBot"]
@@ -1180,27 +1186,39 @@ class ChatService(NotebookBaseService):
                 # According to RagFlow SDK docs, streaming returns an iterator of Message objects
                 # where each Message has a .content attribute that accumulates the full response
                 message_count = 0
-                for message in response:
-                    message_count += 1
-                    try:
-                        if hasattr(message, 'content') and message.content:
-                            # Get the new content (delta from accumulated content)
-                            new_content = message.content[len(accumulated_content):]
+                try:
+                    for message in response:
+                        message_count += 1
+                        try:
+                            # Log the message structure for debugging
+                            logger.debug(f"Message #{message_count} type: {type(message)}, attrs: {dir(message) if hasattr(message, '__dict__') else 'N/A'}")
 
-                            if new_content:
-                                # Format as SSE - use proper JSON encoding
-                                payload = json.dumps({'type': 'token', 'text': new_content})
-                                yield f"data: {payload}\n\n"
-                                logger.debug(f"Yielded {len(new_content)} new characters (message #{message_count})")
+                            if hasattr(message, 'content') and message.content:
+                                # Get the new content (delta from accumulated content)
+                                new_content = message.content[len(accumulated_content):]
 
-                            # Update accumulated content
-                            accumulated_content = message.content
-                        else:
-                            logger.warning(f"Message #{message_count} has no content attribute or empty content")
+                                if new_content:
+                                    # Format as SSE - use proper JSON encoding
+                                    payload = json.dumps({'type': 'token', 'text': new_content})
+                                    yield f"data: {payload}\n\n"
+                                    logger.debug(f"Yielded {len(new_content)} new characters (message #{message_count})")
 
-                    except Exception as chunk_error:
-                        logger.error(f"Error processing message chunk #{message_count}: {chunk_error}")
-                        continue
+                                # Update accumulated content
+                                accumulated_content = message.content
+                            else:
+                                logger.warning(f"Message #{message_count} has no content attribute or empty content")
+                                # Try to get any available content from other attributes
+                                if hasattr(message, '__dict__'):
+                                    logger.debug(f"Message attributes: {message.__dict__}")
+
+                        except Exception as chunk_error:
+                            logger.error(f"Error processing message chunk #{message_count}: {chunk_error}")
+                            continue
+
+                except Exception as stream_error:
+                    logger.error(f"Error in streaming iteration: {stream_error}", exc_info=True)
+                    error_payload = json.dumps({'type': 'error', 'message': f'Streaming error: {str(stream_error)}'})
+                    yield f"data: {error_payload}\n\n"
 
                 logger.info(f"Streaming completed, processed {message_count} messages, accumulated {len(accumulated_content)} characters")
 
