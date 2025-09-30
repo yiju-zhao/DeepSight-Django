@@ -854,27 +854,31 @@ class RagFlowClient:
         """
         try:
             logger.info(f"Asking question in session {session_id} for agent {agent_id}")
-            
+            logger.debug(f"Question text: {question[:200]}")  # Log first 200 chars
+
             # Get the agent first
             agents = self.client.list_agents(id=agent_id)
             if not agents:
                 raise RagFlowSessionError(f"Agent {agent_id} not found")
-            
+
             agent = agents[0]
-            
+            logger.debug(f"Found agent: {agent}")
+
             # Get the session
             sessions = agent.list_sessions(id=session_id)
             if not sessions:
                 raise RagFlowSessionError(f"Session {session_id} not found")
-            
+
             session = sessions[0]
-            
+            logger.debug(f"Found session: {session_id}")
+
             def _ask():
+                logger.debug(f"Calling session.ask() with question: {question[:100]}, stream: {stream}")
                 return session.ask(question=question, stream=stream)
-            
+
             response = self._retry_on_failure(_ask)
-            logger.info(f"Question asked successfully in session {session_id}")
-            
+            logger.info(f"Question asked successfully in session {session_id}, response type: {type(response)}")
+
             return response
             
         except Exception as e:
