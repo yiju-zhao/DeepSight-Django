@@ -318,10 +318,9 @@ class ChatService(NotebookBaseService):
             
             agent_id = agent_result['agent_id']
             
-            # Create new session with the agent
+            # Create new session with the agent (no parameters needed without begin node)
             session_result = self.ragflow_client.create_session(
-                agent_id=agent_id,
-                **{"dataset": notebook.ragflow_dataset_id}
+                agent_id=agent_id
             )
             
             # Cache the session info
@@ -807,10 +806,9 @@ class ChatService(NotebookBaseService):
             
             agent_id = agent_result['agent_id']
             
-            # Create RagFlow session
+            # Create RagFlow session (no parameters needed without begin node)
             ragflow_session = self.ragflow_client.create_session(
-                agent_id=agent_id,
-                **{"dataset": notebook.ragflow_dataset_id}
+                agent_id=agent_id
             )
             
             # Create local session record
