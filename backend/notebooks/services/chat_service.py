@@ -433,7 +433,8 @@ class ChatService(NotebookBaseService):
             
             # Create new session with the agent
             session_result = self.ragflow_client.create_session(
-                agent_id=agent_id
+                agent_id=agent_id,
+                **{"dataset": notebook.ragflow_dataset_id}
             )
             
             # Cache the session info
@@ -736,8 +737,8 @@ class ChatService(NotebookBaseService):
                                 "mode": "conversational",
                                 "prologue": "Hi! I'm your knowledge base assistant. What would you like to know?",
                                 "inputs": {
-                                    "knowledge base": {
-                                        "name": "knowledge base",
+                                    "dataset": {
+                                        "name": "dataset",
                                         "type": "options",
                                         "optional": False,
                                         "options": [dataset_id]
@@ -768,11 +769,22 @@ class ChatService(NotebookBaseService):
                                         "component_name": "Retrieval",
                                         "name": "Retrieval",
                                         "params": {
-                                            "kb_ids": [dataset_id],
-                                            "top_n": 5,
-                                            "similarity_threshold": 0.2,
+                                            "cross_languages": [],
+                                            "description": "Retrieve from the knowledge bases.",
+                                            "empty_response": "No relevant information found in the knowledge base.",
+                                            "kb_ids": ["begin@dataset"],
                                             "keywords_similarity_weight": 0.7,
-                                            "empty_response": "No relevant information found in the knowledge base."
+                                            "outputs": {
+                                                "formalized_content": {
+                                                    "type": "string",
+                                                    "value": ""
+                                                }
+                                            },
+                                            "rerank_id": "",
+                                            "similarity_threshold": 0.2,
+                                            "top_k": 1024,
+                                            "top_n": 8,
+                                            "use_kg": False
                                         }
                                     }
                                 ]
@@ -793,7 +805,8 @@ class ChatService(NotebookBaseService):
                 },
                 "path": ["begin", "Agent:KnowledgeBot", "Message:Response"],
                 "history": [],
-                "messages": []
+                "messages": [],
+                "retrieval": []
             }
 
             # Create the agent
@@ -929,7 +942,8 @@ class ChatService(NotebookBaseService):
             
             # Create RagFlow session
             ragflow_session = self.ragflow_client.create_session(
-                agent_id=agent_id
+                agent_id=agent_id,
+                **{"dataset": notebook.ragflow_dataset_id}
             )
             
             # Create local session record
