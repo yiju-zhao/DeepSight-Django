@@ -554,215 +554,73 @@ class ChatService(NotebookBaseService):
                 "details": {"error": str(e)}
             }
     
-    def _get_or_create_knowledge_base_agent(self, dataset_id: str) -> Dict:
+    def _get_or_create_chat_assistant(self, dataset_id: str) -> Dict:
         """
-        Get or create knowledge base agent for the dataset using a simplified DSL.
+        Get or create chat assistant for the dataset.
 
         Args:
             dataset_id: RagFlow dataset ID
 
         Returns:
-            Dict with agent info or error
+            Dict with chat assistant info or error
         """
         try:
             # Check cache first
-            cache_key = f"ragflow_kb_agent_{dataset_id}"
-            cached_agent = cache.get(cache_key)
+            cache_key = f"ragflow_chat_assistant_{dataset_id}"
+            cached_chat_id = cache.get(cache_key)
 
-            if cached_agent:
+            if cached_chat_id:
                 return {
                     "success": True,
-                    "agent_id": cached_agent,
+                    "chat_id": cached_chat_id,
                     "cached": True
                 }
 
-            # Create unique agent title
-            agent_title = f"Knowledge Base Agent - Dataset {dataset_id[:8]}"
-            agent_description = f"Specialized agent for dataset {dataset_id}"
+            # Create unique chat assistant name
+            chat_name = f"KB Assistant - {dataset_id[:8]}"
 
-            # Check if agent already exists
+            # Check if chat assistant already exists
             try:
-                existing_agents = self.ragflow_client.list_agents(title=agent_title)
-                if existing_agents:
-                    agent_id = existing_agents[0]['id']
-                    logger.info(f"Using existing agent {agent_id} for dataset {dataset_id}")
+                existing_chats = self.ragflow_client.client.list_chats(name=chat_name)
+                if existing_chats:
+                    chat_id = existing_chats[0].id
+                    logger.info(f"Using existing chat assistant {chat_id} for dataset {dataset_id}")
 
-                    # Cache the agent ID
-                    cache.set(cache_key, agent_id, timeout=self._agent_cache_timeout)
+                    # Cache the chat ID
+                    cache.set(cache_key, chat_id, timeout=self._agent_cache_timeout)
 
                     return {
                         "success": True,
-                        "agent_id": agent_id,
+                        "chat_id": chat_id,
                         "cached": False
                     }
-                else:
-                    # No agents found, create new one
-                    logger.info(f"No existing agents found with title '{agent_title}', creating new one")
-            except RagFlowClientError as e:
-                # If error contains "doesn't exist", it means no agents exist yet
-                if "doesn't exist" in str(e).lower():
-                    logger.info(f"No agents exist yet, creating first agent for dataset {dataset_id}")
-                else:
-                    # Some other error occurred
-                    logger.error(f"Error checking for existing agents: {e}")
-                    return {
-                        "error": f"Failed to check existing agents: {str(e)}",
-                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        "details": {"error": str(e)}
-                    }
+            except Exception as e:
+                logger.debug(f"No existing chat assistant found: {e}")
 
-            # Create DSL based on the original template with proper dataset configuration
-            dsl = {
-                "components": {
-                    "begin": {
-                        "downstream": ["Agent:KnowledgeBot"],
-                        "obj": {
-                            "component_name": "Begin",
-                            "params": {
-                                "enablePrologue": True,
-                                "mode": "conversational",
-                                "prologue": "Hi! I'm your knowledge base assistant. What would you like to know?"
-                            }
-                        },
-                        "upstream": []
-                    },
-                    "Agent:KnowledgeBot": {
-                        "downstream": ["Message:Response"],
-                        "obj": {
-                            "component_name": "Agent",
-                            "params": {
-                                "delay_after_error": 1,
-                                "description": "",
-                                "exception_default_value": "",
-                                "exception_goto": [],
-                                "exception_method": "",
-                                "frequencyPenaltyEnabled": False,
-                                "frequency_penalty": 0.7,
-                                "llm_id": getattr(settings, 'RAGFLOW_CHAT_MODEL', 'deepseek-chat@DeepSeek'),
-                                "maxTokensEnabled": False,
-                                "max_retries": 3,
-                                "max_rounds": 1,
-                                "max_tokens": 1024,
-                                "mcp": [],
-                                "message_history_window_size": 12,
-                                "outputs": {
-                                    "content": {
-                                        "type": "string",
-                                        "value": ""
-                                    }
-                                },
-                                "presencePenaltyEnabled": False,
-                                "presence_penalty": 0.4,
-                                "prompts": [
-                                    {
-                                        "content": "{sys.query}",
-                                        "role": "user"
-                                    }
-                                ],
-                                "sys_prompt": "#Role\nYou are a **Docs QA Agent**, a specialized knowledge base assistant responsible for providing accurate answers based strictly on the connected documentation repository.\n\n# Core Principles\n1. **Rapid Output**\nRetrieve and answer questions directly from the knowledge base using the retrieval tool. Immediately return results upon successful retrieval without additional reflection rounds. Prioritize rapid output even before reaching maximum iteration limits.\n2. **Knowledge Base Only**: Answer questions EXCLUSIVELY based on information retrieved from the connected knowledge base.\n3. **No Content Creation**: Never generate, infer, or create information that is not explicitly present in the retrieved documents.\n4. **Source Transparency**: Always indicate when information comes from the knowledge base vs. when it's unavailable.\n5. **Accuracy Over Completeness**: Prefer incomplete but accurate answers over complete but potentially inaccurate ones.\n# Response Guidelines\n## When Information is Available\n- Provide direct answers based on retrieved content\n- Quote relevant sections when helpful\n- Cite the source document/section if available\n- Use phrases like: \"According to the documentation...\" or \"Based on the knowledge base...\"\n## When Information is Unavailable\n- Clearly state: \"I cannot find this information in the current knowledge base.\"\n- Do NOT attempt to fill gaps with general knowledge\n- Suggest alternative questions that might be covered in the docs\n- Use phrases like: \"The documentation does not cover...\" or \"This information is not available in the knowledge base.\"\n# Response Format\n```markdown\n## Answer\n[Your response based strictly on knowledge base content]\n**Always do these:**\n- Use the Retrieval tool for every question\n- Be transparent about information availability\n- Stick to documented facts only\n- Acknowledge knowledge base limitations",
-                                "temperature": 0.1,
-                                "temperatureEnabled": True,
-                                "tools": [
-                                    {
-                                        "component_name": "Retrieval",
-                                        "name": "Retrieval",
-                                        "params": {
-                                            "cross_languages": [],
-                                            "description": "Retrieve from the knowledge bases.",
-                                            "empty_response": "",
-                                            "kb_ids": [dataset_id],
-                                            "keywords_similarity_weight": 0.7,
-                                            "outputs": {
-                                                "formalized_content": {
-                                                    "type": "string",
-                                                    "value": ""
-                                                }
-                                            },
-                                            "rerank_id": "",
-                                            "similarity_threshold": 0.2,
-                                            "top_k": 1024,
-                                            "top_n": 8,
-                                            "use_kg": False
-                                        }
-                                    }
-                                ],
-                                "topPEnabled": False,
-                                "top_p": 0.3,
-                                "user_prompt": "",
-                                "visual_files_var": ""
-                            }
-                        },
-                        "upstream": ["begin"]
-                    },
-                    "Message:Response": {
-                        "downstream": [],
-                        "obj": {
-                            "component_name": "Message",
-                            "params": {
-                                "content": ["{Agent:KnowledgeBot@content}"]
-                            }
-                        },
-                        "upstream": ["Agent:KnowledgeBot"]
-                    }
-                },
-                "globals": {
-                    "sys.conversation_turns": 0,
-                    "sys.files": [],
-                    "sys.query": "",
-                    "sys.user_id": ""
-                },
-                "history": [],
-                "messages": [],
-                "path": ["begin", "Agent:KnowledgeBot", "Message:Response"],
-                "retrieval": []
-            }
+            # Create new chat assistant
+            logger.info(f"Creating chat assistant for dataset {dataset_id}")
 
-            # Create the agent
-            create_result = self.ragflow_client.create_agent(
-                title=agent_title,
-                dsl=dsl,
-                description=agent_description
+            chat = self.ragflow_client.client.create_chat(
+                name=chat_name,
+                dataset_ids=[dataset_id]
             )
 
-            if not create_result.get('success'):
-                logger.error(f"RagFlow agent creation failed: {create_result}")
-                return {
-                    "error": "Failed to create knowledge base agent",
-                    "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    "details": create_result
-                }
+            chat_id = chat.id
+            logger.info(f"Created chat assistant {chat_id} for dataset {dataset_id}")
 
-            # Get the created agent ID by listing agents with the same title
-            try:
-                created_agents = self.ragflow_client.list_agents(title=agent_title)
-                if not created_agents:
-                    return {
-                        "error": "Agent created but not found when listing",
-                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR
-                    }
-                agent_id = created_agents[0]['id']
-                logger.info(f"Created new agent {agent_id} for dataset {dataset_id}")
-            except RagFlowClientError as e:
-                logger.error(f"Failed to find created agent: {e}")
-                return {
-                    "error": "Agent was created but could not be retrieved",
-                    "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    "details": {"error": str(e)}
-                }
-
-            # Cache the agent ID
-            cache.set(cache_key, agent_id, timeout=self._agent_cache_timeout)
+            # Cache the chat ID
+            cache.set(cache_key, chat_id, timeout=self._agent_cache_timeout)
 
             return {
                 "success": True,
-                "agent_id": agent_id,
+                "chat_id": chat_id,
                 "cached": False
             }
 
         except Exception as e:
-            logger.exception(f"Error creating knowledge base agent for dataset {dataset_id}: {e}")
+            logger.exception(f"Error creating chat assistant for dataset {dataset_id}: {e}")
             return {
-                "error": "Failed to create knowledge base agent",
+                "error": "Failed to create chat assistant",
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "details": {"error": str(e)}
             }
@@ -827,52 +685,61 @@ class ChatService(NotebookBaseService):
     @transaction.atomic
     def create_chat_session(self, notebook: Notebook, user_id: int, title: str = None) -> Dict:
         """
-        Create a new chat session for a notebook.
-        
+        Create a new chat session for a notebook using chat assistant.
+
         Args:
             notebook: Notebook instance
             user_id: User ID
             title: Optional session title
-            
+
         Returns:
             Dict with session info or error
         """
         try:
             # Validate notebook access
             self.validate_notebook_access(notebook, notebook.user)
-            
-            # Get or create agent for this notebook's dataset
-            agent_result = self._get_or_create_knowledge_base_agent_for_session(notebook)
-            if not agent_result.get('success'):
-                return agent_result
-            
-            agent_id = agent_result['agent_id']
-            
-            # Create RagFlow session (no parameters needed without begin node)
-            ragflow_session = self.ragflow_client.create_session(
-                agent_id=agent_id
-            )
-            
+
+            # Get or create chat assistant for this notebook's dataset
+            chat_result = self._get_or_create_chat_assistant(notebook.ragflow_dataset_id)
+            if not chat_result.get('success'):
+                return chat_result
+
+            chat_id = chat_result['chat_id']
+
+            # Get the chat assistant object
+            chats = self.ragflow_client.client.list_chats(id=chat_id)
+            if not chats:
+                return {
+                    "error": "Chat assistant not found",
+                    "status_code": status.HTTP_404_NOT_FOUND
+                }
+
+            chat = chats[0]
+
+            # Create session with chat assistant
+            session_name = title or f"Session {ChatSession.objects.filter(notebook=notebook).count() + 1}"
+            ragflow_session = chat.create_session(name=session_name)
+
             # Create local session record
             chat_session = ChatSession.objects.create(
                 notebook=notebook,
-                title=title,
-                ragflow_session_id=ragflow_session.get('id'),
-                ragflow_agent_id=agent_id,
+                title=title or session_name,
+                ragflow_session_id=ragflow_session.id,
+                ragflow_agent_id=chat_id,
                 session_metadata={
                     'created_by_user': str(user_id),
                     'dataset_id': str(notebook.ragflow_dataset_id) if notebook.ragflow_dataset_id else None
                 }
             )
-            
+
             self.log_notebook_operation(
                 "chat_session_created",
                 str(notebook.id),
                 user_id,
                 session_id=str(chat_session.session_id),
-                ragflow_session_id=ragflow_session.get('id')
+                ragflow_session_id=ragflow_session.id
             )
-            
+
             return {
                 "success": True,
                 "session": {
@@ -882,9 +749,9 @@ class ChatService(NotebookBaseService):
                     "created_at": chat_session.created_at.isoformat(),
                     "message_count": 0
                 },
-                "ragflow_session_id": ragflow_session.get('id')
+                "ragflow_session_id": ragflow_session.id
             }
-            
+
         except (RagFlowClientError, RagFlowSessionError) as e:
             logger.exception(f"RagFlow error creating session for notebook {notebook.id}: {e}")
             return {
@@ -1193,84 +1060,61 @@ class ChatService(NotebookBaseService):
                 logger.info(f"Starting streaming ask for session {session.ragflow_session_id} with agent {session.ragflow_agent_id}")
                 logger.info(f"User question: {question[:200]}")
 
-                # Ask the agent using completions API with raw HTTP streaming
+                # Get the chat assistant and session objects
                 try:
-                    response = self.ragflow_client.ask_agent_completion_raw(
-                        agent_id=session.ragflow_agent_id,
-                        question=question,
-                        session_id=session.ragflow_session_id
-                    )
-                    logger.info(f"Successfully initiated streaming response from RagFlow for question: {question[:50]}...")
-                except Exception as ask_error:
-                    logger.exception(f"Failed to ask RagFlow agent: {ask_error}")
-                    error_payload = json.dumps({'type': 'error', 'message': f'Failed to contact agent: {str(ask_error)}'})
+                    chats = self.ragflow_client.client.list_chats(id=session.ragflow_agent_id)
+                    if not chats:
+                        error_payload = json.dumps({'type': 'error', 'message': 'Chat assistant not found'})
+                        yield f"data: {error_payload}\n\n"
+                        return
+
+                    chat = chats[0]
+                    sessions = chat.list_sessions(id=session.ragflow_session_id)
+                    if not sessions:
+                        error_payload = json.dumps({'type': 'error', 'message': 'Session not found'})
+                        yield f"data: {error_payload}\n\n"
+                        return
+
+                    ragflow_session = sessions[0]
+                    logger.info(f"Using chat assistant {chat.id} with session {ragflow_session.id}")
+
+                except Exception as lookup_error:
+                    logger.exception(f"Failed to get chat assistant/session: {lookup_error}")
+                    error_payload = json.dumps({'type': 'error', 'message': f'Failed to lookup session: {str(lookup_error)}'})
                     yield f"data: {error_payload}\n\n"
                     return
 
-                # Process streaming response per RagFlow API docs
-                # Format: data:{...} with event: "message" and data.content for each chunk
-                # Ends with: data:[DONE]
-                chunk_count = 0
+                # Ask using session.ask() with streaming
                 try:
-                    for line in response:
-                        if not line:
-                            continue
+                    response = ragflow_session.ask(question=question, stream=True)
+                    logger.info(f"Successfully initiated streaming response from RagFlow for question: {question[:50]}...")
+                except Exception as ask_error:
+                    logger.exception(f"Failed to ask chat assistant: {ask_error}")
+                    error_payload = json.dumps({'type': 'error', 'message': f'Failed to contact assistant: {str(ask_error)}'})
+                    yield f"data: {error_payload}\n\n"
+                    return
 
-                        chunk_count += 1
-
+                # Process streaming response from session.ask()
+                # Returns iterator of Message objects with .content attribute
+                message_count = 0
+                try:
+                    for message in response:
+                        message_count += 1
                         try:
-                            # RagFlow streams in SSE format: "data:{...}" or "data:[DONE]"
-                            if line.startswith("data:"):
-                                data_str = line[5:].strip()  # Remove "data:" prefix
+                            # Message objects have .content attribute
+                            if hasattr(message, 'content') and message.content:
+                                # Get the new content (delta)
+                                new_content = message.content[len(accumulated_content):]
 
-                                # Check for completion signal
-                                if data_str == "[DONE]":
-                                    logger.info(f"Received [DONE] signal from RagFlow")
-                                    break
+                                if new_content:
+                                    # Accumulate and send delta
+                                    accumulated_content = message.content
+                                    payload = json.dumps({'type': 'token', 'text': new_content})
+                                    yield f"data: {payload}\n\n"
+                                    logger.debug(f"Yielded {len(new_content)} characters (message #{message_count})")
 
-                                # Skip empty lines or comments
-                                if not data_str or data_str.startswith(":"):
-                                    continue
-
-                                # Parse JSON
-                                data = json.loads(data_str)
-
-                                # Log event type for debugging
-                                event_type = data.get("event", "unknown")
-                                logger.debug(f"Chunk #{chunk_count}, event: {event_type}")
-
-                                # Extract content from message events per API docs
-                                if event_type == "message" and "data" in data:
-                                    content = data["data"].get("content", "")
-
-                                    if content:
-                                        # Accumulate content
-                                        accumulated_content += content
-                                        # Send delta to client
-                                        payload = json.dumps({'type': 'token', 'text': content})
-                                        yield f"data: {payload}\n\n"
-                                        logger.debug(f"Yielded {len(content)} characters")
-
-                                # Handle message_end event (contains references)
-                                elif event_type == "message_end":
-                                    logger.info(f"Received message_end event with references")
-                                    # Could extract and store references here if needed
-
-                                # Handle workflow_finished event (non-streaming fallback)
-                                elif event_type == "workflow_finished" and "data" in data:
-                                    if "data" in data["data"] and "outputs" in data["data"]["data"]:
-                                        content = data["data"]["data"]["outputs"].get("content", "")
-                                        if content and not accumulated_content:
-                                            # This is a non-streaming response
-                                            accumulated_content = content
-                                            payload = json.dumps({'type': 'token', 'text': content})
-                                            yield f"data: {payload}\n\n"
-
-                        except json.JSONDecodeError as je:
-                            logger.warning(f"Failed to parse JSON from chunk #{chunk_count}: {je}, line: {line[:100]}")
-                            continue
                         except Exception as chunk_error:
-                            logger.error(f"Error processing chunk #{chunk_count}: {chunk_error}")
+                            logger.error(f"Error processing message #{message_count}: {chunk_error}")
                             continue
 
                 except Exception as stream_error:
@@ -1278,7 +1122,7 @@ class ChatService(NotebookBaseService):
                     error_payload = json.dumps({'type': 'error', 'message': f'Streaming error: {str(stream_error)}'})
                     yield f"data: {error_payload}\n\n"
 
-                logger.info(f"Streaming completed, processed {chunk_count} chunks, accumulated {len(accumulated_content)} characters")
+                logger.info(f"Streaming completed, processed {message_count} messages, accumulated {len(accumulated_content)} characters")
 
                 # Send completion signal
                 completion_payload = json.dumps({'type': 'done', 'message': 'Response complete'})
@@ -1310,7 +1154,7 @@ class ChatService(NotebookBaseService):
     
     def _get_or_create_knowledge_base_agent_for_session(self, notebook: Notebook) -> Dict:
         """
-        Get or create knowledge base agent for session management.
+        Get or create chat assistant for session management.
         Wrapper around existing method for session-specific logic.
         """
         if not notebook.ragflow_dataset_id:
@@ -1327,7 +1171,7 @@ class ChatService(NotebookBaseService):
                 "status_code": status.HTTP_400_BAD_REQUEST
             }
 
-        return self._get_or_create_knowledge_base_agent(notebook.ragflow_dataset_id)
+        return self._get_or_create_chat_assistant(notebook.ragflow_dataset_id)
     
     def get_session_count_for_notebook(self, notebook: Notebook) -> int:
         """Get the number of active sessions for a notebook."""
