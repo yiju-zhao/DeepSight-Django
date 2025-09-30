@@ -11,7 +11,7 @@ from django.core.cache import cache
 from django.conf import settings
 from rest_framework import status
 
-from ..models import Notebook, NotebookChatMessage, ChatSession, SessionChatMessage
+from ..models import Notebook, ChatSession, SessionChatMessage
 from infrastructure.ragflow.client import get_ragflow_client, RagFlowClientError, RagFlowSessionError
 from core.services import NotebookBaseService
 
@@ -102,70 +102,6 @@ class ChatService(NotebookBaseService):
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR
             }
 
-    def get_chat_history(self, notebook) -> List[tuple]:
-        """
-        Get chat history for notebook.
-        
-        Args:
-            notebook: Notebook instance
-            
-        Returns:
-            List of (sender, message) tuples
-        """
-        return list(
-            NotebookChatMessage.objects
-                .filter(notebook=notebook)
-                .order_by("timestamp")
-                .values_list("sender", "message")
-        )
-
-    @transaction.atomic
-    def record_user_message(self, notebook, question: str):
-        """
-        Record user message in chat history.
-        
-        Args:
-            notebook: Notebook instance
-            question: User's question
-            
-        Returns:
-            Created NotebookChatMessage instance
-        """
-        message = NotebookChatMessage.objects.create(
-            notebook=notebook, sender="user", message=question
-        )
-        self.log_notebook_operation(
-            "user_message_recorded",
-            str(notebook.id),
-            notebook.user.id,
-            message_id=str(message.id),
-            message_length=len(question)
-        )
-        return message
-
-    @transaction.atomic
-    def record_assistant_message(self, notebook, message: str):
-        """
-        Record assistant message in chat history.
-        
-        Args:
-            notebook: Notebook instance
-            message: Assistant's response
-            
-        Returns:
-            Created NotebookChatMessage instance
-        """
-        chat_message = NotebookChatMessage.objects.create(
-            notebook=notebook, sender="assistant", message=message
-        )
-        self.log_notebook_operation(
-            "assistant_message_recorded",
-            str(notebook.id),
-            notebook.user.id,
-            message_id=str(chat_message.id),
-            message_length=len(message)
-        )
-        return chat_message
 
     def create_chat_stream(
         self,
@@ -222,10 +158,8 @@ class ChatService(NotebookBaseService):
                         # Skip malformed JSON
                         continue
             
-            # Once stream finishes, save the full assistant response
+            # Note: Session-based chat handles message recording separately
             full_response = "".join(buffer).strip()
-            if full_response:
-                self.record_assistant_message(notebook, full_response)
 
         return wrapped_stream()
 
@@ -249,46 +183,6 @@ class ChatService(NotebookBaseService):
         self.logger.info(f"Total content length for {len(items)} files with content out of {len(file_ids)} requested: {total_length} characters")
         return total_length
 
-    def get_formatted_chat_history(self, notebook) -> List[Dict]:
-        """
-        Get formatted chat history for display.
-        
-        Args:
-            notebook: Notebook instance
-            
-        Returns:
-            List of formatted message dictionaries
-        """
-        messages = NotebookChatMessage.objects.filter(notebook=notebook).order_by("timestamp")
-        history = []
-        for message in messages:
-            history.append({
-                "id": message.id,
-                "sender": message.sender,
-                "message": message.message,
-                "timestamp": message.timestamp
-            })
-        return history
-
-    @transaction.atomic
-    def clear_chat_history(self, notebook) -> bool:
-        """
-        Clear all chat history for notebook.
-        
-        Args:
-            notebook: Notebook instance
-            
-        Returns:
-            True if successful
-        """
-        deleted_count = NotebookChatMessage.objects.filter(notebook=notebook).delete()[0]
-        self.log_notebook_operation(
-            "chat_history_cleared",
-            str(notebook.id),
-            notebook.user.id,
-            messages_deleted=deleted_count
-        )
-        return True
 
     def generate_suggested_questions(self, notebook) -> Dict:
         """
@@ -301,16 +195,9 @@ class ChatService(NotebookBaseService):
             Dict with suggestions or error information
         """
         try:
-            # Get recent chat history
-            recent_messages = NotebookChatMessage.objects.filter(
-                notebook=notebook
-            ).order_by("-timestamp")[:10]  # Last 10 messages
-            
-            # Build history context
+            # Note: Suggestions are now generated based on notebook content only
+            # Session-specific history can be added if needed
             history = []
-            for msg in reversed(recent_messages):  # Reverse to get chronological order
-                role = "user" if msg.sender == "user" else "assistant" 
-                history.append({"role": role, "content": msg.message})
             
             # Create suggestion prompt
             suggestion_prompt = """Based on our conversation and the knowledge base, suggest 3-5 relevant follow-up questions that would be helpful to explore. 

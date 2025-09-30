@@ -520,6 +520,29 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         logger.info(f"[SessionChatViewSet] Returning {queryset.count()} sessions for notebook {notebook_id}")
         return queryset
 
+    def retrieve(self, request, *args, **kwargs):
+        """Get session details including messages."""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+
+        # Get messages for this session
+        messages = instance.messages.all().order_by('message_order', 'timestamp')
+        messages_data = [{
+            'id': msg.id,
+            'sender': msg.sender,
+            'message': msg.message,
+            'timestamp': msg.timestamp.isoformat(),
+            'metadata': msg.metadata
+        } for msg in messages]
+
+        return Response({
+            'success': True,
+            'session': {
+                **serializer.data,
+                'messages': messages_data
+            }
+        })
+
     def perform_create(self, serializer):
         """Create a chat session with proper RagFlow integration."""
         notebook_id = self.kwargs.get("notebook_pk")
