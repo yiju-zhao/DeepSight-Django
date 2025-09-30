@@ -1166,14 +1166,16 @@ class ChatService(NotebookBaseService):
             
             # Stream response from agent
             def session_stream():
-                buffer = []
-                
+                accumulated_content = ""
+
                 try:
                     # Use RagFlow session directly
                     if not session.ragflow_session_id or not session.ragflow_agent_id:
                         yield f"data: {{'type': 'error', 'message': 'Session not properly initialized'}}\n\n"
                         return
-                    
+
+                    logger.info(f"Starting streaming ask for session {session.ragflow_session_id}")
+
                     # Ask the agent with streaming
                     response = self.ragflow_client.ask_session(
                         agent_id=session.ragflow_agent_id,
@@ -1181,49 +1183,53 @@ class ChatService(NotebookBaseService):
                         question=question,
                         stream=True
                     )
-                    
-                    for chunk in response:
+
+                    # According to RagFlow SDK docs, streaming returns an iterator of Message objects
+                    # where each Message has a .content attribute that accumulates the full response
+                    for message in response:
                         try:
-                            if hasattr(chunk, 'content') and chunk.content:
-                                # Format as SSE
-                                content = chunk.content.replace('\n', '\\n').replace('"', '\\"')
-                                yield f"data: {{'type': 'token', 'text': '{content}'}}\n\n"
-                                buffer.append(chunk.content)
-                            elif isinstance(chunk, str):
-                                # Handle string responses
-                                content = chunk.replace('\n', '\\n').replace('"', '\\"')
-                                yield f"data: {{'type': 'token', 'text': '{content}'}}\n\n"
-                                buffer.append(chunk)
-                                
+                            if hasattr(message, 'content') and message.content:
+                                # Get the new content (delta from accumulated content)
+                                new_content = message.content[len(accumulated_content):]
+
+                                if new_content:
+                                    # Format as SSE - escape special characters for JSON
+                                    escaped_content = new_content.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r').replace('"', '\\"')
+                                    yield f"data: {{'type': 'token', 'text': '{escaped_content}'}}\n\n"
+
+                                # Update accumulated content
+                                accumulated_content = message.content
+
                         except Exception as chunk_error:
-                            logger.error(f"Error processing chunk: {chunk_error}")
+                            logger.error(f"Error processing message chunk: {chunk_error}")
                             continue
-                    
+
+                    logger.info(f"Streaming completed, accumulated {len(accumulated_content)} characters")
+
                     # Send completion signal
                     yield f"data: {{'type': 'done', 'message': 'Response complete'}}\n\n"
-                    
+
                     # Save assistant response
-                    full_response = "".join(buffer).strip()
-                    if full_response:
+                    if accumulated_content:
                         SessionChatMessage.objects.create(
                             session=session,
                             notebook=notebook,
                             sender='assistant',
-                            message=full_response
+                            message=accumulated_content
                         )
-                        
+
                         self.log_notebook_operation(
                             "session_assistant_message_recorded",
                             str(notebook.id),
                             user_id,
                             session_id=str(session.session_id),
-                            response_length=len(full_response)
+                            response_length=len(accumulated_content)
                         )
-                
+
                 except Exception as e:
                     logger.exception(f"Error in session stream: {e}")
-                    yield f"data: {{'type': 'error', 'message': 'Response generation failed'}}\n\n"
-            
+                    yield f"data: {{'type': 'error', 'message': 'Response generation failed: {str(e)}'}}\n\n"
+
             return session_stream()
             
         except Exception as e:
