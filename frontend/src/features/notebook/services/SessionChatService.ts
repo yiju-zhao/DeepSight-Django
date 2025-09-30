@@ -56,10 +56,29 @@ class SessionChatService {
 
     const data = await response.json();
 
+    // Handle DRF paginated response
+    if (data.results && Array.isArray(data.results)) {
+      return {
+        success: true,
+        sessions: data.results,
+        total_count: data.count || data.results.length
+      };
+    }
+
+    // Handle non-paginated response (plain array)
+    if (Array.isArray(data)) {
+      return {
+        success: true,
+        sessions: data,
+        total_count: data.length
+      };
+    }
+
+    // Fallback
     return {
       success: true,
-      sessions: data,
-      total_count: data.length
+      sessions: [],
+      total_count: 0
     };
   }
 
