@@ -583,8 +583,20 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         serializer = ChatMessageSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            reply = self.chat_service.send_message(session, serializer.validated_data["message"], request.user)
-            return Response({"reply": reply})
+            notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
+
+            # Create streaming response using ChatService
+            stream = self.chat_service.create_session_chat_stream(
+                session_id=str(session.session_id),
+                notebook=notebook,
+                user_id=request.user.id,
+                question=serializer.validated_data["message"]
+            )
+
+            response = StreamingHttpResponse(stream, content_type="text/event-stream")
+            response["Cache-Control"] = "no-cache"
+            response["X-Accel-Buffering"] = "no"
+            return response
         except Exception as e:
             logger.exception(f"Failed to send message: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
