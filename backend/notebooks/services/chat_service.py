@@ -953,8 +953,8 @@ class ChatService(NotebookBaseService):
                 ragflow_session_id=ragflow_session.get('id'),
                 ragflow_agent_id=agent_id,
                 session_metadata=json.dumps({
-                    'created_by_user': user_id,
-                    'dataset_id': notebook.ragflow_dataset_id
+                    'created_by_user': str(user_id),
+                    'dataset_id': str(notebook.ragflow_dataset_id) if notebook.ragflow_dataset_id else None
                 })
             )
             
