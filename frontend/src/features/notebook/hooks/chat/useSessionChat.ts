@@ -253,8 +253,14 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       const controller = new AbortController();
       streamingControllerRef.current = controller;
 
-      const response = await sessionChatService.sendSessionMessage(notebookId, sessionId, message);
-      
+      // Add timeout (60 seconds for first response)
+      const timeoutId = setTimeout(() => {
+        controller.abort();
+      }, 60000);
+
+      const response = await sessionChatService.sendSessionMessage(notebookId, sessionId, message, controller.signal);
+      clearTimeout(timeoutId);
+
       if (!response.body) {
         throw new Error('No response body');
       }

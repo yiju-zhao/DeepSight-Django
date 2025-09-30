@@ -154,9 +154,10 @@ class SessionChatService {
    * Send a message in a session with streaming response
    */
   async sendSessionMessage(
-    notebookId: string, 
-    sessionId: string, 
-    message: string
+    notebookId: string,
+    sessionId: string,
+    message: string,
+    signal?: AbortSignal
   ): Promise<Response> {
     const response = await fetch(`${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/sessions/${sessionId}/messages/`, {
       method: 'POST',
@@ -166,11 +167,12 @@ class SessionChatService {
         'X-CSRFToken': this.getCookie('csrftoken') || '',
       },
       body: JSON.stringify({ message }),
+      signal,
     });
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to send message' }));
-      throw new Error(error.error || `HTTP ${response.status}`);
+      const error = await response.json().catch(() => ({ detail: 'Failed to send message' }));
+      throw new Error(error.detail || error.error || `HTTP ${response.status}`);
     }
 
     return response;

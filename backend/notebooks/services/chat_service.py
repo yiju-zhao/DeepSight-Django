@@ -1170,6 +1170,10 @@ class ChatService(NotebookBaseService):
                 accumulated_content = ""
 
                 try:
+                    # Send initial keepalive to establish SSE connection
+                    keepalive_payload = json.dumps({'type': 'status', 'message': 'Connected'})
+                    yield f"data: {keepalive_payload}\n\n"
+
                     # Use RagFlow session directly
                     if not session.ragflow_session_id or not session.ragflow_agent_id:
                         error_payload = json.dumps({'type': 'error', 'message': 'Session not properly initialized'})
