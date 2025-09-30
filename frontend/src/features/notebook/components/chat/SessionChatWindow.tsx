@@ -15,34 +15,38 @@ import type { SessionChatWindowProps } from '@/features/notebook/type';
 
 // Memoized markdown content component
 const MarkdownContent = React.memo(({ content }: { content: string }) => (
-  <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-gray-800 prose-pre:bg-gray-900 prose-pre:text-gray-100">
+  <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
     <ReactMarkdown
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeHighlight, rehypeRaw]}
       components={{
-        h1: ({ children }) => <h1 className="text-lg font-bold text-gray-900 mb-3 pb-2 border-b">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-base font-semibold text-gray-800 mt-4 mb-2">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-sm font-medium text-gray-800 mt-3 mb-2">{children}</h3>,
-        p: ({ children }) => <p className="text-gray-700 leading-relaxed mb-2">{children}</p>,
-        ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
-        ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
-        li: ({ children }) => <li className="text-gray-700 text-sm">{children}</li>,
-        blockquote: ({ children }) => <blockquote className="border-l-2 border-red-200 pl-3 italic text-gray-600 my-2">{children}</blockquote>,
-        code: ({ children }) => <code className="bg-white px-1 py-0.5 rounded text-xs font-mono text-gray-800 border border-gray-200">{children}</code>,
-        pre: ({ children }) => <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg overflow-x-auto my-2 text-xs">{children}</pre>,
+        h1: ({ children }) => <h1 className="text-xl font-semibold text-gray-900 mb-4 mt-6">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-lg font-semibold text-gray-900 mt-5 mb-3">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-base font-semibold text-gray-900 mt-4 mb-2">{children}</h3>,
+        p: ({ children }) => <p className="text-gray-800 leading-7 mb-4 text-[15px]">{children}</p>,
+        ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-2">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-2">{children}</ol>,
+        li: ({ children }) => <li className="text-gray-800 text-[15px] leading-7">{children}</li>,
+        blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 italic text-gray-700 bg-gray-50 rounded-r">{children}</blockquote>,
+        code: ({ children }) => <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-900">{children}</code>,
+        pre: ({ children }) => <pre className="bg-gray-950 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 text-sm shadow-sm">{children}</pre>,
         a: ({ href, children }) => (
           <a
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-red-600 hover:text-red-800 underline"
+            className="text-blue-600 hover:text-blue-700 underline decoration-blue-400 hover:decoration-blue-600 transition-colors"
           >
             {children}
           </a>
         ),
-        table: ({ children }) => <table className="min-w-full border-collapse border border-gray-300 my-2">{children}</table>,
-        th: ({ children }) => <th className="border border-gray-300 px-2 py-1 bg-white text-xs font-medium">{children}</th>,
-        td: ({ children }) => <td className="border border-gray-300 px-2 py-1 text-xs">{children}</td>,
+        table: ({ children }) => (
+          <div className="my-4 overflow-x-auto">
+            <table className="min-w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">{children}</table>
+          </div>
+        ),
+        th: ({ children }) => <th className="border border-gray-200 px-4 py-2 bg-gray-50 text-sm font-semibold text-left">{children}</th>,
+        td: ({ children }) => <td className="border border-gray-200 px-4 py-2 text-sm">{children}</td>,
       }}
     >
       {content}
@@ -209,7 +213,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
             </div>
           </div>
         ) : (
-          <div className="p-6 space-y-6">
+          <div className="p-8 space-y-8 max-w-4xl mx-auto">
             <AnimatePresence>
               {messages.map((message) => (
                 <motion.div
@@ -219,10 +223,10 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                   exit={{ opacity: 0, y: -10 }}
                   className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`flex space-x-3 ${message.sender === 'user' ? 'max-w-[85%] flex-row-reverse space-x-reverse' : 'w-full'}`}>
+                  <div className={`flex space-x-4 ${message.sender === 'user' ? 'max-w-[80%] flex-row-reverse space-x-reverse' : 'w-full'}`}>
                     {/* Avatar - only for user messages */}
                     {message.sender === 'user' && (
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gray-700 text-white">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-gray-700 to-gray-800 text-white shadow-sm">
                         <User className="h-4 w-4" />
                       </div>
                     )}
@@ -230,11 +234,11 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                     {/* Message Content */}
                     <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
                       {message.sender === 'user' ? (
-                        <div className="px-4 py-3 rounded-2xl bg-gray-200 text-gray-900 rounded-br-md">
-                          <p className="text-sm leading-relaxed">{message.message}</p>
+                        <div className="px-5 py-3 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 text-gray-900 shadow-sm">
+                          <p className="text-[15px] leading-7">{message.message}</p>
                         </div>
                       ) : (
-                        <div className="py-2">
+                        <div className="py-1">
                           <MarkdownContent content={message.message} />
                         </div>
                       )}
