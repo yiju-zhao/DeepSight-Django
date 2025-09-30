@@ -45,7 +45,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     gcTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const sessions = sessionsResponse?.sessions || [];
+  const sessions = Array.isArray(sessionsResponse?.sessions) ? sessionsResponse.sessions : [];
 
   // Query for active session details
   const {
