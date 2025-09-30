@@ -20,13 +20,13 @@ const MarkdownContent = React.memo(({ content }: { content: string }) => (
       remarkPlugins={[remarkGfm]}
       rehypePlugins={[rehypeHighlight, rehypeRaw]}
       components={{
-        h1: ({ children }) => <h1 className="text-xl font-semibold text-gray-900 mb-4 mt-6">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-lg font-semibold text-gray-900 mt-5 mb-3">{children}</h2>,
-        h3: ({ children }) => <h3 className="text-base font-semibold text-gray-900 mt-4 mb-2">{children}</h3>,
-        p: ({ children }) => <p className="text-gray-800 leading-7 mb-4 text-[15px]">{children}</p>,
-        ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-2">{children}</ul>,
-        ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-2">{children}</ol>,
-        li: ({ children }) => <li className="text-gray-800 text-[15px] leading-7">{children}</li>,
+        h1: ({ children }) => <h1 className="text-xl font-semibold text-gray-900 mb-3 mt-5">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-lg font-semibold text-gray-900 mt-4 mb-2">{children}</h2>,
+        h3: ({ children }) => <h3 className="text-base font-semibold text-gray-900 mt-3 mb-2">{children}</h3>,
+        p: ({ children }) => <p className="text-gray-800 leading-6 mb-3 text-[15px]">{children}</p>,
+        ul: ({ children }) => <ul className="list-disc pl-6 mb-3 space-y-1.5">{children}</ul>,
+        ol: ({ children }) => <ol className="list-decimal pl-6 mb-3 space-y-1.5">{children}</ol>,
+        li: ({ children }) => <li className="text-gray-800 text-[15px] leading-6">{children}</li>,
         blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 italic text-gray-700 bg-gray-50 rounded-r">{children}</blockquote>,
         code: ({ children }) => <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-900">{children}</code>,
         pre: ({ children }) => <pre className="bg-gray-950 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 text-sm shadow-sm">{children}</pre>,
@@ -213,7 +213,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
             </div>
           </div>
         ) : (
-          <div className="p-8 space-y-8 max-w-4xl mx-auto">
+          <div className="p-8 space-y-5 max-w-4xl mx-auto">
             <AnimatePresence>
               {messages.map((message) => (
                 <motion.div
@@ -235,7 +235,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                     <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
                       {message.sender === 'user' ? (
                         <div className="px-5 py-3 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 text-gray-900 shadow-sm">
-                          <p className="text-[15px] leading-7">{message.message}</p>
+                          <p className="text-[15px] leading-6">{message.message}</p>
                         </div>
                       ) : (
                         <div className="py-1">
