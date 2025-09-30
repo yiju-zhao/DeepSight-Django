@@ -55,6 +55,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     queryFn: () => activeSessionId ? sessionChatService.getSession(notebookId, activeSessionId) : null,
     enabled: !!notebookId && !!activeSessionId,
     staleTime: 10 * 1000, // 10 seconds
+    retry: false, // Don't retry on 404s
   });
 
   const activeSession = sessions.find(s => s.id === activeSessionId) || null;
@@ -92,10 +93,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const closeSessionMutation = useMutation({
     mutationFn: (sessionId: string) => sessionChatService.closeSession(notebookId, sessionId),
     onSuccess: async (_, sessionId) => {
-      // Update sessions list
-      await queryClient.refetchQueries({ queryKey: sessionKeys.sessions(notebookId) });
-
-      // Switch to another session if this was the active one
+      // First switch away from the closed session to prevent queries
       if (activeSessionId === sessionId) {
         const remainingSessions = sessions.filter(s => s.id !== sessionId);
         if (remainingSessions.length > 0) {
@@ -105,6 +103,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
           setCurrentMessages([]);
         }
       }
+
+      // Then update sessions list
+      await queryClient.refetchQueries({ queryKey: sessionKeys.sessions(notebookId) });
 
       toast({
         title: 'Session Closed',
