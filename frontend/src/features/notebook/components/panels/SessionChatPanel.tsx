@@ -23,31 +23,26 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
   const {
     // Session management
     sessions,
-    activeTabs,
     activeSessionId,
     activeSession,
-    
+
     // Messages
     currentMessages,
-    
+
     // Loading states
     isLoading,
     isCreatingSession,
-    
+
     // Error handling
     error,
     clearError,
-    
+
     // Actions
     createSession,
     closeSession,
     switchSession,
     updateSessionTitle,
     sendMessage,
-    
-    // Tab management
-    openTab,
-    closeTab,
   } = useSessionChat(notebookId);
 
   // Get parsed files to check availability (reuse the main query from SourcesList)
@@ -103,7 +98,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
           <div className={PANEL_HEADERS.actionsContainer}>
             {sessions.length > 0 && (
               <span className="text-xs text-gray-500">
-                {activeTabs.length} active
+                {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
               </span>
             )}
           </div>
@@ -139,7 +134,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
       {showChatInterface && (
         <SessionTabs
           sessions={sessions}
-          activeTabs={activeTabs}
           activeSessionId={activeSessionId}
           onCreateSession={handleCreateAdditionalSession}
           onSwitchSession={switchSession}

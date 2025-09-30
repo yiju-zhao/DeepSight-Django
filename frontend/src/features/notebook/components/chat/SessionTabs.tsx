@@ -70,10 +70,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
     <TooltipProvider>
       <div className="flex items-center bg-white border-b border-gray-200 px-4 py-2 space-x-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
         <AnimatePresence>
-          {activeTabs.map((tab) => {
-            const session = sessions.find(s => s.id === tab.sessionId);
-            if (!session) return null;
-
+          {sessions.map((session) => {
             const isActive = session.id === activeSessionId;
             const isEditing = editingSessionId === session.id;
 
@@ -232,7 +229,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
         {sessions.length > 3 && (
           <div className="flex items-center pl-2 border-l border-gray-300">
             <span className="text-xs text-gray-500">
-              {activeTabs.length} of {sessions.length}
+              {sessions.length} sessions
             </span>
           </div>
         )}

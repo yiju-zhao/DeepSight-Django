@@ -23,7 +23,6 @@ const sessionKeys = {
  * Manages chat sessions, tabs, messaging, and state
  */
 export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
-  const [activeTabs, setActiveTabs] = useState<ChatTab[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [currentMessages, setCurrentMessages] = useState<SessionChatMessage[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -67,22 +66,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       // Update sessions list and wait for refetch to complete
       await queryClient.refetchQueries({ queryKey: sessionKeys.sessions(notebookId) });
 
-      // Open new session in a tab using the returned session data
+      // Set new session as active
       const newSession = response.session;
       if (newSession && newSession.id) {
-        // Directly add tab instead of using openTab which depends on sessions list
-        setActiveTabs(prev => {
-          if (prev.find(tab => tab.sessionId === newSession.id)) {
-            return prev; // Tab already open
-          }
-
-          return [...prev, {
-            sessionId: newSession.id,
-            title: newSession.title || 'New Chat',
-            isActive: true,
-            lastActivity: newSession.last_activity || new Date().toISOString(),
-          }];
-        });
         setActiveSessionId(newSession.id);
 
         toast({
@@ -105,13 +91,21 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   // Mutation for closing session
   const closeSessionMutation = useMutation({
     mutationFn: (sessionId: string) => sessionChatService.closeSession(notebookId, sessionId),
-    onSuccess: (_, sessionId) => {
+    onSuccess: async (_, sessionId) => {
       // Update sessions list
-      queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
-      
-      // Close tab
-      closeTab(sessionId);
-      
+      await queryClient.refetchQueries({ queryKey: sessionKeys.sessions(notebookId) });
+
+      // Switch to another session if this was the active one
+      if (activeSessionId === sessionId) {
+        const remainingSessions = sessions.filter(s => s.id !== sessionId);
+        if (remainingSessions.length > 0) {
+          setActiveSessionId(remainingSessions[0].id);
+        } else {
+          setActiveSessionId(null);
+          setCurrentMessages([]);
+        }
+      }
+
       toast({
         title: 'Session Closed',
         description: 'Chat session has been closed',
@@ -187,58 +181,12 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     }
   }, [updateTitleMutation]);
 
-  // Tab management
-  const openTab = useCallback((sessionId: string) => {
-    const session = sessions.find(s => s.id === sessionId);
-    if (!session) return;
-
-    setActiveTabs(prev => {
-      if (prev.find(tab => tab.sessionId === sessionId)) {
-        return prev; // Tab already open
-      }
-      
-      return [...prev, {
-        sessionId: session.id,
-        title: session.title,
-        isActive: true,
-        lastActivity: session.last_activity,
-      }];
-    });
-  }, [sessions]);
-
-  const closeTab = useCallback((sessionId: string) => {
-    setActiveTabs(prev => {
-      const newTabs = prev.filter(tab => tab.sessionId !== sessionId);
-      
-      // If closing active tab, switch to another tab
-      if (activeSessionId === sessionId) {
-        const nextTab = newTabs[0];
-        if (nextTab) {
-          setActiveSessionId(nextTab.sessionId);
-        } else {
-          setActiveSessionId(null);
-          setCurrentMessages([]);
-        }
-      }
-      
-      return newTabs;
-    });
-  }, [activeSessionId]);
-
-  const setActiveTab = useCallback((sessionId: string) => {
-    setActiveTabs(prev => prev.map(tab => ({
-      ...tab,
-      isActive: tab.sessionId === sessionId,
-    })));
-  }, []);
-
   const switchSession = useCallback((sessionId: string) => {
     setActiveSessionId(sessionId);
-    setActiveTab(sessionId);
-    
+
     // Load messages for the session
     loadSessionMessages(sessionId);
-  }, [setActiveTab]);
+  }, []);
 
   // Message handling
   const loadSessionMessages = useCallback(async (sessionId: string): Promise<SessionChatMessage[]> => {
@@ -356,21 +304,15 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     setError(null);
   }, []);
 
-  // Auto-open first session if no tabs are open
+  // Auto-open first session if none is active
   useEffect(() => {
-    if (sessions.length > 0 && activeTabs.length === 0 && !activeSessionId && !isLoadingSessions) {
+    if (sessions.length > 0 && !activeSessionId && !isLoadingSessions) {
       const firstSession = sessions[0];
       if (firstSession && firstSession.id) {
-        setActiveTabs([{
-          sessionId: firstSession.id,
-          title: firstSession.title,
-          isActive: true,
-          lastActivity: firstSession.last_activity,
-        }]);
         setActiveSessionId(firstSession.id);
       }
     }
-  }, [sessions, activeTabs.length, activeSessionId, isLoadingSessions]);
+  }, [sessions, activeSessionId, isLoadingSessions]);
 
   // Load messages when active session changes
   useEffect(() => {
@@ -391,21 +333,20 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   return {
     // Session management
     sessions,
-    activeTabs,
     activeSessionId,
     activeSession,
-    
+
     // Messages
     currentMessages,
-    
+
     // Loading states
     isLoading: isLoadingSessions || isLoadingSession,
     isCreatingSession: createSessionMutation.isPending,
     isSendingMessage: false, // Will be managed per session
-    
+
     // Error handling
     error,
-    
+
     // Actions
     createSession,
     closeSession,
@@ -413,12 +354,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     updateSessionTitle,
     sendMessage,
     loadSessionMessages,
-    
-    // Tab management
-    openTab,
-    closeTab,
-    setActiveTab,
-    
+
     // Utility
     refreshSessions,
     clearError,
