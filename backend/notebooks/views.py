@@ -517,7 +517,9 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         if not include_closed:
             queryset = queryset.filter(status='active')
 
-        return queryset.order_by("-last_activity")
+        queryset = queryset.order_by("-last_activity")
+        logger.info(f"[SessionChatViewSet] Returning {queryset.count()} sessions for notebook {notebook_id}")
+        return queryset
 
     def perform_create(self, serializer):
         """Create a chat session with proper RagFlow integration."""

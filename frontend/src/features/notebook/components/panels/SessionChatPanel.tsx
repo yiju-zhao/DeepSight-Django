@@ -89,6 +89,15 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
   const showWelcomeScreen = sessions.length === 0 && !isLoading;
   const showChatInterface = sessions.length > 0 || isLoading;
 
+  // Debug logging
+  console.log('[SessionChatPanel] sessions:', sessions);
+  console.log('[SessionChatPanel] sessions.length:', sessions.length);
+  console.log('[SessionChatPanel] isLoading:', isLoading);
+  console.log('[SessionChatPanel] showWelcomeScreen:', showWelcomeScreen);
+  console.log('[SessionChatPanel] showChatInterface:', showChatInterface);
+  console.log('[SessionChatPanel] activeTabs:', activeTabs);
+  console.log('[SessionChatPanel] activeSessionId:', activeSessionId);
+
   return (
     <div className={`h-full flex flex-col ${COLORS.panels.commonBackground} min-h-0`}>
       {/* Panel Header */}
