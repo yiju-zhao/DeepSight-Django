@@ -3,7 +3,8 @@ from django.utils.html import format_html
 from .models import (
     Notebook,
     KnowledgeBaseItem,
-    NotebookChatMessage,
+    ChatSession,
+    SessionChatMessage,
 )
 
 
@@ -89,11 +90,24 @@ class KnowledgeBaseItemAdmin(admin.ModelAdmin):
 
 
 
-@admin.register(NotebookChatMessage)
-class NotebookChatMessageAdmin(admin.ModelAdmin):
-    list_display = ("notebook", "sender", "short_message", "timestamp")
-    list_filter = ("notebook", "sender", "timestamp")
+@admin.register(ChatSession)
+class ChatSessionAdmin(admin.ModelAdmin):
+    list_display = ("id", "notebook", "title", "status", "message_count", "started_at", "last_activity")
+    list_filter = ("status", "started_at", "notebook__user")
+    search_fields = ("title", "notebook__name", "notebook__user__username")
+    readonly_fields = ("started_at", "last_activity")
+
+    def message_count(self, obj):
+        return obj.messages.count()
+    message_count.short_description = "Messages"
+
+
+@admin.register(SessionChatMessage)
+class SessionChatMessageAdmin(admin.ModelAdmin):
+    list_display = ("session", "sender", "short_message", "timestamp", "message_order")
+    list_filter = ("session", "sender", "timestamp")
     search_fields = ("message",)
+    readonly_fields = ("timestamp", "message_order")
 
     def short_message(self, obj):
         return (obj.message[:75] + "...") if len(obj.message) > 75 else obj.message

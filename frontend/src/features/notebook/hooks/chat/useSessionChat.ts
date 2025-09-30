@@ -47,13 +47,6 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   const sessions = Array.isArray(sessionsResponse?.sessions) ? sessionsResponse.sessions : [];
 
-  // Debug logging
-  console.log('[useSessionChat] Sessions response:', sessionsResponse);
-  console.log('[useSessionChat] Sessions response.sessions:', sessionsResponse?.sessions);
-  console.log('[useSessionChat] Is sessions an array?:', Array.isArray(sessionsResponse?.sessions));
-  console.log('[useSessionChat] Sessions array:', sessions);
-  console.log('[useSessionChat] Sessions length:', sessions.length);
-
   // Query for active session details
   const {
     data: activeSessionResponse,
