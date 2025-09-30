@@ -835,7 +835,59 @@ class RagFlowClient:
             logger.error(f"Failed to delete sessions for agent '{agent_id}': {e}")
             raise RagFlowSessionError(f"Failed to delete sessions: {e}")
     
-    def ask_session(self, agent_id: str, session_id: str, question: str, 
+    def ask_agent_completion_raw(self, agent_id: str, question: str, session_id: str = None) -> Any:
+        """
+        Ask a question to an agent using the completions API with raw HTTP streaming.
+
+        Args:
+            agent_id: Agent ID
+            question: Question to ask
+            session_id: Optional session ID (if None, a new session is created)
+
+        Returns:
+            Raw streaming response
+
+        Raises:
+            RagFlowSessionError: If question fails
+        """
+        try:
+            import requests
+
+            logger.info(f"Asking question to agent {agent_id} (raw streaming) with session {session_id}")
+
+            # Construct the correct endpoint URL per RagFlow API docs
+            url = f"{self.base_url}/api/v1/agents/{agent_id}/completions"
+
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+
+            payload = {
+                "question": question,
+                "stream": True
+            }
+
+            # Include session_id if provided
+            if session_id:
+                payload["session_id"] = session_id
+
+            logger.debug(f"Sending request to: {url} with payload: {payload}")
+
+            # Make streaming request
+            response = requests.post(url, json=payload, headers=headers, stream=True, timeout=120)
+            response.raise_for_status()
+
+            logger.info(f"Raw streaming request successful for agent {agent_id}")
+
+            # Return the raw response iterator
+            return response.iter_lines(decode_unicode=True)
+
+        except Exception as e:
+            logger.error(f"Failed to ask agent '{agent_id}' (raw): {e}")
+            raise RagFlowSessionError(f"Failed to ask agent (raw): {e}")
+
+    def ask_session(self, agent_id: str, session_id: str, question: str,
                    stream: bool = False) -> Any:
         """
         Ask a question in an agent session.

@@ -1168,51 +1168,84 @@ class ChatService(NotebookBaseService):
                 logger.info(f"Starting streaming ask for session {session.ragflow_session_id} with agent {session.ragflow_agent_id}")
                 logger.info(f"User question: {question[:200]}")
 
-                # Ask the agent with streaming
+                # Ask the agent using completions API with raw HTTP streaming
                 try:
-                    response = self.ragflow_client.ask_session(
+                    response = self.ragflow_client.ask_agent_completion_raw(
                         agent_id=session.ragflow_agent_id,
-                        session_id=session.ragflow_session_id,
                         question=question,
-                        stream=True
+                        session_id=session.ragflow_session_id
                     )
                     logger.info(f"Successfully initiated streaming response from RagFlow for question: {question[:50]}...")
                 except Exception as ask_error:
-                    logger.exception(f"Failed to ask RagFlow session: {ask_error}")
+                    logger.exception(f"Failed to ask RagFlow agent: {ask_error}")
                     error_payload = json.dumps({'type': 'error', 'message': f'Failed to contact agent: {str(ask_error)}'})
                     yield f"data: {error_payload}\n\n"
                     return
 
-                # According to RagFlow SDK docs, streaming returns an iterator of Message objects
-                # where each Message has a .content attribute that accumulates the full response
-                message_count = 0
+                # Process streaming response per RagFlow API docs
+                # Format: data:{...} with event: "message" and data.content for each chunk
+                # Ends with: data:[DONE]
+                chunk_count = 0
                 try:
-                    for message in response:
-                        message_count += 1
+                    for line in response:
+                        if not line:
+                            continue
+
+                        chunk_count += 1
+
                         try:
-                            # Log the message structure for debugging
-                            logger.debug(f"Message #{message_count} type: {type(message)}, attrs: {dir(message) if hasattr(message, '__dict__') else 'N/A'}")
+                            # RagFlow streams in SSE format: "data:{...}" or "data:[DONE]"
+                            if line.startswith("data:"):
+                                data_str = line[5:].strip()  # Remove "data:" prefix
 
-                            if hasattr(message, 'content') and message.content:
-                                # Get the new content (delta from accumulated content)
-                                new_content = message.content[len(accumulated_content):]
+                                # Check for completion signal
+                                if data_str == "[DONE]":
+                                    logger.info(f"Received [DONE] signal from RagFlow")
+                                    break
 
-                                if new_content:
-                                    # Format as SSE - use proper JSON encoding
-                                    payload = json.dumps({'type': 'token', 'text': new_content})
-                                    yield f"data: {payload}\n\n"
-                                    logger.debug(f"Yielded {len(new_content)} new characters (message #{message_count})")
+                                # Skip empty lines or comments
+                                if not data_str or data_str.startswith(":"):
+                                    continue
 
-                                # Update accumulated content
-                                accumulated_content = message.content
-                            else:
-                                logger.warning(f"Message #{message_count} has no content attribute or empty content")
-                                # Try to get any available content from other attributes
-                                if hasattr(message, '__dict__'):
-                                    logger.debug(f"Message attributes: {message.__dict__}")
+                                # Parse JSON
+                                data = json.loads(data_str)
 
+                                # Log event type for debugging
+                                event_type = data.get("event", "unknown")
+                                logger.debug(f"Chunk #{chunk_count}, event: {event_type}")
+
+                                # Extract content from message events per API docs
+                                if event_type == "message" and "data" in data:
+                                    content = data["data"].get("content", "")
+
+                                    if content:
+                                        # Accumulate content
+                                        accumulated_content += content
+                                        # Send delta to client
+                                        payload = json.dumps({'type': 'token', 'text': content})
+                                        yield f"data: {payload}\n\n"
+                                        logger.debug(f"Yielded {len(content)} characters")
+
+                                # Handle message_end event (contains references)
+                                elif event_type == "message_end":
+                                    logger.info(f"Received message_end event with references")
+                                    # Could extract and store references here if needed
+
+                                # Handle workflow_finished event (non-streaming fallback)
+                                elif event_type == "workflow_finished" and "data" in data:
+                                    if "data" in data["data"] and "outputs" in data["data"]["data"]:
+                                        content = data["data"]["data"]["outputs"].get("content", "")
+                                        if content and not accumulated_content:
+                                            # This is a non-streaming response
+                                            accumulated_content = content
+                                            payload = json.dumps({'type': 'token', 'text': content})
+                                            yield f"data: {payload}\n\n"
+
+                        except json.JSONDecodeError as je:
+                            logger.warning(f"Failed to parse JSON from chunk #{chunk_count}: {je}, line: {line[:100]}")
+                            continue
                         except Exception as chunk_error:
-                            logger.error(f"Error processing message chunk #{message_count}: {chunk_error}")
+                            logger.error(f"Error processing chunk #{chunk_count}: {chunk_error}")
                             continue
 
                 except Exception as stream_error:
@@ -1220,7 +1253,7 @@ class ChatService(NotebookBaseService):
                     error_payload = json.dumps({'type': 'error', 'message': f'Streaming error: {str(stream_error)}'})
                     yield f"data: {error_payload}\n\n"
 
-                logger.info(f"Streaming completed, processed {message_count} messages, accumulated {len(accumulated_content)} characters")
+                logger.info(f"Streaming completed, processed {chunk_count} chunks, accumulated {len(accumulated_content)} characters")
 
                 # Send completion signal
                 completion_payload = json.dumps({'type': 'done', 'message': 'Response complete'})
