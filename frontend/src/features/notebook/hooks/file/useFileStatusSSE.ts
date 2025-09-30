@@ -244,18 +244,19 @@ export const useFileStatusSSE = (
     if (fileId && notebookId) {
       // Reset state for new file
       disconnect(); // Ensure any previous connection is closed
-      
+
       // Start SSE connection
       connectEventSource();
     } else {
       // Disconnect when no file ID
       disconnect();
     }
-    
+
     return () => {
       disconnect(); // Cleanup on unmount
     };
-  }, [fileId, notebookId, connectEventSource, disconnect]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fileId, notebookId]);
 
   return { status, isConnected, connectionError, disconnect };
 };
