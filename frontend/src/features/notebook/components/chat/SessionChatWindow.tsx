@@ -142,26 +142,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Session Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-gray-50/50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-red-100 to-rose-100 rounded-lg flex items-center justify-center">
-              <Bot className="h-4 w-4 text-red-600" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{session.title}</h3>
-              <p className="text-sm text-gray-500">
-                {session.message_count} messages • Last active {formatTimestamp(session.last_activity)}
-              </p>
-            </div>
-          </div>
-          <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
-            Active
-          </Badge>
-        </div>
-      </div>
-
       {/* Error Alert */}
       <AnimatePresence>
         {error && (
