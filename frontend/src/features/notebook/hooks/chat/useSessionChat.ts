@@ -64,8 +64,8 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const createSessionMutation = useMutation({
     mutationFn: (title?: string) => sessionChatService.createSession(notebookId, { title }),
     onSuccess: async (response) => {
-      // Update sessions list and wait for refetch
-      await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+      // Update sessions list and wait for refetch to complete
+      await queryClient.refetchQueries({ queryKey: sessionKeys.sessions(notebookId) });
 
       // Open new session in a tab using the returned session data
       const newSession = response.session;
@@ -358,14 +358,19 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   // Auto-open first session if no tabs are open
   useEffect(() => {
-    if (sessions.length > 0 && activeTabs.length === 0 && !activeSessionId) {
+    if (sessions.length > 0 && activeTabs.length === 0 && !activeSessionId && !isLoadingSessions) {
       const firstSession = sessions[0];
-      if (firstSession) {
-        openTab(firstSession.id);
+      if (firstSession && firstSession.id) {
+        setActiveTabs([{
+          sessionId: firstSession.id,
+          title: firstSession.title,
+          isActive: true,
+          lastActivity: firstSession.last_activity,
+        }]);
         setActiveSessionId(firstSession.id);
       }
     }
-  }, [sessions, activeTabs.length, activeSessionId, openTab]);
+  }, [sessions, activeTabs.length, activeSessionId, isLoadingSessions]);
 
   // Load messages when active session changes
   useEffect(() => {
