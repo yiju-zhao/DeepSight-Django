@@ -175,7 +175,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     if (closingSessionRef.current === sessionId) return;
     closingSessionRef.current = sessionId;
     closeSessionMutation.mutate(sessionId);
-  }, [closeSessionMutation]);
+  }, []);
 
   const updateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<boolean> => {
     try {
