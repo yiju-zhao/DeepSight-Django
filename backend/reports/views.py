@@ -465,7 +465,7 @@ class ReportJobCancelView(APIView):
         return ReportViewHelper.get_user_report(report_id, self.request.user)
 
     def post(self, request, report_id):
-        """Cancel and delete a running or pending report job - simplified synchronous approach"""
+        """Cancel a running or pending report job immediately with SIGKILL"""
         try:
             report = self._get_report(report_id)
 
@@ -476,40 +476,42 @@ class ReportJobCancelView(APIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            logger.info(f"Starting cancel and delete for report {report_id} (status: {report.status}, celery_task_id: {report.celery_task_id})")
+            logger.info(f"Cancelling report {report_id} (status: {report.status}, celery_task_id: {report.celery_task_id})")
 
-            # Step 1: Revoke Celery task if it exists
+            # Step 1: Immediately revoke Celery task with SIGKILL for non-ignorable termination
             if report.celery_task_id:
                 try:
                     from backend.celery import app as celery_app
-                    from celery.result import AsyncResult
 
-                    # Revoke via control interface and result backend
-                    celery_app.control.revoke(report.celery_task_id, terminate=True, signal='SIGTERM')
-                    AsyncResult(report.celery_task_id, app=celery_app).revoke(terminate=True, signal='SIGTERM')
-                    logger.info(f"Revoked and terminated Celery task {report.celery_task_id}")
+                    # Use SIGKILL for immediate, non-ignorable termination
+                    celery_app.control.revoke(
+                        report.celery_task_id,
+                        terminate=True,
+                        signal='SIGKILL'
+                    )
+                    logger.info(f"Sent SIGKILL to Celery task {report.celery_task_id} for immediate termination")
 
                 except Exception as e:
                     logger.error(f"Failed to revoke Celery task {report.celery_task_id}: {e}")
 
-            # Step 2: Use JobService to cleanup and delete (no status update needed - just delete)
-            job_service = JobService()
-            delete_success = job_service.delete_job(report_id)
+            # Step 2: Update Report status to CANCELLED
+            report.status = Report.STATUS_CANCELLED
+            report.progress = "Job cancelled by user"
+            report.save(update_fields=['status', 'progress', 'updated_at'])
 
-            if delete_success:
-                logger.info(f"Successfully cancelled and deleted report {report_id}")
-                return Response({
-                    "report_id": report_id,
-                    "status": "cancelled_and_deleted",
-                    "message": "Job has been cancelled and deleted successfully"
-                }, status=status.HTTP_200_OK)
-            else:
-                logger.error(f"Deletion failed for report {report_id}")
-                return Response({
-                    "report_id": report_id,
-                    "status": "cancelled_only",
-                    "message": "Job was cancelled but deletion failed"
-                }, status=status.HTTP_206_PARTIAL_CONTENT)
+            # Step 3: Update cache to reflect cancellation
+            report_orchestrator.update_job_progress(
+                report_id,
+                "Job cancelled by user",
+                Report.STATUS_CANCELLED
+            )
+
+            logger.info(f"Successfully cancelled report {report_id}")
+            return Response({
+                "report_id": report_id,
+                "status": Report.STATUS_CANCELLED,
+                "message": "Job has been cancelled successfully"
+            }, status=status.HTTP_200_OK)
 
         except Report.DoesNotExist:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)

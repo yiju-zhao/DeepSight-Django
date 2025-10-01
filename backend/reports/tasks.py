@@ -109,46 +109,6 @@ def cleanup_old_reports():
 
 
 @shared_task(bind=True)
-def cancel_report_generation(self, report_id: str):
-    """Cancel a report generation job by revoking the Celery task."""
-    try:
-        logger.info(f"Cancelling report generation for report {report_id}")
-
-        from .models import Report
-        report = Report.objects.get(id=report_id)
-
-        # Revoke the main Celery task if it's running
-        if report.celery_task_id:
-            try:
-                from backend.celery import app as celery_app
-                celery_app.control.revoke(
-                    report.celery_task_id, terminate=True, signal="SIGTERM"
-                )
-                logger.info(f"Revoked Celery task {report.celery_task_id} for report {report_id}")
-            except Exception as e:
-                logger.warning(f"Failed to revoke Celery task for report {report_id}: {e}")
-
-        # Call generator cancellation to clean up temp directories
-        try:
-            report_orchestrator.cancel_generation(report_id)
-        except Exception as e:
-            logger.warning(f"Failed to cleanup during cancellation for report {report_id}: {e}")
-
-        # Update job status in database to 'cancelled'
-        report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled by user")
-
-        logger.info(f"Successfully cancelled report generation for report {report_id}")
-        return {"status": "cancelled", "report_id": report_id}
-
-    except Report.DoesNotExist:
-        logger.error(f"Report with report_id {report_id} not found for cancellation")
-        return {"status": "failed", "report_id": report_id, "message": "Job not found"}
-    except Exception as e:
-        logger.error(f"Error cancelling report generation for report {report_id}: {e}")
-        raise
-
-
-@shared_task(bind=True)
 def delete_report_and_cleanup(self, report_id: int):
     """Delete a report and perform all associated cleanup operations."""
     try:

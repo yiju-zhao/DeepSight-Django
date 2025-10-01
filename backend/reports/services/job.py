@@ -489,31 +489,13 @@ class JobService:
             logger.error(f"Error updating job error for {report_id}: {e}")
     
     def cancel_job(self, report_id: str) -> bool:
-        """Dispatch a task to cancel a running or pending job."""
-        try:
-            # Clean up error detector for this job since it's being cancelled
-            self.error_detector.reset_job_errors(report_id)
-
-            report = Report.objects.get(id=report_id)
-
-            # Check if job is in a cancellable state
-            if report.status not in [Report.STATUS_PENDING, Report.STATUS_RUNNING]:
-                logger.warning(f"Report report {report_id} is not in a cancellable state (status: {report.status})")
-                return False
-
-            # Dispatch the cancellation task
-            from ..tasks import cancel_report_generation
-            cancel_report_generation.delay(report_id)
-
-            logger.info(f"Cancellation task queued for report report {report_id}")
-            return True
-
-        except Report.DoesNotExist:
-            logger.warning(f"Report with report_id {report_id} not found for cancellation")
-            return False
-        except Exception as e:
-            logger.error(f"Error dispatching cancellation for report {report_id}: {e}")
-            return False
+        """
+        DEPRECATED: Cancellation is now handled directly in ReportJobCancelView.
+        This method is kept for backward compatibility but does nothing.
+        Use POST /api/v1/reports/jobs/{report_id}/cancel/ instead.
+        """
+        logger.warning(f"cancel_job called for report {report_id} - this method is deprecated. Use ReportJobCancelView instead.")
+        return False
     
     def delete_job(self, report_id: str) -> bool:
         """
