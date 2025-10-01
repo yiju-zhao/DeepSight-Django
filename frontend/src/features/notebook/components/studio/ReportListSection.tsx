@@ -61,9 +61,15 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
       case 'completed':
         return <Badge variant="default" className="text-xs">Ready</Badge>;
       case 'failed':
-        return <Badge variant="destructive" className="text-xs">Failed</Badge>;
+        return <Badge variant="destructive" className="text-xs bg-red-100 text-red-800 border-red-200">Failed</Badge>;
+      case 'running':
+        return <Badge variant="secondary" className="text-xs">Running</Badge>;
+      case 'pending':
+        return <Badge variant="secondary" className="text-xs">Pending</Badge>;
+      case 'cancelled':
+        return <Badge variant="outline" className="text-xs">Cancelled</Badge>;
       default:
-        return <Badge variant="outline" className="text-xs">Unknown</Badge>;
+        return <Badge variant="outline" className="text-xs">{status || 'Unknown'}</Badge>;
     }
   };
 
