@@ -2,10 +2,10 @@
 // Component focused solely on displaying file content
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { 
-  X, 
-  Edit, 
-  Save, 
+import {
+  X,
+  Edit,
+  Save,
   Download,
   Maximize2,
   Minimize2
@@ -13,8 +13,11 @@ import {
 import { Button } from "@/shared/components/ui/button";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 import AuthenticatedImage from './AuthenticatedImage';
 import { processReportMarkdownContent, getFileContentWithMinIOUrls } from './utils';
 
@@ -28,8 +31,26 @@ interface MarkdownContentProps {
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, useMinIOUrls = false }) => (
   <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 prose-code:text-red-600 prose-pre:bg-gray-50">
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight, rehypeRaw]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[
+        rehypeHighlight,
+        rehypeRaw,
+        [rehypeKatex, {
+          strict: false,
+          throwOnError: false,
+          errorColor: '#cc0000',
+          trust: true,
+          macros: {
+            '\\abs': '\\left|#1\\right|',
+            '\\pmb': '\\boldsymbol{#1}',
+            '\\hdots': '\\cdots',
+            '\\RR': '\\mathbb{R}',
+            '\\NN': '\\mathbb{N}',
+            '\\CC': '\\mathbb{C}',
+            '\\ZZ': '\\mathbb{Z}',
+          }
+        }]
+      ]}
       components={{
         img: ({ src, alt, title }) => (
           <AuthenticatedImage src={src || ''} alt={alt} title={title} />
