@@ -238,24 +238,25 @@ class FileViewSet(viewsets.ModelViewSet):
             from .models import KnowledgeBaseImage
             from .tasks import generate_image_captions_task
 
-            # Count images in database
-            image_count = KnowledgeBaseImage.objects.filter(knowledge_base_item_id=kb_item_id).count()
+            # Get the KB item first
+            kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
+
+            # Count images in database using the ForeignKey field
+            image_count = KnowledgeBaseImage.objects.filter(knowledge_base_item=kb_item).count()
 
             if image_count > 0:
                 # Update captioning status and schedule task
-                kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
                 kb_item.captioning_status = "pending"
                 kb_item.save(update_fields=["captioning_status", "updated_at"])
 
                 # Schedule caption generation
-                generate_image_captions_task.delay(str(kb_item_id))
-                logger.info(f"Scheduled caption generation for KB item {kb_item_id} with {image_count} images")
+                generate_image_captions_task.delay(str(kb_item.id))
+                logger.info(f"Scheduled caption generation for KB item {kb_item.id} with {image_count} images")
             else:
                 # No images - mark as not required
-                kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
                 kb_item.captioning_status = "not_required"
                 kb_item.save(update_fields=["captioning_status", "updated_at"])
-                logger.info(f"No images for KB item {kb_item_id} - captioning not required")
+                logger.info(f"No images for KB item {kb_item.id} - captioning not required")
 
         except Exception as e:
             logger.warning(f"Failed to schedule caption generation for KB item {kb_item_id}: {e}")
