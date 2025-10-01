@@ -506,7 +506,15 @@ class ReportJobCancelView(APIView):
                 Report.STATUS_CANCELLED
             )
 
-            logger.info(f"Successfully cancelled report {report_id}")
+            # Log cancellation with details
+            logger.info(
+                f"✓ Report generation cancelled successfully:\n"
+                f"  - Report ID: {report_id}\n"
+                f"  - Celery Task ID: {report.celery_task_id}\n"
+                f"  - Status: {Report.STATUS_CANCELLED}\n"
+                f"  - User: {request.user.username}"
+            )
+
             return Response({
                 "report_id": report_id,
                 "status": Report.STATUS_CANCELLED,
