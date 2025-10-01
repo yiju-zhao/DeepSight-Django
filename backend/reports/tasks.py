@@ -82,10 +82,17 @@ def process_report_generation(self, report_id: int):
     except Exception as e:
         logger.error(f"Error processing report generation for report {report_id}: {e}")
 
-        # Update job with error
+        # Check if the task was cancelled (killed by SIGKILL)
         try:
             from .models import Report
             report = Report.objects.get(id=report_id)
+
+            # If status is already CANCELLED, log it and don't update error
+            if report.status == Report.STATUS_CANCELLED:
+                logger.info(f"Task for report {report_id} (Celery task ID: {report.celery_task_id}) was cancelled - Status: CANCELLED")
+                return {"status": "cancelled", "message": "Task was cancelled"}
+
+            # Otherwise, it's a real error - update it
             report_orchestrator.update_job_error(str(report.id), str(e))
         except Report.DoesNotExist:
             logger.error(f"Could not update error for report {report_id} - report not found")
