@@ -96,7 +96,6 @@ class ReportGenerationService:
             final_result = {
                 "success": True,
                 "report_id": report.id,
-                "job_id": report.job_id,
                 "article_title": result.get("article_title", report.article_title),
                 "output_directory": str(output_dir),
                 "generated_files": stored_files,
@@ -114,7 +113,7 @@ class ReportGenerationService:
         except Exception as e:
             logger.error(f"Error in report generation for report {report_id}: {e}")
             try:
-                self.report_generator.cancel_generation(str(report.job_id) if report else "unknown")
+                self.report_generator.cancel_generation(str(report_id) if report else "unknown")
             except Exception as cleanup_error:
                 logger.warning(
                     f"Failed to cleanup temp directories after error: {cleanup_error}"
@@ -135,11 +134,11 @@ class ReportGenerationService:
             logger.error(f"Error getting supported options: {e}")
             return {}
 
-    def cancel_generation(self, job_id: str) -> bool:
+    def cancel_generation(self, report_id: str) -> bool:
         try:
-            return self.report_generator.cancel_generation(job_id)
+            return self.report_generator.cancel_generation(report_id)
         except Exception as e:
-            logger.error(f"Error cancelling generation for job {job_id}: {e}")
+            logger.error(f"Error cancelling generation for report {report_id}: {e}")
             return False
 
 __all__ = ["ReportGenerationService"]

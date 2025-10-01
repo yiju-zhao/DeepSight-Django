@@ -132,14 +132,14 @@ class DeepReportGeneratorAdapter:
             "search_depths": get_search_depth_options(),
         }
 
-    def cancel_generation(self, job_id: str) -> bool:
+    def cancel_generation(self, report_id: str) -> bool:
         try:
             self._cleanup_all_temp_directories()
-            logger.info(f"Cleaned up temp directories for cancelled job {job_id}")
+            logger.info(f"Cleaned up temp directories for cancelled report {report_id}")
             return True
         except Exception as e:
             logger.error(
-                f"Error during cancellation cleanup for job {job_id}: {e}"
+                f"Error during cancellation cleanup for report {report_id}: {e}"
             )
             return False
 

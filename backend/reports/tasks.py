@@ -19,7 +19,6 @@ def process_report_generation(self, report_id: int):
         logger.info(f"Starting report generation task for report {report_id}")
 
         # Update job status to running
-        # First get job_id from report
         from .models import Report
         try:
             report = Report.objects.get(id=report_id)

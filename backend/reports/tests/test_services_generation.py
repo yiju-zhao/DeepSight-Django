@@ -15,7 +15,6 @@ class TestReportGenerationService(unittest.TestCase):
             fake_report.user.pk = 1
             fake_report.notebooks = None
             fake_report.id = 42
-            fake_report.job_id = "jid-1"
             fake_report.old_outline = ""
             fake_report.article_title = "Title"
             fake_report.get_configuration_dict.return_value = {}

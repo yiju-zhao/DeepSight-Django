@@ -847,7 +847,7 @@ class JobService:
         This method checks the task state unconditionally (if ``report.celery_task_id`` is set)
         and updates the report (and the associated cache entry) if the task has **already**
         failed or been revoked.  By doing this check every time a client polls the
-        ``/report-jobs/{job_id}`` endpoint we can surface errors as soon as they happen instead
+        ``/report-jobs/{report_id}`` endpoint we can surface errors as soon as they happen instead
         of waiting for the 30-minute stale check performed by ``_check_worker_crash``.
         """
 
