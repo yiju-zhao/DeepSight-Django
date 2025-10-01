@@ -127,14 +127,18 @@ const FileViewer: React.FC<FileViewerProps> = ({
 
   // Load MinIO content when useMinIOUrls is enabled
   useEffect(() => {
-    console.log('FileViewer: useEffect triggered', { 
-      useMinIOUrls, 
-      fileId: file?.id, 
-      hasMinioContent: !!minioContent, 
-      isLoadingMinio 
+    console.log('FileViewer: useEffect triggered', {
+      useMinIOUrls,
+      fileId: file?.id,
+      fileType: file?.type,
+      hasMinioContent: !!minioContent,
+      isLoadingMinio
     });
-    
-    if (useMinIOUrls && file?.id && !minioContent && !isLoadingMinio) {
+
+    // Skip MinIO fetch for reports - they already have content from database
+    const isReport = file?.type === 'report';
+
+    if (useMinIOUrls && file?.id && !minioContent && !isLoadingMinio && !isReport) {
       console.log('FileViewer: Loading MinIO content for file:', file.id);
       setIsLoadingMinio(true);
       getFileContentWithMinIOUrls(file.id, notebookId)
@@ -150,7 +154,7 @@ const FileViewer: React.FC<FileViewerProps> = ({
           setIsLoadingMinio(false);
         });
     }
-  }, [useMinIOUrls, file?.id, minioContent, isLoadingMinio]);
+  }, [useMinIOUrls, file?.id, file?.type, minioContent, isLoadingMinio, notebookId]);
 
   const handleSave = () => {
     onSave(editContent);
