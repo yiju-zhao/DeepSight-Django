@@ -306,14 +306,6 @@ def _handle_task_completion(kb_item: KnowledgeBaseItem,
 
     logger.info(f"KB item {kb_item.id} marked as 'done' - ready for frontend use")
 
-    # Schedule post-processing (captioning, etc.) as a separate background task
-    try:
-        post_process_knowledge_item_task.delay(str(kb_item.id))
-        logger.info(f"Scheduled post-processing for KB item {kb_item.id}")
-    except Exception as e:
-        logger.error(f"Failed to schedule post-processing for KB item {kb_item.id}: {e}")
-        # Don't fail the main task - file is still usable
-
     # Chain RagFlow upload task to ensure content is fully saved
     try:
         upload_to_ragflow_task.delay(str(kb_item.id))

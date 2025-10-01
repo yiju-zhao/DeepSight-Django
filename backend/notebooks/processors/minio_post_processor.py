@@ -131,10 +131,6 @@ class MinIOPostProcessor:
 
                 # Clean up the temp directory
                 self._cleanup_temp_directory(temp_marker_dir)
-
-                # Schedule post-processing (caption generation) after images are saved to database
-                from ..tasks import post_process_knowledge_item_task
-                post_process_knowledge_item_task.delay(str(kb_item.id))
                     
             except Exception as e:
                 self.log_operation("mineru_extraction_minio_error", f"MinIO storage error while processing file_id {file_id}: {e}", "error")

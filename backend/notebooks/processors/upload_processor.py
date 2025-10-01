@@ -362,6 +362,10 @@ class UploadProcessor:
             if upload_to_ragflow:
                 await self._handle_ragflow_upload_async(file_id, file_metadata, notebook_id)
 
+            # Schedule caption generation after all processing is complete
+            from ..tasks import post_process_knowledge_item_task
+            post_process_knowledge_item_task.delay(file_id)
+
             # Update final status
             if upload_file_id:
                 self._update_upload_status(

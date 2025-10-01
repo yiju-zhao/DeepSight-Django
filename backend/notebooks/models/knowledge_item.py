@@ -54,7 +54,8 @@ class KnowledgeBaseItem(BaseModel):
     captioning_status = models.CharField(
         max_length=20,
         choices=CAPTIONING_STATUS_CHOICES,
-        default="not_required",
+        default="",
+        blank=True,
         help_text="Image captioning status (independent of parsing)",
         db_index=True,
     )
