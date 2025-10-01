@@ -519,32 +519,44 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   const handleDeleteSelected = async (): Promise<void> => {
     const selectedSources = sources.filter(source => source.selected);
-    
+
     if (selectedSources.length === 0) {
       return;
     }
 
-    
+    // Optimistically remove sources from UI immediately
+    const selectedIds = selectedSources.map(s => s.id);
+    const previousSources = sources; // Store for rollback
+    setSources((prev) => prev.filter((source) => !selectedIds.includes(source.id)));
+
+    // Notify selection change immediately
+    if (onSelectionChange) {
+      setTimeout(() => onSelectionChange(), 0);
+    }
+
+    // Perform deletion in background
     const deletionResults = [];
     const unlinkedKnowledgeItems = [];
+    const failedSources: Source[] = [];
+
     for (const source of selectedSources) {
       try {
         let result;
         let knowledgeItemId = null;
-        
-        
+
         // Use knowledge_item_id as the primary identifier for deletion
         if (source.metadata?.knowledge_item_id) {
           knowledgeItemId = source.metadata.knowledge_item_id;
           result = await sourceService.deleteParsedFile(source.metadata.knowledge_item_id, notebookId);
         } else {
           console.warn('Source has no valid knowledge_item_id for deletion:', source);
+          failedSources.push(source);
           continue;
         }
-        
+
         // Check for successful deletion - handle both explicit success and HTTP 204 responses
         const isSuccess = result?.success === true || (result && typeof result === 'object' && !result.error);
-        
+
         if (isSuccess) {
           deletionResults.push({ source, success: true });
           if (knowledgeItemId) {
@@ -552,34 +564,29 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           }
         } else {
           deletionResults.push({ source, success: false, error: result?.error || 'Unknown error' });
+          failedSources.push(source);
         }
       } catch (error) {
         console.error(`Error deleting file ${source.title}:`, error);
         deletionResults.push({ source, success: false, error: error instanceof Error ? error.message : 'Unknown error' });
+        failedSources.push(source);
       }
     }
-    
-    const successfullyDeleted = deletionResults
-      .filter(result => result.success)
-      .map(result => result.source.id);
-    
-    
-    setSources((prev) => prev.filter((source) => !successfullyDeleted.includes(source.id)));
-    
-    // Refresh the sources list from the server
-    refetchFiles();
-    
-    if (unlinkedKnowledgeItems.length > 0 && onSelectionChange) {
-      setTimeout(() => {
-        onSelectionChange();
-      }, 100);
-    }
-    
-    const failedDeletions = deletionResults.filter(result => !result.success);
-    if (failedDeletions.length > 0) {
-      const errorMessage = `Failed to delete ${failedDeletions.length} file(s): ${failedDeletions.map(f => f.source.title).join(', ')}`;
+
+    // Rollback failed deletions - restore them to the UI
+    if (failedSources.length > 0) {
+      setSources((prev) => [...failedSources, ...prev]);
+
+      const errorMessage = `Failed to delete ${failedSources.length} file(s): ${failedSources.map(f => f.title).join(', ')}`;
       setError(errorMessage);
+
+      if (onSelectionChange) {
+        setTimeout(() => onSelectionChange(), 100);
+      }
     }
+
+    // Refresh the sources list from the server to sync state
+    refetchFiles();
   };
 
 
