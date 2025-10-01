@@ -148,7 +148,7 @@ class FileTypeProcessors:
                         'api_version': mineru_result.get('version', 'unknown'),
                         'backend': mineru_result.get('backend', 'pipeline'),
                         'has_markdown_content': bool(md_content),
-                        'extracted_images_count': len(images),
+                        'image_count': len(images),
                         'has_mineru_extraction': temp_dir is not None
                     }
                     doc.close()
@@ -158,7 +158,7 @@ class FileTypeProcessors:
                         'api_version': mineru_result.get('version', 'unknown'),
                         'backend': mineru_result.get('backend', 'pipeline'),
                         'has_markdown_content': bool(md_content),
-                        'extracted_images_count': len(images),
+                        'image_count': len(images),
                         'has_mineru_extraction': temp_dir is not None
                     }
             except Exception as e:
@@ -168,7 +168,7 @@ class FileTypeProcessors:
                     'api_version': mineru_result.get('version', 'unknown'),
                     'metadata_error': str(e),
                     'has_markdown_content': bool(md_content),
-                    'extracted_images_count': len(images),
+                    'image_count': len(images),
                     'has_mineru_extraction': temp_dir is not None
                 }
 
