@@ -533,13 +533,15 @@ class STORMWikiRunner(Engine):
 
             # Ensure ReportImage records exist for figure insertion
             self._ensure_report_images_exist()
-            
-            # Use unified image insertion service
+
+            # Extract figure IDs from figure_data
+            figure_ids = [fig['figure_id'] for fig in self.figure_data if isinstance(fig, dict) and 'figure_id' in fig]
+
+            # Use unified image insertion service with correct method
             image_service = ImageInsertionService(DatabaseUrlProvider())
-            modified_text_with_figs = image_service.insert_figure_images(
+            modified_text_with_figs = image_service.insert_images_into_content(
                 content=article_text_before_figs,
-                figures=self.figure_data,
-                report_id=self.report_id,
+                figure_ids=figure_ids
             )
 
             # Apply figure formatting preservation to ensure proper newlines around figures

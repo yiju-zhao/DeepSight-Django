@@ -46,7 +46,7 @@ class ImageService:
 
         images = (
             KnowledgeBaseImage.objects.filter(
-                figure_id__in=uuid_figure_ids, knowledge_base_item__user_id=user_id
+                figure_id__in=uuid_figure_ids, knowledge_base_item__user__id=user_id
             )
             .select_related("knowledge_base_item")
         )
@@ -124,20 +124,11 @@ class ImageService:
         if not report_images:
             return content
 
-        figures = [
-            {
-                "figure_id": str(img.figure_id),
-                "caption": img.image_caption or f"Figure {img.figure_id}",
-            }
-            for img in report_images
-        ]
+        # Extract figure IDs from ReportImage objects
+        figure_ids = [str(img.figure_id) for img in report_images]
 
         service = ImageInsertionService(DatabaseUrlProvider())
-        if report_id is None:
-            report_id = str(report_images[0].report.id) if report_images else None
-        else:
-            report_id = str(report_id)
-        return service.insert_figure_images(content, figures, report_id=report_id)
+        return service.insert_images_into_content(content, figure_ids)
 
     # Public convenience to align with existing call sites
     def insert_figure_images(
