@@ -40,14 +40,6 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
           throwOnError: false,
           errorColor: '#cc0000',
           trust: true,
-          output: 'html',
-          displayMode: false,
-          fleqn: false,
-          leqno: false,
-          minRuleThickness: 0.04,
-          maxSize: 500,
-          maxExpand: 1000,
-          globalGroup: false,
           macros: {
             '\\abs': '\\left|#1\\right|',
             '\\pmb': '\\boldsymbol{#1}',
@@ -56,7 +48,6 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
             '\\NN': '\\mathbb{N}',
             '\\CC': '\\mathbb{C}',
             '\\ZZ': '\\mathbb{Z}',
-            '\\QQ': '\\mathbb{Q}',
           }
         }]
       ]}

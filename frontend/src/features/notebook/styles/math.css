@@ -7,15 +7,11 @@
 .prose .katex-display {
   margin: 1.5em 0;
   text-align: center;
-  overflow-x: auto;
-  overflow-y: hidden;
-  max-width: 100%;
 }
 
 .prose .katex-display .katex {
   text-align: left;
   display: inline-block;
-  white-space: nowrap;
 }
 
 /* Fix prose integration */
@@ -31,40 +27,6 @@
 .prose .katex-error {
   color: #cc0000;
   border-bottom: 1px solid #cc0000;
-  display: inline-block;
-  padding: 2px 4px;
-  background-color: #ffe6e6;
-  border-radius: 3px;
-}
-
-/* Array and matrix rendering improvements */
-.prose .katex .arraycolsep {
-  width: 0.5em;
-}
-
-.prose .katex .mord {
-  margin: 0;
-}
-
-/* Better spacing for complex equations */
-.prose .katex .base {
-  display: inline-block;
-}
-
-/* Ensure arrays and matrices render properly */
-.prose .katex .mtable {
-  display: inline-table;
-  vertical-align: middle;
-}
-
-.prose .katex .mtr {
-  display: table-row;
-}
-
-.prose .katex .mtd {
-  display: table-cell;
-  padding: 0.2em 0.5em;
-  text-align: center;
 }
 
 /* Responsive math */
@@ -74,7 +36,8 @@
   }
 
   .prose .katex-display {
+    overflow-x: auto;
     text-align: left;
-    padding: 0 0.5rem;
+    padding: 0 1rem;
   }
 }
