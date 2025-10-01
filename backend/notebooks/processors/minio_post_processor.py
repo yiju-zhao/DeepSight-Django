@@ -159,22 +159,21 @@ class MinIOPostProcessor:
     def _process_image_file(self, file: str, file_content: bytes, kb_item) -> Dict[str, str]:
         """Process image files and store in MinIO with database records."""
         target_filename = file
-
+        
         # Determine content type
         import mimetypes
         content_type, _ = mimetypes.guess_type(target_filename)
         content_type = content_type or 'application/octet-stream'
-
+        
         # Create KnowledgeBaseImage record first to get ID
         from ..models import KnowledgeBaseImage
-
-        # Step 1: Save the database record first to generate an ID
+        
+        # Create a temporary record to get the ID
         kb_image = KnowledgeBaseImage(
             knowledge_base_item=kb_item,
             image_caption="",  # Will be filled later if caption data is available
             content_type=content_type,
             file_size=len(file_content),
-            minio_object_key="",  # Placeholder - will be updated after file storage
             image_metadata={
                 'original_filename': target_filename,
                 'file_size': len(file_content),
@@ -184,58 +183,42 @@ class MinIOPostProcessor:
                 'original_file': file,
             }
         )
-
+        
+        # Store in MinIO using file ID structure with images subfolder and UUID
+        object_key = self.file_storage.minio_backend.save_file_with_auto_key(
+            content=file_content,
+            filename=target_filename,
+            prefix="kb",
+            content_type=content_type,
+            metadata={
+                'kb_item_id': str(kb_item.id),
+                'user_id': str(kb_item.notebook.user.id),
+                'file_type': 'mineru_image',
+                'original_file': file,
+            },
+            user_id=str(kb_item.notebook.user.id),
+            file_id=str(kb_item.id),
+            subfolder="images",
+            subfolder_uuid=str(kb_image.id)
+        )
+        
+        # Now set the object key and save the record
         try:
-            # Save to database to get the ID
-            kb_image.save()
-
-            self.log_operation(
-                "mineru_image_db_created",
-                f"Created KnowledgeBaseImage record: id={kb_image.id}"
-            )
-
-            # Step 2: Now use the ID to store the file in MinIO with correct path
-            object_key = self.file_storage.minio_backend.save_file_with_auto_key(
-                content=file_content,
-                filename=target_filename,
-                prefix="kb",
-                content_type=content_type,
-                metadata={
-                    'kb_item_id': str(kb_item.id),
-                    'kb_image_id': str(kb_image.id),
-                    'user_id': str(kb_item.notebook.user.id),
-                    'file_type': 'mineru_image',
-                    'original_file': file,
-                },
-                user_id=str(kb_item.notebook.user.id),
-                file_id=str(kb_item.id),
-                subfolder="images",
-                subfolder_uuid=str(kb_image.id)
-            )
-
-            # Step 3: Update the record with the correct MinIO object key
             kb_image.minio_object_key = object_key
-            kb_image.save(update_fields=['minio_object_key'])
-
+            kb_image.save()
+            
             self.log_operation(
-                "mineru_image_stored",
-                f"Stored image in MinIO: id={kb_image.id}, object_key={object_key}"
+                "mineru_image_db_created", 
+                f"Created KnowledgeBaseImage record: id={kb_image.id}, object_key={object_key}"
             )
-
+            
         except Exception as e:
             self.log_operation(
-                "mineru_image_db_error",
-                f"Failed to process image {target_filename}: {str(e)}",
+                "mineru_image_db_error", 
+                f"Failed to create KnowledgeBaseImage record for {target_filename}: {str(e)}", 
                 "error"
             )
-            # If database save succeeded but file storage failed, clean up the record
-            if kb_image.id:
-                try:
-                    kb_image.delete()
-                except Exception:
-                    pass
-            raise
-
+        
         return {
             'original_filename': file,
             'target_filename': target_filename,
