@@ -72,8 +72,8 @@ class ReportJobListCreateView(APIView):
     def get(self, request):
         try:
             notebook_id = request.query_params.get("notebook")
-            # Exclude cancelled and failed reports from the list
-            qs = Report.objects.filter(user=request.user).exclude(status__in=[Report.STATUS_CANCELLED, Report.STATUS_FAILED])
+            # Exclude cancelled reports from the list (keep failed reports visible)
+            qs = Report.objects.filter(user=request.user).exclude(status=Report.STATUS_CANCELLED)
             if notebook_id:
                 notebook = get_object_or_404(
                     Notebook.objects.filter(user=request.user), pk=notebook_id
