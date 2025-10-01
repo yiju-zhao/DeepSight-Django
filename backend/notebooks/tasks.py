@@ -355,16 +355,14 @@ def post_process_knowledge_item_task(self, kb_item_id: str):
     Runs independently after file parsing is complete.
     """
     try:
+        from .models import KnowledgeBaseItem, KnowledgeBaseImage
+
         kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
         logger.info(f"Starting post-processing for KB item {kb_item_id}")
 
-        # Determine if captioning is required
-        image_count = 0
-        try:
-            if isinstance(kb_item.file_metadata, dict):
-                image_count = int(kb_item.file_metadata.get("image_count", 0) or 0)
-        except Exception:
-            image_count = 0
+        # Count actual KnowledgeBaseImage records in the database
+        image_count = KnowledgeBaseImage.objects.filter(knowledge_base_item=kb_item).count()
+        logger.info(f"KB item {kb_item_id} has {image_count} images in database")
 
         if image_count > 0:
             # Set captioning status to pending and schedule generation

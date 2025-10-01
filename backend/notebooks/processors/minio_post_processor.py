@@ -126,17 +126,13 @@ class MinIOPostProcessor:
                 # Update the knowledge base item's metadata with MinIO object keys
                 self._update_kb_item_metadata(kb_item, content_files, image_files)
 
-                # Schedule async caption generation if images were created
-                if image_files:
-                    self._schedule_caption_generation(kb_item, image_files)
-
                 # Log summary
                 self._log_processing_summary(content_files, image_files)
 
                 # Clean up the temp directory
                 self._cleanup_temp_directory(temp_marker_dir)
 
-                # Schedule post-processing (caption generation) after metadata is saved
+                # Schedule post-processing (caption generation) after images are saved to database
                 from ..tasks import post_process_knowledge_item_task
                 post_process_knowledge_item_task.delay(str(kb_item.id))
                     
@@ -282,7 +278,7 @@ class MinIOPostProcessor:
         """Update knowledge base item metadata with extraction results."""
         if not kb_item.file_metadata:
             kb_item.file_metadata = {}
-        
+
         kb_item.file_metadata['mineru_extraction'] = {
             'success': True,
             'content_files': content_files,
@@ -291,37 +287,8 @@ class MinIOPostProcessor:
             'extraction_timestamp': datetime.now(timezone.utc).isoformat(),
             'storage_backend': 'minio'
         }
-        
-        # Store image object keys for future reference
-        if image_files:
-            kb_item.file_metadata['image_object_keys'] = [f['object_key'] for f in image_files]
-            kb_item.file_metadata['image_count'] = len(image_files)
-        
+
         kb_item.save()
-
-    def _schedule_caption_generation(self, kb_item, image_files: list):
-        """No-op scheduler: captioning orchestration moved to task completion.
-
-        We keep this method for compatibility with existing processor flow, but
-        actual scheduling is handled centrally in _handle_task_completion.
-        """
-        # Record intent and counts for observability only
-        try:
-            if not kb_item.file_metadata:
-                kb_item.file_metadata = {}
-            kb_item.file_metadata['images_requiring_captions'] = len(image_files)
-            kb_item.save()
-
-            self.log_operation(
-                "mineru_caption_preparing",
-                f"Caption generation deferred to completion handler for {len(image_files)} images in KB item {kb_item.id}"
-            )
-        except Exception as e:
-            self.log_operation(
-                "mineru_caption_scheduling_error",
-                f"Failed to record caption generation intent for KB item {kb_item.id}: {str(e)}",
-                "error",
-            )
 
     def _log_processing_summary(self, content_files: list, image_files: list):
         """Log summary of processing results."""
