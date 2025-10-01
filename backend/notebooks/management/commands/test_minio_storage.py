@@ -44,7 +44,7 @@ class Command(BaseCommand):
     def test_storage_adapter(self, backend):
         """Test storage adapter initialization."""
         try:
-            from notebooks.utils.storage_adapter import get_storage_adapter
+            from notebooks.utils.storage import get_storage_adapter
             
             self.stdout.write(f"Testing storage adapter with backend: {backend}")
             
@@ -79,7 +79,7 @@ class Command(BaseCommand):
     def test_file_upload(self):
         """Test file upload functionality."""
         try:
-            from notebooks.utils.storage_adapter import get_storage_adapter
+            from notebooks.utils.storage import get_storage_adapter
             
             self.stdout.write("Testing file upload...")
             
@@ -110,7 +110,7 @@ class Command(BaseCommand):
     def test_file_retrieval(self):
         """Test file retrieval functionality."""
         try:
-            from notebooks.utils.storage_adapter import get_storage_adapter
+            from notebooks.utils.storage import get_storage_adapter
             
             self.stdout.write("Testing file retrieval...")
             
