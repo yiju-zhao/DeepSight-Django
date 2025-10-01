@@ -28,62 +28,39 @@ interface MarkdownContentProps {
 }
 
 // ====== SINGLE RESPONSIBILITY: Markdown content renderer ======
-const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, useMinIOUrls = false }) => {
-  // Fix common LaTeX syntax errors
-  const sanitizedContent = useMemo(() => {
-    let processed = content;
-
-    // Fix: \begin{array} { c c } -> \begin{array}{cc}
-    processed = processed.replace(/\\begin\{array\}\s*\{\s*([^}]+)\s*\}/g, (match, cols) => {
-      const cleanCols = cols.replace(/\s+/g, '');
-      return `\\begin{array}{${cleanCols}}`;
-    });
-
-    // Fix: missing right delimiters - wrap matrices properly
-    processed = processed.replace(/\\left\(\s*\{\s*\\begin\{array\}/g, '\\left(\\begin{array}');
-    processed = processed.replace(/\\end\{array\}\s*\}\s*\\right\)/g, '\\end{array}\\right)');
-
-    // Fix: extra braces around array content
-    processed = processed.replace(/\\left\(\s*\{/g, '\\left(');
-    processed = processed.replace(/\}\s*\\right\)/g, '\\right)');
-
-    return processed;
-  }, [content]);
-
-  return (
-    <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 prose-code:text-red-600 prose-pre:bg-gray-50">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[
-          rehypeHighlight,
-          rehypeRaw,
-          [rehypeKatex, {
-            strict: false,
-            throwOnError: false,
-            errorColor: '#cc0000',
-            trust: true,
-            macros: {
-              '\\abs': '\\left|#1\\right|',
-              '\\pmb': '\\boldsymbol{#1}',
-              '\\hdots': '\\cdots',
-              '\\RR': '\\mathbb{R}',
-              '\\NN': '\\mathbb{N}',
-              '\\CC': '\\mathbb{C}',
-              '\\ZZ': '\\mathbb{Z}',
-            }
-          }]
-        ]}
-        components={{
-          img: ({ src, alt, title }) => (
-            <AuthenticatedImage src={src || ''} alt={alt} title={title} />
-          )
-        }}
-      >
-        {sanitizedContent}
-      </ReactMarkdown>
-    </div>
-  );
-});
+const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, useMinIOUrls = false }) => (
+  <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 prose-code:text-red-600 prose-pre:bg-gray-50">
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[
+        rehypeHighlight,
+        rehypeRaw,
+        [rehypeKatex, {
+          strict: false,
+          throwOnError: false,
+          errorColor: '#cc0000',
+          trust: true,
+          macros: {
+            '\\abs': '\\left|#1\\right|',
+            '\\pmb': '\\boldsymbol{#1}',
+            '\\hdots': '\\cdots',
+            '\\RR': '\\mathbb{R}',
+            '\\NN': '\\mathbb{N}',
+            '\\CC': '\\mathbb{C}',
+            '\\ZZ': '\\mathbb{Z}',
+          }
+        }]
+      ]}
+      components={{
+        img: ({ src, alt, title }) => (
+          <AuthenticatedImage src={src || ''} alt={alt} title={title} />
+        )
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  </div>
+));
 
 MarkdownContent.displayName = 'MarkdownContent';
 

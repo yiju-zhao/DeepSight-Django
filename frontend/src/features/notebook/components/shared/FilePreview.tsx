@@ -240,9 +240,9 @@ interface MarkdownContentProps {
 
 
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
-  // Remove non-standard HTML tags and fix LaTeX syntax issues
+  // Remove non-standard HTML tags (think, result, results, answer, information) that cause React warnings
   const sanitizedContent = React.useMemo(() => {
-    let processed = content
+    return content
       // Remove <think> tags
       .replace(/<think>/gi, '')
       .replace(/<\/think>/gi, '')
@@ -263,23 +263,6 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
       .replace(/<information>/gi, '')
       .replace(/<\/information>/gi, '')
       .replace(/<information\s*\/>/gi, '');
-
-    // Fix common LaTeX syntax errors in math blocks
-    // Fix: \begin{array} { c c } -> \begin{array}{cc}
-    processed = processed.replace(/\\begin\{array\}\s*\{\s*([^}]+)\s*\}/g, (match, cols) => {
-      const cleanCols = cols.replace(/\s+/g, '');
-      return `\\begin{array}{${cleanCols}}`;
-    });
-
-    // Fix: missing right delimiters - wrap matrices properly
-    processed = processed.replace(/\\left\(\s*\{\s*\\begin\{array\}/g, '\\left(\\begin{array}');
-    processed = processed.replace(/\\end\{array\}\s*\}\s*\\right\)/g, '\\end{array}\\right)');
-
-    // Fix: extra braces around array content
-    processed = processed.replace(/\\left\(\s*\{/g, '\\left(');
-    processed = processed.replace(/\}\s*\\right\)/g, '\\right)');
-
-    return processed;
   }, [content]);
 
   return (
