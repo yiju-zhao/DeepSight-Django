@@ -63,6 +63,7 @@ class StudioService {
     const normalizedJobs = jobs.map((job: any) => ({
       ...job,
       id: job.id || job.report_id,
+      status: job.status, // Explicitly preserve status
     }));
 
     return {
