@@ -337,54 +337,6 @@ def _handle_task_error(kb_item: KnowledgeBaseItem, error: Exception,
 
 
 # ============================================================================
-# POST-PROCESSING TASKS - Run independently after parsing completes
-# ============================================================================
-
-@shared_task(bind=True)
-def post_process_knowledge_item_task(self, kb_item_id: str):
-    """
-    Orchestrator task for post-processing operations (captioning, etc.)
-    Runs independently after file parsing is complete.
-    """
-    try:
-        from .models import KnowledgeBaseItem, KnowledgeBaseImage
-
-        kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
-        logger.info(f"Starting post-processing for KB item {kb_item_id}")
-
-        # Count actual KnowledgeBaseImage records in the database
-        image_count = KnowledgeBaseImage.objects.filter(knowledge_base_item=kb_item).count()
-        logger.info(f"KB item {kb_item_id} has {image_count} images in database")
-
-        if image_count > 0:
-            # Set captioning status to pending and schedule generation
-            kb_item.captioning_status = "pending"
-            kb_item.save(update_fields=["captioning_status", "updated_at"])
-
-            logger.info(f"KB item {kb_item_id} has {image_count} images - scheduling caption generation")
-
-            try:
-                generate_image_captions_task.delay(str(kb_item.id))
-                logger.info(f"Caption generation scheduled for KB item {kb_item_id}")
-            except Exception as e:
-                logger.error(f"Failed to schedule caption generation for KB item {kb_item_id}: {e}")
-                kb_item.captioning_status = "failed"
-                kb_item.metadata = kb_item.metadata or {}
-                kb_item.metadata["caption_schedule_error"] = str(e)
-                kb_item.save(update_fields=["captioning_status", "metadata", "updated_at"])
-        else:
-            # No images - mark as not required
-            logger.info(f"KB item {kb_item_id} has no images - captioning not required")
-            kb_item.captioning_status = "not_required"
-            kb_item.save(update_fields=["captioning_status", "updated_at"])
-
-    except KnowledgeBaseItem.DoesNotExist:
-        logger.error(f"KB item {kb_item_id} not found for post-processing")
-    except Exception as e:
-        logger.error(f"Error in post-processing for KB item {kb_item_id}: {e}")
-
-
-# ============================================================================
 # TASK IMPLEMENTATIONS - Clean, focused task functions
 # ============================================================================
 

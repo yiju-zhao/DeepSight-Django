@@ -4,14 +4,11 @@ File Service - Handle file processing business logic following Django patterns.
 import logging
 from uuid import uuid4
 from typing import Dict, List, Optional
-from asgiref.sync import async_to_sync
 from django.db import transaction
-from django.shortcuts import get_object_or_404
 from django.core.exceptions import ValidationError
 from rest_framework import status
 
 from ..models import KnowledgeBaseItem, BatchJob, BatchJobItem
-from ..processors.upload_processor import UploadProcessor
 from core.services import NotebookBaseService
 
 logger = logging.getLogger(__name__)
@@ -19,21 +16,10 @@ logger = logging.getLogger(__name__)
 
 class FileService(NotebookBaseService):
     """Handle file processing business logic following Django patterns."""
-    
+
     def __init__(self):
         super().__init__()
-        # Use upload processor for all file processing
-        self.upload_processor = UploadProcessor()
-    
-    def perform_action(self, **kwargs):
-        """
-        Implementation of abstract method from BaseService.
-        This service uses direct method calls rather than the template pattern.
-        """
-        # This method is required by BaseService but not used in this service
-        # Individual methods handle their own transactions and validation
-        pass
-    
+
     @transaction.atomic
     def handle_single_file_upload(self, file_obj, upload_id: str, notebook, user) -> Dict:
         """
@@ -196,19 +182,6 @@ class FileService(NotebookBaseService):
         except Exception as e:
             self.logger.exception(f"Batch file upload failed: {e}")
             raise ValidationError(f"Batch file upload failed: {str(e)}")
-
-    def process_file_by_type(self, file_path: str, file_metadata: Dict) -> Dict:
-        """
-        Process file using focused file processor.
-        
-        Args:
-            file_path: Path to the file to process
-            file_metadata: Metadata about the file
-            
-        Returns:
-            Processing result dictionary
-        """
-        return async_to_sync(self.upload_processor._process_file_by_type)(file_path, file_metadata)
 
     def validate_file_upload(self, serializer) -> tuple:
         """
