@@ -293,37 +293,27 @@ def _check_batch_completion(batch_job_id: Optional[str]) -> None:
         logger.warning(f"Batch job {batch_job_id} not found")
 
 
-def _handle_task_completion(kb_item: KnowledgeBaseItem, 
+def _handle_task_completion(kb_item: KnowledgeBaseItem,
                           batch_item_id: str = None, batch_job_id: str = None) -> Dict[str, Any]:
-    """Handle common task completion logic."""
-    # Determine if captioning is required based on available image info
-    image_count = 0
+    """Handle common task completion logic.
+
+    File parsing is now complete - mark as 'done' immediately so frontend can use it.
+    Caption generation and other post-processing run independently.
+    """
+    # Mark parsing as done immediately - file is ready for use
+    kb_item.parsing_status = "done"
+    kb_item.save(update_fields=["parsing_status", "updated_at"])
+
+    logger.info(f"KB item {kb_item.id} marked as 'done' - ready for frontend use")
+
+    # Schedule post-processing (captioning, etc.) as a separate background task
     try:
-        if isinstance(kb_item.file_metadata, dict):
-            image_count = int(kb_item.file_metadata.get("image_count", 0) or 0)
-    except Exception:
-        image_count = 0
+        post_process_knowledge_item_task.delay(str(kb_item.id))
+        logger.info(f"Scheduled post-processing for KB item {kb_item.id}")
+    except Exception as e:
+        logger.error(f"Failed to schedule post-processing for KB item {kb_item.id}: {e}")
+        # Don't fail the main task - file is still usable
 
-    if image_count > 0:
-        # Move to captioning and schedule caption generation
-        kb_item.parsing_status = "captioning"
-        kb_item.save(update_fields=["parsing_status", "updated_at"])
-
-        try:
-            from .tasks import generate_image_captions_task
-            generate_image_captions_task.delay(str(kb_item.id))
-        except Exception as e:
-            # If scheduling fails, mark as failed and record error
-            logger.error(f"Failed to schedule caption generation for KB item {kb_item.id}: {e}")
-            kb_item.parsing_status = "failed"
-            kb_item.metadata = kb_item.metadata or {}
-            kb_item.metadata["caption_schedule_error"] = str(e)
-            kb_item.save(update_fields=["parsing_status", "metadata", "updated_at"])
-    else:
-        # No images; complete immediately
-        kb_item.parsing_status = "done"
-        kb_item.save(update_fields=["parsing_status", "updated_at"])
-    
     # Chain RagFlow upload task to ensure content is fully saved
     try:
         upload_to_ragflow_task.delay(str(kb_item.id))
@@ -331,11 +321,11 @@ def _handle_task_completion(kb_item: KnowledgeBaseItem,
     except Exception as e:
         logger.error(f"Failed to chain RagFlow upload task for KB item {kb_item.id}: {e}")
         # Don't fail the main task if chaining fails
-    
+
     # Update batch status
     _update_batch_item_status(batch_item_id, 'completed', result_data={"file_id": str(kb_item.id)})
     _check_batch_completion(batch_job_id)
-    
+
     return {"file_id": str(kb_item.id), "status": "completed"}
 
 
@@ -355,12 +345,62 @@ def _handle_task_error(kb_item: KnowledgeBaseItem, error: Exception,
 
 
 # ============================================================================
+# POST-PROCESSING TASKS - Run independently after parsing completes
+# ============================================================================
+
+@shared_task(bind=True)
+def post_process_knowledge_item_task(self, kb_item_id: str):
+    """
+    Orchestrator task for post-processing operations (captioning, etc.)
+    Runs independently after file parsing is complete.
+    """
+    try:
+        kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
+        logger.info(f"Starting post-processing for KB item {kb_item_id}")
+
+        # Determine if captioning is required
+        image_count = 0
+        try:
+            if isinstance(kb_item.file_metadata, dict):
+                image_count = int(kb_item.file_metadata.get("image_count", 0) or 0)
+        except Exception:
+            image_count = 0
+
+        if image_count > 0:
+            # Set captioning status to pending and schedule generation
+            kb_item.captioning_status = "pending"
+            kb_item.save(update_fields=["captioning_status", "updated_at"])
+
+            logger.info(f"KB item {kb_item_id} has {image_count} images - scheduling caption generation")
+
+            try:
+                generate_image_captions_task.delay(str(kb_item.id))
+                logger.info(f"Caption generation scheduled for KB item {kb_item_id}")
+            except Exception as e:
+                logger.error(f"Failed to schedule caption generation for KB item {kb_item_id}: {e}")
+                kb_item.captioning_status = "failed"
+                kb_item.metadata = kb_item.metadata or {}
+                kb_item.metadata["caption_schedule_error"] = str(e)
+                kb_item.save(update_fields=["captioning_status", "metadata", "updated_at"])
+        else:
+            # No images - mark as not required
+            logger.info(f"KB item {kb_item_id} has no images - captioning not required")
+            kb_item.captioning_status = "not_required"
+            kb_item.save(update_fields=["captioning_status", "updated_at"])
+
+    except KnowledgeBaseItem.DoesNotExist:
+        logger.error(f"KB item {kb_item_id} not found for post-processing")
+    except Exception as e:
+        logger.error(f"Error in post-processing for KB item {kb_item_id}: {e}")
+
+
+# ============================================================================
 # TASK IMPLEMENTATIONS - Clean, focused task functions
 # ============================================================================
 
 @shared_task(bind=True)
-def process_url_task(self, url: str, notebook_id: str, user_id: int, 
-                    upload_url_id: str = None, batch_job_id: str = None, 
+def process_url_task(self, url: str, notebook_id: str, user_id: int,
+                    upload_url_id: str = None, batch_job_id: str = None,
                     batch_item_id: str = None, kb_item_id: str = None):
     """Process a single URL asynchronously."""
     kb_item = None
@@ -615,19 +655,19 @@ def process_file_upload_task(self, file_data: bytes, filename: str, notebook_id:
 def generate_image_captions_task(self, kb_item_id: str):
     """Generate captions for images in a knowledge base item asynchronously.
 
-    State handling (single-field state machine):
-    - Ensure parsing_status is 'captioning' while running
-    - On success, set parsing_status='done'
-    - On failure, set parsing_status='failed'
+    State handling: Uses captioning_status field (independent of parsing_status)
+    - Set captioning_status='in_progress' while running
+    - On success, set captioning_status='completed'
+    - On failure, set captioning_status='failed'
+    - parsing_status remains unchanged (already 'done')
     """
     kb_item = None
     try:
         kb_item = get_object_or_404(KnowledgeBaseItem, id=kb_item_id)
 
-        # Move to captioning if not already in a terminal state
-        if kb_item.parsing_status not in ["captioning", "done", "failed"]:
-            kb_item.parsing_status = "captioning"
-            kb_item.save(update_fields=["parsing_status", "updated_at"])
+        # Set to in_progress (don't touch parsing_status)
+        kb_item.captioning_status = "in_progress"
+        kb_item.save(update_fields=["captioning_status", "updated_at"])
 
         # Import caption generator utility lazily
         from .utils.image_processing.caption_generator import populate_image_captions_for_kb_item
@@ -637,25 +677,25 @@ def generate_image_captions_task(self, kb_item_id: str):
 
         if result.get('success'):
             logger.info(f"Successfully generated captions for KB item {kb_item_id}")
-            kb_item.parsing_status = "done"
-            kb_item.save(update_fields=["parsing_status", "updated_at"])
+            kb_item.captioning_status = "completed"
+            kb_item.save(update_fields=["captioning_status", "updated_at"])
             return {"success": True, "captions_generated": result.get('captions_count', 0)}
         else:
             logger.warning(f"Failed to generate captions for KB item {kb_item_id}: {result.get('error')}")
-            kb_item.parsing_status = "failed"
+            kb_item.captioning_status = "failed"
             # Keep error in metadata for observability
             kb_item.metadata = kb_item.metadata or {}
             kb_item.metadata['caption_error'] = result.get('error')
-            kb_item.save(update_fields=["parsing_status", "metadata", "updated_at"])
+            kb_item.save(update_fields=["captioning_status", "metadata", "updated_at"])
             return {"success": False, "error": result.get('error')}
 
     except Exception as e:
         logger.error(f"Error generating captions for KB item {kb_item_id}: {e}")
         if kb_item:
-            kb_item.parsing_status = "failed"
+            kb_item.captioning_status = "failed"
             kb_item.metadata = kb_item.metadata or {}
             kb_item.metadata['caption_error'] = str(e)
-            kb_item.save(update_fields=["parsing_status", "metadata", "updated_at"])
+            kb_item.save(update_fields=["captioning_status", "metadata", "updated_at"])
         raise ValidationError(f"Failed to generate captions: {str(e)}")
 
 

@@ -22,7 +22,15 @@ class KnowledgeBaseItem(BaseModel):
         ("done", "Done"),
         ("failed", "Failed"),
     ]
-    
+
+    CAPTIONING_STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("in_progress", "In Progress"),
+        ("completed", "Completed"),
+        ("failed", "Failed"),
+        ("not_required", "Not Required"),
+    ]
+
     CONTENT_TYPE_CHOICES = [
         ("text", "Text Content"),
         ("document", "Document"),
@@ -41,6 +49,13 @@ class KnowledgeBaseItem(BaseModel):
         choices=PARSING_STATUS_CHOICES,
         default="queueing",
         help_text="Parsing status of this knowledge base item",
+        db_index=True,
+    )
+    captioning_status = models.CharField(
+        max_length=20,
+        choices=CAPTIONING_STATUS_CHOICES,
+        default="not_required",
+        help_text="Image captioning status (independent of parsing)",
         db_index=True,
     )
     title = models.CharField(
