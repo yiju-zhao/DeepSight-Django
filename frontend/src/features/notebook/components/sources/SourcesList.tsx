@@ -665,7 +665,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     const isFailed = source.parsing_status === 'failed' || source.parsing_status === 'error';
     
     // Check if this is a file with images and caption generation status
-    const captionGenerationStatus = source.metadata?.file_metadata?.caption_generation_status || source.metadata?.caption_generation_status;
+    const captionGenerationStatus = source.captioning_status || source.metadata?.file_metadata?.caption_generation_status || source.metadata?.caption_generation_status;
     const hasImages = (source.metadata?.file_metadata?.image_count && source.metadata.file_metadata.image_count > 0) || 
                       (source.metadata?.image_count && source.metadata.image_count > 0);
     const imagesRequiringCaptions = source.metadata?.file_metadata?.images_requiring_captions || source.metadata?.images_requiring_captions;
@@ -720,7 +720,16 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         </div>
       );
     }
-    
+
+    // Show image icon when captions are completed
+    if (source.parsing_status === 'done' && captionGenerationStatus === 'completed' && hasImages) {
+      return (
+        <div className="flex items-center space-x-1" title="Images with captions available">
+          <ImageIcon className="h-3 w-3 text-green-500" />
+        </div>
+      );
+    }
+
     return null;
   };
 

@@ -185,6 +185,7 @@ export interface Source {
   file?: string | File;
   upload_file_id?: string;
   parsing_status?: 'queueing' | 'parsing' | 'done' | 'failed' | 'error' | 'cancelled' | 'unsupported' | 'uploading' | 'captioning';
+  captioning_status?: 'pending' | 'in_progress' | 'completed' | 'failed' | 'not_required';
   ext?: string;
   authors?: string;
   error_message?: string;
