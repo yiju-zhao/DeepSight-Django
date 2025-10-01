@@ -483,10 +483,13 @@ class DatabaseUrlProvider(ImageUrlProvider):
             Image URL if found, None otherwise
         """
         try:
-            from reports.models import ReportFigure
-            figure = ReportFigure.objects.filter(figure_id=figure_id).first()
-            if figure and figure.image_url:
-                return figure.image_url
+            from reports.models import ReportImage
+
+            # Query ReportImage by figure_id
+            report_image = ReportImage.objects.filter(figure_id=figure_id).first()
+            if report_image:
+                # Use the get_image_url method to get pre-signed URL
+                return report_image.get_image_url()
         except Exception as e:
             logger.error(f"Error fetching image URL for {figure_id}: {e}")
 
