@@ -39,6 +39,14 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
       return `\\begin{array}{${cleanCols}}`;
     });
 
+    // Fix: \end{array\right) -> \end{array}\right) (missing closing brace)
+    processed = processed.replace(/\\end\{array\\right\)/g, '\\end{array}\\right)');
+    processed = processed.replace(/\\end\{array\\right\]/g, '\\end{array}\\right]');
+    processed = processed.replace(/\\end\{array\\right\|/g, '\\end{array}\\right|');
+
+    // Fix: {\fract -> {\frac (common typo)
+    processed = processed.replace(/\\fract\b/g, '\\frac');
+
     // Fix: missing right delimiters - wrap matrices properly
     processed = processed.replace(/\\left\(\s*\{\s*\\begin\{array\}/g, '\\left(\\begin{array}');
     processed = processed.replace(/\\end\{array\}\s*\}\s*\\right\)/g, '\\end{array}\\right)');
@@ -46,6 +54,22 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
     // Fix: extra braces around array content
     processed = processed.replace(/\\left\(\s*\{/g, '\\left(');
     processed = processed.replace(/\}\s*\\right\)/g, '\\right)');
+
+    // Fix: missing closing braces in common patterns
+    processed = processed.replace(/\\left\|([^|]*?)\\end\{array\}([^}])/g, '\\left|$1\\end{array}\\right|$2');
+
+    // Fix: unmatched \left without \right
+    const leftCount = (processed.match(/\\left[\(\[\|]/g) || []).length;
+    const rightCount = (processed.match(/\\right[\)\]\|]/g) || []).length;
+    if (leftCount > rightCount) {
+      // Try to balance by adding \right. at the end of math blocks
+      processed = processed.replace(/\$\$/g, (match, offset, string) => {
+        const before = string.substring(0, offset);
+        const leftBefore = (before.match(/\\left[\(\[\|]/g) || []).length;
+        const rightBefore = (before.match(/\\right[\)\]\|]/g) || []).length;
+        return leftBefore > rightBefore ? '\\right.$$' : match;
+      });
+    }
 
     return processed;
   }, [content]);
