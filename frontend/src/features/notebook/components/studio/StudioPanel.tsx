@@ -59,6 +59,18 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const [isPreviewingEdits, setIsPreviewingEdits] = useState<boolean>(false);
   const [expandedPodcasts, setExpandedPodcasts] = useState<Set<string>>(new Set());
 
+  // Prevent body scroll when a file/report is open
+  useEffect(() => {
+    if (selectedFile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedFile]);
+
 
   // ====== SINGLE RESPONSIBILITY: File Selection State ======
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
@@ -971,7 +983,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
       {/* ====== SINGLE RESPONSIBILITY: File viewer overlay ====== */}
       {selectedFile && (
-        <div className="fixed inset-0 z-40 pt-16">
+        <div className="fixed inset-0 z-40 pt-16 overflow-hidden">
           <FileViewer
             file={selectedFile}
             content={selectedFileContent}
