@@ -117,6 +117,32 @@ export const useGenerationManager = (
               }
             );
 
+            // Update the report/podcast list cache with new progress
+            const listQueryKey = type === 'report'
+              ? studioKeys.reportJobs(notebookId)
+              : studioKeys.podcastJobs(notebookId);
+
+            queryClient.setQueryData(listQueryKey, (old: any) => {
+              if (!old?.jobs) return old;
+
+              const updatedJobs = old.jobs.map((job: any) => {
+                if (job.id === jobId || job.job_id === jobId) {
+                  return {
+                    ...job,
+                    status: jobData.status,
+                    progress: jobData.progress || job.progress,
+                    updated_at: new Date().toISOString(),
+                  };
+                }
+                return job;
+              });
+
+              return {
+                ...old,
+                jobs: updatedJobs,
+              };
+            });
+
             // If job completed, trigger completion flow
             if (jobData.status === 'completed') {
               handleJobComplete(jobData);
