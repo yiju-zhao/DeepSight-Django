@@ -314,6 +314,26 @@ def _handle_task_completion(kb_item: KnowledgeBaseItem,
         logger.error(f"Failed to chain RagFlow upload task for KB item {kb_item.id}: {e}")
         # Don't fail the main task if chaining fails
 
+    # Schedule caption generation after all processing is complete
+    try:
+        from .models import KnowledgeBaseImage
+
+        # Count images in database
+        image_count = KnowledgeBaseImage.objects.filter(knowledge_base_item=kb_item).count()
+
+        if image_count > 0:
+            kb_item.captioning_status = "pending"
+            kb_item.save(update_fields=["captioning_status", "updated_at"])
+
+            generate_image_captions_task.delay(str(kb_item.id))
+            logger.info(f"Scheduled caption generation for KB item {kb_item.id} with {image_count} images")
+        else:
+            kb_item.captioning_status = "not_required"
+            kb_item.save(update_fields=["captioning_status", "updated_at"])
+            logger.info(f"No images for KB item {kb_item.id} - captioning not required")
+    except Exception as caption_error:
+        logger.warning(f"Failed to schedule caption generation for KB item {kb_item.id}: {caption_error}")
+
     # Update batch status
     _update_batch_item_status(batch_item_id, 'completed', result_data={"file_id": str(kb_item.id)})
     _check_batch_completion(batch_job_id)
