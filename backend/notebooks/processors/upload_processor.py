@@ -358,6 +358,10 @@ class UploadProcessor:
                 post_process_sync = sync_to_async(post_processor.post_process_mineru_extraction, thread_sensitive=False)
                 await post_process_sync(file_id, processing_result['marker_extraction_result'])
 
+                # Schedule caption generation and other post-processing
+                from ..tasks import post_process_knowledge_item_task
+                post_process_knowledge_item_task.delay(file_id)
+
             # Handle RagFlow upload if requested
             if upload_to_ragflow:
                 await self._handle_ragflow_upload_async(file_id, file_metadata, notebook_id)
