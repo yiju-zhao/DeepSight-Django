@@ -10,6 +10,7 @@ import time
 import requests
 import json
 import base64
+import re
 from typing import Dict, Any
 from pathlib import Path
 
@@ -119,14 +120,14 @@ class FileTypeProcessors:
             with open(md_file_path, 'w', encoding='utf-8') as f:
                 f.write(md_content)
             
-            # Save images if any
+            # Save all images to temp directory (filtering happens later in minio_post_processor)
             image_files = []
             for img_name, img_data in images.items():
                 if img_data.startswith('data:image/'):
                     # Handle base64 encoded images
                     header, data = img_data.split(',', 1)
                     img_bytes = base64.b64decode(data)
-                    
+
                     img_path = os.path.join(temp_dir, img_name)
                     with open(img_path, 'wb') as f:
                         f.write(img_bytes)
@@ -148,7 +149,6 @@ class FileTypeProcessors:
                         'api_version': mineru_result.get('version', 'unknown'),
                         'backend': mineru_result.get('backend', 'pipeline'),
                         'has_markdown_content': bool(md_content),
-                        'image_count': len(images),
                         'has_mineru_extraction': temp_dir is not None
                     }
                     doc.close()
@@ -158,7 +158,6 @@ class FileTypeProcessors:
                         'api_version': mineru_result.get('version', 'unknown'),
                         'backend': mineru_result.get('backend', 'pipeline'),
                         'has_markdown_content': bool(md_content),
-                        'image_count': len(images),
                         'has_mineru_extraction': temp_dir is not None
                     }
             except Exception as e:
@@ -168,7 +167,6 @@ class FileTypeProcessors:
                     'api_version': mineru_result.get('version', 'unknown'),
                     'metadata_error': str(e),
                     'has_markdown_content': bool(md_content),
-                    'image_count': len(images),
                     'has_mineru_extraction': temp_dir is not None
                 }
 

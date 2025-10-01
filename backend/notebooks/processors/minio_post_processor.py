@@ -64,36 +64,60 @@ class MinIOPostProcessor:
                 # Process files from temp directory and store in MinIO
                 content_files = []
                 image_files = []
-                markdown_content = None  # Store markdown content for figure name extraction
-                
+                markdown_content = None
+                referenced_images = set()
+
+                # First pass: extract markdown and find referenced images
+                for root, _, files in os.walk(temp_marker_dir):
+                    for file in files:
+                        if file.endswith('.md'):
+                            source_file = os.path.join(root, file)
+                            with open(source_file, 'rb') as f:
+                                file_content = f.read()
+                                markdown_content = file_content.decode('utf-8', errors='ignore')
+                                kb_item.content = markdown_content
+
+                            # Extract referenced images from markdown
+                            if extract_figure_data_from_markdown:
+                                try:
+                                    figure_data = extract_figure_data_from_markdown(source_file)
+                                    for fig in figure_data:
+                                        image_path = fig.get('image_path', '')
+                                        if image_path:
+                                            # Extract just the filename from the path
+                                            referenced_images.add(os.path.basename(image_path))
+                                except Exception as e:
+                                    self.log_operation("extract_figures_error", f"Failed to extract figures from markdown: {e}", "warning")
+                            break
+
+                # Second pass: process files, filtering images by references
                 for root, _, files in os.walk(temp_marker_dir):
                     for file in files:
                         source_file = os.path.join(root, file)
-                        
+
                         # Skip all JSON metadata files
                         if file.endswith('.json'):
                             continue
-                        
+
                         # Read file content
                         with open(source_file, 'rb') as f:
                             file_content = f.read()
-                        
+
                         # Determine file type and store in appropriate MinIO prefix
                         if file.endswith(('.md', '.json')):
                             content_files.append(self._process_content_file(
                                 file, file_content, clean_title, kb_item
                             ))
-                            
-                            # Store markdown content for later use
-                            if file.endswith('.md'):
-                                markdown_content = file_content.decode('utf-8', errors='ignore')
-                                kb_item.content = markdown_content
-                                
+
                         elif file.endswith(('.jpg', '.jpeg', '.png', '.gif', '.svg')):
-                            image_files.append(self._process_image_file(
-                                file, file_content, kb_item
-                            ))
-                            
+                            # Only process images that are referenced in the markdown
+                            if file in referenced_images:
+                                image_files.append(self._process_image_file(
+                                    file, file_content, kb_item
+                                ))
+                            else:
+                                self.log_operation("skip_unreferenced_image", f"Skipping unreferenced image: {file}")
+
                         else:
                             content_files.append(self._process_other_file(
                                 file, file_content, kb_item
@@ -101,16 +125,20 @@ class MinIOPostProcessor:
                 
                 # Update the knowledge base item's metadata with MinIO object keys
                 self._update_kb_item_metadata(kb_item, content_files, image_files)
-                
+
                 # Schedule async caption generation if images were created
                 if image_files:
                     self._schedule_caption_generation(kb_item, image_files)
-                
+
                 # Log summary
                 self._log_processing_summary(content_files, image_files)
-                
+
                 # Clean up the temp directory
                 self._cleanup_temp_directory(temp_marker_dir)
+
+                # Schedule post-processing (caption generation) after metadata is saved
+                from ..tasks import post_process_knowledge_item_task
+                post_process_knowledge_item_task.delay(str(kb_item.id))
                     
             except Exception as e:
                 self.log_operation("mineru_extraction_minio_error", f"MinIO storage error while processing file_id {file_id}: {e}", "error")
