@@ -31,10 +31,6 @@ PLACEHOLDER_REGEX = re.compile(PLACEHOLDER_PATTERN, re.MULTILINE)
 # Pattern for checking existing img tags
 EXISTING_IMG_PATTERN = r'<img\s+[^>]*src="[^"]*{figure_id}[^"]*"[^>]*>'
 
-# Image style constants
-MAX_IMAGE_HEIGHT = "500px"
-DEFAULT_IMAGE_STYLE = f"max-height: {MAX_IMAGE_HEIGHT};"
-
 # Caption and figure patterns
 FIGURE_LINE_PATTERN = r"^(?:<[^>]+>\s*)*\*{0,2}(?:Figure|Fig\.?|图)\s+(\d+)\.?[\s:|]+(.+?)(?:\*{0,2})?$"
 FIGURE_LINE_REGEX = re.compile(FIGURE_LINE_PATTERN, re.IGNORECASE)
@@ -64,28 +60,6 @@ TITLE_WHITESPACE_REGEX = re.compile(TITLE_WHITESPACE_PATTERN)
 # FORMATTING FUNCTIONS
 # =============================================================================
 
-def create_img_tag(src: str, figure_id: Optional[str] = None, style: Optional[str] = None) -> str:
-    """
-    Create an HTML img tag with consistent formatting.
-
-    Args:
-        src: Image source URL
-        figure_id: Optional figure ID for identification
-        style: Optional CSS style, defaults to DEFAULT_IMAGE_STYLE
-
-    Returns:
-        HTML img tag string
-    """
-    if not src:
-        logger.warning("No source URL provided for image tag")
-        return ""
-
-    if style is None:
-        style = DEFAULT_IMAGE_STYLE
-
-    return f'<img src="{src}" style="{style}">'
-
-
 def create_image_placeholder(figure_id: str) -> str:
     """
     Create a placeholder for figure insertion.
@@ -97,24 +71,6 @@ def create_image_placeholder(figure_id: str) -> str:
         Placeholder string in format <figure_id>
     """
     return f"<{figure_id}>"
-
-
-def create_figure_insertion(image_url: str, caption: str = "", figure_id: str = "") -> str:
-    """
-    Create a complete figure insertion with image and caption.
-
-    Args:
-        image_url: URL of the image
-        caption: Optional caption text
-        figure_id: Optional figure ID for tracking
-
-    Returns:
-        HTML string with image and caption
-    """
-    img_tag = create_img_tag(image_url, figure_id)
-    if caption:
-        return f"{img_tag}\n{caption}"
-    return img_tag
 
 
 def clean_title_text(title: str) -> str:
@@ -465,40 +421,13 @@ def validate_caption(caption: str) -> bool:
 class ImageUrlProvider:
     """Base class for image URL providers."""
 
-    def get_image_url(self, figure_id: str) -> Optional[str]:
-        """Get image URL for a figure ID."""
-        raise NotImplementedError("Subclasses must implement get_image_url")
-
     def get_image_relative_path(self, figure_id: str) -> Optional[str]:
         """Get relative path for a figure ID (used for Markdown embedding)."""
         raise NotImplementedError("Subclasses must implement get_image_relative_path")
 
 
 class DatabaseUrlProvider(ImageUrlProvider):
-    """URL provider that fetches URLs from database."""
-
-    def get_image_url(self, figure_id: str) -> Optional[str]:
-        """
-        Get image URL from database.
-
-        Args:
-            figure_id: Figure ID to lookup
-
-        Returns:
-            Image URL if found, None otherwise
-        """
-        try:
-            from reports.models import ReportImage
-
-            # Query ReportImage by figure_id
-            report_image = ReportImage.objects.filter(figure_id=figure_id).first()
-            if report_image:
-                # Use the get_image_url method to get pre-signed URL
-                return report_image.get_image_url()
-        except Exception as e:
-            logger.error(f"Error fetching image URL for {figure_id}: {e}")
-
-        return None
+    """URL provider that fetches relative paths from database."""
 
     def get_image_relative_path(self, figure_id: str) -> Optional[str]:
         """
