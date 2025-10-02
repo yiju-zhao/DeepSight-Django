@@ -48,7 +48,7 @@ from .serializers import (
     URLParseDocumentSerializer,
     VideoImageExtractionSerializer,
 )
-from .services import NotebookService, FileService, KnowledgeBaseService, ChatService
+from .services import NotebookService, FileService, KnowledgeBaseService, ChatService, URLService
 from core.permissions import IsOwnerPermission, IsNotebookOwner
 from core.pagination import NotebookPagination, LargePageNumberPagination
 
@@ -169,6 +169,7 @@ class FileViewSet(viewsets.ModelViewSet):
         super().__init__(*args, **kwargs)
         self.file_service = FileService()
         self.kb_service = KnowledgeBaseService()
+        self.url_service = URLService()
 
     def get_queryset(self):
         # Guard against schema generation
@@ -346,14 +347,18 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer = URLParseSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
+            from uuid import uuid4
             notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
-            item = self.kb_service.parse_url(
-                user=request.user,
+            url = serializer.validated_data["url"]
+            upload_url_id = serializer.validated_data.get("upload_url_id") or uuid4().hex
+
+            result = self.url_service.handle_single_url_parse(
+                url=url,
+                upload_url_id=upload_url_id,
                 notebook=notebook,
-                url=serializer.validated_data["url"],
-                notes=serializer.validated_data.get("notes", ""),
+                user=request.user,
             )
-            return Response(KnowledgeBaseItemSerializer(item).data, status=status.HTTP_201_CREATED)
+            return Response(result, status=result.get('status_code', status.HTTP_201_CREATED))
         except Exception as e:
             logger.exception(f"Failed to parse URL: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -363,14 +368,18 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer = URLParseWithMediaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
+            from uuid import uuid4
             notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
-            item = self.kb_service.parse_url_with_media(
-                user=request.user,
+            url = serializer.validated_data["url"]
+            upload_url_id = serializer.validated_data.get("upload_url_id") or uuid4().hex
+
+            result = self.url_service.handle_url_with_media(
+                url=url,
+                upload_url_id=upload_url_id,
                 notebook=notebook,
-                url=serializer.validated_data["url"],
-                notes=serializer.validated_data.get("notes", ""),
+                user=request.user,
             )
-            return Response(KnowledgeBaseItemSerializer(item).data, status=status.HTTP_201_CREATED)
+            return Response(result, status=result.get('status_code', status.HTTP_201_CREATED))
         except Exception as e:
             logger.exception(f"Failed to parse URL with media: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -380,14 +389,18 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer = URLParseDocumentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
+            from uuid import uuid4
             notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
-            item = self.kb_service.parse_document_url(
-                user=request.user,
+            url = serializer.validated_data["url"]
+            upload_url_id = serializer.validated_data.get("upload_url_id") or uuid4().hex
+
+            result = self.url_service.handle_document_url(
+                url=url,
+                upload_url_id=upload_url_id,
                 notebook=notebook,
-                url=serializer.validated_data["url"],
-                notes=serializer.validated_data.get("notes", ""),
+                user=request.user,
             )
-            return Response(KnowledgeBaseItemSerializer(item).data, status=status.HTTP_201_CREATED)
+            return Response(result, status=result.get('status_code', status.HTTP_201_CREATED))
         except Exception as e:
             logger.exception(f"Failed to parse document URL: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
