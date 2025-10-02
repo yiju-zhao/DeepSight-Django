@@ -58,23 +58,7 @@ const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
   const [xinferenceModels, setXinferenceModels] = useState<any[]>([]);
   const [loadingXinferenceModels, setLoadingXinferenceModels] = useState(false);
 
-  // Update local state when modal opens (when isOpen becomes true)
-  useEffect(() => {
-    if (isOpen) {
-      setLocalReportConfig(reportConfig);
-      setLocalPodcastConfig(podcastConfig);
-      setOriginalReportConfig(reportConfig);
-      setOriginalPodcastConfig(podcastConfig);
-    }
-  }, [isOpen, reportConfig, podcastConfig]);
-
-  // Fetch Xinference models when provider is selected
-  useEffect(() => {
-    if (localReportConfig.model_provider === 'xinference') {
-      fetchXinferenceModels();
-    }
-  }, [localReportConfig.model_provider]);
-
+  // Fetch Xinference models function
   const fetchXinferenceModels = async () => {
     setLoadingXinferenceModels(true);
     try {
@@ -88,6 +72,19 @@ const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
       setLoadingXinferenceModels(false);
     }
   };
+
+  // Update local state and fetch Xinference models when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setLocalReportConfig(reportConfig);
+      setLocalPodcastConfig(podcastConfig);
+      setOriginalReportConfig(reportConfig);
+      setOriginalPodcastConfig(podcastConfig);
+
+      // Preload Xinference models when modal opens for better UX
+      fetchXinferenceModels();
+    }
+  }, [isOpen, reportConfig, podcastConfig]);
 
   if (!isOpen) return null;
 
