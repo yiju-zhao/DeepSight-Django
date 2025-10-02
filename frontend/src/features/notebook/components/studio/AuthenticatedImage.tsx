@@ -47,7 +47,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       console.log('AuthenticatedImage: File type:', file.type, 'Report ID:', reportId);
 
       if (file.type === 'report' && reportId) {
-        const reportImageUrl = `${API_BASE_URL}/api/v1/reports/jobs/${reportId}/images/${imageName}`;
+        const reportImageUrl = `${API_BASE_URL}/reports/${reportId}/images/${imageName}`;
         console.log('AuthenticatedImage: Constructing report image URL:', reportImageUrl);
         fetchImageWithRedirect(reportImageUrl);
         return;

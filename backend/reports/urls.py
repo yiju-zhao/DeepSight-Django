@@ -4,9 +4,9 @@ Reports App URL Configuration.
 Canonical, notebook-agnostic endpoints for report generation and management.
 
 URL Structure:
-- /api/v1/reports/models/                - Global report configuration
-- /api/v1/reports/jobs/                  - Report jobs (list/create; filter with ?notebook=)
-- /api/v1/reports/jobs/{report_id}/...   - Job operations (detail/cancel/files/content/download/stream)
+- /api/v1/reports/models/              - Global report configuration
+- /api/v1/reports/                     - Report list/create (filter with ?notebook=)
+- /api/v1/reports/{report_id}/...      - Report operations (detail/cancel/files/content/download/stream)
 """
 
 from django.urls import path
@@ -37,53 +37,56 @@ urlpatterns = [
     ),
 
     # ========================================
-    # Canonical Report Job Endpoints (no notebook in path)
+    # Canonical Report Endpoints (no notebook in path)
     # ========================================
 
+    # List and create reports
     path(
-        'jobs/',
+        '',
         views.ReportJobListCreateView.as_view(),
-        name='report-jobs'
+        name='report-list-create'
     ),
+
+    # Individual report operations
     path(
-        'jobs/<str:report_id>/',
+        '<str:report_id>/',
         views.ReportJobDetailView.as_view(),
-        name='report-job-detail'
+        name='report-detail'
     ),
     path(
-        'jobs/<str:report_id>/download/',
+        '<str:report_id>/download/',
         views.ReportJobDownloadView.as_view(),
-        name='report-job-download'
+        name='report-download'
     ),
     path(
-        'jobs/<str:report_id>/download-pdf/',
+        '<str:report_id>/download-pdf/',
         views.ReportJobPdfDownloadView.as_view(),
-        name='report-job-pdf-download'
+        name='report-pdf-download'
     ),
     path(
-        'jobs/<str:report_id>/files/',
+        '<str:report_id>/files/',
         views.ReportJobFilesView.as_view(),
-        name='report-job-files'
+        name='report-files'
     ),
     path(
-        'jobs/<str:report_id>/content/',
+        '<str:report_id>/content/',
         views.ReportJobContentView.as_view(),
-        name='report-job-content'
+        name='report-content'
     ),
     path(
-        'jobs/<str:report_id>/images/<str:image_name>',
+        '<str:report_id>/images/<str:image_name>',
         views.ReportJobImageView.as_view(),
-        name='report-job-image'
+        name='report-image'
     ),
     path(
-        'jobs/<str:report_id>/cancel/',
+        '<str:report_id>/cancel/',
         views.ReportJobCancelView.as_view(),
-        name='report-job-cancel'
+        name='report-cancel'
     ),
     path(
-        'jobs/<str:report_id>/stream/',
+        '<str:report_id>/stream/',
         csrf_exempt(views.report_status_stream),
-        name='report-job-status-stream'
+        name='report-status-stream'
     ),
 
 ]
@@ -93,18 +96,23 @@ urlpatterns = [
 # ========================================
 
 """
-Generated URL Patterns (canonical only):
+Generated URL Patterns:
 
+Configuration:
 - GET  /api/v1/reports/models/
-- GET  /api/v1/reports/jobs/?notebook={id}
-- POST /api/v1/reports/jobs/
-- GET  /api/v1/reports/jobs/{report_id}/
-- PUT  /api/v1/reports/jobs/{report_id}/
-- DEL  /api/v1/reports/jobs/{report_id}/
-- GET  /api/v1/reports/jobs/{report_id}/files/
-- GET  /api/v1/reports/jobs/{report_id}/content/
-- POST /api/v1/reports/jobs/{report_id}/cancel/
-- GET  /api/v1/reports/jobs/{report_id}/download/
-- GET  /api/v1/reports/jobs/{report_id}/download-pdf/
-- GET  /api/v1/reports/jobs/{report_id}/stream/
+- GET  /api/v1/reports/xinference/models/
+
+Report Operations:
+- GET  /api/v1/reports/?notebook={id}
+- POST /api/v1/reports/
+- GET  /api/v1/reports/{report_id}/
+- PUT  /api/v1/reports/{report_id}/
+- DEL  /api/v1/reports/{report_id}/
+- GET  /api/v1/reports/{report_id}/files/
+- GET  /api/v1/reports/{report_id}/content/
+- GET  /api/v1/reports/{report_id}/images/{image_name}
+- POST /api/v1/reports/{report_id}/cancel/
+- GET  /api/v1/reports/{report_id}/download/
+- GET  /api/v1/reports/{report_id}/download-pdf/
+- GET  /api/v1/reports/{report_id}/stream/
 """

@@ -43,20 +43,20 @@ class StudioService {
     if (!notebookId) {
       throw new Error('notebookId is required for report generation');
     }
-    
-    return apiClient.post(`/reports/jobs/`, { ...config, notebook: notebookId });
+
+    return apiClient.post(`/reports/`, { ...config, notebook: notebookId });
   }
 
   async generateReportWithSourceIds(requestData: any, notebookId: string): Promise<any> {
     if (!notebookId) {
       throw new Error('notebookId is required for report generation');
     }
-    
-    return apiClient.post(`/reports/jobs/`, { ...requestData, notebook: notebookId });
+
+    return apiClient.post(`/reports/`, { ...requestData, notebook: notebookId });
   }
 
   async listReportJobs(notebookId: string): Promise<{ jobs: any[]; }> {
-    const response = await apiClient.get(`/reports/jobs/?notebook=${encodeURIComponent(notebookId)}`);
+    const response = await apiClient.get(`/reports/?notebook=${encodeURIComponent(notebookId)}`);
     const jobs = response.reports || response.jobs || response || [];
 
     // Normalize backend field names: map report_id -> id (backend returns report_id)
@@ -72,31 +72,31 @@ class StudioService {
   }
 
   async getReportContent(jobId: string, notebookId: string): Promise<any> {
-    return apiClient.get(`/reports/jobs/${jobId}/content/`);
+    return apiClient.get(`/reports/${jobId}/content/`);
   }
 
   async getReportStatus(jobId: string, notebookId: string): Promise<any> {
-    return apiClient.get(`/reports/jobs/${jobId}/`);
+    return apiClient.get(`/reports/${jobId}/`);
   }
 
   async listReportFiles(jobId: string, notebookId: string): Promise<any> {
     if (!notebookId) {
       throw new Error('notebookId is required for listing report files');
     }
-    
-    return apiClient.get(`/reports/jobs/${jobId}/files/`);
+
+    return apiClient.get(`/reports/${jobId}/files/`);
   }
 
   async downloadReportFile(jobId: string, notebookId: string, filename: string | null = null): Promise<Blob> {
     if (!notebookId) {
       throw new Error('notebookId is required for downloading report files');
     }
-    
+
     if (!jobId) {
       throw new Error('jobId is required for downloading report files');
     }
-    
-    let url = `/reports/jobs/${jobId}/download/`;
+
+    let url = `/reports/${jobId}/download/`;
     if (filename) {
       url += `?filename=${encodeURIComponent(filename)}`;
     }
@@ -164,8 +164,8 @@ class StudioService {
     if (!notebookId) {
       throw new Error('notebookId is required for downloading report PDF');
     }
-    
-    const url = `/reports/jobs/${jobId}/download-pdf/`;
+
+    const url = `/reports/${jobId}/download-pdf/`;
     
     const response = await fetch(`${apiClient.getBaseUrl()}${url}`, {
       method: 'GET',
@@ -210,44 +210,44 @@ class StudioService {
     if (!notebookId) {
       throw new Error('notebookId is required for cancelling report jobs');
     }
-    
-    return apiClient.post(`/reports/jobs/${jobId}/cancel/`);
+
+    return apiClient.post(`/reports/${jobId}/cancel/`);
   }
 
   async deleteReport(jobId: string, notebookId: string): Promise<any> {
     if (!notebookId) {
       throw new Error('notebookId is required for deleting report');
     }
-    
-    return apiClient.delete(`/reports/jobs/${jobId}/`);
+
+    return apiClient.delete(`/reports/${jobId}/`);
   }
 
   async updateReport(jobId: string, notebookId: string, content: string): Promise<any> {
     if (!notebookId) {
       throw new Error('notebookId is required for updating report');
     }
-    
+
     if (!content) {
       throw new Error('content is required for updating report');
     }
-    
-    return apiClient.put(`/reports/jobs/${jobId}/`, { content });
+
+    return apiClient.put(`/reports/${jobId}/`, { content });
   }
 
   async getReportJobStatus(jobId: string, notebookId: string): Promise<any> {
     if (!notebookId) {
       throw new Error('notebookId is required for getting report job status');
     }
-    
-    return apiClient.get(`/reports/jobs/${jobId}/`);
+
+    return apiClient.get(`/reports/${jobId}/`);
   }
 
   getReportJobStatusStreamUrl(jobId: string, notebookId: string): string {
     if (!notebookId) {
       throw new Error('notebookId is required for report job status stream');
     }
-    
-    return `${apiClient.getBaseUrl()}/reports/jobs/${jobId}/stream/`;
+
+    return `${apiClient.getBaseUrl()}/reports/${jobId}/stream/`;
   }
 
   // ─── PODCASTS ────────────────────────────────────────────────────────────
