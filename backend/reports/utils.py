@@ -431,24 +431,26 @@ class DatabaseUrlProvider(ImageUrlProvider):
 
     def get_image_relative_path(self, figure_id: str) -> Optional[str]:
         """
-        Get MinIO pre-signed URL for image from database.
+        Get relative path for image from database.
 
         Args:
             figure_id: Figure ID to lookup
 
         Returns:
-            MinIO pre-signed URL if found, None otherwise
+            Relative path in format 'images/{filename}' if found, None otherwise
         """
         try:
             from reports.models import ReportImage
+            from pathlib import Path
 
             # Query ReportImage by figure_id
             report_image = ReportImage.objects.filter(figure_id=figure_id).first()
-            if report_image:
-                # Return direct MinIO URL (pre-signed)
-                return report_image.get_image_url(expires=86400)  # 24 hour expiry
+            if report_image and report_image.report_figure_minio_object_key:
+                # Extract filename from MinIO object key
+                filename = Path(report_image.report_figure_minio_object_key).name
+                return f"images/{filename}"
         except Exception as e:
-            logger.error(f"Error fetching image URL for {figure_id}: {e}")
+            logger.error(f"Error fetching image relative path for {figure_id}: {e}")
 
         return None
 

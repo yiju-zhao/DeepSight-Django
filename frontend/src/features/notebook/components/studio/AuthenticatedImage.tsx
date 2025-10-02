@@ -8,16 +8,17 @@ interface AuthenticatedImageProps {
   src: string;
   alt?: string;
   title?: string;
+  reportId?: string;
 }
 
 // Enhanced Authenticated Image component that handles both MinIO URLs and API URLs
-const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title }) => {
+const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title, reportId }) => {
   const [imgSrc, setImgSrc] = useState(src);
   const [imgError, setImgError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('AuthenticatedImage: Processing image with src:', src);
+    console.log('AuthenticatedImage: Processing image with src:', src, 'reportId:', reportId);
     setImgError(false);
     setIsLoading(true);
 
@@ -38,6 +39,15 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       return;
     }
 
+    // Handle report relative paths (images/filename.jpg)
+    if (src.startsWith('images/') && reportId) {
+      const imageName = src.replace('images/', '');
+      const reportImageUrl = `${API_BASE_URL}/reports/${reportId}/images/${imageName}`;
+      console.log('AuthenticatedImage: Detected report relative path, converting to:', reportImageUrl);
+      fetchImageUrl(reportImageUrl);
+      return;
+    }
+
     // If it's an API URL, fetch with credentials
     if (src.includes('/api/v1/notebooks/') && src.includes('/images/')) {
       console.log('AuthenticatedImage: Detected notebook API URL, fetching with credentials');
@@ -48,7 +58,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       setImgSrc(src);
       setIsLoading(false);
     }
-  }, [src]);
+  }, [src, reportId]);
 
   const isMinIOUrl = (url: string): boolean => {
     // Check if URL looks like a MinIO pre-signed URL
@@ -63,6 +73,36 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
 
     console.log('AuthenticatedImage: isMinIOUrl check for', url.substring(0, 100), '... Result:', isMinIO);
     return isMinIO;
+  };
+
+  const fetchImageUrl = async (url: string) => {
+    try {
+      console.log('AuthenticatedImage: Fetching image URL from API:', url);
+
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      if (data.url) {
+        console.log('AuthenticatedImage: Got MinIO URL from API:', data.url);
+        setImgSrc(data.url);
+        setIsLoading(false);
+      } else {
+        throw new Error('No URL in response');
+      }
+    } catch (error) {
+      console.error('AuthenticatedImage: Failed to fetch image URL:', error);
+      setImgError(true);
+      setIsLoading(false);
+    }
   };
 
   const fetchImageWithCredentials = async (url: string) => {

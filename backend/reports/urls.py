@@ -74,6 +74,11 @@ urlpatterns = [
         name='report-content'
     ),
     path(
+        '<str:report_id>/images/<str:image_name>',
+        views.ReportJobImageView.as_view(),
+        name='report-image'
+    ),
+    path(
         '<str:report_id>/cancel/',
         views.ReportJobCancelView.as_view(),
         name='report-cancel'
