@@ -262,19 +262,19 @@ def _check_batch_completion(batch_job_id: Optional[str]) -> None:
     """Check if batch job is complete and update its status."""
     if not batch_job_id:
         return
-        
+
     try:
         batch_job = BatchJob.objects.get(id=batch_job_id)
         items = batch_job.items.all()
-        
+
         # Check if any items are still pending or processing
         if items.filter(status__in=['pending', 'processing']).exists():
             return  # Still has items in progress
-        
+
         # All items are either completed or failed
         completed_count = items.filter(status='completed').count()
         failed_count = items.filter(status='failed').count()
-        
+
         # Update batch job status
         if failed_count == 0:
             batch_job.status = 'completed'
@@ -282,15 +282,288 @@ def _check_batch_completion(batch_job_id: Optional[str]) -> None:
             batch_job.status = 'failed'
         else:
             batch_job.status = 'partially_completed'
-        
+
         batch_job.completed_items = completed_count
         batch_job.failed_items = failed_count
         batch_job.save()
-        
+
         logger.info(f"Batch job {batch_job_id} completed: {completed_count} successful, {failed_count} failed")
-        
+
     except ObjectDoesNotExist:
         logger.warning(f"Batch job {batch_job_id} not found")
+
+
+@shared_task(bind=True)
+def parse_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id: int):
+    """
+    Celery task to parse a URL asynchronously.
+
+    Args:
+        url: URL to parse
+        upload_url_id: Unique ID for this upload
+        notebook_id: ID of the notebook
+        user_id: ID of the user
+
+    Returns:
+        dict: Result with success status and file_id
+    """
+    try:
+        _validate_task_inputs(url=url, notebook_id=notebook_id, user_id=user_id)
+        notebook, user = _get_notebook_and_user(notebook_id, user_id)
+
+        # Create KB item placeholder
+        kb_item = KnowledgeBaseItem.objects.create(
+            notebook=notebook,
+            title=f"Processing: {url[:100]}",
+            content_type="url",
+            parsing_status="queueing",
+            notes=f"URL: {url}",
+            tags=[],
+            metadata={'url': url, 'upload_url_id': upload_url_id}
+        )
+
+        logger.info(f"Created KB item {kb_item.id} for URL: {url}")
+
+        # Update status to parsing
+        kb_item.parsing_status = "parsing"
+        kb_item.save(update_fields=['parsing_status'])
+
+        # Process the URL
+        from ..processors.url_extractor import URLExtractor
+        url_extractor = URLExtractor()
+
+        result = async_to_sync(url_extractor.process_url)(
+            url=url,
+            upload_url_id=upload_url_id,
+            user_id=user_id,
+            notebook_id=notebook_id
+        )
+
+        # Get the file_id from result
+        file_id = result.get("file_id")
+
+        if not file_id:
+            kb_item.parsing_status = "failed"
+            kb_item.save(update_fields=['parsing_status'])
+            raise URLProcessingError("URL processing did not return a file_id")
+
+        # Refresh KB item from database to get updated content
+        kb_item.refresh_from_db()
+
+        # Mark as done if processing completed successfully
+        kb_item.parsing_status = "done"
+        kb_item.save(update_fields=['parsing_status'])
+
+        logger.info(f"Successfully parsed URL to KB item {file_id}")
+
+        # Chain RagFlow upload task
+        upload_to_ragflow_task.apply_async(args=[str(file_id)])
+
+        return {
+            "success": True,
+            "file_id": file_id,
+            "upload_url_id": upload_url_id
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to parse URL {url}: {e}")
+
+        # Mark KB item as failed if it exists
+        try:
+            if 'kb_item' in locals():
+                kb_item.parsing_status = "failed"
+                kb_item.metadata = kb_item.metadata or {}
+                kb_item.metadata['error'] = str(e)
+                kb_item.save(update_fields=['parsing_status', 'metadata'])
+        except Exception:
+            pass
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@shared_task(bind=True)
+def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: str, user_id: int):
+    """
+    Celery task to parse a URL with media extraction asynchronously.
+
+    Args:
+        url: URL to parse
+        upload_url_id: Unique ID for this upload
+        notebook_id: ID of the notebook
+        user_id: ID of the user
+
+    Returns:
+        dict: Result with success status and file_id
+    """
+    try:
+        _validate_task_inputs(url=url, notebook_id=notebook_id, user_id=user_id)
+        notebook, user = _get_notebook_and_user(notebook_id, user_id)
+
+        # Create KB item placeholder
+        kb_item = KnowledgeBaseItem.objects.create(
+            notebook=notebook,
+            title=f"Processing with media: {url[:100]}",
+            content_type="url",
+            parsing_status="queueing",
+            notes=f"URL with media: {url}",
+            tags=[],
+            metadata={'url': url, 'upload_url_id': upload_url_id, 'extract_media': True}
+        )
+
+        logger.info(f"Created KB item {kb_item.id} for URL with media: {url}")
+
+        # Update status to parsing
+        kb_item.parsing_status = "parsing"
+        kb_item.save(update_fields=['parsing_status'])
+
+        # Process the URL with media
+        from ..processors.url_extractor import URLExtractor
+        url_extractor = URLExtractor()
+
+        result = async_to_sync(url_extractor.process_url_with_media)(
+            url=url,
+            upload_url_id=upload_url_id,
+            user_id=user_id,
+            notebook_id=notebook_id
+        )
+
+        # Get the file_id from result
+        file_id = result.get("file_id")
+
+        if not file_id:
+            kb_item.parsing_status = "failed"
+            kb_item.save(update_fields=['parsing_status'])
+            raise URLProcessingError("URL processing did not return a file_id")
+
+        # Refresh KB item from database
+        kb_item.refresh_from_db()
+
+        # Mark as done
+        kb_item.parsing_status = "done"
+        kb_item.save(update_fields=['parsing_status'])
+
+        logger.info(f"Successfully parsed URL with media to KB item {file_id}")
+
+        # Chain RagFlow upload task
+        upload_to_ragflow_task.apply_async(args=[str(file_id)])
+
+        return {
+            "success": True,
+            "file_id": file_id,
+            "upload_url_id": upload_url_id
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to parse URL with media {url}: {e}")
+
+        # Mark KB item as failed if it exists
+        try:
+            if 'kb_item' in locals():
+                kb_item.parsing_status = "failed"
+                kb_item.metadata = kb_item.metadata or {}
+                kb_item.metadata['error'] = str(e)
+                kb_item.save(update_fields=['parsing_status', 'metadata'])
+        except Exception:
+            pass
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+@shared_task(bind=True)
+def parse_document_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id: int):
+    """
+    Celery task to parse a document URL asynchronously.
+
+    Args:
+        url: Document URL to parse
+        upload_url_id: Unique ID for this upload
+        notebook_id: ID of the notebook
+        user_id: ID of the user
+
+    Returns:
+        dict: Result with success status and file_id
+    """
+    try:
+        _validate_task_inputs(url=url, notebook_id=notebook_id, user_id=user_id)
+        notebook, user = _get_notebook_and_user(notebook_id, user_id)
+
+        # Create KB item placeholder
+        kb_item = KnowledgeBaseItem.objects.create(
+            notebook=notebook,
+            title=f"Processing document: {url[:100]}",
+            content_type="document",
+            parsing_status="queueing",
+            notes=f"Document URL: {url}",
+            tags=[],
+            metadata={'url': url, 'upload_url_id': upload_url_id, 'document_only': True}
+        )
+
+        logger.info(f"Created KB item {kb_item.id} for document URL: {url}")
+
+        # Update status to parsing
+        kb_item.parsing_status = "parsing"
+        kb_item.save(update_fields=['parsing_status'])
+
+        # Process the document URL
+        from ..processors.url_extractor import URLExtractor
+        url_extractor = URLExtractor()
+
+        result = async_to_sync(url_extractor.process_url_document_only)(
+            url=url,
+            upload_url_id=upload_url_id,
+            user_id=user_id,
+            notebook_id=notebook_id
+        )
+
+        # Get the file_id from result
+        file_id = result.get("file_id")
+
+        if not file_id:
+            kb_item.parsing_status = "failed"
+            kb_item.save(update_fields=['parsing_status'])
+            raise URLProcessingError("URL processing did not return a file_id")
+
+        # Refresh KB item from database
+        kb_item.refresh_from_db()
+
+        # Mark as done
+        kb_item.parsing_status = "done"
+        kb_item.save(update_fields=['parsing_status'])
+
+        logger.info(f"Successfully parsed document URL to KB item {file_id}")
+
+        # Chain RagFlow upload task
+        upload_to_ragflow_task.apply_async(args=[str(file_id)])
+
+        return {
+            "success": True,
+            "file_id": file_id,
+            "upload_url_id": upload_url_id
+        }
+
+    except Exception as e:
+        logger.exception(f"Failed to parse document URL {url}: {e}")
+
+        # Mark KB item as failed if it exists
+        try:
+            if 'kb_item' in locals():
+                kb_item.parsing_status = "failed"
+                kb_item.metadata = kb_item.metadata or {}
+                kb_item.metadata['error'] = str(e)
+                kb_item.save(update_fields=['parsing_status', 'metadata'])
+        except Exception:
+            pass
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
 
 
 def _handle_task_completion(kb_item: KnowledgeBaseItem,
