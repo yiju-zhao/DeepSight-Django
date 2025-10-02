@@ -11,7 +11,7 @@ backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
-from reports.image_utils import clean_title_text
+from reports.utils import clean_title_text
 
 if not logging.getLogger().hasHandlers():
     logging.basicConfig(

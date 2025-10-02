@@ -14,7 +14,7 @@ from typing import List, Dict, Any, Optional
 from tqdm import tqdm
 
 try:
-    from reports.image_utils import extract_figure_data_from_markdown
+    from reports.utils import extract_figure_data_from_markdown
 except ImportError:
     extract_figure_data_from_markdown = None
 

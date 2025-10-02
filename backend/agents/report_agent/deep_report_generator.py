@@ -200,10 +200,105 @@ class ReportGenerationConfig:
     caption_files: Optional[List[str]] = None
     selected_files_paths: Optional[List[str]] = None  # For image path fixing
     user_id: Optional[str] = None  # User ID for MinIO access
+    figure_data: Optional[List[Any]] = None  # For image data
 
     # CSV processing options (for non-interactive API use)
     csv_session_code: Optional[str] = None
     csv_date_filter: Optional[str] = None  # Format: YYYY-MM-DD
+
+    @classmethod
+    def from_dict(cls, config_dict: Dict[str, Any]) -> "ReportGenerationConfig":
+        """Create a ReportGenerationConfig from a dictionary.
+
+        Args:
+            config_dict: Dictionary containing configuration parameters
+
+        Returns:
+            ReportGenerationConfig instance
+        """
+        model_provider_map = {
+            "openai": ModelProvider.OPENAI,
+            "google": ModelProvider.GOOGLE,
+            "xinference": ModelProvider.XINFERENCE,
+        }
+
+        retriever_map = {
+            "tavily": RetrieverType.TAVILY,
+            "brave": RetrieverType.BRAVE,
+            "serper": RetrieverType.SERPER,
+            "you": RetrieverType.YOU,
+            "bing": RetrieverType.BING,
+            "duckduckgo": RetrieverType.DUCKDUCKGO,
+            "searxng": RetrieverType.SEARXNG,
+            "azure_ai_search": RetrieverType.AZURE_AI_SEARCH,
+        }
+
+        time_range_map = {
+            "day": TimeRange.DAY,
+            "week": TimeRange.WEEK,
+            "month": TimeRange.MONTH,
+            "year": TimeRange.YEAR,
+        }
+
+        prompt_type_map = {
+            "general": PromptType.GENERAL,
+            "financial": PromptType.FINANCIAL,
+            "paper": PromptType.PAPER,
+        }
+
+        # Handle old_outline path
+        old_outline_path = None
+        if config_dict.get("old_outline") and config_dict["old_outline"].strip():
+            temp_outline_file = tempfile.NamedTemporaryFile(
+                mode="w", suffix="_old_outline.txt", delete=False
+            )
+            temp_outline_file.write(config_dict["old_outline"])
+            temp_outline_file.close()
+            old_outline_path = temp_outline_file.name
+
+        return cls(
+            topic=config_dict.get("topic"),
+            article_title=config_dict.get("article_title") or f"Report_{config_dict.get('report_id', 'Unknown')}",
+            output_dir=str(config_dict["output_dir"]),
+            report_id=config_dict.get("report_id"),
+            model_provider=model_provider_map.get(
+                config_dict.get("model_provider", "openai"), ModelProvider.OPENAI
+            ),
+            model_uid=config_dict.get("model_uid"),
+            retriever=retriever_map.get(
+                config_dict.get("retriever", "tavily"), RetrieverType.TAVILY
+            ),
+            temperature=config_dict.get("temperature", 0.2),
+            top_p=config_dict.get("top_p", 0.4),
+            prompt_type=prompt_type_map.get(
+                config_dict.get("prompt_type", "general"), PromptType.GENERAL
+            ),
+            do_research=config_dict.get("do_research", True),
+            do_generate_outline=config_dict.get("do_generate_outline", True),
+            do_generate_article=config_dict.get("do_generate_article", True),
+            do_polish_article=config_dict.get("do_polish_article", True),
+            remove_duplicate=config_dict.get("remove_duplicate", True),
+            post_processing=config_dict.get("post_processing", True),
+            max_conv_turn=config_dict.get("max_conv_turn", 3),
+            max_perspective=config_dict.get("max_perspective", 3),
+            search_top_k=config_dict.get("search_top_k", 10),
+            initial_retrieval_k=config_dict.get("initial_retrieval_k", 150),
+            final_context_k=config_dict.get("final_context_k", 20),
+            reranker_threshold=config_dict.get("reranker_threshold", 0.5),
+            max_thread_num=config_dict.get("max_thread_num", 10),
+            time_range=time_range_map.get(config_dict.get("time_range")) if config_dict.get("time_range") else None,
+            include_domains=config_dict.get("include_domains", False),
+            skip_rewrite_outline=config_dict.get("skip_rewrite_outline", False),
+            whitelist_domains=config_dict.get("domain_list", []) if config_dict.get("domain_list") else None,
+            search_depth=config_dict.get("search_depth", "basic"),
+            old_outline_path=old_outline_path,
+            selected_files_paths=config_dict.get("selected_files_paths", []),
+            user_id=config_dict.get("user_id"),
+            csv_session_code=config_dict.get("csv_session_code", ""),
+            csv_date_filter=config_dict.get("csv_date_filter", ""),
+            text_input=config_dict.get("text_input"),
+            figure_data=config_dict.get("figure_data"),
+        )
 
 
 @dataclass

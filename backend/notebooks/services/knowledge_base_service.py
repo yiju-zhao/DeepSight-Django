@@ -887,8 +887,8 @@ class KnowledgeBaseService(NotebookBaseService):
         """Extract figure data from markdown content using a temporary file."""
         try:
             # Import here to avoid circular imports
-            from reports.image_utils import extract_figure_data_from_markdown
-            
+            from reports.utils import extract_figure_data_from_markdown
+
             # Create a temporary markdown file
             with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_file:
                 temp_file.write(content)

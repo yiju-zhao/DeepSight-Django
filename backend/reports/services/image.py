@@ -15,7 +15,7 @@ from django.conf import settings
 from notebooks.models import KnowledgeBaseImage
 from notebooks.utils.storage import get_minio_backend
 from reports.models import Report, ReportImage
-from reports.image_utils import (
+from reports.utils import (
     extract_figure_ids_from_content,
     extract_figure_data_from_markdown,
     convert_to_uuid_objects,

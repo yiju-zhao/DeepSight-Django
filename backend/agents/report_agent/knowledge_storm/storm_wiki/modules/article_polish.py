@@ -18,7 +18,7 @@ sys.path.append(
 )
 # Import image utilities and other functions directly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..')))
-from reports.image_utils import preserve_figure_formatting
+from reports.utils import preserve_figure_formatting
 from utils.paper_processing import format_author_affiliations
 
 

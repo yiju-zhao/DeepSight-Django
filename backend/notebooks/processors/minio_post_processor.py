@@ -9,7 +9,7 @@ from typing import Dict, Any
 # Direct import of caption generator utility
 try:
     from ..utils.image_processing.caption_generator import generate_caption_for_image
-    from reports.image_utils import extract_figure_data_from_markdown
+    from reports.utils import extract_figure_data_from_markdown
 except ImportError:
     generate_caption_for_image = None
     extract_figure_data_from_markdown = None

@@ -566,7 +566,7 @@ class XinferenceModelsView(APIView):
     def get(self, request):
         """Get list of running LLM models from Xinference"""
         try:
-            from agents.report_agent.xinference_utils import get_available_xinference_models
+            from .utils import get_available_xinference_models
 
             models = get_available_xinference_models()
             return Response({"models": models})
