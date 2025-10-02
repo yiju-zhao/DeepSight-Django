@@ -8,17 +8,16 @@ interface AuthenticatedImageProps {
   src: string;
   alt?: string;
   title?: string;
-  file?: any;
 }
 
 // Enhanced Authenticated Image component that handles both MinIO URLs and API URLs
-const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title, file }) => {
+const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title }) => {
   const [imgSrc, setImgSrc] = useState(src);
   const [imgError, setImgError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log('AuthenticatedImage: Processing image with src:', src, 'file:', file);
+    console.log('AuthenticatedImage: Processing image with src:', src);
     setImgError(false);
     setIsLoading(true);
 
@@ -28,35 +27,6 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       setImgSrc(src);
       setIsLoading(false);
       return;
-    }
-
-    // Check if this is a relative report image path (images/...)
-    if (src.startsWith('images/')) {
-      console.log('AuthenticatedImage: Detected relative report image path, file:', file);
-      const imageName = src.replace('images/', '');
-
-      if (!file) {
-        console.error('AuthenticatedImage: No file object provided for relative image path');
-        setImgError(true);
-        setIsLoading(false);
-        return;
-      }
-
-      // Check if this is a report file
-      const reportId = file.report_id || file.id;
-      console.log('AuthenticatedImage: File type:', file.type, 'Report ID:', reportId);
-
-      if (file.type === 'report' && reportId) {
-        const reportImageUrl = `${API_BASE_URL}/reports/${reportId}/images/${imageName}`;
-        console.log('AuthenticatedImage: Constructing report image URL:', reportImageUrl);
-        fetchImageWithRedirect(reportImageUrl);
-        return;
-      } else {
-        console.error('AuthenticatedImage: File is not a report or missing ID', { type: file.type, reportId });
-        setImgError(true);
-        setIsLoading(false);
-        return;
-      }
     }
 
     // Check if this is a direct MinIO URL (contains presigned URL patterns)
@@ -78,7 +48,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       setImgSrc(src);
       setIsLoading(false);
     }
-  }, [src, file]);
+  }, [src]);
 
   const isMinIOUrl = (url: string): boolean => {
     // Check if URL looks like a MinIO pre-signed URL
@@ -93,39 +63,6 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
 
     console.log('AuthenticatedImage: isMinIOUrl check for', url.substring(0, 100), '... Result:', isMinIO);
     return isMinIO;
-  };
-
-  const fetchImageWithRedirect = async (url: string) => {
-    try {
-      console.log('AuthenticatedImage: Fetching image with redirect from:', url);
-
-      // Fetch will automatically follow redirects by default
-      const response = await fetch(url, {
-        credentials: 'include',
-        headers: {
-          'Accept': 'image/*,*/*'
-        }
-      });
-
-      // Check if response is OK and fetch the blob
-      if (response.ok) {
-        const blob = await response.blob();
-        const blobUrl = URL.createObjectURL(blob);
-        console.log('AuthenticatedImage: Image fetched successfully, blob URL:', blobUrl);
-        setImgSrc(blobUrl);
-        setIsLoading(false);
-        return;
-      }
-
-      // If response is not OK, throw error
-      console.error('AuthenticatedImage: Failed to fetch image:', response.status, response.statusText);
-      setImgError(true);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('AuthenticatedImage: Error fetching image with redirect:', error);
-      setImgError(true);
-      setIsLoading(false);
-    }
   };
 
   const fetchImageWithCredentials = async (url: string) => {

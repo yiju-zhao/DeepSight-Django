@@ -74,11 +74,6 @@ urlpatterns = [
         name='report-content'
     ),
     path(
-        '<str:report_id>/images/<str:image_name>',
-        views.ReportJobImageView.as_view(),
-        name='report-image'
-    ),
-    path(
         '<str:report_id>/cancel/',
         views.ReportJobCancelView.as_view(),
         name='report-cancel'
@@ -110,9 +105,10 @@ Report Operations:
 - DEL  /api/v1/reports/{report_id}/
 - GET  /api/v1/reports/{report_id}/files/
 - GET  /api/v1/reports/{report_id}/content/
-- GET  /api/v1/reports/{report_id}/images/{image_name}
 - POST /api/v1/reports/{report_id}/cancel/
 - GET  /api/v1/reports/{report_id}/download/
 - GET  /api/v1/reports/{report_id}/download-pdf/
 - GET  /api/v1/reports/{report_id}/stream/
+
+Note: Report images are embedded as direct MinIO pre-signed URLs in the content.
 """

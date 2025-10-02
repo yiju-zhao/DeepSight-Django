@@ -458,49 +458,6 @@ class ReportJobContentView(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-class ReportJobImageView(APIView):
-    """Canonical: Serve report images with authentication via redirect to MinIO"""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, report_id, image_name):
-        try:
-            from django.http import HttpResponseRedirect
-            from reports.models import ReportImage
-
-            # Verify that the report belongs to the user
-            report = get_object_or_404(Report.objects.filter(user=request.user), id=report_id)
-
-            # Find the image by report and filename
-            report_images = ReportImage.objects.filter(report=report)
-            report_image = None
-
-            for img in report_images:
-                if img.report_figure_minio_object_key and img.report_figure_minio_object_key.endswith(image_name):
-                    report_image = img
-                    break
-
-            if not report_image:
-                logger.warning(f"Image not found: {image_name} for report {report_id}")
-                return Response({"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
-
-            # Generate pre-signed URL for the image
-            image_url = report_image.get_image_url(expires=86400)  # 24 hour expiry
-
-            if not image_url:
-                logger.error(f"Failed to generate URL for image {image_name} in report {report_id}")
-                return Response({"detail": "Failed to generate image URL"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            # Redirect to the MinIO pre-signed URL
-            logger.info(f"Redirecting to MinIO URL for image {image_name} in report {report_id}")
-            return HttpResponseRedirect(image_url)
-
-        except Http404:
-            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Error serving image {image_name} for report {report_id}: {e}")
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
 class ReportJobCancelView(APIView):
     """Canonical: Cancel a running or pending report job"""
     permission_classes = [permissions.IsAuthenticated]
