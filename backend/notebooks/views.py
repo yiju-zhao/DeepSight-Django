@@ -701,19 +701,6 @@ class FileStatusSSEView(View):
         # Frontend expects: "queueing", "parsing", "captioning", "done", "failed"
         raw_status = file_item.parsing_status or "queueing"
 
-        # Derive caption status for backward-compatible UI hints
-        # - captioning -> captioning
-        # - done -> completed
-        # - failed -> failed
-        # - otherwise None
-        caption_status = None
-        if file_item.parsing_status == 'captioning':
-            caption_status = 'captioning'
-        elif file_item.parsing_status == 'done':
-            caption_status = 'completed'
-        elif file_item.parsing_status == 'failed':
-            caption_status = 'failed'
-
         return {
             "file_id": str(file_item.id),
             "status": raw_status,  # Send raw status for frontend consistency
@@ -724,7 +711,7 @@ class FileStatusSSEView(View):
             "has_content": bool(file_item.content),
             "processing_status": raw_status,  # Also include in processing_status for compatibility
             "metadata": file_item.metadata or {},
-            "caption_status": caption_status,
+            "captioning_status": file_item.captioning_status,  # Use actual captioning_status field
         }
 
     def _generate_upload_pending_stream(self, upload_id: str):

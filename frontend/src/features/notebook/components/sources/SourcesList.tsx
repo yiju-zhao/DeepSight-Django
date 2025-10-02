@@ -170,6 +170,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         file_id: metadata.id,
         upload_file_id: metadata.upload_file_id,
         parsing_status: metadata.parsing_status,
+        captioning_status: metadata.captioning_status,
         metadata: {
           ...metadata,
           // Ensure preview code has a reliable extension to decide preview type
