@@ -39,16 +39,8 @@ interface ReportFileItemProps {
 
 // ====== SINGLE RESPONSIBILITY: LaTeX text renderer ======
 const LatexText = React.memo<{ text: string; className?: string }>(({ text, className = '' }) => {
-  // Check if the text contains LaTeX math expressions
-  const hasLatex = /\$|\\\(|\\\[|\\begin\{/.test(text);
-
-  // If no LaTeX, render plain text for better performance
-  if (!hasLatex) {
-    return <span className={className}>{text}</span>;
-  }
-
   return (
-    <span className={`inline ${className}`} style={{ display: 'inline', verticalAlign: 'middle' }}>
+    <span className={`inline-flex items-center ${className}`}>
       <ReactMarkdown
         remarkPlugins={[remarkMath]}
         rehypePlugins={[
@@ -61,7 +53,7 @@ const LatexText = React.memo<{ text: string; className?: string }>(({ text, clas
           }]
         ]}
         components={{
-          p: ({ children }) => <>{children}</>,
+          p: ({ children }) => <span>{children}</span>,
         }}
       >
         {text}
@@ -156,10 +148,12 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
         >
           <div className="flex items-center space-x-2 mb-2">
             <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
-            <LatexText
-              text={report.title || report.article_title || 'Untitled Report'}
-              className="font-medium text-gray-900 flex-1 min-w-0"
-            />
+            <h4 className="font-medium text-gray-900 truncate">
+              <LatexText
+                text={report.title || report.article_title || 'Untitled Report'}
+                className="truncate"
+              />
+            </h4>
             {getStatusBadge(report.status)}
           </div>
 
