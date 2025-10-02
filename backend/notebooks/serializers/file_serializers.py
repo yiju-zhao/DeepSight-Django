@@ -196,13 +196,14 @@ class KnowledgeBaseItemSerializer(serializers.ModelSerializer):
             "content",
             "file_object_key",
             "file_url",
-            "original_file_object_key", 
+            "original_file_object_key",
             "original_file_url",
             "file_metadata",
             "metadata",
             "tags",
             "source_hash",
             "parsing_status",
+            "captioning_status",
             "ragflow_document_id",
             "ragflow_processing_status",
             "notes",
@@ -211,7 +212,7 @@ class KnowledgeBaseItemSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "id", "created_at", "updated_at", "source_hash",
-            "ragflow_document_id", "ragflow_processing_status"
+            "ragflow_document_id", "ragflow_processing_status", "captioning_status"
         ]
     
     def get_file_url(self, obj):
