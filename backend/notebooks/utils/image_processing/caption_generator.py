@@ -141,7 +141,7 @@ def generate_captions_for_directory(
 
 def load_api_key_from_settings() -> Optional[str]:
     """
-    Try to load OpenAI API key from various sources.
+    Load OpenAI API key from environment or Django settings.
 
     Returns:
         API key if found, None otherwise
@@ -151,46 +151,11 @@ def load_api_key_from_settings() -> Optional[str]:
     if api_key:
         return api_key
 
-    # Try to load from settings
+    # Try to load from Django settings
     try:
-        from app.core.config import get_settings
-        settings = get_settings()
+        from django.conf import settings
         if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
             return settings.OPENAI_API_KEY
-    except Exception:
-        pass
-
-    # Try to load from secrets.toml at project root
-    try:
-        import toml
-        # Get the project root directory (4 levels up from this file)
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(current_dir))))
-        secrets_path = os.path.join(project_root, "secrets.toml")
-
-        if os.path.exists(secrets_path):
-            with open(secrets_path, "r") as f:
-                secrets = toml.load(f)
-            api_key = secrets.get("OPENAI_API_KEY")
-            if api_key:
-                return api_key
-
-        # Fallback to relative paths for compatibility
-        possible_paths = [
-            "secrets.toml",
-            "../secrets.toml",
-            "../../secrets.toml",
-            "../../../secrets.toml",
-            "../../../../secrets.toml"
-        ]
-
-        for path in possible_paths:
-            if os.path.exists(path):
-                with open(path, "r") as f:
-                    secrets = toml.load(f)
-                api_key = secrets.get("OPENAI_API_KEY")
-                if api_key:
-                    return api_key
     except Exception:
         pass
 

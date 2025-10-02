@@ -6,7 +6,6 @@ import logging
 import re
 from typing import Dict, Any, List, Optional
 from openai import OpenAI, AzureOpenAI
-import toml
 
 logger = logging.getLogger(__name__)
 
@@ -608,46 +607,14 @@ class OutlineRater:
         self.output_dir = output_dir
 
     def _configure_openai_client(self):
-        """Configure OpenAI client based on environment variables or secrets.toml."""
-        api_key = None
-        try:
-            current_script_path = os.path.abspath(__file__)
-            # Navigate up four levels from the script's directory to reach the workspace root
-            workspace_root = os.path.dirname(
-                os.path.dirname(os.path.dirname(os.path.dirname(current_script_path)))
-            )
-            secrets_path = os.path.join(workspace_root, "secrets.toml")
-
-            if os.path.exists(secrets_path):
-                with open(secrets_path, "r") as f:
-                    secrets = toml.load(f)
-                api_key = secrets.get("OPENAI_API_KEY")
-                if api_key:
-                    logger.info("Loaded OPENAI_API_KEY from secrets.toml")
-                else:
-                    logger.warning(
-                        "OPENAI_API_KEY not found in secrets.toml. Falling back to environment variables."
-                    )
-            else:
-                logger.warning(
-                    f"secrets.toml not found at expected path: {secrets_path}. Falling back to environment variables."
-                )
-        except Exception as e:
-            logger.warning(
-                f"Error reading secrets.toml: {e}. Falling back to environment variables."
-            )
-
-        # Fallback to environment variable if not found in secrets.toml or if there was an error
-        if not api_key:
-            api_key = os.getenv("OPENAI_API_KEY")
-            if api_key:
-                logger.info("Loaded OPENAI_API_KEY from environment variable.")
-
-        api_type = os.getenv("OPENAI_API_TYPE", "openai").lower()
+        """Configure OpenAI client from environment variables."""
+        api_key = os.getenv("OPENAI_API_KEY")
 
         if not api_key:
             logger.warning("OPENAI_API_KEY not found in environment variables.")
             return None
+
+        api_type = os.getenv("OPENAI_API_TYPE", "openai").lower()
 
         try:
             if api_type == "azure":

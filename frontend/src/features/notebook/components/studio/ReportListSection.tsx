@@ -2,9 +2,9 @@
 // Component focused solely on displaying report list
 
 import React from 'react';
-import { 
+import {
   FileText,
-  ChevronDown, 
+  ChevronDown,
   ChevronUp,
   ExternalLink,
   Edit,
@@ -14,6 +14,10 @@ import {
 import { COLORS } from '@/features/notebook/config/uiConfig';
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 interface Report {
   id?: string;
@@ -32,6 +36,33 @@ interface ReportFileItemProps {
   onEdit: (report: Report) => void;
   onDelete: (report: Report) => void;
 }
+
+// ====== SINGLE RESPONSIBILITY: LaTeX text renderer ======
+const LatexText = React.memo<{ text: string; className?: string }>(({ text, className = '' }) => {
+  return (
+    <span className={`inline-flex items-center ${className}`}>
+      <ReactMarkdown
+        remarkPlugins={[remarkMath]}
+        rehypePlugins={[
+          [rehypeKatex, {
+            strict: false,
+            throwOnError: false,
+            errorColor: '#cc0000',
+            trust: true,
+            output: 'html'
+          }]
+        ]}
+        components={{
+          p: ({ children }) => <span>{children}</span>,
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </span>
+  );
+});
+
+LatexText.displayName = 'LatexText';
 
 // ====== SINGLE RESPONSIBILITY: Individual report file item ======
 const ReportFileItem = React.memo<ReportFileItemProps>(({ 
@@ -118,7 +149,10 @@ const ReportFileItem = React.memo<ReportFileItemProps>(({
           <div className="flex items-center space-x-2 mb-2">
             <FileText className="h-4 w-4 text-blue-600 flex-shrink-0" />
             <h4 className="font-medium text-gray-900 truncate">
-              {report.title || report.article_title || 'Untitled Report'}
+              <LatexText
+                text={report.title || report.article_title || 'Untitled Report'}
+                className="truncate"
+              />
             </h4>
             {getStatusBadge(report.status)}
           </div>
