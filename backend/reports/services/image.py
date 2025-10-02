@@ -46,9 +46,9 @@ class ImageService:
 
         images = (
             KnowledgeBaseImage.objects.filter(
-                figure_id__in=uuid_figure_ids, knowledge_base_item__user__id=user_id
+                figure_id__in=uuid_figure_ids, knowledge_base_item__notebook__user_id=user_id
             )
-            .select_related("knowledge_base_item")
+            .select_related("knowledge_base_item__notebook__user")
         )
 
         logger.info(f"Found {images.count()} images for {len(figure_ids)} figure IDs")
