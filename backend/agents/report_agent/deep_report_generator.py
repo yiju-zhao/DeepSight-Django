@@ -405,10 +405,13 @@ if __name__ == "__main__":
     )
 
     # Example usage with Xinference
+    # Note: model_uid must be provided when using Xinference
+    # You can get available model UIDs from the running Xinference server
     xinference_config = ReportGenerationConfig(
         topic="Artificial Intelligence in Healthcare",
         output_dir="results/xinference_test",
         model_provider=ModelProvider.XINFERENCE,
+        model_uid="qwen2.5-72b-instruct",  # Replace with your model UID
         retriever=RetrieverType.TAVILY,
         prompt_type=PromptType.GENERAL,
         do_research=True,
