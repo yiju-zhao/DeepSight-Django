@@ -469,6 +469,10 @@ class ImageUrlProvider:
         """Get image URL for a figure ID."""
         raise NotImplementedError("Subclasses must implement get_image_url")
 
+    def get_image_relative_path(self, figure_id: str) -> Optional[str]:
+        """Get relative path for a figure ID (used for Markdown embedding)."""
+        raise NotImplementedError("Subclasses must implement get_image_relative_path")
+
 
 class DatabaseUrlProvider(ImageUrlProvider):
     """URL provider that fetches URLs from database."""
@@ -496,6 +500,31 @@ class DatabaseUrlProvider(ImageUrlProvider):
 
         return None
 
+    def get_image_relative_path(self, figure_id: str) -> Optional[str]:
+        """
+        Get relative path for image from database.
+
+        Args:
+            figure_id: Figure ID to lookup
+
+        Returns:
+            Relative path in format 'images/{filename}' if found, None otherwise
+        """
+        try:
+            from reports.models import ReportImage
+            from pathlib import Path
+
+            # Query ReportImage by figure_id
+            report_image = ReportImage.objects.filter(figure_id=figure_id).first()
+            if report_image and report_image.report_figure_minio_object_key:
+                # Extract filename from MinIO object key
+                filename = Path(report_image.report_figure_minio_object_key).name
+                return f"images/{filename}"
+        except Exception as e:
+            logger.error(f"Error fetching image relative path for {figure_id}: {e}")
+
+        return None
+
 
 # =============================================================================
 # IMAGE INSERTION SERVICE
@@ -518,14 +547,14 @@ class ImageInsertionService:
 
     def insert_images_into_content(self, content: str, figure_ids: List[str]) -> str:
         """
-        Insert images into content by replacing figure ID placeholders.
+        Insert images into content by replacing figure ID placeholders with Markdown images.
 
         Args:
             content: Content with figure placeholders
             figure_ids: List of figure IDs to insert
 
         Returns:
-            Content with images inserted
+            Content with images inserted as Markdown with relative paths
         """
         if not content or not figure_ids:
             return content
@@ -536,23 +565,25 @@ class ImageInsertionService:
             logger.warning("No valid figure IDs provided")
             return content
 
-        # Get URLs for all figures
-        figure_urls = {}
+        # Get relative paths for all figures
+        figure_paths = {}
         for figure_id in valid_figure_ids:
-            url = self.url_provider.get_image_url(figure_id)
-            if url and validate_image_url(url):
-                figure_urls[figure_id] = url
+            relative_path = self.url_provider.get_image_relative_path(figure_id)
+            if relative_path:
+                figure_paths[figure_id] = relative_path
 
-        if not figure_urls:
-            logger.warning("No valid image URLs found for figures")
+        if not figure_paths:
+            logger.warning("No valid image paths found for figures")
             return content
 
-        # Replace placeholders with img tags
+        # Replace placeholders with Markdown image tags
         modified_content = content
-        for figure_id, image_url in figure_urls.items():
+        for figure_id, relative_path in figure_paths.items():
             placeholder = create_image_placeholder(figure_id)
-            img_tag = create_img_tag(image_url, figure_id)
-            modified_content = modified_content.replace(placeholder, img_tag)
+            # Create Markdown image tag: ![Figure ID](images/filename.png)
+            markdown_img = f"![{figure_id}]({relative_path})"
+            modified_content = modified_content.replace(placeholder, markdown_img)
+            logger.info(f"Replaced {placeholder} with {markdown_img}")
 
         # Apply formatting improvements
         modified_content = preserve_figure_formatting(modified_content)

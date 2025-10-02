@@ -25,10 +25,11 @@ interface MarkdownContentProps {
   content: string;
   notebookId: string;
   useMinIOUrls?: boolean;
+  file?: any;
 }
 
 // ====== SINGLE RESPONSIBILITY: Markdown content renderer ======
-const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, useMinIOUrls = false }) => (
+const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, useMinIOUrls = false, file }) => (
   <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 prose-code:text-red-600 prose-pre:bg-gray-50">
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
@@ -53,7 +54,7 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
       ]}
       components={{
         img: ({ src, alt, title }) => (
-          <AuthenticatedImage src={src || ''} alt={alt} title={title} />
+          <AuthenticatedImage src={src || ''} alt={alt} title={title} file={file} />
         )
       }}
     >
@@ -268,10 +269,11 @@ const FileViewer: React.FC<FileViewerProps> = ({
         ) : (
           <div className="p-6">
             {processedContent ? (
-              <MarkdownContent 
-                content={processedContent || ''} 
-                notebookId={notebookId} 
-                useMinIOUrls={useMinIOUrls} 
+              <MarkdownContent
+                content={processedContent || ''}
+                notebookId={notebookId}
+                useMinIOUrls={useMinIOUrls}
+                file={file}
               />
             ) : (
               <div className="text-center py-12">
