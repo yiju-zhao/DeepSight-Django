@@ -146,8 +146,8 @@ const ReportList: React.FC<ReportListProps> = ({
                 </div>
               </div>
             </div>
-            
-            {/* Progress for running reports */}
+
+            {/* Progress for running reports only */}
             {report.status === 'running' && report.progress && (
               <div className="mt-3">
                 <div className="flex items-center space-x-2">
@@ -156,6 +156,13 @@ const ReportList: React.FC<ReportListProps> = ({
                   </div>
                   <span className="text-xs text-gray-500">{report.progress}</span>
                 </div>
+              </div>
+            )}
+
+            {/* Error message for failed reports */}
+            {report.status === 'failed' && report.error_message && (
+              <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded">
+                <p className="text-xs text-red-600">{report.error_message}</p>
               </div>
             )}
           </div>

@@ -70,6 +70,13 @@ export default function ReportCard({
             {new Date(report.created_at).toLocaleDateString()}
           </span>
         </div>
+
+        {/* Error Message for Failed Reports */}
+        {report.status === 'failed' && report.error_message && (
+          <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded">
+            <p className="text-xs text-red-600">{report.error_message}</p>
+          </div>
+        )}
         
         {/* Actions */}
         <div className="flex items-center justify-between">
