@@ -229,12 +229,35 @@ CELERY_TIMEZONE = TIME_ZONE
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_ORG = os.getenv('OPENAI_ORG')
 OPENAI_PROJECT = os.getenv('OPENAI_PROJECT')
+AZURE_API_KEY = os.getenv('AZURE_API_KEY')
+
+# Google AI Configuration
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+
+# Xinference Configuration
+XINFERENCE_API_BASE = os.getenv('XINFERENCE_API_BASE')
+XINFERENCE_MODEL = os.getenv('XINFERENCE_MODEL')
+XINFERENCE_API_KEY = os.getenv('XINFERENCE_API_KEY', 'dummy')
+
+# Search API Configuration
+TAVILY_API_KEY = os.getenv('TAVILY_API_KEY')
+BRAVE_API_KEY = os.getenv('BRAVE_API_KEY')
+SERPER_API_KEY = os.getenv('SERPER_API_KEY')
+YOU_API_KEY = os.getenv('YOU_API_KEY')
+BING_API_KEY = os.getenv('BING_API_KEY')
+SEARXNG_URL = os.getenv('SEARXNG_URL')
+SEARXNG_API_KEY = os.getenv('SEARXNG_API_KEY')
+AZURE_AI_SEARCH_API_KEY = os.getenv('AZURE_AI_SEARCH_API_KEY')
+AZURE_AI_SEARCH_ENDPOINT = os.getenv('AZURE_AI_SEARCH_ENDPOINT')
+AZURE_AI_SEARCH_INDEX = os.getenv('AZURE_AI_SEARCH_INDEX')
 
 # MiniMax TTS Configuration
 MINIMAX_GROUP_ID = os.getenv('MINIMAX_GROUP_ID')
 MINIMAX_API_KEY = os.getenv('MINIMAX_API_KEY')
 
+# Document Processing
 MINERU_BASE_URL = os.getenv("MINERU_BASE_URL")
+
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = BASE_DIR / 'logs'

@@ -130,6 +130,7 @@ def _lazy_import_knowledge_storm():
 class ModelProvider(str, Enum):
     OPENAI = "openai"
     GOOGLE = "google"
+    XINFERENCE = "xinference"
 
 
 class RetrieverType(str, Enum):
@@ -221,13 +222,8 @@ class ReportGenerationResult:
 class DeepReportGenerator:
     """Class-based report generator optimized for API usage."""
 
-    def __init__(self, secrets_path: str = "secrets.toml"):
-        """Initialize the report generator.
-
-        Args:
-            secrets_path: Path to the secrets.toml file containing API keys
-        """
-        self.secrets_path = secrets_path
+    def __init__(self):
+        """Initialize the report generator."""
         self.logger = logging.getLogger(__name__)
         self._setup_logging()
 
@@ -258,7 +254,7 @@ class DeepReportGenerator:
             from .runner_orchestrator import RunnerOrchestrator
 
             # Initialize managers
-            config_manager = ConfigurationManager(self.secrets_path)
+            config_manager = ConfigurationManager()
             io_manager = IOManager()
             orchestrator = RunnerOrchestrator()
 
@@ -366,18 +362,17 @@ class DeepReportGenerator:
 
 # Convenience function for backward compatibility and simple usage
 def generate_report_from_config(
-    config: ReportGenerationConfig, secrets_path: str = "secrets.toml"
+    config: ReportGenerationConfig
 ) -> ReportGenerationResult:
     """Generate a report using the provided configuration.
 
     Args:
         config: Report generation configuration
-        secrets_path: Path to secrets.toml file
 
     Returns:
         ReportGenerationResult with generation status and files
     """
-    generator = DeepReportGenerator(secrets_path=secrets_path)
+    generator = DeepReportGenerator()
     return generator.generate_report(config)
 
 
@@ -408,8 +403,21 @@ if __name__ == "__main__":
         do_polish_article=True,
     )
 
+    # Example usage with Xinference
+    xinference_config = ReportGenerationConfig(
+        topic="Artificial Intelligence in Healthcare",
+        output_dir="results/xinference_test",
+        model_provider=ModelProvider.XINFERENCE,
+        retriever=RetrieverType.TAVILY,
+        prompt_type=PromptType.GENERAL,
+        do_research=True,
+        do_generate_outline=True,
+        do_generate_article=True,
+        do_polish_article=True,
+    )
+
     # Choose which config to use
-    config = general_config  # Change this to financial_config for financial reports
+    config = general_config  # Change to financial_config or xinference_config as needed
 
     result = generate_report_from_config(config)
     if result.success:

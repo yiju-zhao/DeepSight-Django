@@ -10,6 +10,7 @@ import logging
 from typing import Dict, Any
 from dataclasses import dataclass
 from enum import Enum
+from django.conf import settings
 
 # Preserve the existing lazy import pattern
 STORMWikiLMConfigs = None
@@ -44,28 +45,17 @@ def _ensure_storm_imported():
 class ConfigurationManager:
     """Manages configuration and setup for STORM report generation."""
 
-    def __init__(self, secrets_path: str = "secrets.toml"):
-        self.secrets_path = secrets_path
+    def __init__(self):
         self.logger = logging.getLogger(__name__)
 
     def load_api_keys(self):
-        """Load API keys from secrets.toml file or use environment variables."""
-        _ensure_storm_imported()
+        """Load API keys from Django settings.
 
-        if load_api_key is None:
-            self.logger.error("load_api_key function is not available after import")
-            raise RuntimeError("Failed to import load_api_key function from knowledge_storm")
-
-        try:
-            load_api_key(toml_file_path=self.secrets_path)
-            self.logger.info(f"Loaded API keys from {self.secrets_path}")
-        except FileNotFoundError:
-            # This is expected behavior when using Django settings/.env files
-            # The load_api_key function handles this gracefully by falling back to env vars
-            self.logger.info(f"No secrets file found at {self.secrets_path}, using environment variables")
-        except Exception as e:
-            self.logger.error(f"Failed to load API keys: {e}")
-            raise
+        Note: This method is kept for backward compatibility but no longer
+        loads from secrets.toml. All keys are now read from Django settings
+        which loads from .env files.
+        """
+        self.logger.info("Using API keys from Django settings (.env file)")
 
     def setup_language_models(self, config) -> 'STORMWikiLMConfigs':
         """Setup language model configurations based on provider."""
@@ -76,13 +66,15 @@ class ConfigurationManager:
             return self._setup_google_models(config, lm_configs)
         elif config.model_provider.value == "openai":
             return self._setup_openai_models(config, lm_configs)
+        elif config.model_provider.value == "xinference":
+            return self._setup_xinference_models(config, lm_configs)
         else:
             raise ValueError(f"Unsupported model provider: {config.model_provider}")
 
     def _setup_openai_models(self, config, lm_configs) -> 'STORMWikiLMConfigs':
         """Setup OpenAI language models."""
-        openai_api_key = os.getenv("OPENAI_API_KEY")
-        azure_api_key = os.getenv("AZURE_API_KEY", "")  # Optional fallback
+        openai_api_key = settings.OPENAI_API_KEY
+        azure_api_key = getattr(settings, 'AZURE_API_KEY', '')  # Optional fallback
 
         # Setup different model configurations
         lm_configs.init_openai_model(
@@ -107,9 +99,28 @@ class ConfigurationManager:
 
         return lm_configs
 
+    def _setup_xinference_models(self, config, lm_configs) -> 'STORMWikiLMConfigs':
+        """Setup Xinference language models."""
+        xinference_api_base = settings.XINFERENCE_API_BASE
+        xinference_model = settings.XINFERENCE_MODEL
+        xinference_api_key = getattr(settings, 'XINFERENCE_API_KEY', 'dummy')
+
+        if not xinference_api_base or not xinference_model:
+            raise ValueError("XINFERENCE_API_BASE and XINFERENCE_MODEL must be set")
+
+        lm_configs.init_xinference_model(
+            api_base=xinference_api_base,
+            model=xinference_model,
+            api_key=xinference_api_key,
+            temperature=config.temperature,
+            top_p=config.top_p,
+        )
+
+        return lm_configs
+
     def _setup_google_models(self, config, lm_configs) -> 'STORMWikiLMConfigs':
         """Setup Google language models using LitellmModel."""
-        google_api_key = os.getenv("GOOGLE_API_KEY")
+        google_api_key = settings.GOOGLE_API_KEY
 
         # Setup Google model configurations using init_google_model method in engine
         lm_configs.init_google_model(
@@ -126,32 +137,32 @@ class ConfigurationManager:
 
         if config.retriever.value == "brave":
             return BraveRM(
-                brave_search_api_key=os.getenv("BRAVE_API_KEY"),
+                brave_search_api_key=getattr(settings, 'BRAVE_API_KEY', None),
                 k=config.search_top_k,
             )
         elif config.retriever.value == "tavily":
             return TavilySearchRM(
-                tavily_search_api_key=os.getenv("TAVILY_API_KEY"),
+                tavily_search_api_key=getattr(settings, 'TAVILY_API_KEY', None),
                 k=config.search_top_k,
                 include_raw_content=True,
             )
         elif config.retriever.value == "serper":
             return SerperRM(
-                serper_search_api_key=os.getenv("SERPER_API_KEY"),
+                serper_search_api_key=getattr(settings, 'SERPER_API_KEY', None),
                 query_params={"engine": "google", "location": "", "num": config.search_top_k},
             )
         elif config.retriever.value == "you":
-            return YouRM(you_search_api_key=os.getenv("YOU_API_KEY"), k=config.search_top_k)
+            return YouRM(you_search_api_key=getattr(settings, 'YOU_API_KEY', None), k=config.search_top_k)
         elif config.retriever.value == "bing":
             return BingSearch(
-                bing_search_api_key=os.getenv("BING_API_KEY"),
+                bing_search_api_key=getattr(settings, 'BING_API_KEY', None),
                 k=config.search_top_k,
             )
         elif config.retriever.value == "duckduckgo":
             return DuckDuckGoSearchRM(k=config.search_top_k)
         elif config.retriever.value == "searxng":
-            searxng_url = os.getenv("SEARXNG_URL", "http://localhost:8080")
-            searxng_api_key = os.getenv("SEARXNG_API_KEY")
+            searxng_url = getattr(settings, 'SEARXNG_URL', 'http://localhost:8080')
+            searxng_api_key = getattr(settings, 'SEARXNG_API_KEY', None)
 
             return SearXNG(
                 searxng_api_url=searxng_url,
@@ -160,9 +171,9 @@ class ConfigurationManager:
             )
         elif config.retriever.value == "azureaisearch":
             return AzureAISearch(
-                azure_ai_search_api_key=os.getenv("AZURE_AI_SEARCH_API_KEY"),
-                azure_ai_search_endpoint=os.getenv("AZURE_AI_SEARCH_ENDPOINT"),
-                azure_ai_search_index=os.getenv("AZURE_AI_SEARCH_INDEX"),
+                azure_ai_search_api_key=getattr(settings, 'AZURE_AI_SEARCH_API_KEY', None),
+                azure_ai_search_endpoint=getattr(settings, 'AZURE_AI_SEARCH_ENDPOINT', None),
+                azure_ai_search_index=getattr(settings, 'AZURE_AI_SEARCH_INDEX', None),
                 k=config.search_top_k,
             )
         else:

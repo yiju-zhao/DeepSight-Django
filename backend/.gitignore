@@ -145,6 +145,8 @@ media/
 # Local settings and secrets
 local_settings.py
 secrets.py
+secrets.toml
+.env
 .env.local
 .env.development
 .env.production

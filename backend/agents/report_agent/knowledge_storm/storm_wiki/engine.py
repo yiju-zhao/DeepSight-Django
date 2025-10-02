@@ -205,6 +205,42 @@ class STORMWikiLMConfigs(LMConfigs):
             model="gemini/gemini-2.0-flash", max_tokens=500, **google_kwargs
         )
 
+    def init_xinference_model(
+        self,
+        api_base: str,
+        model: str,
+        api_key: str = "dummy",
+        temperature: Optional[float] = 0.3,
+        top_p: Optional[float] = 0.9,
+    ):
+        """Initialize Xinference models using LitellmModel."""
+        xinference_kwargs = {
+            "api_key": api_key,
+            "api_base": api_base,
+            "temperature": temperature,
+            "top_p": top_p,
+        }
+
+        # Setup all pipeline components with the same Xinference model
+        self.conv_simulator_lm = LitellmModel(
+            model=f"openai/{model}", max_tokens=500, **xinference_kwargs
+        )
+        self.question_asker_lm = LitellmModel(
+            model=f"openai/{model}", max_tokens=500, **xinference_kwargs
+        )
+        self.outline_gen_lm = LitellmModel(
+            model=f"openai/{model}", max_tokens=3000, **xinference_kwargs
+        )
+        self.article_gen_lm = LitellmModel(
+            model=f"openai/{model}", max_tokens=3000, **xinference_kwargs
+        )
+        self.article_polish_lm = LitellmModel(
+            model=f"openai/{model}", max_tokens=20000, **xinference_kwargs
+        )
+        self.topic_improver_lm = LitellmModel(
+            model=f"openai/{model}", max_tokens=500, **xinference_kwargs
+        )
+
     def set_conv_simulator_lm(self, model: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
         self.conv_simulator_lm = model
 

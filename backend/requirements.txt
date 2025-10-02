@@ -50,12 +50,11 @@ imagehash
 
 # Utilities
 backoff
-python-dotenv
+python-dotenv  # Environment variable management via .env files
 httpx
 requests
 pandas
 pytz
-toml
 tqdm
 regex
 ujson
