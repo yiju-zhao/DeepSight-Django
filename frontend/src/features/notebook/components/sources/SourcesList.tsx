@@ -663,21 +663,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       source.parsing_status &&
       ['queueing', 'uploading', 'parsing', 'captioning'].includes(source.parsing_status);
     const isFailed = source.parsing_status === 'failed' || source.parsing_status === 'error';
-    
-    // Check if this is a file with images and caption generation status
-    const captionGenerationStatus = source.captioning_status || source.metadata?.file_metadata?.caption_generation_status || source.metadata?.caption_generation_status;
-    const hasImages = (source.metadata?.file_metadata?.image_count && source.metadata.file_metadata.image_count > 0) || 
-                      (source.metadata?.image_count && source.metadata.image_count > 0);
-    const imagesRequiringCaptions = source.metadata?.file_metadata?.images_requiring_captions || source.metadata?.images_requiring_captions;
-    
-    
-    // Show caption generation status for completed files with images
-    const showCaptionStatus =
-      source.parsing_status === 'done' &&
-      hasImages &&
-      captionGenerationStatus &&
-      ['pending', 'in_progress'].includes(captionGenerationStatus);
-    
+
     if (isProcessing) {
       return (
         <div className="flex items-center space-x-1">
@@ -696,7 +682,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       </div>
     );
   }
-    
+
     if (isFailed) {
       return (
         <div className="flex items-center space-x-1">
@@ -707,22 +693,9 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         </div>
       );
     }
-    
-    // Show caption generation status for files with images
-    if (showCaptionStatus) {
-      return (
-        <div className="flex items-center space-x-1" title={`Generating captions for ${imagesRequiringCaptions || "multiple"} images`}>
-          <ImageIcon className="h-3 w-3 text-blue-500" />
-          <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
-          <span className="text-xs text-blue-500">
-            {captionGenerationStatus === 'pending' ? 'Captions queued' : 'Generating captions...'}
-          </span>
-        </div>
-      );
-    }
 
-    // Show image icon when captions are completed
-    if (source.parsing_status === 'done' && captionGenerationStatus === 'completed' && hasImages) {
+    // Show green image icon only when captioning is completed
+    if (source.captioning_status === 'completed') {
       return (
         <div className="flex items-center space-x-1" title="Images with captions available">
           <ImageIcon className="h-3 w-3 text-green-500" />
