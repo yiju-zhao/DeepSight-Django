@@ -159,6 +159,7 @@ class ReportGenerationConfig:
     output_dir: str = "results/api"
     max_thread_num: int = 10
     model_provider: ModelProvider = ModelProvider.OPENAI
+    model_uid: Optional[str] = None  # For Xinference: the model UID selected by user
     retriever: RetrieverType = RetrieverType.TAVILY
     temperature: float = 0.2
     top_p: float = 0.4

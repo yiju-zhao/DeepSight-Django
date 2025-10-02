@@ -5,6 +5,7 @@ import { COLORS } from "@/features/notebook/config/uiConfig";
 
 interface ReportConfig {
   model_provider?: string;
+  model_uid?: string;  // For Xinference models
   retriever?: string;
   include_image?: boolean;
   include_domains?: boolean;
@@ -36,22 +37,26 @@ interface AdvancedSettingsModalProps {
   availableModels: AvailableModels;
 }
 
-const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({ 
-  isOpen, 
-  onClose, 
-  reportConfig, 
+const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
+  isOpen,
+  onClose,
+  reportConfig,
   podcastConfig,
   onReportConfigChange,
-  onPodcastConfigChange, 
-  availableModels 
+  onPodcastConfigChange,
+  availableModels
 }) => {
   // Local state for temporary changes (only applied on save)
   const [localReportConfig, setLocalReportConfig] = useState(reportConfig);
   const [localPodcastConfig, setLocalPodcastConfig] = useState(podcastConfig);
-  
+
   // Store original values to revert on cancel
   const [originalReportConfig, setOriginalReportConfig] = useState(reportConfig);
   const [originalPodcastConfig, setOriginalPodcastConfig] = useState(podcastConfig);
+
+  // Xinference models state
+  const [xinferenceModels, setXinferenceModels] = useState<any[]>([]);
+  const [loadingXinferenceModels, setLoadingXinferenceModels] = useState(false);
 
   // Update local state when modal opens (when isOpen becomes true)
   useEffect(() => {
@@ -62,6 +67,27 @@ const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
       setOriginalPodcastConfig(podcastConfig);
     }
   }, [isOpen, reportConfig, podcastConfig]);
+
+  // Fetch Xinference models when provider is selected
+  useEffect(() => {
+    if (localReportConfig.model_provider === 'xinference') {
+      fetchXinferenceModels();
+    }
+  }, [localReportConfig.model_provider]);
+
+  const fetchXinferenceModels = async () => {
+    setLoadingXinferenceModels(true);
+    try {
+      const response = await fetch('/api/v1/reports/xinference/models/');
+      const data = await response.json();
+      setXinferenceModels(data.models || []);
+    } catch (error) {
+      console.error('Failed to fetch Xinference models:', error);
+      setXinferenceModels([]);
+    } finally {
+      setLoadingXinferenceModels(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -142,11 +168,11 @@ const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
             <h3 className="text-base font-semibold text-gray-900 border-b pb-2">Report Generation Settings</h3>
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">AI Model</label>
+                <label className="block text-sm font-medium text-gray-700">AI Model Provider</label>
                 <select
                   className="w-full p-3 border border-gray-300 rounded-lg text-sm accent-red-500 focus:ring-2 focus:ring-red-500 focus:border-transparent focus:outline-none"
                   value={localReportConfig.model_provider || ''}
-                  onChange={(e) => handleReportConfigChange({ model_provider: e.target.value })}
+                  onChange={(e) => handleReportConfigChange({ model_provider: e.target.value, model_uid: undefined })}
                 >
                   {(availableModels?.model_providers || []).map(provider => (
                     <option key={provider} value={provider}>
@@ -155,6 +181,35 @@ const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
                   ))}
                 </select>
               </div>
+
+              {/* Xinference Model Selection */}
+              {localReportConfig.model_provider === 'xinference' && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Xinference Model</label>
+                  {loadingXinferenceModels ? (
+                    <div className="w-full p-3 border border-gray-300 rounded-lg text-sm text-gray-500">
+                      Loading models...
+                    </div>
+                  ) : xinferenceModels.length === 0 ? (
+                    <div className="w-full p-3 border border-gray-300 rounded-lg text-sm text-gray-500">
+                      No models available. Please start models in Xinference.
+                    </div>
+                  ) : (
+                    <select
+                      className="w-full p-3 border border-gray-300 rounded-lg text-sm accent-red-500 focus:ring-2 focus:ring-red-500 focus:border-transparent focus:outline-none"
+                      value={localReportConfig.model_uid || ''}
+                      onChange={(e) => handleReportConfigChange({ model_uid: e.target.value })}
+                    >
+                      <option value="">Select a model</option>
+                      {xinferenceModels.map(model => (
+                        <option key={model.uid} value={model.uid}>
+                          {model.display_name || model.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">Search Engine</label>

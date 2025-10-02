@@ -235,6 +235,7 @@ class DeepReportGeneratorAdapter:
                 model_provider=model_provider_map.get(
                     config.get("model_provider", "openai"), ModelProvider.OPENAI
                 ),
+                model_uid=config.get("model_uid"),  # For Xinference models
                 retriever=retriever_map.get(
                     config.get("retriever", "tavily"), RetrieverType.TAVILY
                 ),

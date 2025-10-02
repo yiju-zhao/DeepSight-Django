@@ -12,6 +12,7 @@ export interface Report {
   progress?: string;
   topic?: string;
   model_provider?: string;
+  model_uid?: string;  // For Xinference: the selected model UID
   retriever?: string;
   prompt_type?: string;
   include_image?: boolean;
@@ -51,6 +52,7 @@ export interface ReportGenerationRequest {
   topic: string;
   article_title?: string;
   model_provider?: string;
+  model_uid?: string;  // For Xinference: the selected model UID
   retriever?: string;
   prompt_type?: string;
   include_image?: boolean;

@@ -21,12 +21,19 @@ urlpatterns = [
     # ========================================
     # Global Report Configuration
     # ========================================
-    
+
     # Report models and configuration (not notebook-specific)
     path(
         'models/',
         views.ReportModelsView.as_view(),
         name='report-models'
+    ),
+
+    # Get available Xinference models
+    path(
+        'xinference/models/',
+        views.XinferenceModelsView.as_view(),
+        name='xinference-models'
     ),
 
     # ========================================

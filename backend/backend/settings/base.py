@@ -239,6 +239,9 @@ XINFERENCE_API_BASE = os.getenv('XINFERENCE_API_BASE')
 XINFERENCE_MODEL = os.getenv('XINFERENCE_MODEL')
 XINFERENCE_API_KEY = os.getenv('XINFERENCE_API_KEY', 'dummy')
 
+# Model-specific UIDs for Xinference (for model@provider format)
+XINFERENCE_QWEN3_MODEL_UID = os.getenv('XINFERENCE_QWEN3_MODEL_UID')
+
 # Search API Configuration
 TAVILY_API_KEY = os.getenv('TAVILY_API_KEY')
 BRAVE_API_KEY = os.getenv('BRAVE_API_KEY')

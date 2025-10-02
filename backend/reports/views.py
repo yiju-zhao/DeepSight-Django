@@ -536,11 +536,12 @@ class ReportModelsView(APIView):
     def get(self, request):
         """Get available models and configuration options"""
         try:
+            # Get static model providers
+            model_providers = [choice[0] for choice in Report.MODEL_PROVIDER_CHOICES]
+
             return Response(
                 {
-                    "model_providers": [
-                        choice[0] for choice in Report.MODEL_PROVIDER_CHOICES
-                    ],
+                    "model_providers": model_providers,
                     "retrievers": [choice[0] for choice in Report.RETRIEVER_CHOICES],
                     "time_ranges": [choice[0] for choice in Report.TIME_RANGE_CHOICES],
                     "prompt_types": [
@@ -555,6 +556,25 @@ class ReportModelsView(APIView):
             logger.error(f"Error getting available models: {e}")
             return Response(
                 {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class XinferenceModelsView(APIView):
+    """Get available models from Xinference server"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        """Get list of running LLM models from Xinference"""
+        try:
+            from agents.report_agent.xinference_utils import get_available_xinference_models
+
+            models = get_available_xinference_models()
+            return Response({"models": models})
+        except Exception as e:
+            logger.error(f"Error getting Xinference models: {e}")
+            return Response(
+                {"detail": str(e), "models": []},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
 

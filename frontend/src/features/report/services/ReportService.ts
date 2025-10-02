@@ -21,6 +21,7 @@ export interface IReportService {
   downloadReport(id: string, filename?: string): Promise<void>;
   getReportStats(): Promise<ReportStats>;
   getAvailableModels(): Promise<any>;
+  getXinferenceModels(): Promise<any>;
 }
 
 export class ReportService implements IReportService {
@@ -168,9 +169,22 @@ export class ReportService implements IReportService {
       console.error('Failed to fetch available models:', error);
       // Return default models if API fails
       return {
-        model_providers: ['openai', 'google'],
+        model_providers: ['openai', 'google', 'xinference'],
         retrievers: ['tavily', 'brave', 'serper', 'you', 'bing', 'duckduckgo', 'searxng'],
         models: ['gpt-4', 'gpt-3.5-turbo']
+      };
+    }
+  }
+
+  async getXinferenceModels(): Promise<any> {
+    try {
+      const endpoint = '/reports/xinference/models/';
+      const response = await this.api.get(endpoint);
+      return response;
+    } catch (error) {
+      console.error('Failed to fetch Xinference models:', error);
+      return {
+        models: []
       };
     }
   }

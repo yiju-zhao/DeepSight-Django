@@ -62,14 +62,21 @@ class ConfigurationManager:
         _ensure_storm_imported()
         lm_configs = STORMWikiLMConfigs()
 
-        if config.model_provider.value == "google":
+        provider_value = config.model_provider.value
+
+        # Check provider type
+        if provider_value == "google":
             return self._setup_google_models(config, lm_configs)
-        elif config.model_provider.value == "openai":
+        elif provider_value == "openai":
             return self._setup_openai_models(config, lm_configs)
-        elif config.model_provider.value == "xinference":
-            return self._setup_xinference_models(config, lm_configs)
+        elif provider_value == "xinference":
+            # Get model UID from config (passed from frontend)
+            model_uid = getattr(config, 'model_uid', None)
+            if not model_uid:
+                raise ValueError("model_uid is required when using Xinference provider")
+            return self._setup_xinference_model_by_uid(config, lm_configs, model_uid)
         else:
-            raise ValueError(f"Unsupported model provider: {config.model_provider}")
+            raise ValueError(f"Unsupported model provider: {provider_value}")
 
     def _setup_openai_models(self, config, lm_configs) -> 'STORMWikiLMConfigs':
         """Setup OpenAI language models."""
@@ -99,18 +106,26 @@ class ConfigurationManager:
 
         return lm_configs
 
-    def _setup_xinference_models(self, config, lm_configs) -> 'STORMWikiLMConfigs':
-        """Setup Xinference language models."""
+    def _setup_xinference_model_by_uid(self, config, lm_configs, model_uid: str) -> 'STORMWikiLMConfigs':
+        """Setup Xinference language model using the model UID directly.
+
+        Args:
+            config: Report generation configuration
+            lm_configs: STORMWikiLMConfigs instance
+            model_uid: The Xinference model UID (e.g., "qwen2.5-72b-instruct")
+        """
         xinference_api_base = settings.XINFERENCE_API_BASE
-        xinference_model = settings.XINFERENCE_MODEL
+
+        if not xinference_api_base:
+            raise ValueError("XINFERENCE_API_BASE must be set in Django settings")
+
         xinference_api_key = getattr(settings, 'XINFERENCE_API_KEY', 'dummy')
 
-        if not xinference_api_base or not xinference_model:
-            raise ValueError("XINFERENCE_API_BASE and XINFERENCE_MODEL must be set")
+        self.logger.info(f"Setting up Xinference model with UID: {model_uid}")
 
         lm_configs.init_xinference_model(
             api_base=xinference_api_base,
-            model=xinference_model,
+            model=model_uid,
             api_key=xinference_api_key,
             temperature=config.temperature,
             top_p=config.top_p,

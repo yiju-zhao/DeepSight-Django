@@ -43,13 +43,18 @@ class Report(models.Model):
     # Model and retriever configuration
     MODEL_PROVIDER_OPENAI = "openai"
     MODEL_PROVIDER_GOOGLE = "google"
+    MODEL_PROVIDER_XINFERENCE = "xinference"
     MODEL_PROVIDER_CHOICES = [
         (MODEL_PROVIDER_OPENAI, "OpenAI"),
         (MODEL_PROVIDER_GOOGLE, "Google"),
+        (MODEL_PROVIDER_XINFERENCE, "Xinference"),
     ]
     model_provider = models.CharField(
         max_length=50, choices=MODEL_PROVIDER_CHOICES, default=MODEL_PROVIDER_OPENAI
     )
+
+    # For Xinference: store the selected model UID
+    model_uid = models.CharField(max_length=200, blank=True, null=True)
 
     RETRIEVER_TAVILY = "tavily"
     RETRIEVER_BRAVE = "brave"
@@ -247,6 +252,7 @@ class Report(models.Model):
         """Return configuration as a dictionary for passing to the report generator."""
         return {
             "model_provider": self.model_provider,
+            "model_uid": self.model_uid,  # For Xinference models
             "retriever": self.retriever,
             "temperature": self.temperature,
             "top_p": self.top_p,
