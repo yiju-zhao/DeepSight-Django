@@ -31,16 +31,30 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
     }
 
     // Check if this is a relative report image path (images/...)
-    if (src.startsWith('images/') && file) {
-      console.log('AuthenticatedImage: Detected relative report image path');
+    if (src.startsWith('images/')) {
+      console.log('AuthenticatedImage: Detected relative report image path, file:', file);
       const imageName = src.replace('images/', '');
+
+      if (!file) {
+        console.error('AuthenticatedImage: No file object provided for relative image path');
+        setImgError(true);
+        setIsLoading(false);
+        return;
+      }
 
       // Check if this is a report file
       const reportId = file.report_id || file.id;
+      console.log('AuthenticatedImage: File type:', file.type, 'Report ID:', reportId);
+
       if (file.type === 'report' && reportId) {
         const reportImageUrl = `${API_BASE_URL}/api/v1/reports/jobs/${reportId}/images/${imageName}`;
         console.log('AuthenticatedImage: Constructing report image URL:', reportImageUrl);
         fetchImageWithRedirect(reportImageUrl);
+        return;
+      } else {
+        console.error('AuthenticatedImage: File is not a report or missing ID', { type: file.type, reportId });
+        setImgError(true);
+        setIsLoading(false);
         return;
       }
     }

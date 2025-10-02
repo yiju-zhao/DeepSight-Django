@@ -315,7 +315,7 @@ def parse_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id
         kb_item = KnowledgeBaseItem.objects.create(
             notebook=notebook,
             title=f"Processing: {url[:100]}",
-            content_type="url",
+            content_type="webpage",
             parsing_status="queueing",
             notes=f"URL: {url}",
             tags=[],
@@ -406,7 +406,7 @@ def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: s
         kb_item = KnowledgeBaseItem.objects.create(
             notebook=notebook,
             title=f"Processing with media: {url[:100]}",
-            content_type="url",
+            content_type="webpage",
             parsing_status="queueing",
             notes=f"URL with media: {url}",
             tags=[],

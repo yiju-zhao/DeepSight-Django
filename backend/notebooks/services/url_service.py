@@ -34,7 +34,7 @@ class URLService(NotebookBaseService):
             kb_item = KnowledgeBaseItem.objects.create(
                 notebook=notebook,
                 title=f"Processing: {url[:100]}",
-                content_type="url",
+                content_type="webpage",
                 parsing_status="queueing",
                 notes=f"URL: {url}",
                 tags=[],
@@ -74,7 +74,7 @@ class URLService(NotebookBaseService):
             kb_item = KnowledgeBaseItem.objects.create(
                 notebook=notebook,
                 title=f"Processing with media: {url[:100]}",
-                content_type="url",
+                content_type="webpage",
                 parsing_status="queueing",
                 notes=f"URL with media: {url}",
                 tags=[],

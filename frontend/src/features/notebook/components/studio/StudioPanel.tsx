@@ -271,7 +271,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
       
       const content = await studioService.getReportContent(reportId, notebookId);
-      setSelectedFile(report);
+      // Add type field to report object so AuthenticatedImage can identify it
+      setSelectedFile({ ...report, type: 'report', report_id: reportId });
       setSelectedFileContent(content.content || content.markdown_content || '');
       setViewMode('preview');
       setIsReportPreview(true);
