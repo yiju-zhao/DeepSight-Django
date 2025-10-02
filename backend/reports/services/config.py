@@ -40,6 +40,13 @@ def get_model_provider_config(provider: str) -> Dict[str, Any]:
             "temperature": 0.7,
             "max_tokens": 4000,
         }
+    if provider == "xinference":
+        return {
+            "api_key": _get_setting("XINFERENCE_API_KEY", "dummy"),  # Xinference doesn't need real API key
+            "api_base": _get_setting("XINFERENCE_API_BASE"),
+            "temperature": 0.7,
+            "max_tokens": 4000,
+        }
     return {}
 
 
