@@ -8,17 +8,20 @@ import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { useToast } from '@/shared/components/ui/use-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import rehypeHighlight from 'rehype-highlight';
+import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import 'highlight.js/styles/github.css';
+import 'katex/dist/katex.min.css';
 import type { SessionChatWindowProps } from '@/features/notebook/type';
 
 // Memoized markdown content component
 const MarkdownContent = React.memo(({ content }: { content: string }) => (
   <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
     <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      rehypePlugins={[rehypeHighlight, rehypeRaw]}
+      remarkPlugins={[remarkGfm, remarkMath]}
+      rehypePlugins={[rehypeKatex, rehypeHighlight, rehypeRaw]}
       components={{
         h1: ({ children }) => <h1 className="text-xl font-semibold text-gray-900 mb-3 mt-5">{children}</h1>,
         h2: ({ children }) => <h2 className="text-lg font-semibold text-gray-900 mt-4 mb-2">{children}</h2>,
