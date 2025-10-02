@@ -193,6 +193,13 @@ class ReportGenerationRequestSerializer(serializers.Serializer):
     model_provider = serializers.ChoiceField(
         choices=Report.MODEL_PROVIDER_CHOICES, default=Report.MODEL_PROVIDER_OPENAI
     )
+    model_uid = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        max_length=200,
+        help_text="Model UID for Xinference provider"
+    )
     retriever = serializers.ChoiceField(
         choices=Report.RETRIEVER_CHOICES, default=Report.RETRIEVER_TAVILY
     )
