@@ -503,21 +503,21 @@ class FileStorageService:
             if not knowledge_item:
                 # Check for existing source first (primary check)
                 existing_item = KnowledgeBaseItem.objects.filter(
-                    user=user, source_hash=source_hash
+                    notebook=notebook, source_hash=source_hash
                 ).first()
-                
+
                 if existing_item:
                     self.log_operation("duplicate_source", f"Source already exists: {existing_item.id}")
                     return str(existing_item.id)
-                
+
                 # Secondary check: content-based deduplication for different filenames with same content
                 if source_identifier:  # Only do secondary check if we used source hash as primary
                     content_hash = calculate_content_hash(content)
                     existing_content = KnowledgeBaseItem.objects.filter(
-                        user=user,
+                        notebook=notebook,
                         source_hash=content_hash  # Check if content hash exists in any source_hash
                     ).first()
-                    
+
                     if existing_content:
                         self.log_operation("duplicate_content", f"Content already exists with different source: {existing_content.id}")
                         return str(existing_content.id)
