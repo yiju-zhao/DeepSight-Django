@@ -333,7 +333,7 @@ def parse_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id
         kb_item.save(update_fields=['parsing_status'])
 
         # Process the URL
-        from ..processors.url_extractor import URLExtractor
+        from notebooks.processors.url_extractor import URLExtractor
         url_extractor = URLExtractor()
 
         result = async_to_sync(url_extractor.process_url)(
@@ -428,7 +428,7 @@ def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: s
         kb_item.save(update_fields=['parsing_status'])
 
         # Process the URL with media
-        from ..processors.url_extractor import URLExtractor
+        from notebooks.processors.url_extractor import URLExtractor
         url_extractor = URLExtractor()
 
         result = async_to_sync(url_extractor.process_url_with_media)(
@@ -523,7 +523,7 @@ def parse_document_url_task(self, url: str, upload_url_id: str, notebook_id: str
         kb_item.save(update_fields=['parsing_status'])
 
         # Process the document URL
-        from ..processors.url_extractor import URLExtractor
+        from notebooks.processors.url_extractor import URLExtractor
         url_extractor = URLExtractor()
 
         result = async_to_sync(url_extractor.process_url_document_only)(
