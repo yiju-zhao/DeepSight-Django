@@ -42,6 +42,9 @@ app.conf.update(
         "reports.tasks.process_report_generation": {"queue": "reports"},
         "reports.tasks.cleanup_old_reports": {"queue": "maintenance"},
         "reports.tasks.validate_report_configuration": {"queue": "validation"},
+        "notebooks.tasks.parse_url_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.parse_url_with_media_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.parse_document_url_task": {"queue": "notebook_processing"},
         "notebooks.tasks.process_url_task": {"queue": "notebook_processing"},
         "notebooks.tasks.process_url_media_task": {"queue": "notebook_processing"},
         "notebooks.tasks.process_url_document_task": {"queue": "notebook_processing"},
@@ -49,6 +52,7 @@ app.conf.update(
         "notebooks.tasks.upload_to_ragflow_task": {"queue": "notebook_processing"},
         "notebooks.tasks.generate_image_captions_task": {"queue": "notebook_processing"},
         "notebooks.tasks.test_caption_generation_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.check_ragflow_status_task": {"queue": "notebook_processing"},
     },
     # Task settings
     task_serializer="json",
