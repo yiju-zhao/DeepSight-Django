@@ -403,12 +403,25 @@ class URLExtractor:
         
         return content.strip()
     
-    async def process_url(self, url: str, extraction_options: Optional[Dict[str, Any]] = None, upload_url_id: Optional[str] = None, user_id: int = None, notebook_id: int = None) -> Dict[str, Any]:
-        """Process URL content using crawl4ai only."""
+    async def process_url(self, url: str, extraction_options: Optional[Dict[str, Any]] = None, upload_url_id: Optional[str] = None, user_id: int = None, notebook_id: int = None, kb_item_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Process URL content using crawl4ai.
+
+        Args:
+            url: URL to process
+            extraction_options: Optional extraction configuration
+            upload_url_id: Optional upload tracking ID
+            user_id: User ID
+            notebook_id: Notebook ID
+            kb_item_id: Optional existing KnowledgeBaseItem ID to update (if None, creates new)
+
+        Returns:
+            Dict with file_id, url, status, and other metadata
+        """
         try:
             if not self._validate_url(url):
                 raise ValueError(f"Invalid URL: {url}")
-            
+
             # Default extraction options for basic URL processing
             options = {
                 "extract_links": True,
@@ -419,24 +432,37 @@ class URLExtractor:
             }
             if extraction_options:
                 options.update(extraction_options)
-            
+
             # Extract content using crawl4ai
             features = await self._extract_with_crawl4ai(url, options)
-            
+
             # Clean markdown content
             cleaned_content = self._clean_markdown_content(features.get("content", ""), features)
-            
-            # Store processed content
-            file_id = await self._store_processed_content(
-                url=url,
-                content=cleaned_content,
-                features=features,
-                upload_url_id=upload_url_id,
-                processing_type="url_content",
-                user_id=user_id,
-                notebook_id=notebook_id
-            )
-            
+
+            # Store or update processed content based on kb_item_id
+            if kb_item_id:
+                # Update existing KB item
+                await self._update_existing_kb_item(
+                    kb_item_id=kb_item_id,
+                    url=url,
+                    content=cleaned_content,
+                    features=features,
+                    processing_type="url_content",
+                    user_id=user_id
+                )
+                file_id = kb_item_id
+            else:
+                # Create new KB item
+                file_id = await self._store_processed_content(
+                    url=url,
+                    content=cleaned_content,
+                    features=features,
+                    upload_url_id=upload_url_id,
+                    processing_type="url_content",
+                    user_id=user_id,
+                    notebook_id=notebook_id
+                )
+
             return {
                 "file_id": file_id,
                 "url": url,
@@ -445,7 +471,7 @@ class URLExtractor:
                 "title": features.get("title", ""),
                 "extraction_method": "crawl4ai"
             }
-            
+
         except Exception as e:
             self.log_operation("process_url_error", f"Error processing URL {url}: {e}", "error")
             raise
@@ -578,21 +604,34 @@ class URLExtractor:
             self.log_operation("process_url_media_update_error", f"Error updating KB item {kb_item_id} with media URL {url}: {e}", "error")
             raise
     
-    async def process_url_with_media(self, url: str, extraction_options: Optional[Dict[str, Any]] = None, upload_url_id: Optional[str] = None, user_id: int = None, notebook_id: int = None) -> Dict[str, Any]:
-        """Process URL content with media support."""
+    async def process_url_with_media(self, url: str, extraction_options: Optional[Dict[str, Any]] = None, upload_url_id: Optional[str] = None, user_id: int = None, notebook_id: int = None, kb_item_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Process URL content with media support.
+
+        Args:
+            url: URL to process
+            extraction_options: Optional extraction configuration
+            upload_url_id: Optional upload tracking ID
+            user_id: User ID
+            notebook_id: Notebook ID
+            kb_item_id: Optional existing KnowledgeBaseItem ID to update (if None, creates new)
+
+        Returns:
+            Dict with file_id, url, status, and other metadata
+        """
         try:
             if not self._validate_url(url):
                 raise ValueError(f"Invalid URL: {url}")
-            
+
             # Check for media availability
             media_info = await self._check_media_availability(url)
-            
+
             content = ""
             processing_type = "url_content"
             transcript_filename = None
             original_file_path = None
             features = {}  # Initialize features to avoid UnboundLocalError
-            
+
             if media_info.get("has_media"):
                 # Download and transcribe media
                 media_result = await self._download_and_transcribe_media(url, media_info)
@@ -617,26 +656,40 @@ class URLExtractor:
                 }
                 if extraction_options:
                     options.update(extraction_options)
-                
+
                 features = await self._extract_with_crawl4ai(url, options)
                 content = features.get("content", "")
-            
+
             # Clean markdown content
             cleaned_content = self._clean_markdown_content(content, features)
-            
-            # Store processed content
-            file_id = await self._store_processed_content(
-                url=url,
-                content=cleaned_content,
-                features={"title": media_info.get("title", url), "url": url},
-                upload_url_id=upload_url_id,
-                processing_type=processing_type,
-                transcript_filename=transcript_filename,
-                original_file_path=original_file_path,  # Pass the video file path
-                user_id=user_id,
-                notebook_id=notebook_id
-            )
-            
+
+            # Store or update processed content based on kb_item_id
+            if kb_item_id:
+                # Update existing KB item
+                await self._update_existing_kb_item(
+                    kb_item_id=kb_item_id,
+                    url=url,
+                    content=cleaned_content,
+                    features={"title": media_info.get("title", url), "url": url},
+                    processing_type=processing_type,
+                    user_id=user_id,
+                    original_file_path=original_file_path
+                )
+                file_id = kb_item_id
+            else:
+                # Create new KB item
+                file_id = await self._store_processed_content(
+                    url=url,
+                    content=cleaned_content,
+                    features={"title": media_info.get("title", url), "url": url},
+                    upload_url_id=upload_url_id,
+                    processing_type=processing_type,
+                    transcript_filename=transcript_filename,
+                    original_file_path=original_file_path,  # Pass the video file path
+                    user_id=user_id,
+                    notebook_id=notebook_id
+                )
+
             # Clean up temporary files after storage
             if original_file_path and os.path.exists(original_file_path):
                 try:
@@ -648,7 +701,7 @@ class URLExtractor:
                         self.log_operation("temp_cleanup", f"Cleaned up temporary directory: {temp_dir}")
                 except Exception as cleanup_err:
                     self.log_operation("cleanup_error", f"Failed to cleanup temp files: {cleanup_err}", "warning")
-            
+
             return {
                 "file_id": file_id,
                 "url": url,
@@ -658,7 +711,7 @@ class URLExtractor:
                 "has_media": media_info.get("has_media", False),
                 "processing_type": processing_type
             }
-            
+
         except Exception as e:
             self.log_operation("process_url_with_media_error", f"Error processing URL with media {url}: {e}", "error")
             raise
@@ -778,31 +831,51 @@ class URLExtractor:
                 except Exception as cleanup_error:
                     self.log_operation("temp_cleanup_error", f"Error cleaning up {temp_file_path}: {cleanup_error}", "warning")
     
-    async def process_url_document_only(self, url: str, upload_url_id: Optional[str] = None, user_id: int = None, notebook_id: int = None) -> Dict[str, Any]:
-        """Process URL as document download - validates format and only saves PDF/PPTX files."""
+    async def process_url_document_only(self, url: str, upload_url_id: Optional[str] = None, user_id: int = None, notebook_id: int = None, kb_item_id: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Process URL as document download - validates format and only saves PDF/PPTX files.
+
+        Args:
+            url: URL to process
+            upload_url_id: Optional upload tracking ID
+            user_id: User ID
+            notebook_id: Notebook ID
+            kb_item_id: Optional existing KnowledgeBaseItem ID to update (if None, creates new)
+
+        Returns:
+            Dict with file_id, url, status, and other metadata
+        """
         temp_file_path = None
         try:
             if not self._validate_url(url):
                 raise ValueError(f"Invalid URL: {url}")
-            
+
             self.log_operation("document_download_start", f"Starting document download from {url}")
-            
+
             # Download file to temporary location
             temp_file_path = await self._download_document_to_temp(url)
-            
+
             # Validate file format
             file_info = await self._validate_document_format(temp_file_path)
-            
+
             if not file_info["is_valid"]:
                 raise ValueError(f"Invalid document format. Expected PDF or PPTX, got: {file_info['detected_type']}")
-            
-            # Process the document using upload processor
-            processed_result = await self._process_document_file(temp_file_path, file_info, url, upload_url_id, user_id, notebook_id)
-            
+
+            # Process or update based on kb_item_id
+            if kb_item_id:
+                # Update existing KB item
+                await self._process_and_update_document_file(temp_file_path, file_info, url, kb_item_id, user_id, notebook_id)
+                file_id = kb_item_id
+                processed_result = {"file_id": kb_item_id, "status": "completed"}
+            else:
+                # Create new KB item
+                processed_result = await self._process_document_file(temp_file_path, file_info, url, upload_url_id, user_id, notebook_id)
+                file_id = processed_result.get("file_id")
+
             # processed_result should have the structure from upload processor
             return {
-                "file_id": processed_result.get("file_id"),
-                "url": url, 
+                "file_id": file_id,
+                "url": url,
                 "status": processed_result.get("status", "completed"),
                 "content_preview": processed_result.get("content_preview", ""),
                 "title": file_info.get("filename", url),
@@ -810,7 +883,7 @@ class URLExtractor:
                 "file_extension": file_info["extension"],
                 "file_size": file_info["size"]
             }
-            
+
         except Exception as e:
             self.log_operation("process_url_document_error", f"Error processing document URL {url}: {e}", "error")
             raise
