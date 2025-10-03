@@ -689,11 +689,14 @@ class FileStatusSSEView(View):
                 yield f"data: {json.dumps(sse_message)}\n\n"
 
                 parsing_done = file_item.parsing_status in ["done", "failed"]
-                caption_done = status_data.get('caption_status') in ["completed", "failed"]
+                caption_done = status_data.get('caption_status') in ["completed", "failed", None]
+                ragflow_done = status_data.get('ragflow_processing_status') in ["completed", "failed", None]
 
-                if parsing_done and (not status_data.get('caption_status') or caption_done):
+                # Only close when parsing is done AND (no caption processing OR caption is done) AND (no ragflow OR ragflow is done)
+                if parsing_done and caption_done and ragflow_done:
                     logger.info(
-                        f"File {file_item.id} processing finished with status: {file_item.parsing_status} and caption status: {status_data.get('caption_status')}"
+                        f"File {file_item.id} all processing finished - parsing: {file_item.parsing_status}, "
+                        f"caption: {status_data.get('caption_status')}, ragflow: {status_data.get('ragflow_processing_status')}"
                     )
                     close_message = {"type": "close"}
                     yield f"data: {json.dumps(close_message)}\n\n"
@@ -725,6 +728,7 @@ class FileStatusSSEView(View):
             "processing_status": raw_status,  # Also include in processing_status for compatibility
             "metadata": file_item.metadata or {},
             "captioning_status": file_item.captioning_status,  # Use actual captioning_status field
+            "ragflow_processing_status": file_item.ragflow_processing_status,  # Include RagFlow status
         }
 
     def _generate_upload_pending_stream(self, upload_id: str):

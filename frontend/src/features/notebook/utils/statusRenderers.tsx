@@ -80,7 +80,7 @@ const renderRagflowStatus = (
     return (
       <div className="flex items-center space-x-1" title="Uploading to knowledge base...">
         <Loader2 className="h-3 w-3 text-blue-600 animate-spin" />
-        <span className="text-xs text-gray-500">Syncing...</span>
+        <span className="text-xs text-gray-500">RAGFlowing...</span>
       </div>
     );
   }
@@ -189,11 +189,11 @@ export const getSourceStatusText = (source: Source): string => {
   }
 
   if (isRagflowSyncing(source)) {
-    return 'Syncing to knowledge base...';
+    return 'RAGFlowing to knowledge base...';
   }
 
   if (isRagflowSynced(source)) {
-    return 'Synced to knowledge base';
+    return 'RAGFlow synced';
   }
 
   return 'Ready';
