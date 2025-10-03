@@ -986,7 +986,7 @@ def test_caption_generation_task(kb_item_id: str):
     return {"test": "successful", "kb_item_id": kb_item_id}
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=False, reject_on_worker_lost=False)
 def check_ragflow_status_task(self, kb_item_id: str):
     """
     Poll RagFlow document processing status until completion.
