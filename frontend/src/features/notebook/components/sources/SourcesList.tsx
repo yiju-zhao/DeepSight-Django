@@ -14,7 +14,7 @@ import { useFileStatusSSE } from "@/features/notebook/hooks/file/useFileStatusSS
 import { useFileSelection } from "@/features/notebook/hooks/file/useFileSelection";
 import { useParsedFiles } from "@/features/notebook/hooks/sources/useSources";
 import AddSourceModal from "./AddSourceModal";
-import { renderFileStatus, isSourceProcessing } from "@/features/notebook/utils/statusRenderers";
+import { renderFileStatus } from "@/features/notebook/utils/statusRenderers";
 import { SourceItem } from "./SourceItem";
 
 const fileIcons: FileIcons = {
@@ -124,9 +124,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Integrate file selection hook by passing the ref to this component
   const {
-    selectedFiles,
-    hasSelectedFiles,
-    getCurrentSelectedFiles,
     updateSelectedFiles
   } = useFileSelection(ref as any);
   
@@ -208,7 +205,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   }, [onSelectionChange, refetchFiles]);
 
   // Handle processing errors for specific files
-  const handleFileProcessingError = useCallback((_fileId: string, error: string) => {
+  const handleFileProcessingError = useCallback((_fileId: string, _error: string) => {
     refetchFiles();
 
     if (onSelectionChange) {
@@ -353,11 +350,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
     refetchFiles();
   }, [refetchFiles, fileUploadStatus]);
-
-  // Manual refresh
-  const handleManualRefresh = useCallback(async () => {
-    refetchFiles();
-  }, [refetchFiles]);
 
   // Expose methods to parent components
   useImperativeHandle(ref, (): SourcesListRef => ({
@@ -592,20 +584,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleManualRefresh();
-              }}
-              disabled={isLoading}
-              title="Manual refresh (auto-updates via SSE)"
-            >
-              <RefreshCw className={`h-3 w-3 ${isLoading ? 'animate-spin' : ''}`} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
               className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
               onClick={(e) => {
                 e.preventDefault();
@@ -630,24 +608,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 <ChevronLeft className="h-4 w-4" />
               </Button>
             )}
-            {isLoading && (
-              <RefreshCw className="h-4 w-4 animate-spin text-gray-400" />
-            )}
-            {(() => {
-              const processingCount = sources.filter(isSourceProcessing).length;
-
-              if (processingCount > 0) {
-                return (
-                  <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse"
-                       title={`${processingCount} files processing - SSE listening for completion`} />
-                );
-              }
-
-              return (
-                <div className="h-2 w-2 bg-green-500 rounded-full"
-                     title="All files processed - SSE ready" />
-              );
-            })()}
           </div>
         </div>
       </div>

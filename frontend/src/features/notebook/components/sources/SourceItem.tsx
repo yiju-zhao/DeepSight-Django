@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { Checkbox } from '@/shared/components/ui/checkbox';
+import { CheckCircle2, ImageIcon } from 'lucide-react';
 import { supportsPreview } from '@/features/notebook/utils/filePreview';
 import { Source } from '@/features/notebook/type';
 
@@ -24,29 +25,48 @@ export const SourceItem = React.memo<SourceItemProps>(({
   getPrincipleFileIcon,
   renderFileStatus
 }) => {
+  // Determine parsing status
+  const isParsing = source.parsing_status && ['uploading', 'queueing', 'parsing'].includes(source.parsing_status);
+  const isContentReady = source.parsing_status === 'done' || source.parsing_status === 'captioning';
+  const isCaptionReady = source.captioning_status === 'done';
+  const isRagflowReady = source.ragflow_processing_status === 'done';
+
   const handleItemClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only open preview if the source supports preview
-    if (supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {})) {
+    // Only allow preview when content is ready and not parsing
+    if (!isParsing && supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {})) {
       onPreview(source);
     }
-  }, [onPreview, source]);
+  }, [onPreview, source, isParsing]);
 
   const supportsPreviewCheck = supportsPreview(
     source.metadata?.file_extension || source.ext || '',
     source.metadata || {}
-  );
+  ) && !isParsing;
 
   return (
     <div
-      className={`px-3 py-2 border-b border-gray-100 ${
+      className={`relative px-3 py-2 border-b border-gray-100 overflow-hidden ${
         supportsPreviewCheck ? 'cursor-pointer hover:bg-gray-50' : ''
       } ${source.selected ? 'bg-red-50 border-red-200' : ''}`}
       onClick={supportsPreviewCheck ? handleItemClick : undefined}
       title={supportsPreviewCheck ? getSourceTooltip(source) : undefined}
     >
-      <div className="flex items-center space-x-3">
+      {/* Sweeping highlight effect during parsing */}
+      {isParsing && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-100/40 to-transparent"
+            style={{
+              animation: 'sweepAnimation 2s ease-in-out infinite',
+              transform: 'translateX(-100%)'
+            }}
+          />
+        </div>
+      )}
+
+      <div className="flex items-center space-x-3 relative z-10">
         <div className="flex-shrink-0 flex items-center">
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
             {React.createElement(getPrincipleFileIcon(source), {
@@ -60,24 +80,48 @@ export const SourceItem = React.memo<SourceItemProps>(({
           {renderFileStatus(source)}
         </div>
 
-        <div className="flex items-center flex-shrink-0">
-          <div
-            className="flex items-center cursor-pointer"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-          >
-            <Checkbox
-              checked={source.selected}
-              onCheckedChange={() => onToggle(String(source.id))}
-              variant="default"
-              size="default"
-              className="cursor-pointer"
-            />
-          </div>
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          {/* Show image icon when caption is ready */}
+          {isCaptionReady && (
+            <ImageIcon className="h-4 w-4 text-green-600" title="Caption ready" />
+          )}
+
+          {/* Show checkmark when RagFlow upload is complete */}
+          {isRagflowReady && (
+            <CheckCircle2 className="h-4 w-4 text-green-600" title="RagFlow sync complete" />
+          )}
+
+          {/* Only show checkbox when content is ready */}
+          {isContentReady && (
+            <div
+              className="flex items-center cursor-pointer"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+            >
+              <Checkbox
+                checked={source.selected}
+                onCheckedChange={() => onToggle(String(source.id))}
+                variant="default"
+                size="default"
+                className="cursor-pointer"
+              />
+            </div>
+          )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes sweepAnimation {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+      `}</style>
     </div>
   );
 });
