@@ -140,7 +140,16 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
                 <h3 className="text-sm font-medium text-gray-500">Prompt Type</h3>
                 <p className="mt-1 text-sm text-gray-900">{report.prompt_type || "Not specified"}</p>
               </div>
-              
+
+              <div>
+                <h3 className="text-sm font-medium text-gray-500">Sources</h3>
+                <p className="mt-1 text-sm text-gray-900">
+                  {report.source_ids && report.source_ids.length > 0
+                    ? `${report.source_ids.length} ${report.source_ids.length === 1 ? 'source' : 'sources'}`
+                    : "No sources"}
+                </p>
+              </div>
+
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Created</h3>
                 <p className="mt-1 text-sm text-gray-900">{formatDate(report.created_at)}</p>

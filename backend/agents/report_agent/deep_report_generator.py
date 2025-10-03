@@ -198,7 +198,7 @@ class ReportGenerationConfig:
     csv_path: Optional[str] = None
     author_json: Optional[str] = None
     caption_files: Optional[List[str]] = None
-    selected_files_paths: Optional[List[str]] = None  # For image path fixing
+    source_ids: Optional[List[str]] = None  # For image path fixing
     user_id: Optional[str] = None  # User ID for MinIO access
     figure_data: Optional[List[Any]] = None  # For image data
 
@@ -292,7 +292,7 @@ class ReportGenerationConfig:
             whitelist_domains=config_dict.get("domain_list", []) if config_dict.get("domain_list") else None,
             search_depth=config_dict.get("search_depth", "basic"),
             old_outline_path=old_outline_path,
-            selected_files_paths=config_dict.get("selected_files_paths", []),
+            source_ids=config_dict.get("source_ids", []),
             user_id=config_dict.get("user_id"),
             csv_session_code=config_dict.get("csv_session_code", ""),
             csv_date_filter=config_dict.get("csv_date_filter", ""),

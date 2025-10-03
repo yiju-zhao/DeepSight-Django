@@ -32,7 +32,7 @@ export interface ReportConfig extends GenerationConfig {
   include_domains?: boolean;
   time_range?: string;
   notebook_id?: string;
-  selected_files_paths?: string[];
+  source_ids?: string[];
 }
 
 export interface PodcastConfig extends GenerationConfig {

@@ -12,7 +12,7 @@ class ReportSerializer(serializers.ModelSerializer):
             "topic",
             "article_title",
             "old_outline",
-            "selected_files_paths",
+            "source_ids",
             "csv_session_code",
             "csv_date_filter",
             "model_provider",
@@ -62,7 +62,7 @@ class ReportCreateSerializer(serializers.ModelSerializer):
             "topic",
             "article_title",
             "old_outline",
-            "selected_files_paths",
+            "source_ids",
             "csv_session_code",
             "csv_date_filter",
             "model_provider",
@@ -93,11 +93,11 @@ class ReportCreateSerializer(serializers.ModelSerializer):
     def validate(self, data):
         """Validate that at least one input source is provided."""
         topic = data.get("topic", "").strip()
-        selected_files_paths = data.get("selected_files_paths", [])
+        source_ids = data.get("source_ids", [])
 
-        if not topic and not selected_files_paths:
+        if not topic and not source_ids:
             raise serializers.ValidationError(
-                "At least one of: topic or selected_files_paths must be provided"
+                "At least one of: topic or source_ids must be provided"
             )
 
         return data
@@ -250,7 +250,7 @@ class ReportGenerationRequestSerializer(serializers.Serializer):
     include_image = serializers.BooleanField(default=True)
 
     # Content inputs from knowledge base
-    selected_files_paths = serializers.ListField(
+    source_ids = serializers.ListField(
         child=serializers.CharField(), required=False, default=list
     )
 
@@ -268,11 +268,11 @@ class ReportGenerationRequestSerializer(serializers.Serializer):
     def validate(self, data):
         """Validate that at least one input source is provided."""
         topic = (data.get("topic") or "").strip()
-        selected_files_paths = data.get("selected_files_paths", [])
+        source_ids = data.get("source_ids", [])
 
-        if not topic and not selected_files_paths:
+        if not topic and not source_ids:
             raise serializers.ValidationError(
-                "At least one of: topic or selected_files_paths must be provided"
+                "At least one of: topic or source_ids must be provided"
             )
 
         return data

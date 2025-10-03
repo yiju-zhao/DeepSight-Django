@@ -30,10 +30,10 @@ class Report(models.Model):
     )
 
     # Content inputs from knowledge base
-    selected_files_paths = models.JSONField(
+    source_ids = models.JSONField(
         default=list,
         blank=True,
-        help_text="List of file folder paths from knowledge base",
+        help_text="List of source IDs from knowledge base",
     )
 
     # CSV processing options
@@ -278,7 +278,7 @@ class Report(models.Model):
             "search_depth": self.search_depth,
             # Content input fields
             "topic": self.topic,
-            "selected_files_paths": self.selected_files_paths,
+            "source_ids": self.source_ids,
         }
 
     def update_status(self, status, progress=None, error=None):

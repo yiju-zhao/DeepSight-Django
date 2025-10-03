@@ -64,9 +64,9 @@ class RunnerOrchestrator:
         runner = STORMWikiRunner(engine_args, lm_configs, rm)
         runner.author_json = config.author_json
 
-        # Pass selected_files_paths and user_id for image path fixing
-        if config.selected_files_paths:
-            runner.selected_files_paths = config.selected_files_paths
+        # Pass source_ids and user_id for image path fixing
+        if config.source_ids:
+            runner.source_ids = config.source_ids
         if config.user_id:
             runner.user_id = config.user_id
 

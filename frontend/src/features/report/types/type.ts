@@ -19,7 +19,7 @@ export interface Report {
   include_domains?: boolean;
   time_range?: string;
   notebook_id?: string;
-  selected_files_paths?: string[];
+  source_ids?: string[];
   created_at: string;
   updated_at: string;
   user?: string;
@@ -59,7 +59,7 @@ export interface ReportGenerationRequest {
   include_domains?: boolean;
   time_range?: string;
   notebook_id?: string;
-  selected_files_paths?: string[];
+  source_ids?: string[];
   model?: string;
   temperature?: number;
   maxTokens?: number;

@@ -44,7 +44,7 @@ const ReportPage: React.FC = () => {
       include_domains: undefined,
       time_range: undefined,
       notebook_id: undefined,
-      selected_files_paths: undefined,
+      source_ids: undefined,
       created_at: r.created_at,
       updated_at: r.updated_at,
       user: undefined,

@@ -74,9 +74,9 @@ class ReportGenerationService:
             logger.info(f"Output directory for report {report_id}: {output_dir}")
 
             content_data = {}
-            if report.selected_files_paths:
+            if report.source_ids:
                 processed_data = self.input_processor.process_selected_files(
-                    report.selected_files_paths, user_id=report.user.pk
+                    report.source_ids, user_id=report.user.pk
                 )
                 content_data = self.input_processor.get_content_data(processed_data)
 
@@ -150,12 +150,12 @@ class ReportGenerationService:
             logger.info(f"Validating report configuration: {config}")
 
             topic = config.get("topic", "").strip()
-            selected_files_paths = config.get("selected_files_paths", [])
+            source_ids = config.get("source_ids", [])
             article_title = config.get("article_title", "").strip()
             output_dir = config.get("output_dir")
 
-            if not topic and not selected_files_paths:
-                logger.error("Must provide either topic or selected_files_paths")
+            if not topic and not source_ids:
+                logger.error("Must provide either topic or source_ids")
                 return False
 
             if not article_title:

@@ -204,7 +204,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     try {
       const config = {
         ...configOverrides,
-        selected_files_paths: selectedFiles.map((f: FileItem) => f.id),
+        source_ids: selectedFiles.map((f: FileItem) => f.id),
         model: configOverrides?.model || reportGeneration.config.model || 'gpt-4'
       };
 

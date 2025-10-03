@@ -212,7 +212,7 @@ class IOManager:
             return None
 
         try:
-            if config.selected_files_paths:
+            if config.source_ids:
                 # Apply full post-processing with image path fixing
                 with open(polished_article_path, "r", encoding="utf-8") as f:
                     content = f.read()

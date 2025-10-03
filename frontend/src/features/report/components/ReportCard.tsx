@@ -53,7 +53,14 @@ export default function ReportCard({
         <p className="text-gray-500 text-sm mb-2">
           {report.topic || 'No topic specified'}
         </p>
-        
+
+        {/* Source Count */}
+        {report.source_ids && report.source_ids.length > 0 && (
+          <p className="text-gray-400 text-xs mb-2">
+            {report.source_ids.length} {report.source_ids.length === 1 ? 'source' : 'sources'}
+          </p>
+        )}
+
         {/* Status Badge */}
         <div className="flex items-center justify-between mb-3">
           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
