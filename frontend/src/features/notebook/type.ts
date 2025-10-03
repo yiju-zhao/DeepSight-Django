@@ -186,6 +186,7 @@ export interface Source {
   upload_file_id?: string;
   parsing_status?: 'queueing' | 'parsing' | 'done' | 'failed' | 'error' | 'cancelled' | 'unsupported' | 'uploading' | 'captioning';
   captioning_status?: 'pending' | 'in_progress' | 'completed' | 'failed' | 'not_required';
+  ragflow_processing_status?: 'pending' | 'uploading' | 'parsing' | 'completed' | 'failed';
   ext?: string;
   authors?: string;
   error_message?: string;

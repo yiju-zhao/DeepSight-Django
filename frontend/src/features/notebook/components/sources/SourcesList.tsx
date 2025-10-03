@@ -16,6 +16,7 @@ import { useFileStatusSSE } from "@/features/notebook/hooks/file/useFileStatusSS
 import { useFileSelection } from "@/features/notebook/hooks/file/useFileSelection";
 import { useParsedFiles } from "@/features/notebook/hooks/sources/useSources";
 import AddSourceModal from "./AddSourceModal";
+import { renderFileStatus, isSourceProcessing } from "@/features/notebook/utils/statusRenderers";
 
 const fileIcons: FileIcons = {
   pdf: FileIcon,
@@ -659,53 +660,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
 
 
-  const renderFileStatus = (source: Source): React.ReactNode => {
-    const isProcessing =
-      source.parsing_status &&
-      ['queueing', 'uploading', 'parsing', 'captioning'].includes(source.parsing_status);
-    const isFailed = source.parsing_status === 'failed' || source.parsing_status === 'error';
-
-    if (isProcessing) {
-      return (
-        <div className="flex items-center space-x-1">
-          <Loader2 className="h-3 w-3 text-red-600 animate-spin" />
-          <span className="text-xs text-gray-500">
-            {source.parsing_status === 'uploading'
-              ? 'Uploading...'
-              : source.parsing_status === 'parsing'
-              ? 'Parsing...'
-              : source.parsing_status === 'queueing'
-              ? 'Queued...'
-              : source.parsing_status === 'captioning'
-              ? 'Generating captions...'
-              : 'Processing...'}
-          </span>
-      </div>
-    );
-  }
-
-    if (isFailed) {
-      return (
-        <div className="flex items-center space-x-1">
-          <AlertCircle className="h-3 w-3 text-red-500" />
-          <span className="text-xs text-red-500">
-            {source.parsing_status === 'error' ? 'Error' : 'Failed'}
-          </span>
-        </div>
-      );
-    }
-
-    // Show green image icon only when captioning is completed
-    if (source.captioning_status === 'completed') {
-      return (
-        <div className="flex items-center space-x-1" title="Images with captions available">
-          <ImageIcon className="h-3 w-3 text-green-500" />
-        </div>
-      );
-    }
-
-    return null;
-  };
+  // Import status rendering utility at the top of the file
+  // This is now handled by the utility function
 
   // Get tooltip text for source items
   const getSourceTooltip = (source: Source): string => {
@@ -823,9 +779,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               <RefreshCw className="h-4 w-4 animate-spin text-gray-400" />
             )}
             {(() => {
-              const processingCount = sources.filter(s =>
-                s.parsing_status && ['queueing', 'parsing', 'captioning'].includes(s.parsing_status)
-              ).length;
+              const processingCount = sources.filter(isSourceProcessing).length;
 
               if (processingCount > 0) {
                 return (
