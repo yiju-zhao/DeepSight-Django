@@ -45,7 +45,7 @@ class URLService(NotebookBaseService):
 
             # Trigger async processing with Celery
             parse_url_task.apply_async(
-                args=[url, upload_url_id, str(notebook.id), user.pk]
+                args=[url, upload_url_id, str(notebook.id), user.pk, str(kb_item.id)]
             )
 
             return {
@@ -85,7 +85,7 @@ class URLService(NotebookBaseService):
 
             # Trigger async processing with Celery
             parse_url_with_media_task.apply_async(
-                args=[url, upload_url_id, str(notebook.id), user.pk]
+                args=[url, upload_url_id, str(notebook.id), user.pk, str(kb_item.id)]
             )
 
             return {
@@ -124,7 +124,7 @@ class URLService(NotebookBaseService):
 
             # Trigger async processing with Celery
             parse_document_url_task.apply_async(
-                args=[url, upload_url_id, str(notebook.id), user.pk]
+                args=[url, upload_url_id, str(notebook.id), user.pk, str(kb_item.id)]
             )
 
             return {
