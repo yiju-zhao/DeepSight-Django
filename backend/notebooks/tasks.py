@@ -8,6 +8,7 @@ DRY principle, and proper error handling.
 import logging
 from typing import Optional, Dict, Any, Tuple
 from celery import shared_task
+from celery.exceptions import Retry
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404
 from django.contrib.auth import get_user_model
@@ -190,10 +191,12 @@ def upload_to_ragflow_task(self, kb_item_id: str):
                     # Mark as parsing in progress
                     kb_item.mark_ragflow_parsing()
 
-                    # Schedule status checking task
+                    # Schedule status checking task with unique task_id to prevent duplicates
                     try:
+                        task_id = f"ragflow-status-{kb_item.id}"
                         check_ragflow_status_task.apply_async(
-                            args=[str(kb_item.id)]
+                            args=[str(kb_item.id)],
+                            task_id=task_id
                         )
                     except Exception as schedule_error:
                         logger.warning(f"Failed to schedule status check for {document_id}: {schedule_error}")
@@ -1049,6 +1052,10 @@ def check_ragflow_status_task(self, kb_item_id: str):
         error_msg = f"KB item {kb_item_id} not found"
         logger.error(error_msg)
         return {"success": False, "error": error_msg}
+
+    except Retry:
+        # Re-raise Retry exceptions without catching them
+        raise
 
     except Exception as e:
         # On error, poll again in 30s

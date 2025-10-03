@@ -68,6 +68,9 @@ app.conf.update(
     worker_max_tasks_per_child=50,
     # Use solo pool on macOS to avoid fork() issues
     worker_pool="solo" if sys.platform == "darwin" else "prefork",
+    # Task deduplication
+    task_acks_late=True,
+    task_reject_on_worker_lost=True,
     # Beat schedule for periodic tasks
     beat_schedule={
         "cleanup-old-podcast-jobs": {
