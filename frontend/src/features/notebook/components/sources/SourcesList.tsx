@@ -171,6 +171,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         file_id: metadata.id,
         upload_file_id: metadata.upload_file_id,
         parsing_status: metadata.parsing_status,
+        // Surface RagFlow sync status for status renderer (matches URL behavior)
+        ragflow_processing_status: (metadata as any).ragflow_processing_status,
         captioning_status: metadata.captioning_status,
         metadata: {
           ...metadata,
