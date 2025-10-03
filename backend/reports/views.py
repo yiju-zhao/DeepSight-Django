@@ -415,19 +415,22 @@ class ReportJobContentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _replace_image_paths_with_urls(self, content: str, report: Report) -> str:
-        """Replace relative image paths with backend API proxy URLs (like KB items do)"""
+        """Replace relative image paths with backend API proxy URLs (exactly like KB items do)"""
         import re
         import os
+        from urllib.parse import urlparse
         from reports.models import ReportImage
 
-        if not content or 'images/' not in content:
+        # Quick exit if no obvious image tokens
+        if not content or ('![' not in content and '<img' not in content):
             return content
 
         # Get all images for this report
-        images = ReportImage.objects.filter(report=report)
-        logger.info(f"Found {images.count()} images for report {report.id}")
+        images = ReportImage.objects.filter(report=report).only(
+            'id', 'report_figure_minio_object_key', 'image_metadata'
+        )
 
-        # Build mapping of filename to backend API URL (NOT MinIO URL)
+        # Build mapping from original paths and basenames to API proxy URLs
         path_to_url = {}
         basename_to_url = {}
 
@@ -435,35 +438,77 @@ class ReportJobContentView(APIView):
             # Use backend API proxy URL (like KB items do)
             url = f"/api/v1/reports/{report.id}/image/{img.id}/inline/"
 
+            # Get original file info from metadata (like KB items)
+            original_file = None
+            original_filename = None
+            if isinstance(img.image_metadata, dict):
+                original_file = img.image_metadata.get('original_file')
+                original_filename = img.image_metadata.get('original_filename')
+
+            # Prefer full relative path match
+            if original_file:
+                # Normalize to use forward slashes
+                norm = original_file.replace('\\', '/')
+                path_to_url[norm] = url
+                # Also map basename
+                basename_to_url[os.path.basename(norm)] = url
+
+            if original_filename:
+                basename_to_url[original_filename] = url
+
+            # Fallback: also map MinIO object key filename
             if img.report_figure_minio_object_key:
                 filename = img.report_figure_minio_object_key.split('/')[-1]
                 basename_to_url[filename] = url
-                logger.debug(f"Mapped {filename} -> {url}")
 
-        if not basename_to_url:
-            logger.warning(f"No images to map for report {report.id}")
+        if not path_to_url and not basename_to_url:
             return content
 
-        logger.info(f"Built mapping for {len(basename_to_url)} images")
+        # Helper to decide if url is local/relative
+        def is_local_path(p: str) -> bool:
+            parsed = urlparse(p)
+            if parsed.scheme or parsed.netloc:
+                return False
+            # data URIs or anchors should be left alone
+            if p.startswith('data:') or p.startswith('#'):
+                return False
+            return True
 
-        # Replace markdown image syntax: ![alt](images/filename.jpg) -> ![alt](/api/v1/reports/.../image/.../inline/)
-        def replace_markdown_image(match):
-            alt_text = match.group(1)
-            image_path = match.group(2)
+        # Replace in markdown image syntax: ![alt](url)
+        md_img_pattern = re.compile(r"!\[[^\]]*\]\(([^)\s]+)(?:\s+['\"][^)]+['\"])?\)")
 
-            if image_path.startswith('images/'):
-                filename = image_path.replace('images/', '')
-                if filename in basename_to_url:
-                    new_url = basename_to_url[filename]
-                    logger.debug(f"Replacing {image_path} with {new_url}")
-                    return f'![{alt_text}]({new_url})'
+        def md_repl(match: re.Match) -> str:
+            orig_url = match.group(1)
+            if not is_local_path(orig_url):
+                return match.group(0)
+            norm = orig_url.replace('\\', '/')
+            new_url = path_to_url.get(norm)
+            if not new_url:
+                new_url = basename_to_url.get(os.path.basename(norm))
+            if not new_url:
+                return match.group(0)
+            return match.group(0).replace(orig_url, new_url)
 
-            return match.group(0)
+        content = md_img_pattern.sub(md_repl, content)
 
-        replaced_content = re.sub(r'!\[([^\]]*)\]\((images/[^)]+)\)', replace_markdown_image, content)
+        # Replace in HTML <img src="...">
+        html_img_pattern = re.compile(r"<img([^>]*?)src=[\"\']([^\"\']+)[\"\']([^>]*)>")
 
-        logger.info(f"Image path replacement complete for report {report.id}")
-        return replaced_content
+        def html_repl(match: re.Match) -> str:
+            pre, src, post = match.groups()
+            if not is_local_path(src):
+                return match.group(0)
+            norm = src.replace('\\', '/')
+            new_url = path_to_url.get(norm)
+            if not new_url:
+                new_url = basename_to_url.get(os.path.basename(norm))
+            if not new_url:
+                return match.group(0)
+            return f'<img{pre}src="{new_url}"{post}>'
+
+        content = html_img_pattern.sub(html_repl, content)
+
+        return content
 
     def get(self, request, report_id):
         try:
