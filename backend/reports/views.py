@@ -414,23 +414,56 @@ class ReportJobContentView(APIView):
     """Canonical: Get the main report content as text/markdown"""
     permission_classes = [permissions.IsAuthenticated]
 
+    def _replace_image_paths_with_urls(self, content: str, report: Report) -> str:
+        """Replace relative image paths with MinIO pre-signed URLs (like KB items do)"""
+        import re
+        from reports.models import ReportImage
+
+        if not content or 'images/' not in content:
+            return content
+
+        # Get all images for this report
+        images = ReportImage.objects.filter(report=report)
+
+        # Build mapping of filename to pre-signed URL
+        image_urls = {}
+        for img in images:
+            if img.report_figure_minio_object_key:
+                filename = img.report_figure_minio_object_key.split('/')[-1]
+                presigned_url = img.get_image_url(expires=86400)
+                if presigned_url:
+                    image_urls[filename] = presigned_url
+
+        if not image_urls:
+            return content
+
+        # Replace markdown image syntax: ![alt](images/filename.jpg) -> ![alt](presigned_url)
+        def replace_markdown_image(match):
+            alt_text = match.group(1)
+            image_path = match.group(2)
+
+            if image_path.startswith('images/'):
+                filename = image_path.replace('images/', '')
+                if filename in image_urls:
+                    return f'![{alt_text}]({image_urls[filename]})'
+
+            return match.group(0)  # Return unchanged if not found
+
+        content = re.sub(r'!\[([^\]]*)\]\((images/[^)]+)\)', replace_markdown_image, content)
+
+        return content
+
     def get(self, request, report_id):
         try:
             report = get_object_or_404(Report.objects.filter(user=request.user), id=report_id)
             if report.status != Report.STATUS_COMPLETED:
                 return Response({"detail": "Job is not completed yet"}, status=status.HTTP_400_BAD_REQUEST)
 
-            if report.result_content:
-                return Response(
-                    {
-                        "report_id": str(report.id),
-                        "content": report.result_content,
-                        "article_title": report.article_title,
-                        "generated_files": report.generated_files,
-                    }
-                )
+            content = None
 
-            if report.main_report_object_key:
+            if report.result_content:
+                content = report.result_content
+            elif report.main_report_object_key:
                 try:
                     from infrastructure.storage.adapters import get_storage_adapter
                     storage_adapter = get_storage_adapter()
@@ -439,65 +472,27 @@ class ReportJobContentView(APIView):
                         content = content_bytes.decode('utf-8')
                     else:
                         content = content_bytes
-                    return Response(
-                        {
-                            "report_id": str(report.id),
-                            "content": content,
-                            "article_title": report.article_title,
-                            "generated_files": report.generated_files,
-                        }
-                    )
                 except Exception as e:
                     logger.error(f"Error reading report file for report {report_id}: {e}")
+
+            if content:
+                # Replace relative image paths with MinIO URLs (like KB items do)
+                content = self._replace_image_paths_with_urls(content, report)
+
+                return Response(
+                    {
+                        "report_id": str(report.id),
+                        "content": content,
+                        "article_title": report.article_title,
+                        "generated_files": report.generated_files,
+                    }
+                )
 
             return Response({"detail": "Report content not found"}, status=status.HTTP_404_NOT_FOUND)
         except Http404:
             return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             logger.error(f"Error getting report content (canonical) for report {report_id}: {e}")
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
-class ReportJobImageView(APIView):
-    """Serve report images - returns pre-signed MinIO URL (similar to KB items)"""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, report_id, image_name):
-        try:
-            from django.http import JsonResponse
-            from reports.models import ReportImage
-
-            # Verify that the report belongs to the user
-            report = get_object_or_404(Report.objects.filter(user=request.user), id=report_id)
-
-            # Find the image by report and filename
-            report_images = ReportImage.objects.filter(report=report)
-            report_image = None
-
-            for img in report_images:
-                if img.report_figure_minio_object_key and img.report_figure_minio_object_key.endswith(image_name):
-                    report_image = img
-                    break
-
-            if not report_image:
-                logger.warning(f"Image not found: {image_name} for report {report_id}")
-                return Response({"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
-
-            # Generate pre-signed URL for the image
-            image_url = report_image.get_image_url(expires=86400)  # 24 hour expiry
-
-            if not image_url:
-                logger.error(f"Failed to generate URL for image {image_name} in report {report_id}")
-                return Response({"detail": "Failed to generate image URL"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-            # Return the URL as JSON (consistent with how KB items work)
-            logger.info(f"Returning MinIO URL for image {image_name} in report {report_id}")
-            return JsonResponse({"url": image_url})
-
-        except Http404:
-            return Response({"detail": "Report not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            logger.error(f"Error serving image {image_name} for report {report_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
