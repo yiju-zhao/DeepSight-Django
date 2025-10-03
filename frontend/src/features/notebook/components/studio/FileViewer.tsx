@@ -19,16 +19,14 @@ import rehypeRaw from 'rehype-raw';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import AuthenticatedImage from './AuthenticatedImage';
-import { processReportMarkdownContent, getFileContentWithMinIOUrls } from './utils';
 
 interface MarkdownContentProps {
   content: string;
   notebookId: string;
-  useMinIOUrls?: boolean;
 }
 
 // ====== SINGLE RESPONSIBILITY: Markdown content renderer ======
-const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, useMinIOUrls = false }) => (
+const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId }) => (
   <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 prose-code:text-red-600 prose-pre:bg-gray-50">
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
@@ -77,7 +75,6 @@ interface FileViewerProps {
   onToggleViewMode?: () => void;
   onContentChange?: (content: string) => void;
   notebookId: string;
-  useMinIOUrls?: boolean;
   hideHeader?: boolean;
   isPreviewingEdits?: boolean;
 }
@@ -97,85 +94,26 @@ const FileViewer: React.FC<FileViewerProps> = ({
   onToggleViewMode,
   onContentChange,
   notebookId,
-  useMinIOUrls = false,
   hideHeader = false,
   isPreviewingEdits = false
 }) => {
   const [editContent, setEditContent] = useState(content || '');
-  const [minioContent, setMinioContent] = useState(null);
-  const [isLoadingMinio, setIsLoadingMinio] = useState(false);
 
   // Update editContent when content prop changes
   useEffect(() => {
     setEditContent(content || '');
   }, [content]);
 
-  // Process the content for display with proper image URLs
+  // Process the content for display - backend now handles all image URL replacement
   const processedContent = useMemo(() => {
-    console.log('FileViewer: Processing content', {
-      useMinIOUrls,
-      hasMinioContent: !!minioContent,
-      hasRegularContent: !!content,
-      notebookId,
-      isPreviewingEdits,
-      viewMode
-    });
-    
-    // Determine which content to use
-    let contentToProcess = content;
-    
     // If we're in preview mode and previewing edits, use the edit content
     if (viewMode === 'preview' && isPreviewingEdits) {
-      console.log('FileViewer: Using edited content for preview');
-      contentToProcess = editContent;
+      return editContent;
     }
-    
-    // If using MinIO URLs and we have MinIO content and NOT previewing edits
-    if (useMinIOUrls && minioContent && !isPreviewingEdits) {
-      console.log('FileViewer: Using MinIO content with direct URLs');
-      return processReportMarkdownContent(minioContent, notebookId, true);
-    }
-    
-    // Otherwise use regular content processing
-    if (!contentToProcess || !notebookId) {
-      console.log('FileViewer: No content or notebook ID available');
-      return contentToProcess;
-    }
-    
-    console.log('FileViewer: Using regular content processing');
-    return processReportMarkdownContent(contentToProcess, notebookId, false);
-  }, [content, notebookId, useMinIOUrls, minioContent, editContent, isPreviewingEdits, viewMode]);
 
-  // Load MinIO content when useMinIOUrls is enabled
-  useEffect(() => {
-    console.log('FileViewer: useEffect triggered', {
-      useMinIOUrls,
-      fileId: file?.id,
-      fileType: file?.type,
-      hasMinioContent: !!minioContent,
-      isLoadingMinio
-    });
-
-    // Skip MinIO fetch for reports - they already have content from database
-    const isReport = file?.type === 'report';
-
-    if (useMinIOUrls && file?.id && !minioContent && !isLoadingMinio && !isReport) {
-      console.log('FileViewer: Loading MinIO content for file:', file.id);
-      setIsLoadingMinio(true);
-      getFileContentWithMinIOUrls(file.id, notebookId)
-        .then(data => {
-          console.log('FileViewer: MinIO content loaded successfully:', data);
-          setMinioContent(data.content);
-        })
-        .catch(error => {
-          console.error('FileViewer: Failed to load MinIO content:', error);
-          // Fall back to regular content
-        })
-        .finally(() => {
-          setIsLoadingMinio(false);
-        });
-    }
-  }, [useMinIOUrls, file?.id, file?.type, minioContent, isLoadingMinio, notebookId]);
+    // Otherwise use the content from props (already processed by backend)
+    return content;
+  }, [content, editContent, isPreviewingEdits, viewMode]);
 
   const handleSave = () => {
     onSave(editContent);
@@ -205,11 +143,6 @@ const FileViewer: React.FC<FileViewerProps> = ({
               <h3 className="text-lg font-semibold text-gray-900 truncate">
                 {formatFileTitle()}
               </h3>
-              {isLoadingMinio && (
-                <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                  Loading...
-                </span>
-              )}
             </div>
 
             <div className="flex items-center space-x-2">
@@ -271,13 +204,10 @@ const FileViewer: React.FC<FileViewerProps> = ({
               <MarkdownContent
                 content={processedContent || ''}
                 notebookId={notebookId}
-                useMinIOUrls={useMinIOUrls}
               />
             ) : (
               <div className="text-center py-12">
-                <p className="text-gray-500">
-                  {isLoadingMinio ? 'Loading content with MinIO URLs...' : 'No content available'}
-                </p>
+                <p className="text-gray-500">No content available</p>
               </div>
             )}
           </div>

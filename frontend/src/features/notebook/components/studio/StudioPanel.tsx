@@ -1003,7 +1003,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
             onToggleViewMode={toggleViewMode}
             onContentChange={setSelectedFileContent}
             notebookId={notebookId}
-            useMinIOUrls={config.USE_MINIO_URLS}
             hideHeader={isReportPreview}
             isPreviewingEdits={isPreviewingEdits}
           />
