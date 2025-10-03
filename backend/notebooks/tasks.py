@@ -294,7 +294,7 @@ def _check_batch_completion(batch_job_id: Optional[str]) -> None:
 
 
 @shared_task(bind=True)
-def parse_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id: int):
+def parse_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id: int, kb_item_id: str = None):
     """
     Celery task to parse a URL asynchronously.
 
@@ -303,6 +303,7 @@ def parse_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id
         upload_url_id: Unique ID for this upload
         notebook_id: ID of the notebook
         user_id: ID of the user
+        kb_item_id: ID of the existing KB item (optional)
 
     Returns:
         dict: Result with success status and file_id
@@ -311,18 +312,21 @@ def parse_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id
         _validate_task_inputs(url=url, notebook_id=notebook_id, user_id=user_id)
         notebook, user = _get_notebook_and_user(notebook_id, user_id)
 
-        # Create KB item placeholder
-        kb_item = KnowledgeBaseItem.objects.create(
-            notebook=notebook,
-            title=f"Processing: {url[:100]}",
-            content_type="webpage",
-            parsing_status="queueing",
-            notes=f"URL: {url}",
-            tags=[],
-            metadata={'url': url, 'upload_url_id': upload_url_id}
-        )
-
-        logger.info(f"Created KB item {kb_item.id} for URL: {url}")
+        # Get existing KB item or create new one
+        if kb_item_id:
+            kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id, notebook=notebook)
+            logger.info(f"Using existing KB item {kb_item.id} for URL: {url}")
+        else:
+            kb_item = KnowledgeBaseItem.objects.create(
+                notebook=notebook,
+                title=f"Processing: {url[:100]}",
+                content_type="webpage",
+                parsing_status="queueing",
+                notes=f"URL: {url}",
+                tags=[],
+                metadata={'url': url, 'upload_url_id': upload_url_id}
+            )
+            logger.info(f"Created KB item {kb_item.id} for URL: {url}")
 
         # Update status to parsing
         kb_item.parsing_status = "parsing"
@@ -385,7 +389,7 @@ def parse_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id
 
 
 @shared_task(bind=True)
-def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: str, user_id: int):
+def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: str, user_id: int, kb_item_id: str = None):
     """
     Celery task to parse a URL with media extraction asynchronously.
 
@@ -394,6 +398,7 @@ def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: s
         upload_url_id: Unique ID for this upload
         notebook_id: ID of the notebook
         user_id: ID of the user
+        kb_item_id: ID of the existing KB item (optional)
 
     Returns:
         dict: Result with success status and file_id
@@ -402,18 +407,21 @@ def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: s
         _validate_task_inputs(url=url, notebook_id=notebook_id, user_id=user_id)
         notebook, user = _get_notebook_and_user(notebook_id, user_id)
 
-        # Create KB item placeholder
-        kb_item = KnowledgeBaseItem.objects.create(
-            notebook=notebook,
-            title=f"Processing with media: {url[:100]}",
-            content_type="webpage",
-            parsing_status="queueing",
-            notes=f"URL with media: {url}",
-            tags=[],
-            metadata={'url': url, 'upload_url_id': upload_url_id, 'extract_media': True}
-        )
-
-        logger.info(f"Created KB item {kb_item.id} for URL with media: {url}")
+        # Get existing KB item or create new one
+        if kb_item_id:
+            kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id, notebook=notebook)
+            logger.info(f"Using existing KB item {kb_item.id} for URL with media: {url}")
+        else:
+            kb_item = KnowledgeBaseItem.objects.create(
+                notebook=notebook,
+                title=f"Processing with media: {url[:100]}",
+                content_type="webpage",
+                parsing_status="queueing",
+                notes=f"URL with media: {url}",
+                tags=[],
+                metadata={'url': url, 'upload_url_id': upload_url_id, 'extract_media': True}
+            )
+            logger.info(f"Created KB item {kb_item.id} for URL with media: {url}")
 
         # Update status to parsing
         kb_item.parsing_status = "parsing"
@@ -476,7 +484,7 @@ def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: s
 
 
 @shared_task(bind=True)
-def parse_document_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id: int):
+def parse_document_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id: int, kb_item_id: str = None):
     """
     Celery task to parse a document URL asynchronously.
 
@@ -485,6 +493,7 @@ def parse_document_url_task(self, url: str, upload_url_id: str, notebook_id: str
         upload_url_id: Unique ID for this upload
         notebook_id: ID of the notebook
         user_id: ID of the user
+        kb_item_id: ID of the existing KB item (optional)
 
     Returns:
         dict: Result with success status and file_id
@@ -493,18 +502,21 @@ def parse_document_url_task(self, url: str, upload_url_id: str, notebook_id: str
         _validate_task_inputs(url=url, notebook_id=notebook_id, user_id=user_id)
         notebook, user = _get_notebook_and_user(notebook_id, user_id)
 
-        # Create KB item placeholder
-        kb_item = KnowledgeBaseItem.objects.create(
-            notebook=notebook,
-            title=f"Processing document: {url[:100]}",
-            content_type="document",
-            parsing_status="queueing",
-            notes=f"Document URL: {url}",
-            tags=[],
-            metadata={'url': url, 'upload_url_id': upload_url_id, 'document_only': True}
-        )
-
-        logger.info(f"Created KB item {kb_item.id} for document URL: {url}")
+        # Get existing KB item or create new one
+        if kb_item_id:
+            kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id, notebook=notebook)
+            logger.info(f"Using existing KB item {kb_item.id} for document URL: {url}")
+        else:
+            kb_item = KnowledgeBaseItem.objects.create(
+                notebook=notebook,
+                title=f"Processing document: {url[:100]}",
+                content_type="document",
+                parsing_status="queueing",
+                notes=f"Document URL: {url}",
+                tags=[],
+                metadata={'url': url, 'upload_url_id': upload_url_id, 'document_only': True}
+            )
+            logger.info(f"Created KB item {kb_item.id} for document URL: {url}")
 
         # Update status to parsing
         kb_item.parsing_status = "parsing"
