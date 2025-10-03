@@ -433,13 +433,13 @@ def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: s
         from notebooks.processors.url_extractor import URLExtractor
         url_extractor = URLExtractor()
 
-        # Use the update method to avoid creating a duplicate KB item
-        result = async_to_sync(url_extractor.process_url_with_media_update_existing)(
+        # Pass kb_item_id to update existing item instead of creating new one
+        result = async_to_sync(url_extractor.process_url_with_media)(
             url=url,
-            kb_item_id=str(kb_item.id),
             upload_url_id=upload_url_id,
             user_id=user_id,
-            notebook_id=notebook_id
+            notebook_id=notebook_id,
+            kb_item_id=str(kb_item.id)
         )
 
         # Get the file_id from result
@@ -530,13 +530,13 @@ def parse_document_url_task(self, url: str, upload_url_id: str, notebook_id: str
         from notebooks.processors.url_extractor import URLExtractor
         url_extractor = URLExtractor()
 
-        # Use the update method to avoid creating a duplicate KB item
-        result = async_to_sync(url_extractor.process_url_document_update_existing)(
+        # Pass kb_item_id to update existing item instead of creating new one
+        result = async_to_sync(url_extractor.process_url_document_only)(
             url=url,
-            kb_item_id=str(kb_item.id),
             upload_url_id=upload_url_id,
             user_id=user_id,
-            notebook_id=notebook_id
+            notebook_id=notebook_id,
+            kb_item_id=str(kb_item.id)
         )
 
         # Get the file_id from result
