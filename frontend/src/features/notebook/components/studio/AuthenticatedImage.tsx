@@ -38,9 +38,12 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       return;
     }
 
-    // If it's an API URL, fetch with credentials
-    if (src.includes('/api/v1/notebooks/') && src.includes('/images/')) {
-      console.log('AuthenticatedImage: Detected notebook API URL, fetching with credentials');
+    // If it's an API URL (notebook or report), fetch with credentials
+    const isNotebookApiUrl = src.includes('/api/v1/notebooks/') && src.includes('/image/');
+    const isReportApiUrl = src.includes('/api/v1/reports/') && src.includes('/image/');
+
+    if (isNotebookApiUrl || isReportApiUrl) {
+      console.log('AuthenticatedImage: Detected API URL, fetching with credentials');
       fetchImageWithCredentials(src);
     } else {
       // For external URLs, use directly
