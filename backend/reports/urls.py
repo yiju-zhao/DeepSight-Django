@@ -79,6 +79,11 @@ urlpatterns = [
         name='report-cancel'
     ),
     path(
+        '<str:report_id>/image/<str:image_id>/inline/',
+        views.ReportJobImageInlineView.as_view(),
+        name='report-image-inline'
+    ),
+    path(
         '<str:report_id>/stream/',
         csrf_exempt(views.report_status_stream),
         name='report-status-stream'
@@ -108,7 +113,9 @@ Report Operations:
 - POST /api/v1/reports/{report_id}/cancel/
 - GET  /api/v1/reports/{report_id}/download/
 - GET  /api/v1/reports/{report_id}/download-pdf/
+- GET  /api/v1/reports/{report_id}/image/{image_id}/inline/
 - GET  /api/v1/reports/{report_id}/stream/
 
-Note: Report images are embedded as direct MinIO pre-signed URLs in the content.
+Note: Report images are stored as relative paths (images/filename.jpg) in the database.
+      The backend replaces them with API proxy URLs when serving content.
 """

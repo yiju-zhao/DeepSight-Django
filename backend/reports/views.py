@@ -415,8 +415,9 @@ class ReportJobContentView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def _replace_image_paths_with_urls(self, content: str, report: Report) -> str:
-        """Replace relative image paths with MinIO pre-signed URLs (like KB items do)"""
+        """Replace relative image paths with backend API proxy URLs (like KB items do)"""
         import re
+        import os
         from reports.models import ReportImage
 
         if not content or 'images/' not in content:
@@ -424,34 +425,45 @@ class ReportJobContentView(APIView):
 
         # Get all images for this report
         images = ReportImage.objects.filter(report=report)
+        logger.info(f"Found {images.count()} images for report {report.id}")
 
-        # Build mapping of filename to pre-signed URL
-        image_urls = {}
+        # Build mapping of filename to backend API URL (NOT MinIO URL)
+        path_to_url = {}
+        basename_to_url = {}
+
         for img in images:
+            # Use backend API proxy URL (like KB items do)
+            url = f"/api/v1/reports/{report.id}/image/{img.id}/inline/"
+
             if img.report_figure_minio_object_key:
                 filename = img.report_figure_minio_object_key.split('/')[-1]
-                presigned_url = img.get_image_url(expires=86400)
-                if presigned_url:
-                    image_urls[filename] = presigned_url
+                basename_to_url[filename] = url
+                logger.debug(f"Mapped {filename} -> {url}")
 
-        if not image_urls:
+        if not basename_to_url:
+            logger.warning(f"No images to map for report {report.id}")
             return content
 
-        # Replace markdown image syntax: ![alt](images/filename.jpg) -> ![alt](presigned_url)
+        logger.info(f"Built mapping for {len(basename_to_url)} images")
+
+        # Replace markdown image syntax: ![alt](images/filename.jpg) -> ![alt](/api/v1/reports/.../image/.../inline/)
         def replace_markdown_image(match):
             alt_text = match.group(1)
             image_path = match.group(2)
 
             if image_path.startswith('images/'):
                 filename = image_path.replace('images/', '')
-                if filename in image_urls:
-                    return f'![{alt_text}]({image_urls[filename]})'
+                if filename in basename_to_url:
+                    new_url = basename_to_url[filename]
+                    logger.debug(f"Replacing {image_path} with {new_url}")
+                    return f'![{alt_text}]({new_url})'
 
-            return match.group(0)  # Return unchanged if not found
+            return match.group(0)
 
-        content = re.sub(r'!\[([^\]]*)\]\((images/[^)]+)\)', replace_markdown_image, content)
+        replaced_content = re.sub(r'!\[([^\]]*)\]\((images/[^)]+)\)', replace_markdown_image, content)
 
-        return content
+        logger.info(f"Image path replacement complete for report {report.id}")
+        return replaced_content
 
     def get(self, request, report_id):
         try:
@@ -494,6 +506,94 @@ class ReportJobContentView(APIView):
         except Exception as e:
             logger.error(f"Error getting report content (canonical) for report {report_id}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class ReportJobImageInlineView(APIView):
+    """Serve a report image via API as an inline response (MinIO proxy)."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, report_id, image_id):
+        """Serve an image inline (similar to KB items)."""
+        try:
+            from reports.models import ReportImage
+            from infrastructure.storage.adapters import get_storage_backend
+            from django.utils.http import http_date
+            import hashlib
+
+            # Get the report and verify ownership
+            report = get_object_or_404(Report.objects.filter(user=request.user), id=report_id)
+
+            # Get the image and verify it belongs to this report
+            image = get_object_or_404(ReportImage, id=image_id, report=report)
+
+            # Compute ETag from storage metadata or fallback to a hash of identifiers
+            storage = get_storage_backend()
+            etag_value = None
+            try:
+                meta = storage.get_file_metadata(image.report_figure_minio_object_key)
+                if meta and isinstance(meta, dict):
+                    etag_value = meta.get('etag')
+            except Exception:
+                etag_value = None
+
+            if not etag_value:
+                base = f"{image.id}-{getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)}"
+                etag_value = hashlib.sha1(base.encode('utf-8')).hexdigest()
+
+            # Normalize ETag header value (quoted strong ETag)
+            etag_header = etag_value if etag_value.startswith('W/"') or etag_value.startswith('"') else f'"{etag_value}"'
+
+            # Handle If-None-Match for conditional GET
+            inm = request.headers.get('If-None-Match') or request.META.get('HTTP_IF_NONE_MATCH')
+            if inm:
+                # Normalize comparison by stripping quotes and weak validators
+                def norm(v: str) -> str:
+                    return v.strip().lstrip('W/').strip('"')
+                if norm(inm) == norm(etag_header):
+                    resp = HttpResponse(status=304)
+                    resp["ETag"] = etag_header
+                    resp["Cache-Control"] = "private, max-age=300"
+                    dt = getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)
+                    if dt:
+                        try:
+                            resp["Last-Modified"] = http_date(dt.timestamp())
+                        except Exception:
+                            pass
+                    return resp
+
+            # Get image content from MinIO
+            content = image.get_image_content()
+            if content is None:
+                return Response({"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Build response
+            resp = HttpResponse(content, content_type=image.content_type or 'application/octet-stream')
+
+            # Set filename from metadata if available
+            filename = 'image'
+            if image.image_metadata and isinstance(image.image_metadata, dict):
+                filename = image.image_metadata.get('original_filename', 'image')
+
+            resp["Content-Disposition"] = f"inline; filename=\"{filename}\""
+            resp["X-Content-Type-Options"] = "nosniff"
+
+            # Add short-lived caching to reduce repeated loads
+            resp["Cache-Control"] = "private, max-age=300"
+
+            # Use updated_at or created_at for Last-Modified
+            dt = getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)
+            if dt:
+                try:
+                    resp["Last-Modified"] = http_date(dt.timestamp())
+                except Exception:
+                    pass
+
+            resp["ETag"] = etag_header
+            return resp
+
+        except Exception as e:
+            logger.exception(f"Failed to serve inline image {image_id} for report {report_id}: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ReportJobCancelView(APIView):
