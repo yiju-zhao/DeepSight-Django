@@ -17,9 +17,6 @@ export interface StatusIndicatorProps {
  */
 export const renderFileStatus = (source: Source): React.ReactNode => {
   // Check parsing status
-  const isProcessing =
-    source.parsing_status &&
-    ['queueing', 'uploading', 'parsing', 'captioning'].includes(source.parsing_status);
   const isFailed = source.parsing_status === 'failed' || source.parsing_status === 'error';
 
   // Check RagFlow status
@@ -40,19 +37,7 @@ export const renderFileStatus = (source: Source): React.ReactNode => {
     );
   }
 
-  // Priority 2: Show active processing (parsing, uploading, etc.)
-  if (isProcessing) {
-    return (
-      <div className="flex items-center space-x-1">
-        <Loader2 className="h-3 w-3 text-red-600 animate-spin" />
-        <span className="text-xs text-gray-500">
-          {getProcessingStatusText(source.parsing_status)}
-        </span>
-      </div>
-    );
-  }
-
-  // Priority 3: Show completed status indicators (RagFlow sync + captions)
+  // Priority 2: Show completed status indicators (RagFlow sync + captions)
   return (
     <div className="flex items-center space-x-2">
       {/* RagFlow sync status */}
