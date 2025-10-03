@@ -86,7 +86,7 @@ export function useReports(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.reports.list(),
     queryFn: async (): Promise<Report[]> => {
-      const response = await apiClient.get('/reports/jobs/');
+      const response = await apiClient.get('/reports/');
 
       // Handle different response formats
       if (Array.isArray(response)) {
@@ -195,7 +195,7 @@ export function useDashboardData(options?: { enabled?: boolean }) {
       {
         queryKey: queryKeys.reports.list(),
         queryFn: async (): Promise<Report[]> => {
-          const response = await apiClient.get('/reports/jobs/');
+          const response = await apiClient.get('/reports/');
           // Handle different response formats
           if (Array.isArray(response)) {
             return response;

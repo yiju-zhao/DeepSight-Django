@@ -97,8 +97,8 @@ Podcasts:
 
 Reports:
 - /api/v1/reports/models/ -> Report configuration
-- /api/v1/reports/jobs/ -> Report jobs (list/create; filter with ?notebook=)
-- /api/v1/reports/jobs/{job_id}/ -> Job detail/cancel/files/content/download/stream
+- /api/v1/reports/ -> Report jobs (list/create; filter with ?notebook=)
+- /api/v1/reports/{report_id}/ -> Job detail/cancel/files/content/download/stream
 
 Conferences:
 - /api/v1/conferences/venues/ -> Venue CRUD operations

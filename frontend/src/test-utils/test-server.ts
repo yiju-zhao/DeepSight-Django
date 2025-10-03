@@ -105,7 +105,7 @@ const handlers = [
   }),
 
   // Reports - Updated to match new API structure
-  http.get(`${config.API_BASE_URL}/reports/jobs/`, ({ request }) => {
+  http.get(`${config.API_BASE_URL}/reports/`, ({ request }) => {
     const url = new URL(request.url);
     const notebook = url.searchParams.get('notebook');
 
@@ -145,7 +145,7 @@ const handlers = [
     return HttpResponse.json({ reports: filteredReports });
   }),
 
-  http.get(`${config.API_BASE_URL}/reports/jobs/:jobId/`, ({ params }) => {
+  http.get(`${config.API_BASE_URL}/reports/:jobId/`, ({ params }) => {
     return HttpResponse.json({
       job_id: params.jobId,
       report_id: `report-${params.jobId}`,
@@ -160,7 +160,7 @@ const handlers = [
     });
   }),
 
-  http.get(`${config.API_BASE_URL}/reports/jobs/:jobId/content/`, ({ params }) => {
+  http.get(`${config.API_BASE_URL}/reports/:jobId/content/`, ({ params }) => {
     return HttpResponse.json({
       job_id: params.jobId,
       report_id: `report-${params.jobId}`,
@@ -170,7 +170,7 @@ const handlers = [
     });
   }),
 
-  http.post(`${config.API_BASE_URL}/reports/jobs/`, async ({ request }) => {
+  http.post(`${config.API_BASE_URL}/reports/`, async ({ request }) => {
     const body = await request.json() as any;
     return HttpResponse.json({
       job_id: 'job-new',
@@ -180,7 +180,7 @@ const handlers = [
     });
   }),
 
-  http.put(`${config.API_BASE_URL}/reports/jobs/:jobId/`, async ({ request, params }) => {
+  http.put(`${config.API_BASE_URL}/reports/:jobId/`, async ({ request, params }) => {
     const body = await request.json() as any;
     return HttpResponse.json({
       job_id: params.jobId,
@@ -189,11 +189,11 @@ const handlers = [
     });
   }),
 
-  http.delete(`${config.API_BASE_URL}/reports/jobs/:jobId/`, ({ params }) => {
+  http.delete(`${config.API_BASE_URL}/reports/:jobId/`, ({ params }) => {
     return HttpResponse.json({ success: true });
   }),
 
-  http.post(`${config.API_BASE_URL}/reports/jobs/:jobId/cancel/`, ({ params }) => {
+  http.post(`${config.API_BASE_URL}/reports/:jobId/cancel/`, ({ params }) => {
     return HttpResponse.json({
       job_id: params.jobId,
       status: 'cancelled',

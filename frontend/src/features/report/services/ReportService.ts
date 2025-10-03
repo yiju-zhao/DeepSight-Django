@@ -35,9 +35,9 @@ export class ReportService implements IReportService {
 
   async getReports(filters?: ReportFilters): Promise<Report[]> {
     try {
-      let endpoint = '/reports/jobs/';
+      let endpoint = '/reports/';
       if (this.notebookId) {
-        endpoint = `/reports/jobs/?notebook=${encodeURIComponent(this.notebookId)}`;
+        endpoint = `/reports/?notebook=${encodeURIComponent(this.notebookId)}`;
       }
 
       // Add query parameters for filters
@@ -68,7 +68,7 @@ export class ReportService implements IReportService {
 
   async getReport(id: string): Promise<Report> {
     try {
-      const endpoint = `/reports/jobs/${id}/`;
+      const endpoint = `/reports/${id}/`;
 
       const response = await this.api.get(endpoint);
       return response;
@@ -80,7 +80,7 @@ export class ReportService implements IReportService {
 
   async getReportContent(id: string): Promise<ReportContent> {
     try {
-      const endpoint = `/reports/jobs/${id}/content/`;
+      const endpoint = `/reports/${id}/content/`;
 
       const response = await this.api.get(endpoint);
       return response;
@@ -92,7 +92,7 @@ export class ReportService implements IReportService {
 
   async generateReport(config: ReportGenerationRequest): Promise<ReportGenerationResponse> {
     try {
-      const endpoint = '/reports/jobs/';
+      const endpoint = '/reports/';
       const payload = this.notebookId ? { ...config, notebook: this.notebookId } : config;
       const response = await this.api.post(endpoint, payload);
       return response;
@@ -104,7 +104,7 @@ export class ReportService implements IReportService {
 
   async cancelReport(id: string): Promise<void> {
     try {
-      const endpoint = `/reports/jobs/${id}/cancel/`;
+      const endpoint = `/reports/${id}/cancel/`;
       await this.api.post(endpoint);
     } catch (error) {
       console.error('Failed to cancel report:', error);
@@ -114,7 +114,7 @@ export class ReportService implements IReportService {
 
   async deleteReport(id: string): Promise<void> {
     try {
-      const endpoint = `/reports/jobs/${id}/`;
+      const endpoint = `/reports/${id}/`;
       await this.api.delete(endpoint);
     } catch (error) {
       console.error('Failed to delete report:', error);
@@ -124,7 +124,7 @@ export class ReportService implements IReportService {
 
   async downloadReport(id: string, filename?: string): Promise<void> {
     try {
-      const endpoint = `/reports/jobs/${id}/download/`;
+      const endpoint = `/reports/${id}/download/`;
 
       const blob = await this.api.downloadFile(endpoint);
       const url = window.URL.createObjectURL(blob);

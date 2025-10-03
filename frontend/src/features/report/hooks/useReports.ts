@@ -76,7 +76,7 @@ export function useReportsList(notebookId?: string, options?: {
     queryKey: queryKeys.reports.list(filters),
     queryFn: async (): Promise<ReportListResponse> => {
       const params = notebookId ? { notebook: notebookId } : undefined;
-      return apiClient.get('/reports/jobs/', { params });
+      return apiClient.get('/reports/', { params });
     },
     enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchInterval,
@@ -92,7 +92,7 @@ export function useReport(jobId: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.reports.detail(jobId),
     queryFn: async (): Promise<Report> => {
-      return apiClient.get(`/reports/jobs/${jobId}/`);
+      return apiClient.get(`/reports/${jobId}/`);
     },
     enabled: (options?.enabled ?? true) && !!jobId,
     // Refresh frequently for running reports
@@ -113,7 +113,7 @@ export function useReportContent(jobId: string, options?: { enabled?: boolean })
   return useQuery({
     queryKey: queryKeys.reports.content(jobId),
     queryFn: async (): Promise<ReportContentResponse> => {
-      return apiClient.get(`/reports/jobs/${jobId}/content/`);
+      return apiClient.get(`/reports/${jobId}/content/`);
     },
     enabled: (options?.enabled ?? true) && !!jobId,
     // Content is relatively stable once completed
@@ -147,7 +147,7 @@ export function useCreateReport() {
 
   return useMutation({
     mutationFn: async (data: ReportGenerationRequest): Promise<CreateReportResponse> => {
-      return apiClient.post('/reports/jobs/', data);
+      return apiClient.post('/reports/', data);
     },
     ...operationCallbacks.create('report', {
       error: 'Failed to start report generation',
@@ -163,7 +163,7 @@ export function useUpdateReport() {
 
   return useMutation({
     mutationFn: async ({ jobId, content }: { jobId: string; content: string }) => {
-      return apiClient.put(`/reports/jobs/${jobId}/`, { content });
+      return apiClient.put(`/reports/${jobId}/`, { content });
     },
     ...operationCallbacks.update('report'),
   });
@@ -177,7 +177,7 @@ export function useCancelReport() {
 
   return useMutation({
     mutationFn: async (jobId: string) => {
-      return apiClient.post(`/reports/jobs/${jobId}/cancel/`);
+      return apiClient.post(`/reports/${jobId}/cancel/`);
     },
     onSuccess: (data, jobId) => {
       notifications.info.cancelled('Report');
@@ -204,7 +204,7 @@ export function useDeleteReport() {
 
   return useMutation({
     mutationFn: async (jobId: string) => {
-      return apiClient.delete(`/reports/jobs/${jobId}/`);
+      return apiClient.delete(`/reports/${jobId}/`);
     },
     onSuccess: (data, jobId) => {
       notifications.success.deleted('Report');
