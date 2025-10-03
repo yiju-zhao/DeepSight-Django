@@ -225,12 +225,17 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Simple helper to get original filename
   const getOriginalFilename = (metadata: FileMetadata) => {
-    return metadata.original_filename || 
-           metadata.metadata?.original_filename || 
-           metadata.metadata?.filename || 
-           metadata.filename || 
-           metadata.title || 
-           'Unknown File';
+    return (
+      metadata.original_filename ||
+      // Prefer backend-provided file_metadata first if available
+      (metadata as any)?.file_metadata?.original_filename ||
+      metadata.metadata?.original_filename ||
+      metadata.metadata?.filename ||
+      (metadata as any)?.file_metadata?.filename ||
+      metadata.filename ||
+      metadata.title ||
+      'Unknown File'
+    );
   };
 
   // New function to generate description for principle files
@@ -248,12 +253,21 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     }
     
     // Show original file information for non-URL sources
-    // Try to get original file size from metadata, fallback to various fields
+    // Try to get original file size from multiple locations (backend may return in file_metadata)
+    const bytes = (metadata as any)?.file_size
+      ?? (metadata as any)?.file_metadata?.file_size
+      ?? metadata.metadata?.file_size
+      ?? undefined;
+
     let originalSize = 'Unknown size';
-    if (metadata.file_size) {
-      originalSize = `${(metadata.file_size / (1024 * 1024)).toFixed(1)} MB`;
-    } else if (metadata.metadata?.file_size) {
-      originalSize = `${(metadata.metadata.file_size / (1024 * 1024)).toFixed(1)} MB`;
+    if (typeof bytes === 'number' && bytes >= 0) {
+      if (bytes >= 1024 * 1024) {
+        originalSize = `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      } else if (bytes >= 1024) {
+        originalSize = `${(bytes / 1024).toFixed(0)} KB`;
+      } else {
+        originalSize = `${bytes} B`;
+      }
     } else if (metadata.metadata?.content_length) {
       originalSize = `${(metadata.metadata.content_length / 1000).toFixed(1)}k chars`;
     }
@@ -288,18 +302,27 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     }
     
     // Use original file extension, fallback to processed extension
-    // Try multiple metadata sources for the file extension
+    // Try multiple metadata sources for the file extension (includes backend file_metadata)
     let originalExt = "unknown";
     if (metadata.file_extension) {
       originalExt = metadata.file_extension.startsWith('.') ? 
                    metadata.file_extension.substring(1) : 
                    metadata.file_extension;
+    } else if ((metadata as any)?.file_metadata?.file_extension) {
+      const fe = (metadata as any).file_metadata.file_extension as string;
+      originalExt = fe.startsWith('.') ? fe.substring(1) : fe;
     } else if (metadata.metadata?.file_extension) {
       originalExt = metadata.metadata.file_extension.startsWith('.') ? 
                    metadata.metadata.file_extension.substring(1) : 
                    metadata.metadata.file_extension;
     } else if (metadata.original_filename) {
       const parts = metadata.original_filename.split('.');
+      if (parts.length > 1) {
+        originalExt = parts.pop() || 'unknown';
+      }
+    } else if ((metadata as any)?.file_metadata?.original_filename) {
+      const of = (metadata as any).file_metadata.original_filename as string;
+      const parts = of.split('.');
       if (parts.length > 1) {
         originalExt = parts.pop() || 'unknown';
       }
