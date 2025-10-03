@@ -1019,8 +1019,8 @@ def check_ragflow_status_task(self, kb_item_id: str):
 
         if not doc_status:
             # No status available, poll again in 15s
-            logger.info(f"No status available yet for KB item {kb_item_id}, polling again in 15s")
-            raise self.retry(countdown=15)
+            logger.info(f"No status available yet for KB item {kb_item_id}, polling again in 10s")
+            raise self.retry(countdown=10, max_retries=10)
 
         # Parse the status from RagFlow
         ragflow_status = doc_status.get('status', 'unknown').upper()
@@ -1043,8 +1043,8 @@ def check_ragflow_status_task(self, kb_item_id: str):
             return {"success": False, "status": "cancelled"}
 
         # Still processing (RUNNING, UNSTART, or unknown), poll again
-        logger.info(f"RagFlow still processing (status: {ragflow_status}), polling again in 15s")
-        raise self.retry(countdown=15)
+        logger.info(f"RagFlow still processing (status: {ragflow_status}), polling again in 5s")
+        raise self.retry(countdown=5, max_retries=None)
 
     except KnowledgeBaseItem.DoesNotExist:
         error_msg = f"KB item {kb_item_id} not found"
