@@ -1,15 +1,13 @@
 import React, { useState, useImperativeHandle, forwardRef, useEffect, useCallback, useMemo } from "react";
-import { Trash2, Plus, ChevronLeft, RefreshCw, AlertCircle, Upload, Group, File as FileIcon, FileText, Music, Video, Presentation, Loader2, Database, Link2, Globe, ImageIcon } from "lucide-react";
+import { Trash2, Plus, ChevronLeft, RefreshCw, AlertCircle, Upload, Group, File as FileIcon, FileText, Music, Video, Presentation, Database, Link2, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/shared/components/ui/button";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Badge } from "@/shared/components/ui/badge";
-import { Checkbox } from "@/shared/components/ui/checkbox";
 import sourceService from "@/features/notebook/services/SourceService";
-import { supportsPreview } from "@/features/notebook/utils/filePreview";
 import { PANEL_HEADERS, COLORS } from "@/features/notebook/config/uiConfig";
 import { FileIcons } from "@/shared/types";
-import { Source, SourcesListProps, SourceItemProps } from "@/features/notebook/type";
+import { Source, SourcesListProps } from "@/features/notebook/type";
 import { FileMetadata } from "@/shared/types";
 import { useFileUploadStatus } from "@/features/notebook/hooks/file/useFileUploadStatus";
 import { useFileStatusSSE } from "@/features/notebook/hooks/file/useFileStatusSSE";
@@ -17,6 +15,7 @@ import { useFileSelection } from "@/features/notebook/hooks/file/useFileSelectio
 import { useParsedFiles } from "@/features/notebook/hooks/sources/useSources";
 import AddSourceModal from "./AddSourceModal";
 import { renderFileStatus, isSourceProcessing } from "@/features/notebook/utils/statusRenderers";
+import { SourceItem } from "./SourceItem";
 
 const fileIcons: FileIcons = {
   pdf: FileIcon,
@@ -153,37 +152,34 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     ));
   }, []);
 
-  // ✅ Process TanStack Query data when it changes
+  // Process TanStack Query data when it changes
   useEffect(() => {
     if (parsedFilesResponse?.results) {
       const data = parsedFilesResponse.results || [];
-      
+
       const parsedSources = data.map((metadata: FileMetadata) => ({
-        id: metadata.id || 'unknown', // Use the actual ID from API response
+        id: metadata.id || 'unknown',
         name: generatePrincipleTitle(metadata),
         title: generatePrincipleTitle(metadata),
-        authors: generatePrincipleFileDescription(metadata),
+        authors: '',  // Removed file type and size display
         ext: getPrincipleFileExtension(metadata),
         selected: false,
         type: "parsed" as const,
         createdAt: metadata.upload_timestamp || new Date().toISOString(),
-        // For API v1, the file identifier for content/inline/raw endpoints is the KnowledgeBaseItem primary key
         file_id: metadata.id,
         upload_file_id: metadata.upload_file_id,
         parsing_status: metadata.parsing_status,
-        // Surface RagFlow sync status for status renderer (matches URL behavior)
         ragflow_processing_status: (metadata as any).ragflow_processing_status,
         captioning_status: metadata.captioning_status,
         metadata: {
           ...metadata,
-          // Ensure preview code has a reliable extension to decide preview type
           file_extension: metadata.file_extension || getPrincipleFileExtension(metadata),
-          knowledge_item_id: metadata.id || metadata.knowledge_item_id // Use the actual ID
+          knowledge_item_id: metadata.id || metadata.knowledge_item_id
         },
         error_message: metadata.error_message,
         originalFile: getPrincipleFileInfo(metadata)
       }));
-      
+
       setSources(parsedSources);
       fileUploadStatus.stopAllTracking();
     } else if (parsedFilesResponse && !parsedFilesResponse.results) {
@@ -202,12 +198,10 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
 
 
-  // ✅ loadParsedFiles function removed - now handled by TanStack Query
-
-  // Handle processing completion for specific files - reload to get fresh data
+  // Handle processing completion for specific files
   const handleFileProcessingComplete = useCallback(() => {
-    refetchFiles(); // ✅ Use TanStack Query refetch
-    
+    refetchFiles();
+
     if (onSelectionChange) {
       setTimeout(() => onSelectionChange(), 100);
     }
@@ -215,88 +209,46 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Handle processing errors for specific files
   const handleFileProcessingError = useCallback((_fileId: string, error: string) => {
-    // Error is now handled by TanStack Query automatically
-    refetchFiles(); // ✅ Use TanStack Query refetch
-    
+    refetchFiles();
+
     if (onSelectionChange) {
       setTimeout(() => onSelectionChange(), 100);
     }
   }, [onSelectionChange, refetchFiles]);
 
-  // Simple helper to get original filename
+  // Get original filename from metadata
   const getOriginalFilename = (metadata: FileMetadata) => {
-    return metadata.original_filename || 
-           metadata.metadata?.original_filename || 
-           metadata.metadata?.filename || 
-           metadata.filename || 
-           metadata.title || 
+    return metadata.original_filename ||
+           metadata.metadata?.original_filename ||
+           metadata.metadata?.filename ||
+           metadata.filename ||
+           metadata.title ||
            'Unknown File';
   };
 
-  // New function to generate description for principle files
-  const generatePrincipleFileDescription = (metadata: FileMetadata) => {
-    // Enhanced URL detection with multiple fallbacks
-    const isUrl = metadata.source_url || 
-                  metadata.extraction_type === 'url_extractor' ||
-                  metadata.processing_method === 'media' ||
-                  metadata.processing_method === 'web_scraping_no_crawl4ai' ||
-                  metadata.processing_method === 'crawl4ai_only' ||
-                  metadata.file_extension === '.md' && metadata.original_filename?.includes('_20');
-    
-    if (isUrl) {
-      return generateUrlDescription(metadata);
-    }
-    
-    // Show original file information for non-URL sources
-    // Try to get original file size from metadata, fallback to various fields
-    let originalSize = 'Unknown size';
-    if (metadata.file_size) {
-      originalSize = `${(metadata.file_size / (1024 * 1024)).toFixed(1)} MB`;
-    } else if (metadata.metadata?.file_size) {
-      originalSize = `${(metadata.metadata.file_size / (1024 * 1024)).toFixed(1)} MB`;
-    } else if (metadata.metadata?.content_length) {
-      originalSize = `${(metadata.metadata.content_length / 1000).toFixed(1)}k chars`;
-    }
-    
-    const ext = getPrincipleFileExtension(metadata).toUpperCase();
-    
-    return `${ext} • ${originalSize}`;
-  };
-
-  // New function to generate URL-specific descriptions
-  const generateUrlDescription = (metadata: FileMetadata) => {
-    const processingType = metadata.processing_method || metadata.processing_type || 'Website';
-    const contentLength = metadata.content_length ? `${(metadata.content_length / 1000).toFixed(1)}k chars` : 'Unknown size';
-    
-    const typeLabel = processingType === 'media' ? 'Media' : 'Website';
-    
-    return `${typeLabel} • ${contentLength}`;
-  };
-
-  // New function to get principle file extension
+  // Get principle file extension
   const getPrincipleFileExtension = (metadata: FileMetadata) => {
     // Enhanced URL detection with multiple fallbacks
-    const isUrl = metadata.source_url || 
+    const isUrl = metadata.source_url ||
                   metadata.extraction_type === 'url_extractor' ||
                   metadata.processing_method === 'media' ||
                   metadata.processing_method === 'web_scraping_no_crawl4ai' ||
                   metadata.processing_method === 'crawl4ai_only' ||
                   metadata.file_extension === '.md' && metadata.original_filename?.includes('_20');
-    
+
     if (isUrl) {
       return 'url';
     }
-    
+
     // Use original file extension, fallback to processed extension
-    // Try multiple metadata sources for the file extension
     let originalExt = "unknown";
     if (metadata.file_extension) {
-      originalExt = metadata.file_extension.startsWith('.') ? 
-                   metadata.file_extension.substring(1) : 
+      originalExt = metadata.file_extension.startsWith('.') ?
+                   metadata.file_extension.substring(1) :
                    metadata.file_extension;
     } else if (metadata.metadata?.file_extension) {
-      originalExt = metadata.metadata.file_extension.startsWith('.') ? 
-                   metadata.metadata.file_extension.substring(1) : 
+      originalExt = metadata.metadata.file_extension.startsWith('.') ?
+                   metadata.metadata.file_extension.substring(1) :
                    metadata.metadata.file_extension;
     } else if (metadata.original_filename) {
       const parts = metadata.original_filename.split('.');
@@ -309,42 +261,39 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         originalExt = parts.pop() || 'unknown';
       }
     }
-    
+
     return originalExt.toLowerCase();
   };
 
-  // Helper function to extract domain from URL for better display
+  // Extract domain from URL for display
   const getDomainFromUrl = (url: string) => {
     try {
       const urlObj = new URL(url);
       return urlObj.hostname.replace('www.', '');
-    } catch (error) {
+    } catch {
       return 'unknown';
     }
   };
 
-  // New function to generate principle title
+  // Generate principle title for sources
   const generatePrincipleTitle = (metadata: FileMetadata) => {
-    // Enhanced URL detection with multiple fallbacks
-    const isUrl = metadata.source_url || 
+    const isUrl = metadata.source_url ||
                   metadata.extraction_type === 'url_extractor' ||
                   metadata.processing_method === 'media' ||
                   metadata.processing_method === 'web_scraping_no_crawl4ai' ||
                   metadata.processing_method === 'crawl4ai_only' ||
                   metadata.file_extension === '.md' && metadata.original_filename?.includes('_20');
-    
+
     if (isUrl) {
-      // For URLs, show domain and title
       const domain = metadata.source_url ? getDomainFromUrl(metadata.source_url) : 'Unknown Domain';
       const title = metadata.title || metadata.metadata?.title || 'Untitled';
       return `${domain} - ${title}`;
     }
-    
-    // For files, show original filename
+
     return getOriginalFilename(metadata);
   };
 
-  // New function to get principle file info
+  // Get principle file info for sources
   const getPrincipleFileInfo = (metadata: FileMetadata) => {
     return {
       original_filename: getOriginalFilename(metadata),
@@ -401,13 +350,13 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     if (completedUploadId) {
       fileUploadStatus.stopTracking(completedUploadId);
     }
-    
-    refetchFiles(); // ✅ Use TanStack Query refetch
+
+    refetchFiles();
   }, [refetchFiles, fileUploadStatus]);
 
   // Manual refresh
   const handleManualRefresh = useCallback(async () => {
-    refetchFiles(); // ✅ Use TanStack Query refetch
+    refetchFiles();
   }, [refetchFiles]);
 
   // Expose methods to parent components
@@ -423,14 +372,12 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     },
     clearSelection: () => {
       setSources(prev => prev.map(source => ({ ...source, selected: false })));
-      // Update the file selection hook after clearing selection
       setTimeout(() => updateSelectedFiles(), 0);
     },
-    refreshSources: async () => { await refetchFiles(); }, // ✅ Use TanStack Query refetch
+    refreshSources: async () => { await refetchFiles(); },
     startUploadTracking: (uploadFileId: string) => {
       fileUploadStatus.startTracking(uploadFileId);
     },
-    // New method for handling processing completion signals
     onProcessingComplete: handleProcessingComplete
   }));
 
@@ -439,87 +386,24 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       const newSources = prev.map((source) =>
         source.id === id ? { ...source, selected: !source.selected } : source
       );
-      
-      // Update the file selection hook after state change
+
       setTimeout(() => updateSelectedFiles(), 0);
-      
+
       return newSources;
     });
   }, [updateSelectedFiles]);
 
-  // Reusable SourceItem component for consistent rendering - Memoized to prevent unnecessary re-renders
-  const SourceItem = React.memo<SourceItemProps>(({ source, onToggle, onPreview, getSourceTooltip, getPrincipleFileIcon, renderFileStatus }) => {
-    const handleItemClick = useCallback((e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      // Only open preview if the source supports preview
-      if (supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {})) {
-        onPreview(source);
-      }
-    }, [onPreview, source]);
-
-
-    const supportsPreviewCheck = supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {});
-
-    return (
-      <div
-        className={`px-4 py-3 border-b border-gray-100 ${
-          supportsPreviewCheck ? 'cursor-pointer hover:bg-gray-50' : ''
-        } ${source.selected ? 'bg-red-50 border-red-200' : ''}`}
-        onClick={supportsPreviewCheck ? handleItemClick : undefined}
-        title={supportsPreviewCheck ? getSourceTooltip(source) : undefined}
-      >
-        <div className="flex items-center space-x-3">
-          <div className="flex-shrink-0">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-              {React.createElement(getPrincipleFileIcon(source), {
-                className: "h-4 w-4 text-gray-600"
-              })}
-            </div>
-          </div>
-          
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center space-x-2 mb-1">
-              <h4 className="text-sm font-medium text-gray-900 truncate">{source.title}</h4>
-              {renderFileStatus(source)}
-            </div>
-            <p className="text-xs text-gray-500 truncate">{source.authors}</p>
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <div 
-              className="flex items-center cursor-pointer"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-            >
-              <Checkbox
-                checked={source.selected}
-                onCheckedChange={() => onToggle(String(source.id))}
-                variant="default"
-                size="default"
-                className="cursor-pointer"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  });
-  
-  // Separate effect to handle selection change notifications - optimized to prevent flashing
+  // Handle selection change notifications
   const selectedIds = useMemo(() => sources.filter(s => s.selected).map(s => s.id), [sources]);
   const selectedIdsString = useMemo(() => selectedIds.join(','), [selectedIds]);
-  
+
   useEffect(() => {
     if (onSelectionChange) {
-      // Debounce the callback to prevent excessive calls and reduce flashing
       const timer = setTimeout(() => onSelectionChange(), 50);
       return () => clearTimeout(timer);
     }
     return undefined;
-  }, [selectedIdsString, onSelectionChange]); // Use string comparison to avoid array reference changes
+  }, [selectedIdsString, onSelectionChange]);
 
   const handleDeleteSelected = async (): Promise<void> => {
     const selectedSources = sources.filter(source => source.selected);
@@ -528,68 +412,46 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       return;
     }
 
-    // Optimistically remove sources from UI immediately
+    // Optimistically remove sources from UI
     const selectedIds = selectedSources.map(s => s.id);
-    const previousSources = sources; // Store for rollback
     setSources((prev) => prev.filter((source) => !selectedIds.includes(source.id)));
 
-    // Notify selection change immediately
     if (onSelectionChange) {
       setTimeout(() => onSelectionChange(), 0);
     }
 
-    // Perform deletion in background
-    const deletionResults = [];
-    const unlinkedKnowledgeItems = [];
+    // Perform deletion
     const failedSources: Source[] = [];
 
     for (const source of selectedSources) {
       try {
-        let result;
-        let knowledgeItemId = null;
-
-        // Use knowledge_item_id as the primary identifier for deletion
         if (source.metadata?.knowledge_item_id) {
-          knowledgeItemId = source.metadata.knowledge_item_id;
-          result = await sourceService.deleteParsedFile(source.metadata.knowledge_item_id, notebookId);
-        } else {
-          console.warn('Source has no valid knowledge_item_id for deletion:', source);
-          failedSources.push(source);
-          continue;
-        }
+          const result = await sourceService.deleteParsedFile(source.metadata.knowledge_item_id, notebookId);
+          const isSuccess = result?.success === true || (result && typeof result === 'object' && !result.error);
 
-        // Check for successful deletion - handle both explicit success and HTTP 204 responses
-        const isSuccess = result?.success === true || (result && typeof result === 'object' && !result.error);
-
-        if (isSuccess) {
-          deletionResults.push({ source, success: true });
-          if (knowledgeItemId) {
-            unlinkedKnowledgeItems.push(knowledgeItemId);
+          if (!isSuccess) {
+            failedSources.push(source);
           }
         } else {
-          deletionResults.push({ source, success: false, error: result?.error || 'Unknown error' });
+          console.warn('Source has no valid knowledge_item_id for deletion:', source);
           failedSources.push(source);
         }
       } catch (error) {
         console.error(`Error deleting file ${source.title}:`, error);
-        deletionResults.push({ source, success: false, error: error instanceof Error ? error.message : 'Unknown error' });
         failedSources.push(source);
       }
     }
 
-    // Rollback failed deletions - restore them to the UI
+    // Rollback failed deletions
     if (failedSources.length > 0) {
       setSources((prev) => [...failedSources, ...prev]);
-
-      const errorMessage = `Failed to delete ${failedSources.length} file(s): ${failedSources.map(f => f.title).join(', ')}`;
-      setError(errorMessage);
+      setError(`Failed to delete ${failedSources.length} file(s): ${failedSources.map(f => f.title).join(', ')}`);
 
       if (onSelectionChange) {
         setTimeout(() => onSelectionChange(), 100);
       }
     }
 
-    // Refresh the sources list from the server to sync state
     refetchFiles();
   };
 
@@ -601,7 +463,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           onClose={() => onCloseModal?.('addSourceModal')}
           notebookId={notebookId}
           onSourcesAdded={() => {
-            refetchFiles(); // ✅ Use TanStack Query refetch
+            refetchFiles();
             if (onSelectionChange) {
               setTimeout(() => onSelectionChange(), 100);
             }
@@ -609,29 +471,26 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           onUploadStarted={(uploadFileId: string, filename: string, fileType: string, oldUploadFileId?: string) => {
             if (oldUploadFileId) {
               console.log(`SourcesList: Updating source from ${oldUploadFileId} to ${uploadFileId}`);
-              // Update existing temp source with real file_id
-              setSources(prev => prev.map(source => 
+              setSources(prev => prev.map(source =>
                 source.id === oldUploadFileId ? {
                   ...source,
                   id: uploadFileId,
-                  file_id: uploadFileId, // Update to real file_id for tracking
+                  file_id: uploadFileId,
                   upload_file_id: uploadFileId
                 } : source
               ));
-              
-              // Stop tracking old ID and start tracking new ID
+
               fileUploadStatus.stopTracking(oldUploadFileId);
               fileUploadStatus.startTracking(uploadFileId, notebookId, () => {
                 handleProcessingComplete(uploadFileId);
               });
             } else {
-              // Add new temporary upload item to sources list
               const tempSource: Source = {
                 id: uploadFileId,
-                file_id: uploadFileId, // Use uploadFileId as file_id for tracking
+                file_id: uploadFileId,
                 name: filename,
                 title: filename,
-                authors: `${fileType.toUpperCase()} • Processing...`,
+                authors: '',
                 ext: fileType,
                 selected: false,
                 type: "parsed" as const,
@@ -643,16 +502,16 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                   file_extension: `.${fileType}`
                 }
               };
-              
+
               setSources(prev => [tempSource, ...prev]);
-              
+
               fileUploadStatus.startTracking(uploadFileId, notebookId, () => {
                 handleProcessingComplete(uploadFileId);
               });
             }
           }}
           onKnowledgeBaseItemsDeleted={() => {
-            refetchFiles(); // ✅ Use TanStack Query refetch
+            refetchFiles();
           }}
         />
       );
@@ -660,26 +519,20 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     }
   };
 
-
-
-  // Import status rendering utility at the top of the file
-  // This is now handled by the utility function
-
   // Get tooltip text for source items
   const getSourceTooltip = (source: Source): string => {
-    // Enhanced URL detection with multiple fallbacks
-    const isUrl = source.metadata?.source_url || 
+    const isUrl = source.metadata?.source_url ||
                   source.metadata?.extraction_type === 'url_extractor' ||
                   source.metadata?.processing_method === 'media' ||
                   source.metadata?.processing_method === 'web_scraping_no_crawl4ai' ||
                   source.metadata?.processing_method === 'crawl4ai_only' ||
                   source.metadata?.file_extension === '.md' && source.metadata?.original_filename?.includes('_20');
-    
+
     if (isUrl) {
-      const originalUrl = source.originalFile?.sourceUrl || 
-                         source.metadata?.source_url || 
-                         (source.metadata?.original_filename?.includes('_20') ? 
-                           `https://${source.metadata.original_filename.match(/^([^_]+)/)?.[1] || 'unknown'}` : 
+      const originalUrl = source.originalFile?.sourceUrl ||
+                         source.metadata?.source_url ||
+                         (source.metadata?.original_filename?.includes('_20') ?
+                           `https://${source.metadata.original_filename.match(/^([^_]+)/)?.[1] || 'unknown'}` :
                            'Unknown URL');
       return `Original URL: ${originalUrl}`;
     }
