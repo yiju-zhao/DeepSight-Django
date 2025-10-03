@@ -193,8 +193,7 @@ def upload_to_ragflow_task(self, kb_item_id: str):
                     # Schedule status checking task
                     try:
                         check_ragflow_status_task.apply_async(
-                            args=[str(kb_item.id)],
-                            countdown=15  # Check status after 15 seconds
+                            args=[str(kb_item.id)]
                         )
                     except Exception as schedule_error:
                         logger.warning(f"Failed to schedule status check for {document_id}: {schedule_error}")
@@ -1054,7 +1053,7 @@ def check_ragflow_status_task(self, kb_item_id: str):
     except Exception as e:
         # On error, poll again in 15s
         logger.warning(f"Error checking RagFlow status for KB item {kb_item_id}: {e}, polling again in 15s")
-        raise self.retry(countdown=15, max_retries=None)
+        raise self.retry(countdown=15, max_retries=5)
 
 
 @shared_task
