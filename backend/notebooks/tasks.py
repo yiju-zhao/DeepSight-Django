@@ -118,23 +118,19 @@ def upload_to_ragflow_task(self, kb_item_id: str):
             kb_item.mark_ragflow_failed("No RagFlow dataset ID configured")
             return {"success": False, "error": "No RagFlow dataset ID configured"}
 
-        # Get the processed markdown file content from MinIO
+        # Get the processed markdown file content from MinIO using file_object_key
         try:
             file_content = storage_adapter.get_file_content(
                 kb_item.file_object_key,
                 str(kb_item.notebook.user_id)
             )
 
-            # Determine filename - prefer original filename with .md extension
-            filename = kb_item.title
-            if kb_item.file_metadata and isinstance(kb_item.file_metadata, dict):
-                original_filename = kb_item.file_metadata.get('original_filename', kb_item.title)
-                # Convert to .md extension for RagFlow
-                if '.' in original_filename:
-                    filename = original_filename.rsplit('.', 1)[0] + '.md'
-                else:
-                    filename = original_filename + '.md'
-            elif not filename.endswith('.md'):
+            # Extract filename from file_object_key path (e.g., "user_id/kb/kb_item_id/filename.md")
+            # The file_object_key already contains the proper .md filename
+            filename = kb_item.file_object_key.split('/')[-1]
+
+            # Ensure it has .md extension (safety check)
+            if not filename.endswith('.md'):
                 filename = filename + '.md'
 
         except Exception as storage_error:
