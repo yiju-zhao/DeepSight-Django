@@ -336,14 +336,16 @@ def parse_url_task(self, url: str, upload_url_id: str, notebook_id: str, user_id
         from notebooks.processors.url_extractor import URLExtractor
         url_extractor = URLExtractor()
 
+        # Pass kb_item_id to update existing item instead of creating new one
         result = async_to_sync(url_extractor.process_url)(
             url=url,
             upload_url_id=upload_url_id,
             user_id=user_id,
-            notebook_id=notebook_id
+            notebook_id=notebook_id,
+            kb_item_id=str(kb_item.id)
         )
 
-        # Get the file_id from result
+        # Get the file_id from result (should be same as kb_item.id)
         file_id = result.get("file_id")
 
         if not file_id:
@@ -431,8 +433,10 @@ def parse_url_with_media_task(self, url: str, upload_url_id: str, notebook_id: s
         from notebooks.processors.url_extractor import URLExtractor
         url_extractor = URLExtractor()
 
-        result = async_to_sync(url_extractor.process_url_with_media)(
+        # Use the update method to avoid creating a duplicate KB item
+        result = async_to_sync(url_extractor.process_url_with_media_update_existing)(
             url=url,
+            kb_item_id=str(kb_item.id),
             upload_url_id=upload_url_id,
             user_id=user_id,
             notebook_id=notebook_id
@@ -526,8 +530,10 @@ def parse_document_url_task(self, url: str, upload_url_id: str, notebook_id: str
         from notebooks.processors.url_extractor import URLExtractor
         url_extractor = URLExtractor()
 
-        result = async_to_sync(url_extractor.process_url_document_only)(
+        # Use the update method to avoid creating a duplicate KB item
+        result = async_to_sync(url_extractor.process_url_document_update_existing)(
             url=url,
+            kb_item_id=str(kb_item.id),
             upload_url_id=upload_url_id,
             user_id=user_id,
             notebook_id=notebook_id
@@ -1020,7 +1026,7 @@ def check_ragflow_status_task(self, kb_item_id: str, max_retries: int = 10):
             # Retry if we haven't exceeded max retries
             if self.request.retries < max_retries:
                 logger.info(f"Retrying status check for KB item {kb_item_id} (attempt {self.request.retries + 1})")
-                raise self.retry(countdown=60, max_retries=max_retries)
+                raise self.retry(countdown=30, max_retries=max_retries)
             else:
                 kb_item.mark_ragflow_failed("Could not get status from RagFlow")
                 return {"success": False, "error": "Could not get status from RagFlow"}
@@ -1044,7 +1050,7 @@ def check_ragflow_status_task(self, kb_item_id: str, max_retries: int = 10):
             # Still processing, schedule another check
             if self.request.retries < max_retries:
                 logger.info(f"RagFlow document still processing, scheduling next check for KB item {kb_item_id}")
-                raise self.retry(countdown=60, max_retries=max_retries)
+                raise self.retry(countdown=30, max_retries=max_retries)
             else:
                 # Max retries reached, mark as failed
                 kb_item.mark_ragflow_failed("RagFlow processing timeout")
@@ -1060,7 +1066,7 @@ def check_ragflow_status_task(self, kb_item_id: str, max_retries: int = 10):
             # Unknown status, retry
             if self.request.retries < max_retries:
                 logger.warning(f"Unknown RagFlow status '{ragflow_status}' for KB item {kb_item_id}, retrying")
-                raise self.retry(countdown=60, max_retries=max_retries)
+                raise self.retry(countdown=30, max_retries=max_retries)
             else:
                 kb_item.mark_ragflow_failed(f"Unknown RagFlow status: {ragflow_status}")
                 return {"success": False, "error": f"Unknown status: {ragflow_status}"}
@@ -1076,7 +1082,7 @@ def check_ragflow_status_task(self, kb_item_id: str, max_retries: int = 10):
         # Retry on unexpected errors
         if self.request.retries < max_retries:
             logger.info(f"Retrying status check due to error for KB item {kb_item_id}")
-            raise self.retry(countdown=60, max_retries=max_retries)
+            raise self.retry(countdown=30, max_retries=max_retries)
         else:
             # Mark as failed after max retries
             try:
