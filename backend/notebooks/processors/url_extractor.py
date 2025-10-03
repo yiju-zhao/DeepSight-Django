@@ -19,9 +19,9 @@ from django.core.files.uploadedfile import UploadedFile, InMemoryUploadedFile
 from django.core.exceptions import ValidationError
 import io
 
-from ..utils.storage import get_storage_adapter
-from ..utils.helpers import ContentIndexingService, config as settings, clean_title
-from .upload_processor import UploadProcessor
+from notebooks.utils.storage import get_storage_adapter
+from notebooks.utils.helpers import ContentIndexingService, config as settings, clean_title
+from notebooks.processors.upload_processor import UploadProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -1028,7 +1028,7 @@ class URLExtractor:
         """Update an existing KnowledgeBaseItem with processed content using proper minio storage."""
         try:
             # Import models inside method to avoid circular imports
-            from ..models import KnowledgeBaseItem
+            from notebooks.models import KnowledgeBaseItem
             from asgiref.sync import sync_to_async
             
             # Get the existing KB item to get the notebook ID
