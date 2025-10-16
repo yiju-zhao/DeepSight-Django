@@ -109,6 +109,8 @@ export interface Source {
   file?: string;
   upload_file_id?: string;
   parsing_status?: 'pending' | 'processing' | 'in_progress' | 'completed' | 'failed';
+  ragflow_processing_status?: 'pending' | 'uploading' | 'parsing' | 'completed' | 'failed';
+  captioning_status?: 'pending' | 'in_progress' | 'completed' | 'failed';
   title?: string;
   ext?: string;
 }

@@ -454,7 +454,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             selected: source.selected,
             file_id: source.file_id,
             title: source.title,
-            ext: source.ext
+            ext: source.ext,
+            ragflow_processing_status: source.ragflow_processing_status
           }}
           isOpen={true}
           onClose={() => onCloseModal?.('filePreview')}
