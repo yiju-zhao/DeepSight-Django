@@ -37,24 +37,18 @@ export const renderFileStatus = (source: Source): React.ReactNode => {
     );
   }
 
-  // Priority 2: Show completed status indicators (RagFlow sync + captions)
+  // Priority 2: Show RagFlow processing status (only show while in progress or failed)
   return (
     <div className="flex items-center space-x-2">
-      {/* RagFlow sync status */}
+      {/* RagFlow sync status - only show during processing or failure */}
       {renderRagflowStatus(ragflowProcessing, ragflowCompleted, ragflowFailed)}
-
-      {/* Image captions indicator */}
-      {source.captioning_status === 'completed' && (
-        <div className="flex items-center space-x-1" title="Images with captions available">
-          <ImageIcon className="h-3 w-3 text-green-500" />
-        </div>
-      )}
     </div>
   );
 };
 
 /**
  * Renders RagFlow sync status indicator
+ * Note: Completed status is shown via the larger icon in SourceItem.tsx
  */
 const renderRagflowStatus = (
   isProcessing: boolean,
@@ -70,33 +64,7 @@ const renderRagflowStatus = (
     );
   }
 
-  if (isCompleted) {
-    return (
-      <div className="flex items-center space-x-1" title="Successfully synced to knowledge base">
-        <svg
-          className="h-3 w-3 text-green-500"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            strokeWidth="2"
-            fill="none"
-          />
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M9 12l2 2 4-4"
-          />
-        </svg>
-      </div>
-    );
-  }
+  // Don't show completed icon here - it's shown as a larger icon in SourceItem.tsx
 
   if (isFailed) {
     return (
