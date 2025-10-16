@@ -1361,8 +1361,17 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
           {preview && React.createElement(getPreviewIcon(preview.type), {
             className: "h-6 w-6 text-gray-700"
           })}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Preview</h2>
+          <div className="flex-1">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-lg font-semibold text-gray-900">Preview</h2>
+              {/* RAGFlow KnowledgeBase Status Badge */}
+              {source?.ragflow_processing_status === 'completed' && (
+                <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  RAGFlow KnowledgeBase
+                </Badge>
+              )}
+            </div>
             <p className="text-sm text-gray-500">{source?.title || "Unknown file"}</p>
           </div>
         </div>

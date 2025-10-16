@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { CheckCircle2, ImageIcon } from 'lucide-react';
+import { ImageIcon } from 'lucide-react';
 import { supportsPreview } from '@/features/notebook/utils/filePreview';
 import { Source } from '@/features/notebook/type';
 
@@ -29,7 +29,6 @@ export const SourceItem = React.memo<SourceItemProps>(({
   const isParsing = source.parsing_status && ['uploading', 'queueing', 'parsing'].includes(source.parsing_status);
   const isContentReady = source.parsing_status === 'done' || source.parsing_status === 'captioning';
   const isCaptionReady = source.captioning_status === 'completed';
-  const isRagflowReady = source.ragflow_processing_status === 'completed';
 
   const handleItemClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -84,11 +83,6 @@ export const SourceItem = React.memo<SourceItemProps>(({
           {/* Show image icon when caption is ready */}
           {isCaptionReady && (
             <ImageIcon className="h-4 w-4 text-green-600" title="Caption ready" />
-          )}
-
-          {/* Show checkmark when RagFlow upload is complete */}
-          {isRagflowReady && (
-            <CheckCircle2 className="h-4 w-4 text-green-600" title="RagFlow sync complete" />
           )}
 
           {/* Only show checkbox when content is ready */}
