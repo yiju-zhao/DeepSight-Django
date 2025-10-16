@@ -28,8 +28,8 @@ export const SourceItem = React.memo<SourceItemProps>(({
   // Determine parsing status
   const isParsing = source.parsing_status && ['uploading', 'queueing', 'parsing'].includes(source.parsing_status);
   const isContentReady = source.parsing_status === 'done' || source.parsing_status === 'captioning';
-  const isCaptionReady = source.captioning_status === 'done';
-  const isRagflowReady = source.ragflow_processing_status === 'done';
+  const isCaptionReady = source.captioning_status === 'completed';
+  const isRagflowReady = source.ragflow_processing_status === 'completed';
 
   const handleItemClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

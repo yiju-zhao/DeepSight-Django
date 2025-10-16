@@ -15,6 +15,8 @@ interface FileStatusData {
   title: string;
   updated_at: string | null;
   caption_status?: string;
+  captioning_status?: string;
+  ragflow_processing_status?: string;
 }
 
 export const useFileStatusSSE = (
@@ -29,6 +31,7 @@ export const useFileStatusSSE = (
   }
   
   const [status, setStatus] = useState<string | null>(null);
+  const [ragflowStatus, setRagflowStatus] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   
@@ -136,13 +139,22 @@ export const useFileStatusSSE = (
               const fileData = parsedEvent.data as FileStatusData;
 
               setStatus(fileData.status);
-              
-              console.log('File status update:', fileData.status, 'for file:', fileData.file_id, 'caption_status:', fileData.caption_status);
-              
-              const isParsingDone = fileData.status === 'done';
-              const isCaptioningDone = fileData.caption_status === 'completed' || fileData.caption_status === 'failed' || !fileData.caption_status;
+              setRagflowStatus(fileData.ragflow_processing_status || null);
 
-              if (isParsingDone && isCaptioningDone) {
+              console.log('File status update:', fileData.status, 'for file:', fileData.file_id,
+                'caption_status:', fileData.caption_status || fileData.captioning_status,
+                'ragflow_status:', fileData.ragflow_processing_status);
+
+              const isParsingDone = fileData.status === 'done';
+              const isCaptioningDone = (fileData.caption_status || fileData.captioning_status) === 'completed' ||
+                                       (fileData.caption_status || fileData.captioning_status) === 'failed' ||
+                                       !(fileData.caption_status || fileData.captioning_status);
+              const isRagflowDone = fileData.ragflow_processing_status === 'done' ||
+                                    fileData.ragflow_processing_status === 'completed' ||
+                                    fileData.ragflow_processing_status === 'failed' ||
+                                    !fileData.ragflow_processing_status;
+
+              if (isParsingDone && isCaptioningDone && isRagflowDone) {
                 processingCompletedRef.current = true;
                 
                 if (onCompleteRef.current) {
@@ -220,19 +232,20 @@ export const useFileStatusSSE = (
     if (import.meta.env.DEV) {
       console.log('Disconnecting from file status updates');
     }
-    
+
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     if (ctrlRef.current) {
       ctrlRef.current.abort();
       ctrlRef.current = null;
     }
-    
+
     setIsConnected(false);
     setStatus(null);
+    setRagflowStatus(null);
     setConnectionError(null);
     reconnectAttemptsRef.current = 0;
     isConnectingRef.current = false;
@@ -258,5 +271,5 @@ export const useFileStatusSSE = (
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fileId, notebookId]);
 
-  return { status, isConnected, connectionError, disconnect };
+  return { status, ragflowStatus, isConnected, connectionError, disconnect };
 };

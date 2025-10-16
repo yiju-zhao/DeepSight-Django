@@ -43,30 +43,37 @@ const fileIcons: FileIcons = {
 const FileStatusTracker: React.FC<{
   fileId: string;
   notebookId: string;
-  onStatusUpdate: (fileId: string, newStatus: string) => void;
+  onStatusUpdate: (fileId: string, statusType: 'parsing' | 'ragflow', newStatus: string) => void;
   onProcessingComplete: (fileId: string) => void;
   onError: (fileId: string, error: string) => void;
 }> = ({ fileId, notebookId, onStatusUpdate, onProcessingComplete, onError }) => {
-  
-  const { status } = useFileStatusSSE(
+
+  const { status, ragflowStatus } = useFileStatusSSE(
     fileId,
     notebookId,
     () => {
-      onStatusUpdate(fileId, 'done');
+      onStatusUpdate(fileId, 'parsing', 'done');
       onProcessingComplete(fileId);
     },
     (error) => {
-      onStatusUpdate(fileId, 'failed');
+      onStatusUpdate(fileId, 'parsing', 'failed');
       onError(fileId, error);
     }
   );
 
-  // Update status when it changes (for intermediate status updates)
+  // Update parsing status when it changes (for intermediate status updates)
   useEffect(() => {
     if (status && status !== 'done' && status !== 'failed') {
-      onStatusUpdate(fileId, status);
+      onStatusUpdate(fileId, 'parsing', status);
     }
   }, [status, fileId, onStatusUpdate]);
+
+  // Update ragflow status when it changes
+  useEffect(() => {
+    if (ragflowStatus) {
+      onStatusUpdate(fileId, 'ragflow', ragflowStatus);
+    }
+  }, [ragflowStatus, fileId, onStatusUpdate]);
 
   return null; // This component doesn't render anything
 };
@@ -140,13 +147,18 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   }, [notebookId, refetchFiles, onSelectionChange]);
 
   // Individual file status update handler - updates specific file in sources array
-  const updateFileStatus = useCallback((fileId: string, newStatus: string) => {
-    console.log(`Updating file ${fileId} status to: ${newStatus}`);
-    setSources(prev => prev.map(source =>
-      source.file_id === fileId
-        ? { ...source, parsing_status: newStatus as Source['parsing_status'] }
-        : source
-    ));
+  const updateFileStatus = useCallback((fileId: string, statusType: 'parsing' | 'ragflow', newStatus: string) => {
+    console.log(`Updating file ${fileId} ${statusType} status to: ${newStatus}`);
+    setSources(prev => prev.map(source => {
+      if (source.file_id === fileId) {
+        if (statusType === 'parsing') {
+          return { ...source, parsing_status: newStatus as Source['parsing_status'] };
+        } else if (statusType === 'ragflow') {
+          return { ...source, ragflow_processing_status: newStatus as Source['ragflow_processing_status'] };
+        }
+      }
+      return source;
+    }));
   }, []);
 
   // Process TanStack Query data when it changes
