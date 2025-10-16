@@ -10,7 +10,6 @@ import { FileIcons } from "@/shared/types";
 import { Source, SourcesListProps } from "@/features/notebook/type";
 import { FileMetadata } from "@/shared/types";
 import { useFileUploadStatus } from "@/features/notebook/hooks/file/useFileUploadStatus";
-import { useFileStatusSSE } from "@/features/notebook/hooks/file/useFileStatusSSE";
 import { useFileSelection } from "@/features/notebook/hooks/file/useFileSelection";
 import { useParsedFiles } from "@/features/notebook/hooks/sources/useSources";
 import AddSourceModal from "./AddSourceModal";
@@ -37,45 +36,6 @@ const fileIcons: FileIcons = {
   url: Link2,
   website: Globe,
   media: Video
-};
-
-// Component to handle individual file status tracking with SSE
-const FileStatusTracker: React.FC<{
-  fileId: string;
-  notebookId: string;
-  onStatusUpdate: (fileId: string, statusType: 'parsing' | 'ragflow', newStatus: string) => void;
-  onProcessingComplete: (fileId: string) => void;
-  onError: (fileId: string, error: string) => void;
-}> = ({ fileId, notebookId, onStatusUpdate, onProcessingComplete, onError }) => {
-
-  const { status, ragflowStatus } = useFileStatusSSE(
-    fileId,
-    notebookId,
-    () => {
-      onStatusUpdate(fileId, 'parsing', 'done');
-      onProcessingComplete(fileId);
-    },
-    (error) => {
-      onStatusUpdate(fileId, 'parsing', 'failed');
-      onError(fileId, error);
-    }
-  );
-
-  // Update parsing status when it changes (for intermediate status updates)
-  useEffect(() => {
-    if (status && status !== 'done' && status !== 'failed') {
-      onStatusUpdate(fileId, 'parsing', status);
-    }
-  }, [status, fileId, onStatusUpdate]);
-
-  // Update ragflow status when it changes
-  useEffect(() => {
-    if (ragflowStatus) {
-      onStatusUpdate(fileId, 'ragflow', ragflowStatus);
-    }
-  }, [ragflowStatus, fileId, onStatusUpdate]);
-
-  return null; // This component doesn't render anything
 };
 
 // Define ref interface for the SourcesList component
@@ -111,15 +71,16 @@ interface SourcesListRef {
 
 
 const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, onSelectionChange, onToggleCollapse, onOpenModal, onCloseModal }, ref) => {
-  // ✅ Replace manual state with TanStack Query
-  const { 
-    data: parsedFilesResponse, 
-    isLoading, 
-    error: queryError, 
-    refetch: refetchFiles 
+  // ✅ TanStack Query as single source of truth
+  const {
+    data: parsedFilesResponse,
+    isLoading,
+    error: queryError,
+    refetch: refetchFiles
   } = useParsedFiles(notebookId);
 
-  const [sources, setSources] = useState<Source[]>([]);
+  // ✅ Use Set for efficient selection management
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const queryErrorMessage = queryError?.message || null;
 
@@ -146,84 +107,38 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     });
   }, [notebookId, refetchFiles, onSelectionChange]);
 
-  // Individual file status update handler - updates specific file in sources array
-  const updateFileStatus = useCallback((fileId: string, statusType: 'parsing' | 'ragflow', newStatus: string) => {
-    console.log(`Updating file ${fileId} ${statusType} status to: ${newStatus}`);
-    setSources(prev => prev.map(source => {
-      if (source.file_id === fileId) {
-        if (statusType === 'parsing') {
-          return { ...source, parsing_status: newStatus as Source['parsing_status'] };
-        } else if (statusType === 'ragflow') {
-          return { ...source, ragflow_processing_status: newStatus as Source['ragflow_processing_status'] };
-        }
-      }
-      return source;
+  // ✅ Derive sources directly from TanStack Query data with selection state
+  const sources = useMemo(() => {
+    if (!parsedFilesResponse?.results) {
+      return [];
+    }
+
+    const data = parsedFilesResponse.results || [];
+
+    return data.map((metadata: FileMetadata) => ({
+      id: metadata.id || 'unknown',
+      name: generatePrincipleTitle(metadata),
+      title: generatePrincipleTitle(metadata),
+      authors: '',
+      ext: getPrincipleFileExtension(metadata),
+      selected: selectedIds.has(metadata.id || ''),  // ✅ Derive selection from Set
+      type: "parsed" as const,
+      createdAt: metadata.upload_timestamp || new Date().toISOString(),
+      file_id: metadata.id,
+      upload_file_id: metadata.upload_file_id,
+      parsing_status: metadata.parsing_status,
+      ragflow_processing_status: (metadata as any).ragflow_processing_status,
+      captioning_status: metadata.captioning_status,
+      metadata: {
+        ...metadata,
+        file_extension: metadata.file_extension || getPrincipleFileExtension(metadata),
+        knowledge_item_id: metadata.id || metadata.knowledge_item_id
+      },
+      error_message: metadata.error_message,
+      originalFile: getPrincipleFileInfo(metadata)
     }));
-  }, []);
+  }, [parsedFilesResponse, selectedIds]);
 
-  // Process TanStack Query data when it changes
-  useEffect(() => {
-    if (parsedFilesResponse?.results) {
-      const data = parsedFilesResponse.results || [];
-
-      const parsedSources = data.map((metadata: FileMetadata) => ({
-        id: metadata.id || 'unknown',
-        name: generatePrincipleTitle(metadata),
-        title: generatePrincipleTitle(metadata),
-        authors: '',  // Removed file type and size display
-        ext: getPrincipleFileExtension(metadata),
-        selected: false,
-        type: "parsed" as const,
-        createdAt: metadata.upload_timestamp || new Date().toISOString(),
-        file_id: metadata.id,
-        upload_file_id: metadata.upload_file_id,
-        parsing_status: metadata.parsing_status,
-        ragflow_processing_status: (metadata as any).ragflow_processing_status,
-        captioning_status: metadata.captioning_status,
-        metadata: {
-          ...metadata,
-          file_extension: metadata.file_extension || getPrincipleFileExtension(metadata),
-          knowledge_item_id: metadata.id || metadata.knowledge_item_id
-        },
-        error_message: metadata.error_message,
-        originalFile: getPrincipleFileInfo(metadata)
-      }));
-
-      setSources(parsedSources);
-      fileUploadStatus.stopAllTracking();
-    } else if (parsedFilesResponse && !parsedFilesResponse.results) {
-      setSources([]);
-    }
-  }, [parsedFilesResponse]);
-
-  // Get processing files for individual SSE tracking
-  const processingFiles = useMemo(() => {
-    return sources.filter(source =>
-      source.file_id &&
-      source.parsing_status &&
-      ['uploading', 'queueing', 'parsing', 'captioning'].includes(source.parsing_status)
-    );
-  }, [sources]);
-
-
-
-  // Handle processing completion for specific files
-  const handleFileProcessingComplete = useCallback(() => {
-    refetchFiles();
-
-    if (onSelectionChange) {
-      setTimeout(() => onSelectionChange(), 100);
-    }
-  }, [onSelectionChange, refetchFiles]);
-
-  // Handle processing errors for specific files
-  const handleFileProcessingError = useCallback((_fileId: string, _error: string) => {
-    refetchFiles();
-
-    if (onSelectionChange) {
-      setTimeout(() => onSelectionChange(), 100);
-    }
-  }, [onSelectionChange, refetchFiles]);
 
   // Get original filename from metadata
   const getOriginalFilename = (metadata: FileMetadata) => {
@@ -315,18 +230,18 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   };
 
   // Calculate selected count
-  const selectedCount = sources.filter(source => source.selected).length;
+  const selectedCount = sources.filter((source: Source) => source.selected).length;
 
   // Group sources by file type
   const groupSources = useCallback((sourcesToGroup: Source[]) => {
-    const grouped = sourcesToGroup.reduce((acc: Record<string, Source[]>, source: Source) => {
+    const grouped = sourcesToGroup.reduce((acc: Record<string, Source[]>, source) => {
       const type = source.ext || 'unknown';
       if (!acc[type]) {
         acc[type] = [];
       }
       acc[type].push(source);
       return acc;
-    }, {});
+    }, {} as Record<string, Source[]>);
 
     // Sort groups by type name
     const sortedGroups = Object.keys(grouped)
@@ -366,16 +281,16 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   // Expose methods to parent components
   useImperativeHandle(ref, (): SourcesListRef => ({
     getSelectedFiles: () => {
-      return sources.filter(source => 
-        source.selected && 
+      return sources.filter((source: Source) =>
+        source.selected &&
         (source.file_id || source.file)
       );
     },
     getSelectedSources: () => {
-      return sources.filter(source => source.selected);
+      return sources.filter((source: Source) => source.selected);
     },
     clearSelection: () => {
-      setSources(prev => prev.map(source => ({ ...source, selected: false })));
+      setSelectedIds(new Set());  // ✅ Clear Set
       setTimeout(() => updateSelectedFiles(), 0);
     },
     refreshSources: async () => { await refetchFiles(); },
@@ -385,21 +300,23 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     onProcessingComplete: handleProcessingComplete
   }));
 
+  // ✅ Toggle selection using Set
   const toggleSource = useCallback((id: string | number) => {
-    setSources((prev) => {
-      const newSources = prev.map((source) =>
-        source.id === id ? { ...source, selected: !source.selected } : source
-      );
-
-      setTimeout(() => updateSelectedFiles(), 0);
-
-      return newSources;
+    setSelectedIds((prev) => {
+      const newSet = new Set(prev);
+      const strId = String(id);
+      if (newSet.has(strId)) {
+        newSet.delete(strId);
+      } else {
+        newSet.add(strId);
+      }
+      return newSet;
     });
+    setTimeout(() => updateSelectedFiles(), 0);
   }, [updateSelectedFiles]);
 
   // Handle selection change notifications
-  const selectedIds = useMemo(() => sources.filter(s => s.selected).map(s => s.id), [sources]);
-  const selectedIdsString = useMemo(() => selectedIds.join(','), [selectedIds]);
+  const selectedIdsString = useMemo(() => Array.from(selectedIds).join(','), [selectedIds]);
 
   useEffect(() => {
     if (onSelectionChange) {
@@ -409,16 +326,16 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     return undefined;
   }, [selectedIdsString, onSelectionChange]);
 
+  // ✅ Simplified delete with TanStack Query handling state
   const handleDeleteSelected = async (): Promise<void> => {
-    const selectedSources = sources.filter(source => source.selected);
+    const selectedSources = sources.filter((source: Source) => source.selected);
 
     if (selectedSources.length === 0) {
       return;
     }
 
-    // Optimistically remove sources from UI
-    const selectedIds = selectedSources.map(s => s.id);
-    setSources((prev) => prev.filter((source) => !selectedIds.includes(source.id)));
+    // Clear selection immediately
+    setSelectedIds(new Set());
 
     if (onSelectionChange) {
       setTimeout(() => onSelectionChange(), 0);
@@ -446,20 +363,24 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       }
     }
 
-    // Rollback failed deletions
+    // Show error for failed deletions
     if (failedSources.length > 0) {
-      setSources((prev) => [...failedSources, ...prev]);
       setError(`Failed to delete ${failedSources.length} file(s): ${failedSources.map(f => f.title).join(', ')}`);
+
+      // Re-select failed items
+      setSelectedIds(new Set(failedSources.map(f => String(f.id))));
 
       if (onSelectionChange) {
         setTimeout(() => onSelectionChange(), 100);
       }
     }
 
+    // ✅ TanStack Query will auto-update the list
     refetchFiles();
   };
 
 
+  // ✅ Simplified - TanStack Query polling handles new files
   const handleAddSource = (): void => {
     if (onOpenModal) {
       const modalContent = (
@@ -472,47 +393,16 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               setTimeout(() => onSelectionChange(), 100);
             }
           }}
-          onUploadStarted={(uploadFileId: string, filename: string, fileType: string, oldUploadFileId?: string) => {
+          onUploadStarted={(uploadFileId: string, _filename: string, _fileType: string, oldUploadFileId?: string) => {
+            // Start tracking for upload status
             if (oldUploadFileId) {
-              console.log(`SourcesList: Updating source from ${oldUploadFileId} to ${uploadFileId}`);
-              setSources(prev => prev.map(source =>
-                source.id === oldUploadFileId ? {
-                  ...source,
-                  id: uploadFileId,
-                  file_id: uploadFileId,
-                  upload_file_id: uploadFileId
-                } : source
-              ));
-
               fileUploadStatus.stopTracking(oldUploadFileId);
-              fileUploadStatus.startTracking(uploadFileId, notebookId, () => {
-                handleProcessingComplete(uploadFileId);
-              });
-            } else {
-              const tempSource: Source = {
-                id: uploadFileId,
-                file_id: uploadFileId,
-                name: filename,
-                title: filename,
-                authors: '',
-                ext: fileType,
-                selected: false,
-                type: "parsed" as const,
-                createdAt: new Date().toISOString(),
-                upload_file_id: uploadFileId,
-                parsing_status: 'queueing',
-                metadata: {
-                  filename: filename,
-                  file_extension: `.${fileType}`
-                }
-              };
-
-              setSources(prev => [tempSource, ...prev]);
-
-              fileUploadStatus.startTracking(uploadFileId, notebookId, () => {
-                handleProcessingComplete(uploadFileId);
-              });
             }
+            fileUploadStatus.startTracking(uploadFileId, notebookId, () => {
+              handleProcessingComplete(uploadFileId);
+            });
+            // ✅ No need for temp sources - polling will fetch the file
+            refetchFiles();
           }}
           onKnowledgeBaseItemsDeleted={() => {
             refetchFiles();
@@ -682,8 +572,11 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                   e.preventDefault();
                   e.stopPropagation();
                   const allSelected = sources.length > 0 && selectedCount === sources.length;
-                  setSources((prev) => prev.map((s) => ({ ...s, selected: !allSelected })));
-                  // Update the file selection hook after state change
+                  if (allSelected) {
+                    setSelectedIds(new Set());  // ✅ Deselect all
+                  } else {
+                    setSelectedIds(new Set(sources.map((s: Source) => String(s.id))));  // ✅ Select all
+                  }
                   setTimeout(() => updateSelectedFiles(), 0);
                 }}
                 disabled={sources.length === 0}
@@ -788,17 +681,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         )}
       </div>
 
-      {/* Individual file status trackers - hidden components that handle SSE for each processing file */}
-      {processingFiles.map(file => (
-        <FileStatusTracker
-          key={`status-tracker-${file.file_id}`}
-          fileId={file.file_id!}
-          notebookId={notebookId}
-          onStatusUpdate={updateFileStatus}
-          onProcessingComplete={() => handleFileProcessingComplete()}
-          onError={handleFileProcessingError}
-        />
-      ))}
     </div>
   );
 });

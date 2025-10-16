@@ -26,6 +26,10 @@ const sourceKeys = {
 
 // ─── PARSED FILES ────────────────────────────────────────────────────────────
 
+/**
+ * Hook to fetch parsed files with intelligent polling
+ * Automatically polls when files are being processed
+ */
 export const useParsedFiles = (notebookId: string, params?: { limit?: number; offset?: number }) => {
   return useQuery({
     queryKey: sourceKeys.parsedFiles(notebookId, params),
@@ -34,6 +38,30 @@ export const useParsedFiles = (notebookId: string, params?: { limit?: number; of
     staleTime: 30 * 1000, // 30 seconds - files can change when processing completes
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     retry: 2,
+    refetchInterval: (query) => {
+      // Check if any files are being processed
+      const data = query?.state?.data;
+      if (!data?.results) return false;
+
+      const hasProcessingFiles = data.results.some((file: any) => {
+        const isParsingInProgress = file.parsing_status &&
+          ['queueing', 'uploading', 'parsing', 'captioning'].includes(file.parsing_status);
+        const isRagflowInProgress = file.ragflow_processing_status &&
+          ['pending', 'uploading', 'parsing'].includes(file.ragflow_processing_status);
+        const isCaptioningInProgress = file.captioning_status &&
+          ['pending', 'in_progress'].includes(file.captioning_status);
+
+        return isParsingInProgress || isRagflowInProgress || isCaptioningInProgress;
+      });
+
+      // Use exponential backoff: 3s initially, then 5s, then stop when nothing is processing
+      if (hasProcessingFiles) {
+        const attemptIndex = query?.state?.fetchFailureCount || 0;
+        return attemptIndex < 5 ? 3000 : 5000;
+      }
+
+      return false; // Stop polling when nothing is processing
+    },
   });
 };
 
@@ -52,18 +80,47 @@ export const useKnowledgeBase = (notebookId: string, params?: { limit?: number; 
 
 // ─── FILE STATUS ─────────────────────────────────────────────────────────────
 
-export const useFileStatus = (notebookId: string, fileId: string) => {
+/**
+ * Hook to fetch individual file status with intelligent polling
+ * Uses exponential backoff and stops when processing is complete
+ */
+export const useFileStatus = (notebookId: string, fileId: string, enabled: boolean = true) => {
   return useQuery({
     queryKey: sourceKeys.fileStatus(notebookId, fileId),
     queryFn: () => sourceService.getStatus(fileId, notebookId),
-    enabled: !!notebookId && !!fileId,
-    staleTime: 10 * 1000, // 10 seconds - status changes frequently during processing
+    enabled: !!notebookId && !!fileId && enabled,
+    staleTime: 5 * 1000, // 5 seconds - status changes frequently during processing
     gcTime: 60 * 1000, // 1 minute cache
     retry: 3,
     refetchInterval: (query) => {
-      // Auto-refetch every 2 seconds if still processing
-      const status = query?.state?.data?.status;
-      return status && ['pending', 'processing', 'in_progress', 'uploading'].includes(status) ? 2000 : false;
+      const data = query?.state?.data;
+      if (!data) return false;
+
+      // Check if any processing is happening
+      const isParsingInProgress = data.parsing_status &&
+        ['queueing', 'uploading', 'parsing', 'captioning'].includes(data.parsing_status);
+      const isRagflowInProgress = data.ragflow_processing_status &&
+        ['pending', 'uploading', 'parsing'].includes(data.ragflow_processing_status);
+      const isCaptioningInProgress = data.captioning_status &&
+        ['pending', 'in_progress'].includes(data.captioning_status);
+
+      // Stop polling if everything is done or failed
+      if (!isParsingInProgress && !isRagflowInProgress && !isCaptioningInProgress) {
+        return false;
+      }
+
+      // Use exponential backoff: start at 2s, then 3s, then 5s
+      const dataUpdatedAt = query?.state?.dataUpdatedAt || 0;
+      const now = Date.now();
+      const timeSinceLastUpdate = now - dataUpdatedAt;
+
+      if (timeSinceLastUpdate < 10000) {
+        return 2000; // First 10 seconds: poll every 2s
+      } else if (timeSinceLastUpdate < 30000) {
+        return 3000; // 10-30 seconds: poll every 3s
+      } else {
+        return 5000; // After 30 seconds: poll every 5s
+      }
     }
   });
 };
