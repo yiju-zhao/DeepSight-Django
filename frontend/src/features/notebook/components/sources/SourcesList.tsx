@@ -107,39 +107,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     });
   }, [notebookId, refetchFiles, onSelectionChange]);
 
-  // ✅ Derive sources directly from TanStack Query data with selection state
-  const sources = useMemo(() => {
-    if (!parsedFilesResponse?.results) {
-      return [];
-    }
-
-    const data = parsedFilesResponse.results || [];
-
-    return data.map((metadata: FileMetadata) => ({
-      id: metadata.id || 'unknown',
-      name: generatePrincipleTitle(metadata),
-      title: generatePrincipleTitle(metadata),
-      authors: '',
-      ext: getPrincipleFileExtension(metadata),
-      selected: selectedIds.has(metadata.id || ''),  // ✅ Derive selection from Set
-      type: "parsed" as const,
-      createdAt: metadata.upload_timestamp || new Date().toISOString(),
-      file_id: metadata.id,
-      upload_file_id: metadata.upload_file_id,
-      parsing_status: metadata.parsing_status,
-      ragflow_processing_status: (metadata as any).ragflow_processing_status,
-      captioning_status: metadata.captioning_status,
-      metadata: {
-        ...metadata,
-        file_extension: metadata.file_extension || getPrincipleFileExtension(metadata),
-        knowledge_item_id: metadata.id || metadata.knowledge_item_id
-      },
-      error_message: metadata.error_message,
-      originalFile: getPrincipleFileInfo(metadata)
-    }));
-  }, [parsedFilesResponse, selectedIds]);
-
-
   // Get original filename from metadata
   const getOriginalFilename = (metadata: FileMetadata) => {
     return metadata.original_filename ||
@@ -228,6 +195,38 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       processing_method: metadata.processing_method || metadata.processing_type
     };
   };
+
+  // ✅ Derive sources directly from TanStack Query data with selection state
+  const sources = useMemo(() => {
+    if (!parsedFilesResponse?.results) {
+      return [];
+    }
+
+    const data = parsedFilesResponse.results || [];
+
+    return data.map((metadata: FileMetadata) => ({
+      id: metadata.id || 'unknown',
+      name: generatePrincipleTitle(metadata),
+      title: generatePrincipleTitle(metadata),
+      authors: '',
+      ext: getPrincipleFileExtension(metadata),
+      selected: selectedIds.has(metadata.id || ''),  // ✅ Derive selection from Set
+      type: "parsed" as const,
+      createdAt: metadata.upload_timestamp || new Date().toISOString(),
+      file_id: metadata.id,
+      upload_file_id: metadata.upload_file_id,
+      parsing_status: metadata.parsing_status,
+      ragflow_processing_status: (metadata as any).ragflow_processing_status,
+      captioning_status: metadata.captioning_status,
+      metadata: {
+        ...metadata,
+        file_extension: metadata.file_extension || getPrincipleFileExtension(metadata),
+        knowledge_item_id: metadata.id || metadata.knowledge_item_id
+      },
+      error_message: metadata.error_message,
+      originalFile: getPrincipleFileInfo(metadata)
+    }));
+  }, [parsedFilesResponse, selectedIds]);
 
   // Calculate selected count
   const selectedCount = sources.filter((source: Source) => source.selected).length;
