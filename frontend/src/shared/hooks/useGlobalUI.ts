@@ -15,8 +15,6 @@ import {
   clearAllNotifications,
   openModal,
   closeModal,
-  openDeleteConfirmation,
-  closeDeleteConfirmation,
   setGlobalLoading,
   toggleFeature,
   setFeature,
@@ -158,18 +156,6 @@ export const useModals = () => {
     dispatch(closeModal('globalSearch'));
   }, [dispatch]);
 
-  const openDelete = useCallback((
-    title: string, 
-    message: string, 
-    onConfirm: () => void
-  ) => {
-    dispatch(openDeleteConfirmation({ title, message, onConfirm }));
-  }, [dispatch]);
-
-  const closeDelete = useCallback(() => {
-    dispatch(closeDeleteConfirmation());
-  }, [dispatch]);
-
   return {
     modals,
     notebook: {
@@ -181,13 +167,6 @@ export const useModals = () => {
       isOpen: modals.globalSearch,
       open: openGlobalSearch,
       close: closeGlobalSearch,
-    },
-    delete: {
-      isOpen: modals.deleteConfirmation.isOpen,
-      title: modals.deleteConfirmation.title,
-      message: modals.deleteConfirmation.message,
-      open: openDelete,
-      close: closeDelete,
     },
   };
 };

@@ -2,23 +2,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { conferenceService } from '../services/ConferenceService';
 import { DashboardParams, InstanceParams, Venue, Instance, DashboardResponse, ConferenceOverview, PaginatedResponse } from '../types';
-
-// Query keys for better cache management
-export const conferenceKeys = {
-  all: ['conferences'] as const,
-  venues: () => [...conferenceKeys.all, 'venues'] as const,
-  instances: (params?: InstanceParams) => [...conferenceKeys.all, 'instances', params] as const,
-  publications: (params?: any) => [...conferenceKeys.all, 'publications', params] as const,
-  dashboard: (params: DashboardParams) => [...conferenceKeys.all, 'dashboard', params] as const,
-  overview: () => [...conferenceKeys.all, 'overview'] as const,
-};
+import { queryKeys } from '@/shared/queries/keys';
 
 /**
  * Hook to fetch conference venues
  */
 export const useVenues = () => {
   return useQuery<Venue[]>({
-    queryKey: conferenceKeys.venues(),
+    queryKey: [...queryKeys.conferences.all, 'venues'] as const,
     queryFn: conferenceService.getVenues,
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -29,7 +20,7 @@ export const useVenues = () => {
  */
 export const useInstances = () => {
   return useQuery<Instance[]>({
-    queryKey: conferenceKeys.instances(),
+    queryKey: [...queryKeys.conferences.all, 'instances'] as const,
     queryFn: () => conferenceService.getInstances(), // Fetch all instances
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -40,7 +31,7 @@ export const useInstances = () => {
  */
 export const usePublications = (params?: { instance?: number; page?: number; page_size?: number; search?: string; ordering?: string }) => {
   return useQuery({
-    queryKey: conferenceKeys.publications(params),
+    queryKey: [...queryKeys.conferences.all, 'publications', params] as const,
     queryFn: () => conferenceService.getPublications(params),
     enabled: !!params?.instance, // Only fetch when instance is selected
     staleTime: 30 * 1000, // 30 seconds for search results
@@ -56,7 +47,7 @@ export const useDashboard = (params: DashboardParams) => {
   const isEnabled = !!(params.instance || (params.venue && params.year));
 
   return useQuery<DashboardResponse>({
-    queryKey: conferenceKeys.dashboard(params),
+    queryKey: [...queryKeys.conferences.all, 'dashboard', params] as const,
     queryFn: () => conferenceService.getDashboard(params),
     enabled: isEnabled,
     staleTime: 2 * 60 * 1000, // 2 minutes
@@ -69,7 +60,7 @@ export const useDashboard = (params: DashboardParams) => {
  */
 export const useOverview = () => {
   return useQuery<ConferenceOverview>({
-    queryKey: conferenceKeys.overview(),
+    queryKey: [...queryKeys.conferences.all, 'overview'] as const,
     queryFn: conferenceService.getOverview,
     staleTime: 30 * 60 * 1000, // 30 minutes
   });

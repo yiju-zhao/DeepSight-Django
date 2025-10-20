@@ -32,9 +32,7 @@ export const store = configureStore({
           'persist/PAUSE',
           'persist/PURGE',
           'persist/REGISTER',
-          'ui/openDeleteConfirmation', // This action contains a function
         ],
-        ignoredPaths: ['ui.modals.deleteConfirmation.onConfirm'],
       },
     }),
   devTools: import.meta.env.DEV,

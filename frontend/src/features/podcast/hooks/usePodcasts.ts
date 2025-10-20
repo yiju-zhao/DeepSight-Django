@@ -6,18 +6,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PodcastService } from '../services/PodcastService';
 import { Podcast, PodcastFilters, PodcastGenerationRequest } from '../types/type';
-
-// Query keys for better cache management
-export const podcastKeys = {
-  all: ['podcasts'] as const,
-  lists: () => [...podcastKeys.all, 'list'] as const,
-  list: (filters?: PodcastFilters) => [...podcastKeys.lists(), filters] as const,
-  details: () => [...podcastKeys.all, 'detail'] as const,
-  detail: (id: string) => [...podcastKeys.details(), id] as const,
-  audio: (id: string) => [...podcastKeys.all, 'audio', id] as const,
-  stats: () => [...podcastKeys.all, 'stats'] as const,
-  models: () => [...podcastKeys.all, 'models'] as const,
-};
+import { queryKeys } from '@/shared/queries/keys';
 
 /**
  * Hook to fetch all podcasts with optional filters
@@ -27,7 +16,7 @@ export const usePodcasts = (notebookId?: string, filters?: PodcastFilters) => {
   const service = new PodcastService(notebookId);
 
   return useQuery({
-    queryKey: podcastKeys.list(filters),
+    queryKey: queryKeys.podcasts.list(filters),
     queryFn: () => service.getPodcasts(filters),
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes cache
@@ -54,7 +43,7 @@ export const usePodcast = (id: string) => {
   const service = new PodcastService();
 
   return useQuery({
-    queryKey: podcastKeys.detail(id),
+    queryKey: queryKeys.podcasts.detail(id),
     queryFn: () => service.getPodcast(id),
     enabled: !!id,
     staleTime: 30 * 1000, // 30 seconds
@@ -70,7 +59,7 @@ export const usePodcastAudio = (id: string, enabled: boolean = true) => {
   const service = new PodcastService();
 
   return useQuery({
-    queryKey: podcastKeys.audio(id),
+    queryKey: [...queryKeys.podcasts.detail(id), 'audio'] as const,
     queryFn: () => service.getPodcastAudio(id),
     enabled: !!id && enabled,
     staleTime: 10 * 60 * 1000, // 10 minutes - audio doesn't change
@@ -86,7 +75,7 @@ export const usePodcastStats = () => {
   const service = new PodcastService();
 
   return useQuery({
-    queryKey: podcastKeys.stats(),
+    queryKey: [...queryKeys.podcasts.all, 'stats'] as const,
     queryFn: () => service.getPodcastStats(),
     staleTime: 60 * 1000, // 1 minute
     gcTime: 5 * 60 * 1000, // 5 minutes cache
@@ -100,7 +89,7 @@ export const useAvailableModels = () => {
   const service = new PodcastService();
 
   return useQuery({
-    queryKey: podcastKeys.models(),
+    queryKey: [...queryKeys.podcasts.all, 'models'] as const,
     queryFn: () => service.getAvailableModels(),
     staleTime: 60 * 60 * 1000, // 1 hour - models rarely change
     gcTime: 24 * 60 * 60 * 1000, // 24 hours cache
@@ -120,8 +109,8 @@ export const useGeneratePodcast = (notebookId?: string) => {
     mutationFn: (config: PodcastGenerationRequest) => service.generatePodcast(config),
     onSuccess: () => {
       // Invalidate and refetch podcasts list
-      queryClient.invalidateQueries({ queryKey: podcastKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: podcastKeys.stats() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.podcasts.lists() });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.podcasts.all, 'stats'] });
     },
   });
 };
@@ -137,9 +126,9 @@ export const useCancelPodcast = () => {
     mutationFn: (id: string) => service.cancelPodcast(id),
     onSuccess: (_data, id) => {
       // Invalidate the specific podcast and the list
-      queryClient.invalidateQueries({ queryKey: podcastKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: podcastKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: podcastKeys.stats() });
+      queryClient.invalidateQueries({ queryKey: queryKeys.podcasts.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.podcasts.lists() });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.podcasts.all, 'stats'] });
     },
   });
 };
@@ -155,9 +144,9 @@ export const useDeletePodcast = () => {
     mutationFn: (id: string) => service.deletePodcast(id),
     onSuccess: (_data, id) => {
       // Remove from cache and invalidate lists
-      queryClient.removeQueries({ queryKey: podcastKeys.detail(id) });
-      queryClient.invalidateQueries({ queryKey: podcastKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: podcastKeys.stats() });
+      queryClient.removeQueries({ queryKey: queryKeys.podcasts.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.podcasts.lists() });
+      queryClient.invalidateQueries({ queryKey: [...queryKeys.podcasts.all, 'stats'] });
     },
   });
 };

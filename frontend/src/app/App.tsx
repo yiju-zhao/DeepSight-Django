@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
-import { store } from '@/app/store';
+import { store } from '@/shared/store';
 import { Toaster } from "@/shared/components/ui/toaster";
 import { ErrorBoundary } from "@/shared/components/ui/ErrorBoundary";
 import { QueryProvider } from "@/shared/providers/QueryProvider";

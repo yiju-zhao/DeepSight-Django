@@ -7,16 +7,15 @@ import { render, RenderOptions } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { configureStore } from '@reduxjs/toolkit';
 import { createTestQueryClient } from "@/shared/queries/client";
-import rootReducer, { type RootState } from '@/app/rootReducer';
+import { setupStore, type RootState } from '@/shared/store';
 
 // This type interface extends the default options for render from RTL,
 // as well as allows the user to specify other things such as initialState,
 // store, and queryClient.
 interface ExtendedRenderOptions extends Omit<RenderOptions, 'wrapper'> {
   preloadedState?: Partial<RootState>;
-  store?: ReturnType<typeof configureStore>;
+  store?: ReturnType<typeof setupStore>;
   queryClient?: QueryClient;
   routerProps?: {
     initialEntries?: string[];
@@ -29,10 +28,7 @@ export function renderWithProviders(
   {
     preloadedState = {},
     // Automatically create a store instance if no store was passed in
-    store = configureStore({
-      reducer: rootReducer,
-      preloadedState,
-    }),
+    store = setupStore(preloadedState),
     queryClient = createTestQueryClient(),
     routerProps = {},
     ...renderOptions

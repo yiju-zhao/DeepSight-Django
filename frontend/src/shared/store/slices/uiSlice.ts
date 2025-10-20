@@ -10,28 +10,22 @@ interface UiState {
   // Theme and appearance
   theme: ThemeMode;
   sidebarCollapsed: boolean;
-  
+
   // Global UI state
   notifications: Toast[];
-  
-  // Modal state - only for global modals
+
+  // Modal state - only for global modals (no callbacks - use Context for those)
   modals: {
     createNotebook: boolean;
-    deleteConfirmation: {
-      isOpen: boolean;
-      title?: string;
-      message?: string;
-      onConfirm?: () => void;
-    };
     globalSearch: boolean;
   };
-  
+
   // Loading states for global operations
   globalLoading: {
     isInitializing: boolean;
     isSyncing: boolean;
   };
-  
+
   // Feature flags (client-side)
   features: {
     enableBetaFeatures: boolean;
@@ -43,22 +37,19 @@ interface UiState {
 const initialState: UiState = {
   theme: 'system',
   sidebarCollapsed: false,
-  
+
   notifications: [],
-  
+
   modals: {
     createNotebook: false,
-    deleteConfirmation: {
-      isOpen: false,
-    },
     globalSearch: false,
   },
-  
+
   globalLoading: {
     isInitializing: false,
     isSyncing: false,
   },
-  
+
   features: {
     enableBetaFeatures: false,
     enableAdvancedSearch: true,
@@ -110,38 +101,12 @@ export const uiSlice = createSlice({
     // Modal actions
     openModal: (state, action: PayloadAction<keyof UiState['modals']>) => {
       const modalKey = action.payload;
-      if (modalKey === 'deleteConfirmation') {
-        // Handle delete confirmation separately as it has a complex structure
-        return;
-      }
       (state.modals[modalKey] as boolean) = true;
     },
-    
+
     closeModal: (state, action: PayloadAction<keyof UiState['modals']>) => {
       const modalKey = action.payload;
-      if (modalKey === 'deleteConfirmation') {
-        state.modals.deleteConfirmation = { isOpen: false };
-        return;
-      }
       (state.modals[modalKey] as boolean) = false;
-    },
-    
-    openDeleteConfirmation: (
-      state,
-      action: PayloadAction<{
-        title: string;
-        message: string;
-        onConfirm: () => void;
-      }>
-    ) => {
-      state.modals.deleteConfirmation = {
-        isOpen: true,
-        ...action.payload,
-      };
-    },
-    
-    closeDeleteConfirmation: (state) => {
-      state.modals.deleteConfirmation = { isOpen: false };
     },
     
     // Global loading actions
@@ -185,8 +150,6 @@ export const {
   clearAllNotifications,
   openModal,
   closeModal,
-  openDeleteConfirmation,
-  closeDeleteConfirmation,
   setGlobalLoading,
   toggleFeature,
   setFeature,

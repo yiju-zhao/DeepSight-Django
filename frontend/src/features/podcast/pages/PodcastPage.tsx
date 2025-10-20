@@ -1,83 +1,66 @@
-import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch } from '@/app/store';
-import { 
-  fetchPodcasts, 
-  fetchPodcast,
-  selectFilteredPodcasts, 
-  selectPodcastLoading, 
-  selectPodcastError,
-  selectViewMode,
-  selectSortOrder,
-  selectSearchTerm,
-  selectFilters,
-  selectPodcastStats,
-  setSearchTerm,
-  setSortOrder,
-  setViewMode,
-  setFilters,
-  clearError
-} from "@/features/podcast/podcastSlice";
+import React, { useEffect, useState, useMemo } from 'react';
+import {
+  usePodcasts,
+  usePodcast,
+  usePodcastStats,
+  useDeletePodcast,
+} from '@/features/podcast/hooks/usePodcasts';
+import { PodcastService } from '@/features/podcast/services/PodcastService';
 import PodcastList from "@/features/podcast/components/PodcastList";
 import PodcastFilters from "@/features/podcast/components/PodcastFilters";
 import PodcastStats from "@/features/podcast/components/PodcastStats";
 import PodcastDetail from "@/features/podcast/components/PodcastDetail";
-import { Podcast } from "@/features/podcast/types/type";
+import { Podcast, PodcastFilters as PodcastFiltersType } from "@/features/podcast/types/type";
 import { config } from "@/config";
 
 const PodcastPage: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const podcasts = useSelector(selectFilteredPodcasts);
-  const isLoading = useSelector(selectPodcastLoading);
-  const error = useSelector(selectPodcastError);
-  const viewMode = useSelector(selectViewMode);
-  const sortOrder = useSelector(selectSortOrder);
-  const searchTerm = useSelector(selectSearchTerm);
-  const filters = useSelector(selectFilters);
-  const stats = useSelector(selectPodcastStats);
-
+  // UI state (local)
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortOrder, setSortOrder] = useState<'recent' | 'oldest' | 'title'>('recent');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [filters, setFilters] = useState<PodcastFiltersType>({});
   const [selectedPodcast, setSelectedPodcast] = useState<Podcast | null>(null);
   const [showDetail, setShowDetail] = useState(false);
 
-  useEffect(() => {
-    dispatch(fetchPodcasts(filters));
-  }, [dispatch, filters]);
+  // Server state (TanStack Query)
+  const { data: podcasts = [], isLoading, error } = usePodcasts(undefined, filters);
+  const { data: stats } = usePodcastStats();
+  const deletePodcastMutation = useDeletePodcast();
 
-  // Refresh podcasts when navigating back from detail view
-  useEffect(() => {
-    if (!showDetail && selectedPodcast) {
-      // When returning from detail view, refresh the list to get latest data
-      dispatch(fetchPodcasts(filters));
+  // Service for client-side filtering and sorting
+  const podcastService = useMemo(() => new PodcastService(), []);
+
+  // Derived data: filtered and sorted podcasts
+  const processedPodcasts = useMemo(() => {
+    let result = [...podcasts];
+
+    // Apply search filter
+    if (searchTerm) {
+      result = podcastService.filterPodcasts(result, { ...filters, search: searchTerm });
     }
-  }, [showDetail, dispatch, filters]);
+
+    // Apply sorting
+    result = podcastService.sortPodcasts(result, sortOrder);
+
+    return result;
+  }, [podcasts, searchTerm, filters, sortOrder, podcastService]);
+
+  // Fetch detailed podcast data when selecting a completed podcast
+  const { data: detailedPodcast, refetch: refetchPodcast } = usePodcast(
+    selectedPodcast?.id || ''
+  );
 
   useEffect(() => {
-    if (error) {
-      // Auto-clear error after 5 seconds
-      const timer = setTimeout(() => {
-        dispatch(clearError());
-      }, 5000);
-      return () => clearTimeout(timer);
+    if (selectedPodcast && selectedPodcast.status === 'completed') {
+      refetchPodcast();
     }
-    
-    // Always return a cleanup function (even if it does nothing)
-    return () => {};
-  }, [error, dispatch]);
+  }, [selectedPodcast, refetchPodcast]);
+
+  // Use detailed podcast if available, fallback to selected
+  const displayPodcast = detailedPodcast || selectedPodcast;
 
   const handleSelectPodcast = async (podcast: Podcast) => {
-    // If the podcast is completed, fetch the latest data to ensure we have the audio URL
-    if (podcast.status === 'completed') {
-      try {
-        const updatedPodcast = await dispatch(fetchPodcast(podcast.id)).unwrap();
-        setSelectedPodcast(updatedPodcast);
-      } catch (error) {
-        console.error('Failed to fetch podcast details:', error);
-        // Still show the detail page with the data we have
-        setSelectedPodcast(podcast);
-      }
-    } else {
-      setSelectedPodcast(podcast);
-    }
+    setSelectedPodcast(podcast);
     setShowDetail(true);
   };
 
@@ -87,19 +70,19 @@ const PodcastPage: React.FC = () => {
   };
 
   const handleSearchChange = (term: string) => {
-    dispatch(setSearchTerm(term));
+    setSearchTerm(term);
   };
 
   const handleSortChange = (order: 'recent' | 'oldest' | 'title') => {
-    dispatch(setSortOrder(order));
+    setSortOrder(order);
   };
 
   const handleViewModeChange = (mode: 'grid' | 'list') => {
-    dispatch(setViewMode(mode));
+    setViewMode(mode);
   };
 
-  const handleFiltersChange = (newFilters: any) => {
-    dispatch(setFilters(newFilters));
+  const handleFiltersChange = (newFilters: PodcastFiltersType) => {
+    setFilters(newFilters);
   };
 
   const handleDownloadPodcast = async (podcast: Podcast) => {
@@ -107,20 +90,22 @@ const PodcastPage: React.FC = () => {
       console.error('No notebook ID found for podcast');
       return;
     }
-    
+
     try {
       // Directly navigate to the download endpoint, let browser handle the download
       const downloadUrl = `${config.API_BASE_URL}/podcasts/jobs/${podcast.id}/download/`;
       window.open(downloadUrl, '_blank');
     } catch (error) {
       console.error('Failed to download podcast:', error);
-      // You could show a toast notification here
     }
   };
 
-  const handleDeletePodcast = (podcast: Podcast) => {
-    // This would be implemented with the delete action
-    console.log('Deleting podcast:', podcast.id);
+  const handleDeletePodcast = async (podcast: Podcast) => {
+    try {
+      await deletePodcastMutation.mutateAsync(podcast.id);
+    } catch (error) {
+      console.error('Failed to delete podcast:', error);
+    }
   };
 
   const handlePlayPodcast = (podcast: Podcast) => {
@@ -133,11 +118,11 @@ const PodcastPage: React.FC = () => {
     console.log('Editing podcast:', podcast.id);
   };
 
-  if (showDetail && selectedPodcast) {
+  if (showDetail && displayPodcast) {
     return (
       <PodcastDetail
-        podcast={selectedPodcast}
-        audio={selectedPodcast.audioUrl ? { audioUrl: selectedPodcast.audioUrl } : undefined}
+        podcast={displayPodcast}
+        audio={displayPodcast.audioUrl ? { audioUrl: displayPodcast.audioUrl } : undefined}
         isLoading={isLoading}
         onDownload={handleDownloadPodcast}
         onDelete={handleDeletePodcast}
@@ -160,18 +145,20 @@ const PodcastPage: React.FC = () => {
         </div>
 
         {/* Stats */}
-        <div className="mb-6">
-          <PodcastStats stats={stats} />
-        </div>
+        {stats && (
+          <div className="mb-6">
+            <PodcastStats stats={stats} />
+          </div>
+        )}
 
         {/* Filters and Controls */}
         <div className="mb-6 bg-white rounded-lg shadow p-6">
           <PodcastFilters
             filters={filters}
             onFiltersChange={handleFiltersChange}
-            stats={stats}
+            stats={stats || { total: 0, completed: 0, failed: 0, pending: 0, generating: 0, cancelled: 0 }}
           />
-          
+
           {/* Search and View Controls */}
           <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="flex-1 max-w-md">
@@ -183,7 +170,7 @@ const PodcastPage: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            
+
             <div className="flex items-center gap-4">
               {/* Sort Order */}
               <select
@@ -201,8 +188,8 @@ const PodcastPage: React.FC = () => {
                 <button
                   onClick={() => handleViewModeChange('grid')}
                   className={`px-3 py-2 ${
-                    viewMode === 'grid' 
-                      ? 'bg-blue-500 text-white' 
+                    viewMode === 'grid'
+                      ? 'bg-blue-500 text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   } rounded-l-md`}
                 >
@@ -211,8 +198,8 @@ const PodcastPage: React.FC = () => {
                 <button
                   onClick={() => handleViewModeChange('list')}
                   className={`px-3 py-2 ${
-                    viewMode === 'list' 
-                      ? 'bg-blue-500 text-white' 
+                    viewMode === 'list'
+                      ? 'bg-blue-500 text-white'
                       : 'bg-white text-gray-700 hover:bg-gray-50'
                   } rounded-r-md`}
                 >
@@ -233,7 +220,7 @@ const PodcastPage: React.FC = () => {
                 </svg>
               </div>
               <div className="ml-3">
-                <p className="text-sm text-red-800">{error}</p>
+                <p className="text-sm text-red-800">{error instanceof Error ? error.message : 'An error occurred'}</p>
               </div>
             </div>
           </div>
@@ -242,7 +229,7 @@ const PodcastPage: React.FC = () => {
         {/* Podcasts List */}
         <div className="bg-white rounded-lg shadow">
           <PodcastList
-            podcasts={podcasts}
+            podcasts={processedPodcasts}
             isLoading={isLoading}
             onSelectPodcast={handleSelectPodcast}
             onDownloadPodcast={handleDownloadPodcast}
@@ -255,14 +242,14 @@ const PodcastPage: React.FC = () => {
         </div>
 
         {/* Empty State */}
-        {!isLoading && podcasts.length === 0 && (
+        {!isLoading && processedPodcasts.length === 0 && (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900">No podcasts found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || Object.keys(filters).length > 0 
+              {searchTerm || Object.keys(filters).length > 0
                 ? 'Try adjusting your search or filters.'
                 : 'Get started by creating your first AI podcast discussion.'
               }
@@ -274,4 +261,4 @@ const PodcastPage: React.FC = () => {
   );
 };
 
-export default PodcastPage; 
+export default PodcastPage;

@@ -5,4 +5,3 @@ export * from './components';
 export * from './hooks/useConference';
 export * from './services/ConferenceService';
 export * from './types';
-export { default as conferenceSlice } from './conferenceSlice';
