@@ -110,12 +110,15 @@ export const useGenerateReport = (notebookId: string) => {
 
 export const useGeneratePodcast = (notebookId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (formData: FormData) => studioService.generatePodcast(formData, notebookId),
     onSuccess: () => {
-      // Invalidate podcast jobs to show the new job
+      // Force immediate refetch to show the new job
       queryClient.invalidateQueries({
+        queryKey: studioKeys.podcastJobs(notebookId),
+      });
+      queryClient.refetchQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
       });
     },
@@ -150,9 +153,11 @@ export const useDeletePodcast = (notebookId: string) => {
   return useMutation({
     mutationFn: (jobId: string) => studioService.deletePodcast(jobId, notebookId),
     onSuccess: () => {
-      // Invalidate the query for the podcast jobs list.
-      // This will cause React Query to mark the data as stale and refetch it automatically.
+      // Force immediate refetch to ensure UI updates
       queryClient.invalidateQueries({
+        queryKey: studioKeys.podcastJobs(notebookId),
+      });
+      queryClient.refetchQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
       });
     },
