@@ -146,8 +146,18 @@ export const useGenerationManager = (
             // If job completed, trigger completion flow
             if (jobData.status === 'completed') {
               handleJobComplete(jobData);
-            } else if (jobData.status === 'failed') {
-              handleJobError(jobData.error || 'Job failed');
+            } else if (jobData.status === 'failed' || jobData.status === 'error') {
+              handleJobError(jobData.error_message || jobData.error || 'Job failed');
+            } else if (jobData.status === 'cancelled') {
+              // Treat as terminal: clear active job and refresh list
+              queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
+              const listKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
+              queryClient.invalidateQueries({ queryKey: listKey });
+              queryClient.refetchQueries({ queryKey: listKey });
+              if (sseControllerRef.current) {
+                sseControllerRef.current.abort();
+                sseControllerRef.current = null;
+              }
             }
           }
         } catch (error) {
@@ -205,18 +215,20 @@ export const useGenerationManager = (
 
   // Job error handler
   const handleJobError = useCallback((error: string) => {
-    // Update active job with error
-    queryClient.setQueryData(
-      generationKeys.activeJob(notebookId, type),
-      (old: ActiveJob | null) => old ? { ...old, status: 'failed' as const, progress: error } : null
-    );
+    // Clear active job immediately so UI does not treat it as generating
+    queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
+
+    // Refresh list to show error state
+    const listKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
+    queryClient.invalidateQueries({ queryKey: listKey });
+    queryClient.refetchQueries({ queryKey: listKey });
 
     // Stop SSE
     if (sseControllerRef.current) {
       sseControllerRef.current.abort();
       sseControllerRef.current = null;
     }
-  }, [queryClient, notebookId]);
+  }, [queryClient, notebookId, type]);
 
   // Generation mutation
   const generateMutation = useMutation({

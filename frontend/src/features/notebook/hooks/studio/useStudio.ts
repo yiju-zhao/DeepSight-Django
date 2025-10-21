@@ -165,16 +165,6 @@ export const useDeletePodcast = (notebookId: string) => {
       queryClient.setQueryData(['generation', 'notebook', notebookId, 'active-job', 'podcast'], (old: any) => {
         return old?.jobId === jobId ? null : old;
       });
-
-      // Optimistically remove the deleted job from cache for instant UI feedback
-      queryClient.setQueryData(studioKeys.podcastJobs(notebookId), (old: any) => {
-        if (!old?.jobs) return old;
-        return {
-          ...old,
-          jobs: old.jobs.filter((job: any) => job.id !== jobId && job.job_id !== jobId),
-        };
-      });
-
       // Force immediate refetch to ensure UI updates
       queryClient.invalidateQueries({
         queryKey: studioKeys.podcastJobs(notebookId),

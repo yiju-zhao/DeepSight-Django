@@ -271,10 +271,15 @@ class StudioService {
     const jobs = response.results || response || [];
 
     // Normalize the ID field to ensure consistency, similar to listReportJobs
-    const normalizedJobs = jobs.map((job: any) => ({
-      ...job,
-      id: job.id || job.job_id, // Ensure a consistent ID property
-    }));
+    const normalizedJobs = jobs.map((job: any) => {
+      // Normalize status to align with report conventions
+      const normalizedStatus = job.status === 'error' ? 'failed' : job.status;
+      return {
+        ...job,
+        id: job.id || job.job_id,
+        status: normalizedStatus,
+      };
+    });
 
     return { 
       jobs: normalizedJobs

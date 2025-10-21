@@ -407,8 +407,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, [notebookId, toast]);
 
   const handleDeleteReport = useCallback(async (report: ReportItem) => {
-    const isGenerating = report.status === 'running' || report.status === 'pending' ||
-                        (reportGeneration.activeJob && reportGeneration.activeJob.jobId === report.id);
+    const isGenerating = (report.status === 'running' || report.status === 'pending') ||
+                        (reportGeneration.activeJob && reportGeneration.activeJob.jobId === report.id &&
+                         (reportGeneration.activeJob.status === 'running' || reportGeneration.activeJob.status === 'pending'));
 
     const confirmMessage = isGenerating
       ? 'Are you sure you want to cancel and delete this report?'
@@ -431,23 +432,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
 
       if (isGenerating) {
-        // Cancel and delete the generation synchronously via the backend
+        // Cancel and delete via backend
         await reportGeneration.cancel(reportId);
-
-        // Force immediate refresh of the job list to remove the cancelled job
-        await reportJobs.refetch();
-
-        toast({
-          title: "Report Cancelled",
-          description: "Report generation has been cancelled and removed"
-        });
+        toast({ title: "Report Cancelled", description: "Generation cancelled and removed" });
       } else {
-        // Delete the completed report
         await deleteReportMutation.mutateAsync(reportId);
-        toast({
-          title: "Report Deleted",
-          description: "The report has been deleted successfully"
-        });
+        toast({ title: "Report Deleted", description: "Deleted successfully" });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -461,8 +451,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, [deleteReportMutation, selectedFile, toast, reportGeneration]);
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
-    const isGenerating = podcast.status === 'running' || podcast.status === 'generating' || podcast.status === 'pending' ||
-                        (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === podcast.id);
+    const isGenerating = (podcast.status === 'running' || podcast.status === 'generating' || podcast.status === 'pending') ||
+                        (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === podcast.id &&
+                         (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'generating' || podcastGeneration.activeJob.status === 'pending'));
 
     const confirmMessage = isGenerating
       ? 'Are you sure you want to cancel this podcast generation?'
@@ -485,27 +476,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
 
       if (isGenerating) {
-        // Cancel and delete the generation synchronously via the backend
+        // Cancel and delete via backend
         await podcastGeneration.cancel(podcastId);
-
-        // Force immediate refresh of the job list to remove the cancelled job
-        await podcastJobs.refetch();
-
-        toast({
-          title: "Generation Cancelled",
-          description: "Podcast generation has been cancelled and removed"
-        });
+        toast({ title: "Generation Cancelled", description: "Podcast cancelled and removed" });
       } else {
-        // Delete the completed podcast
         await deletePodcastMutation.mutateAsync(podcastId);
-
-        // Force immediate refresh of the job list to remove the deleted podcast
-        await podcastJobs.refetch();
-
-        toast({
-          title: "Podcast Deleted",
-          description: "The podcast has been deleted successfully"
-        });
+        toast({ title: "Podcast Deleted", description: "Deleted successfully" });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -761,8 +737,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
                       if (item.type === 'report') {
                         // Check if this report is currently being generated
-                        const isGenerating = item.status === 'running' || item.status === 'pending' ||
-                                            (reportGeneration.activeJob && reportGeneration.activeJob.jobId === item.id);
+                        const isGenerating = (item.status === 'running' || item.status === 'pending') ||
+                          (reportGeneration.activeJob && reportGeneration.activeJob.jobId === item.id &&
+                           (reportGeneration.activeJob.status === 'running' || reportGeneration.activeJob.status === 'pending'));
 
                         const sourceCount = getSourceCount(item);
                         const timeAgo = getRelativeTime(item.created_at);
@@ -847,8 +824,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                       } else if (item.type === 'podcast') {
                         const isExpanded = expandedPodcasts.has(itemId);
                         // Check if this podcast is currently being generated
-                        const isGenerating = item.status === 'running' || item.status === 'generating' || item.status === 'pending' ||
-                                            (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === item.id);
+                        const isGenerating = (item.status === 'running' || item.status === 'generating' || item.status === 'pending') ||
+                          (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === item.id &&
+                           (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'generating' || podcastGeneration.activeJob.status === 'pending'));
 
                         const sourceCount = getSourceCount(item);
                         const timeAgo = getRelativeTime(item.created_at);
