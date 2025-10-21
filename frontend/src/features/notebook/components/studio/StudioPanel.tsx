@@ -498,6 +498,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       } else {
         // Delete the completed podcast
         await deletePodcastMutation.mutateAsync(podcastId);
+
+        // Force immediate refresh of the job list to remove the deleted podcast
+        await podcastJobs.refetch();
+
         toast({
           title: "Podcast Deleted",
           description: "The podcast has been deleted successfully"
