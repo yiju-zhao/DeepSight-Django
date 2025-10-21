@@ -149,17 +149,10 @@ export const useDeletePodcast = (notebookId: string) => {
 
   return useMutation({
     mutationFn: (jobId: string) => studioService.deletePodcast(jobId, notebookId),
-    onSuccess: (data, jobId) => {
-      // Clear any active generation job for this podcast
-      queryClient.setQueryData(['generation', 'notebook', notebookId, 'active-job', 'podcast'], (old: any) => {
-        return old?.jobId === jobId ? null : old;
-      });
-
-      // Force immediate refetch to ensure UI updates
+    onSuccess: () => {
+      // Invalidate the query for the podcast jobs list.
+      // This will cause React Query to mark the data as stale and refetch it automatically.
       queryClient.invalidateQueries({
-        queryKey: studioKeys.podcastJobs(notebookId),
-      });
-      queryClient.refetchQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
       });
     },
