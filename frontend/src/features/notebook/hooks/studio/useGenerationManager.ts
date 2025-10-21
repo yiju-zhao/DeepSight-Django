@@ -53,7 +53,7 @@ export const useGenerationManager = (
         : await studioService.listPodcastJobs(notebookId);
 
       const runningJob = jobs.jobs?.find((job: any) =>
-        job.status === 'running' || job.status === 'pending'
+        job.status === 'running' || job.status === 'generating' || job.status === 'pending'
       );
 
       if (runningJob) {
@@ -175,8 +175,9 @@ export const useGenerationManager = (
       type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId)
     ) as any;
 
+    const completedId = jobData.jobId || jobData.job_id || jobData.id;
     const jobExists = currentData?.jobs?.some((job: any) =>
-      (job.id === jobData.jobId || job.job_id === jobData.jobId) && job.status !== 'deleted'
+      (job.id === completedId || job.job_id === completedId) && job.status !== 'deleted'
     );
 
     // Only invalidate if the job wasn't deleted
@@ -273,8 +274,8 @@ export const useGenerationManager = (
           progress: `Starting ${type} generation...`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          title: config.article_title || config.topic || `New ${type}`,
-          article_title: config.article_title || config.topic || `New ${type}`,
+          title: (config as any).title || (config as any).article_title || (config as any).topic || `New ${type}`,
+          article_title: (config as any).article_title || (config as any).topic || `New ${type}`,
         };
 
         const existingJobs = old?.jobs || [];
@@ -340,7 +341,7 @@ export const useGenerationManager = (
     // State
     activeJob: activeJobQuery.data,
     config,
-    isGenerating: !!activeJobQuery.data && (activeJobQuery.data.status === 'running' || activeJobQuery.data.status === 'pending'),
+    isGenerating: !!activeJobQuery.data && (activeJobQuery.data.status === 'running' || activeJobQuery.data.status === 'generating' || activeJobQuery.data.status === 'pending'),
     progress: activeJobQuery.data?.progress || '',
     error: activeJobQuery.data?.status === 'failed' ? activeJobQuery.data.progress : null,
 

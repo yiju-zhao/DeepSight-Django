@@ -461,7 +461,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, [deleteReportMutation, selectedFile, toast, reportGeneration]);
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
-    const isGenerating = podcast.status === 'running' || podcast.status === 'pending' ||
+    const isGenerating = podcast.status === 'running' || podcast.status === 'generating' || podcast.status === 'pending' ||
                         (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === podcast.id);
 
     const confirmMessage = isGenerating
@@ -847,7 +847,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                       } else if (item.type === 'podcast') {
                         const isExpanded = expandedPodcasts.has(itemId);
                         // Check if this podcast is currently being generated
-                        const isGenerating = item.status === 'running' || item.status === 'pending' ||
+                        const isGenerating = item.status === 'running' || item.status === 'generating' || item.status === 'pending' ||
                                             (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === item.id);
 
                         const sourceCount = getSourceCount(item);

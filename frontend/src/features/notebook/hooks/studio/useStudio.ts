@@ -54,6 +54,14 @@ export const usePodcastJobs = (notebookId: string) => {
     retry: 2,
     refetchOnWindowFocus: true, // Enable refetch on tab focus to catch updates
     refetchOnMount: true, // Always refetch on mount to ensure fresh data
+    // Auto-refresh when there are active jobs
+    refetchInterval: (query) => {
+      const data: any = query?.state?.data;
+      const jobs = data?.jobs || [];
+      const hasActiveJobs = jobs.some((job: any) => job.status === 'generating' || job.status === 'pending');
+      return hasActiveJobs ? 5000 : false; // 5 seconds when active
+    },
+    refetchIntervalInBackground: true,
     select: (data) => ({
       ...data,
       jobs: data.jobs || [],
@@ -156,6 +164,15 @@ export const useDeletePodcast = (notebookId: string) => {
       // Clear any active generation job for this podcast
       queryClient.setQueryData(['generation', 'notebook', notebookId, 'active-job', 'podcast'], (old: any) => {
         return old?.jobId === jobId ? null : old;
+      });
+
+      // Optimistically remove the deleted job from cache for instant UI feedback
+      queryClient.setQueryData(studioKeys.podcastJobs(notebookId), (old: any) => {
+        if (!old?.jobs) return old;
+        return {
+          ...old,
+          jobs: old.jobs.filter((job: any) => job.id !== jobId && job.job_id !== jobId),
+        };
       });
 
       // Force immediate refetch to ensure UI updates
