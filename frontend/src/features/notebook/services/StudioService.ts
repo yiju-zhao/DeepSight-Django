@@ -268,8 +268,16 @@ class StudioService {
     }
     
     const response = await apiClient.get(`/podcasts/jobs/?notebook=${encodeURIComponent(notebookId)}`);
+    const jobs = response.results || response || [];
+
+    // Normalize the ID field to ensure consistency, similar to listReportJobs
+    const normalizedJobs = jobs.map((job: any) => ({
+      ...job,
+      id: job.id || job.job_id, // Ensure a consistent ID property
+    }));
+
     return { 
-      jobs: response.results || response || []
+      jobs: normalizedJobs
     };
   }
 

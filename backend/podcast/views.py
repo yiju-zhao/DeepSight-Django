@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
 from django.http import StreamingHttpResponse, HttpResponse
-from rest_framework import status, permissions
+from rest_framework import status, permissions, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 import logging
@@ -88,43 +88,55 @@ class PodcastJobListCreateView(APIView):
             return Response({"error": f"Failed to create podcast-job: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class PodcastJobDetailView(APIView):
-    """Canonical: Retrieve or delete a specific podcast job by job_id"""
+from rest_framework import generics
+
+
+class PodcastJobDetailView(generics.RetrieveDestroyAPIView):
+    """
+    Canonical: Retrieve or delete a specific podcast job by job_id.
+    Handles GET and DELETE requests for a podcast job.
+    """
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = PodcastSerializer
+    lookup_field = 'id'
+    lookup_url_kwarg = 'job_id'
 
-    def get_job(self, job_id):
-        return get_object_or_404(Podcast.objects.filter(user=self.request.user), id=job_id)
+    def get_queryset(self):
+        """Ensure users can only access their own podcasts."""
+        return Podcast.objects.filter(user=self.request.user)
 
-    def get(self, request, job_id):
+    def perform_destroy(self, instance):
+        """
+        Override to delete the associated audio file from MinIO before deleting the object.
+        """
+        if instance.audio_object_key:
+            try:
+                from notebooks.utils.storage import get_minio_backend
+                minio_backend = get_minio_backend()
+                minio_backend.delete_file(instance.audio_object_key)
+                logger.info(f"Successfully deleted podcast audio file for job {instance.id}")
+            except Exception as e:
+                # Log the error but don't block the deletion of the database record
+                logger.error(f"Error deleting podcast audio file for job {instance.id}: {e}")
+        
+        instance.delete()
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Override destroy to add cache-control headers to the response.
+        """
         try:
-            job = self.get_job(job_id)
-            serializer = PodcastSerializer(job)
-            return Response(serializer.data)
-        except Exception as e:
-            logger.error(f"Error retrieving podcast job {job_id}: {e}")
-            return Response({"error": f"Failed to retrieve job: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-    def delete(self, request, job_id):
-        try:
-            job = self.get_job(job_id)
-
-            if job.audio_object_key:
-                try:
-                    from notebooks.utils.storage import get_minio_backend
-                    minio_backend = get_minio_backend()
-                    minio_backend.delete_file(job.audio_object_key)
-                    logger.info(f"Successfully deleted podcast audio file for job {job_id}")
-                except Exception as e:
-                    logger.error(f"Error deleting podcast audio file for job {job_id}: {e}")
-
-            job.delete()
+            instance = self.get_object()
+            self.perform_destroy(instance)
             response = Response(status=status.HTTP_204_NO_CONTENT)
             response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             response['Pragma'] = 'no-cache'
             response['Expires'] = '0'
             return response
         except Exception as e:
-            logger.error(f"Error deleting podcast job {job_id}: {e}")
+            logger.error(f"Error deleting podcast job {kwargs.get(self.lookup_url_kwarg)}: {e}")
+            # The default exception handler will return a 404 if get_object() fails
+            # We add a generic handler for other potential errors during deletion.
             return Response({"error": f"Failed to delete job: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
