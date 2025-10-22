@@ -259,15 +259,6 @@ MINIMAX_API_KEY = None
 HIGGS_API_BASE = os.getenv('HIGGS_API_BASE', 'http://localhost:8000/v1')
 HIGGS_TTS_MODEL = os.getenv('HIGGS_TTS_MODEL')  # optional; if not set, first available model is used
 
-# Podcast TTS Controls
-TTS_ENABLE_NORMALIZATION = os.getenv('TTS_ENABLE_NORMALIZATION', 'true').lower() in ('1', 'true', 'yes')
-TTS_SCENE_PROMPT = os.getenv('TTS_SCENE_PROMPT', 'Audio is recorded from a quiet room.')
-TTS_MAX_CHARS_PER_CHUNK = int(os.getenv('TTS_MAX_CHARS_PER_CHUNK', '800'))
-TTS_TARGET_SAMPLE_RATE = int(os.getenv('TTS_TARGET_SAMPLE_RATE', '24000'))
-TTS_CROSSFADE_MS = int(os.getenv('TTS_CROSSFADE_MS', '10'))  # per-segment fade in/out duration
-TTS_HISTORY_WINDOW = int(os.getenv('TTS_HISTORY_WINDOW', '0'))  # 0 disables adding short per-speaker history
-TTS_ENABLE_PARALLEL = os.getenv('TTS_ENABLE_PARALLEL', 'false').lower() in ('1', 'true', 'yes')
-
 # Document Processing
 MINERU_BASE_URL = os.getenv("MINERU_BASE_URL")
 
