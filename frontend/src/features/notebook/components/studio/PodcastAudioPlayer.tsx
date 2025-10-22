@@ -28,6 +28,13 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [retryAttempts, setRetryAttempts] = useState(0);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast>(podcast);
+  const audioMime = React.useMemo(() => {
+    const lower = (audioUrl || '').toLowerCase();
+    if (!lower) return undefined;
+    if (lower.includes('.wav')) return 'audio/wav';
+    if (lower.includes('.mp3')) return 'audio/mpeg';
+    return undefined;
+  }, [audioUrl]);
 
   const formatDate = (dateString?: string): string => {
     if (!dateString) return '';
@@ -149,21 +156,15 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
           </span>
         </div>
       ) : audioUrl ? (
-        {(() => {
-          const lower = (audioUrl || '').toLowerCase();
-          const mime = lower.includes('.wav') ? 'audio/wav' : lower.includes('.mp3') ? 'audio/mpeg' : undefined;
-          return (
         <audio 
           controls 
           className="w-full"
           preload="metadata"
           style={{ height: '40px' }}
         >
-          {mime ? <source src={audioUrl!} type={mime} /> : <source src={audioUrl!} />}
+          {audioMime ? <source src={audioUrl} type={audioMime} /> : <source src={audioUrl} />}
           Your browser does not support the audio element.
         </audio>
-          );
-        })()}
       ) : (
         <div className="text-center py-2 text-gray-500 text-sm">
           {retryAttempts >= 5 ? 'Audio not available after retries' : 'Audio not available'}

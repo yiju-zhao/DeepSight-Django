@@ -218,12 +218,12 @@ class PodcastJobDownloadView(APIView):
                 from notebooks.utils.storage import get_minio_backend
                 minio_backend = get_minio_backend()
                 safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                filename = f"{safe_title}.mp3" if safe_title else f"podcast-{job.id}.mp3"
+                filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
                 download_url = minio_backend.get_presigned_url(
                     object_key=job.audio_object_key,
                     response_headers={
                         'Content-Disposition': f'attachment; filename="{filename}"',
-                        'Content-Type': 'audio/mpeg'
+                        'Content-Type': 'audio/wav'
                     }
                 )
                 if not download_url:
