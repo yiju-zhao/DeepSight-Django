@@ -59,51 +59,86 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
     setRetryAttempts(0); // Reset retry attempts when podcast changes
   }, [podcast]);
 
-  // Load audio URL with retry logic
+  // Load audio URL with retry logic - fetch as blob to avoid CORS issues
   useEffect(() => {
     const loadAudio = async () => {
       setIsLoading(true);
-      
+
       try {
-        const podcastService = new PodcastService(notebookId);
-        let url = podcastService.getAudioUrl(currentPodcast);
-        
-        // If no URL found, try to fetch fresh podcast data
-        if (!url && currentPodcast.id) {
-          try {
-            console.log('No audio URL found, fetching fresh podcast data for:', currentPodcast.id);
-            const freshPodcast = await podcastService.getPodcast(currentPodcast.id);
-            url = podcastService.getAudioUrl(freshPodcast);
-            
-            if (url) {
-              // Update the current podcast with fresh data
-              setCurrentPodcast(freshPodcast);
-            }
-          } catch (fetchError) {
-            console.error('Failed to fetch fresh podcast data:', fetchError);
-            
-            // Retry with exponential backoff if we haven't exceeded max attempts
-            if (retryAttempts < 5) {
-              const delay = Math.min(1000 * Math.pow(2, retryAttempts), 10000); // Max 10 seconds
-              console.log(`Retrying audio load in ${delay}ms (attempt ${retryAttempts + 1}/5)`);
-              setTimeout(() => {
-                setRetryAttempts(prev => prev + 1);
-              }, delay);
+        if (!currentPodcast.id) {
+          console.log('No podcast ID available');
+          setAudioUrl(null);
+          return;
+        }
+
+        // Fetch audio as blob to handle MinIO redirect properly
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const audioEndpoint = `${apiBaseUrl}/podcasts/${currentPodcast.id}/audio/`;
+
+        const response = await fetch(audioEndpoint, {
+          method: 'GET',
+          credentials: 'include',
+          redirect: 'manual'
+        });
+
+        // Handle redirect to MinIO
+        if (response.status === 302 || response.status === 301) {
+          const redirectUrl = response.headers.get('Location');
+          if (redirectUrl) {
+            // Fetch from MinIO without credentials to avoid CORS issues
+            const minioResponse = await fetch(redirectUrl, {
+              method: 'GET',
+              credentials: 'omit',
+              mode: 'cors'
+            });
+
+            if (minioResponse.ok) {
+              const blob = await minioResponse.blob();
+              const blobUrl = URL.createObjectURL(blob);
+              setAudioUrl(blobUrl);
+              return;
+            } else {
+              throw new Error(`MinIO audio fetch failed: ${minioResponse.status}`);
             }
           }
         }
-        
-        setAudioUrl(url);
+
+        // Direct response (no redirect)
+        if (response.ok) {
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          setAudioUrl(blobUrl);
+          return;
+        }
+
+        throw new Error(`Audio fetch failed: ${response.status}`);
       } catch (error) {
-        console.error('Error getting audio URL:', error);
-        setAudioUrl(null);
+        console.error('Error loading audio:', error);
+
+        // Retry with exponential backoff if we haven't exceeded max attempts
+        if (retryAttempts < 5) {
+          const delay = Math.min(1000 * Math.pow(2, retryAttempts), 10000); // Max 10 seconds
+          console.log(`Retrying audio load in ${delay}ms (attempt ${retryAttempts + 1}/5)`);
+          setTimeout(() => {
+            setRetryAttempts(prev => prev + 1);
+          }, delay);
+        } else {
+          setAudioUrl(null);
+        }
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     loadAudio();
-  }, [currentPodcast, notebookId, retryAttempts]);
+
+    // Cleanup: revoke blob URL when component unmounts or podcast changes
+    return () => {
+      if (audioUrl && audioUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [currentPodcast.id, notebookId, retryAttempts]);
 
   return (
     <div className="p-4 border border-gray-200 rounded-lg bg-white">
