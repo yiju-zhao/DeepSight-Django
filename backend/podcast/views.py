@@ -39,15 +39,40 @@ class PodcastJobListCreateView(APIView):
                 notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_id)
                 qs = qs.filter(notebook=notebook)
 
-            jobs = qs.order_by('-created_at')
-            serializer = PodcastListSerializer(jobs, many=True)
+            jobs = qs.only(
+                'id', 'status', 'progress', 'title', 'created_at', 'updated_at', 'error_message', 'audio_object_key', 'notebook'
+            ).order_by('-created_at')
 
-            response = Response(serializer.data)
+            validated = []
+            for job in jobs:
+                item = {
+                    "id": str(job.id),
+                    "job_id": str(job.id),
+                    "status": job.status,
+                    "progress": job.progress,
+                    "title": job.title,
+                    "created_at": job.created_at.isoformat(),
+                    "updated_at": job.updated_at.isoformat(),
+                    "error_message": job.error_message,
+                    "has_audio": bool(job.audio_object_key),
+                    "notebook_id": job.notebook.pk if job.notebook else None,
+                }
+                if job.status == 'completed' and not job.audio_object_key:
+                    logger.warning(f"Skipping phantom podcast {job.id} - no audio found")
+                else:
+                    validated.append(item)
+
+            response = Response({"podcasts": validated})
             if jobs:
-                last_modified = max(job.updated_at for job in jobs)
-                response['Last-Modified'] = last_modified.strftime('%a, %d %b %Y %H:%M:%S GMT')
+                try:
+                    from django.db.models import Max
+                    last_modified = qs.aggregate(max_updated=Max('updated_at'))['max_updated']
+                except Exception:
+                    last_modified = None
+                if last_modified:
+                    response['Last-Modified'] = last_modified.strftime('%a, %d %b %Y %H:%M:%S GMT')
 
-            has_active_jobs = any(job_data.get('status') in ['pending', 'generating'] for job_data in serializer.data)
+            has_active_jobs = any(item.get('status') in ['pending', 'generating'] for item in validated)
             cache_timeout = 2 if has_active_jobs else 5
             response['Cache-Control'] = f'max-age={cache_timeout}, must-revalidate'
             return response
