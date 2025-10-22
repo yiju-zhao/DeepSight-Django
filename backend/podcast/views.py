@@ -181,8 +181,10 @@ class PodcastJobCancelView(APIView):
 
 
 
-def podcast_job_status_stream(request, job_id):
+def podcast_job_status_stream(request, podcast_id):
     """Canonical SSE endpoint for podcast job status by job_id (Pub/Sub push)."""
+    # URL kwarg is `podcast_id` in canonical routes; map to `job_id` internally
+    job_id = podcast_id
     if request.method == "OPTIONS":
         response = HttpResponse(status=200)
         response["Access-Control-Allow-Origin"] = "*"
