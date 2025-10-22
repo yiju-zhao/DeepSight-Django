@@ -194,10 +194,6 @@ MINIO_SETTINGS = {
     'REGION': os.getenv('MINIO_REGION', 'us-east-1'),
 }
 
-# Optional public endpoint override for presigned URLs
-# If set, backend will rewrite presigned MinIO URLs to use this base (scheme+host[:port])
-MINIO_PUBLIC_ENDPOINT = os.getenv('MINIO_PUBLIC_ENDPOINT')
-
 # AWS S3 settings configured for MinIO compatibility
 AWS_ACCESS_KEY_ID = MINIO_SETTINGS['ACCESS_KEY']
 AWS_SECRET_ACCESS_KEY = MINIO_SETTINGS['SECRET_KEY']

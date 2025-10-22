@@ -43,41 +43,15 @@ class MinIOBackend:
         # Ensure bucket exists
         self._ensure_bucket_exists()
         
-        # Be quiet at INFO to avoid spam on frequent usage
-        self.logger.debug(f"MinIO backend initialized with bucket: {self.bucket_name}")
+        self.logger.info(f"MinIO backend initialized with bucket: {self.bucket_name}")
     
     def _initialize_client(self) -> Minio:
-        """Initialize MinIO client with settings and env fallbacks."""
-        # Prefer structured MINIO_SETTINGS if present
-        minio_cfg = getattr(settings, 'MINIO_SETTINGS', {}) or {}
-        import os as _os
-        endpoint = (
-            getattr(settings, 'MINIO_ENDPOINT', None)
-            or minio_cfg.get('ENDPOINT')
-            or _os.getenv('MINIO_ENDPOINT')
-            or 'localhost:9000'
-        )
-        access_key = (
-            getattr(settings, 'MINIO_ACCESS_KEY', None)
-            or minio_cfg.get('ACCESS_KEY')
-            or _os.getenv('MINIO_ACCESS_KEY')
-            or 'minioadmin'
-        )
-        secret_key = (
-            getattr(settings, 'MINIO_SECRET_KEY', None)
-            or minio_cfg.get('SECRET_KEY')
-            or _os.getenv('MINIO_SECRET_KEY')
-            or 'minioadmin'
-        )
-        secure = (
-            getattr(settings, 'MINIO_USE_SSL', None)
-            if hasattr(settings, 'MINIO_USE_SSL') else None
-        )
-        if secure is None:
-            secure = minio_cfg.get('SECURE')
-        if secure is None:
-            secure = (_os.getenv('MINIO_SECURE', 'false').lower() == 'true')
-
+        """Initialize MinIO client with settings."""
+        endpoint = getattr(settings, 'MINIO_ENDPOINT', 'localhost:9000')
+        access_key = getattr(settings, 'MINIO_ACCESS_KEY', 'minioadmin')
+        secret_key = getattr(settings, 'MINIO_SECRET_KEY', 'minioadmin')
+        secure = getattr(settings, 'MINIO_USE_SSL', False)
+        
         return Minio(
             endpoint=endpoint,
             access_key=access_key,
@@ -924,13 +898,7 @@ def get_storage_adapter() -> StorageAdapter:
     return StorageAdapter()
 
 
-_MINIO_BACKEND_SINGLETON = None
-
-
 # Factory function for getting MinIO backend
 def get_minio_backend() -> MinIOBackend:
-    """Get MinIO backend instance (singleton per process)."""
-    global _MINIO_BACKEND_SINGLETON
-    if _MINIO_BACKEND_SINGLETON is None:
-        _MINIO_BACKEND_SINGLETON = MinIOBackend()
-    return _MINIO_BACKEND_SINGLETON
+    """Get MinIO backend instance."""
+    return MinIOBackend()
