@@ -253,12 +253,113 @@ class PodcastJobDownloadView(APIView):
 
 
 def podcast_job_status_stream(request, job_id):
-    """Canonical SSE endpoint for podcast job status by job_id"""
+    """Canonical SSE endpoint for podcast job status by job_id (Pub/Sub push)."""
     if request.method == "OPTIONS":
         response = HttpResponse(status=200)
         response["Access-Control-Allow-Origin"] = "*"
         response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
         response["Access-Control-Allow-Headers"] = "Cache-Control, Authorization"
+        response["Access-Control-Allow-Credentials"] = "true"
+        return response
+
+    if not request.user.is_authenticated:
+        response = StreamingHttpResponse(
+            f"data: {json.dumps({'type': 'error', 'message': 'Authentication required'})}\n\n",
+            content_type="text/event-stream",
+            status=401,
+        )
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Credentials"] = "true"
+        return response
+
+    try:
+        # Verify job ownership
+        if not Podcast.objects.filter(id=job_id, user=request.user).exists():
+            response = StreamingHttpResponse(
+                f"data: {json.dumps({'type': 'error', 'message': 'Job not found'})}\n\n",
+                content_type="text/event-stream",
+                status=404,
+            )
+            response["Access-Control-Allow-Origin"] = "*"
+            response["Access-Control-Allow-Credentials"] = "true"
+            return response
+
+        redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
+
+        def event_stream():
+            max_duration = 3600
+            start_time = time.time()
+            channel = f"podcast_job_status:{job_id}"
+
+            # Initial snapshot
+            try:
+                current_job = Podcast.objects.filter(id=job_id, user=request.user).first()
+                if not current_job:
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'Job not found'})}\n\n"
+                    return
+                cached_status = redis_client.get(channel)
+                if cached_status:
+                    status_data = json.loads(cached_status.decode("utf-8"))
+                else:
+                    status_data = {
+                        "job_id": str(current_job.id),
+                        "status": current_job.status,
+                        "progress": current_job.progress,
+                        "error_message": current_job.error_message,
+                        "audio_file_url": current_job.get_audio_url(),
+                        "title": current_job.title,
+                    }
+                yield f"data: {json.dumps({'type': 'job_status', 'data': status_data})}\n\n"
+                if status_data.get("status") in ["completed", "error", "cancelled"]:
+                    yield f"data: {json.dumps({'type': 'stream_closed'})}\n\n"
+                    return
+            except Exception as e:
+                logger.error(f"Error sending initial SSE snapshot for job {job_id}: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                return
+
+            # Subscribe for live updates
+            pubsub = redis_client.pubsub()
+            try:
+                pubsub.subscribe(channel)
+                for message in pubsub.listen():
+                    if time.time() - start_time >= max_duration:
+                        break
+                    if message.get("type") != "message":
+                        continue
+                    try:
+                        payload = json.loads(message.get("data") or b"{}")
+                        if payload.get("type") == "job_status":
+                            data = payload.get("data", {})
+                            yield f"data: {json.dumps({'type': 'job_status', 'data': data})}\n\n"
+                            if data.get("status") in ["completed", "error", "cancelled"]:
+                                break
+                    except Exception as inner_e:
+                        logger.debug(f"Malformed pubsub message for job {job_id}: {inner_e}")
+                        continue
+            except Exception as sub_e:
+                logger.error(f"Error in Redis pubsub for job {job_id}: {sub_e}")
+            finally:
+                try:
+                    pubsub.close()
+                except Exception:
+                    pass
+
+            yield f"data: {json.dumps({'type': 'stream_closed'})}\n\n"
+
+        response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
+        response["Cache-Control"] = "no-cache"
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Headers"] = "Cache-Control"
+        response["Access-Control-Allow-Credentials"] = "true"
+        return response
+    except Exception as e:
+        logger.error(f"Error setting up canonical SSE stream for job {job_id}: {e}")
+        response = StreamingHttpResponse(
+            f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n",
+            content_type="text/event-stream",
+        )
+        response["Access-Control-Allow-Origin"] = "*"
         response["Access-Control-Allow-Credentials"] = "true"
         return response
 
@@ -288,85 +389,3 @@ class PodcastAudioContentView(PodcastJobAudioView):
 class PodcastAudioDownloadView(PodcastJobDownloadView):
     def get(self, request, podcast_id):
         return super().get(request, job_id=podcast_id)
-
-    if not request.user.is_authenticated:
-        response = StreamingHttpResponse(
-            f"data: {json.dumps({'type': 'error', 'message': 'Authentication required'})}\n\n",
-            content_type="text/event-stream",
-            status=401,
-        )
-        response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Credentials"] = "true"
-        return response
-
-    try:
-        if not Podcast.objects.filter(id=job_id, user=request.user).exists():
-            response = StreamingHttpResponse(
-                f"data: {json.dumps({'type': 'error', 'message': 'Job not found'})}\n\n",
-                content_type="text/event-stream",
-                status=404,
-            )
-            response["Access-Control-Allow-Origin"] = "*"
-            response["Access-Control-Allow-Credentials"] = "true"
-            return response
-
-        redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
-
-        def event_stream():
-            last_status = None
-            max_duration = 3600
-            start_time = time.time()
-            poll_interval = 2
-
-            while time.time() - start_time < max_duration:
-                try:
-                    current_job = Podcast.objects.filter(id=job_id, user=request.user).first()
-                    if not current_job:
-                        yield f"data: {json.dumps({'type': 'error', 'message': 'Job not found'})}\n\n"
-                        break
-
-                    cached_status = redis_client.get(f"podcast_job_status:{job_id}")
-                    if cached_status:
-                        status_data = json.loads(cached_status.decode("utf-8"))
-                    else:
-                        status_data = {
-                            "job_id": str(current_job.id),
-                            "status": current_job.status,
-                            "progress": current_job.progress,
-                            "error_message": current_job.error_message,
-                            "audio_file_url": current_job.get_audio_url(),
-                            "title": current_job.title,
-                        }
-
-                    current_status_str = json.dumps(status_data, sort_keys=True)
-                    if current_status_str != last_status:
-                        yield f"data: {json.dumps({'type': 'job_status', 'data': status_data})}\n\n"
-                        last_status = current_status_str
-
-                    if status_data["status"] in ["completed", "error", "cancelled"]:
-                        break
-
-                    time.sleep(poll_interval)
-
-                except Exception as e:
-                    logger.error(f"Error in SSE stream for job {job_id}: {e}")
-                    yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                    break
-
-            yield f"data: {json.dumps({'type': 'stream_closed'})}\n\n"
-
-        response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
-        response["Cache-Control"] = "no-cache"
-        response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Headers"] = "Cache-Control"
-        response["Access-Control-Allow-Credentials"] = "true"
-        return response
-    except Exception as e:
-        logger.error(f"Error setting up canonical SSE stream for job {job_id}: {e}")
-        response = StreamingHttpResponse(
-            f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n",
-            content_type="text/event-stream",
-        )
-        response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Credentials"] = "true"
-        return response
