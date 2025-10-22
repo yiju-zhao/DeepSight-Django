@@ -41,17 +41,6 @@ def update_job_status(job, redis_client=None):
         json.dumps(status_data)
     )
 
-    # Publish an event so SSE listeners can react immediately (no polling)
-    try:
-        channel = f"podcast_job_status:{job.id}"
-        redis_client.publish(channel, json.dumps({
-            "type": "job_status",
-            "data": status_data,
-        }))
-    except Exception as pub_err:
-        logger.debug(f"Redis publish failed for {job.id}: {pub_err}
-")
-
 
 @shared_task(bind=True)
 def process_podcast_generation(self, job_id: str):
