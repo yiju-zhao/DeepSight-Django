@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 manager_llm = LLM(model="openai/gpt-4.1", temperature=0.1)
 engineer_llm = LLM(model="openai/gpt-4.1", temperature=0.5)
 research_llm = LLM(model="openai/gpt-4.1", temperature=0.5)
-content_llm = LLM(model='gemini/gemini-2.5-pro', temperature=0.1)
+content_llm = LLM(model='openai/gpt-4.1', temperature=0.1)
 
 
 @CrewBase
@@ -31,7 +31,7 @@ class PanelCrewCollaboration:
     tasks_config = 'config/tasks.yaml'
     
     def __init__(self, material_content: str = "") -> None:
-        super().__init__()
+        # CrewBase-decorated classes shouldn't call super().__init__()
         # Tools
         self.search_tool = SafeSearchTool()
 

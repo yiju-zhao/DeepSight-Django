@@ -4,6 +4,11 @@ import logging
 from typing import Type, Any, Optional
 
 from pydantic import BaseModel, Field
+try:
+    # pydantic v2
+    from pydantic import ConfigDict
+except Exception:
+    ConfigDict = dict  # fallback for type checkers; not used at runtime
 from crewai.tools.base_tool import BaseTool
 from crewai_tools import TavilySearchTool
 
@@ -37,29 +42,25 @@ class SafeSearchTool(BaseTool):
         "details not in your training data."
     )
     args_schema: Type[BaseModel] = SafeSearchToolInput
+    # Pydantic v2 config to allow arbitrary types (for _tavily_tool)
+    model_config = ConfigDict(arbitrary_types_allowed=True) if isinstance(ConfigDict, type) else None
 
-    def __init__(
-        self,
-        search_depth: str = "advanced",
-        max_results: int = 5,
-        include_answer: bool = True,
-        timeout: int = 60
-    ) -> None:
-        """Initialize the SafeSearchTool.
+    # Configurable fields (validated by Pydantic); do not override __init__
+    search_depth: str = "advanced"
+    max_results: int = 5
+    include_answer: bool = True
+    timeout: int = 60
+    # Ensure attribute exists even if model_post_init isn't called (e.g., Pydantic v1)
+    _tavily_tool: Any = None
 
-        Args:
-            search_depth: Tavily search depth ("basic" or "advanced"). Defaults to "advanced".
-            max_results: Maximum number of search results to return. Defaults to 5.
-            include_answer: Whether to include a direct synthesized answer. Defaults to True.
-            timeout: Request timeout in seconds. Defaults to 60.
-        """
-        super().__init__()
+    def model_post_init(self, __context: Any) -> None:  # pydantic v2 hook
+        """Post-init setup for underlying Tavily tool."""
         try:
             self._tavily_tool = TavilySearchTool(
-                search_depth=search_depth,
-                max_results=max_results,
-                include_answer=include_answer,
-                timeout=timeout
+                search_depth=self.search_depth,
+                max_results=self.max_results,
+                include_answer=self.include_answer,
+                timeout=self.timeout,
             )
         except Exception as e:
             logger.warning(f"Could not initialize TavilySearchTool: {e}")
