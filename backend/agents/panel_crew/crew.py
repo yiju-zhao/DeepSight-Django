@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 manager_llm = LLM(model="openai/gpt-4.1", temperature=0.1)
 engineer_llm = LLM(model="openai/gpt-4.1", temperature=0.5)
-research_llm = LLM(model="anthropic/claude-3-5-sonnet-20241022", temperature=0.5)
+research_llm = LLM(model="openai/gpt-4.1", temperature=0.5)
 content_llm = LLM(model='gemini/gemini-2.5-pro', temperature=0.1)
 
 
