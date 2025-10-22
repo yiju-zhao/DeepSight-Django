@@ -37,13 +37,8 @@ urlpatterns = [
     ),
     path(
         '<uuid:podcast_id>/audio/',
-        views.PodcastAudioContentView.as_view(),
+        views.PodcastAudioRedirectView.as_view(),
         name='podcast-audio'
-    ),
-    path(
-        '<uuid:podcast_id>/download-audio/',
-        views.PodcastAudioDownloadView.as_view(),
-        name='podcast-audio-download'
     ),
     path(
         '<uuid:podcast_id>/stream/',
@@ -67,6 +62,5 @@ Generated URL Patterns (canonical only):
 - DEL  /api/v1/podcasts/{podcast_id}/
 - POST /api/v1/podcasts/{podcast_id}/cancel/
 - GET  /api/v1/podcasts/{podcast_id}/audio/
-- GET  /api/v1/podcasts/{podcast_id}/download-audio/
 - GET  /api/v1/podcasts/{podcast_id}/stream/
 """

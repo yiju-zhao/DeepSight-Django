@@ -95,8 +95,7 @@ Podcasts:
 - /api/v1/podcasts/ -> Podcasts (list/create; filter with ?notebook=)
 - /api/v1/podcasts/{podcast_id}/ -> Detail/delete
 - /api/v1/podcasts/{podcast_id}/cancel/ -> Cancel generation
-- /api/v1/podcasts/{podcast_id}/audio/ -> Audio content (streaming)
-- /api/v1/podcasts/{podcast_id}/download-audio/ -> Audio download (streaming attachment)
+- /api/v1/podcasts/{podcast_id}/audio/ -> Unified audio gateway (302 to fresh presigned URL; supports ?download=1)
 
 Reports:
 - /api/v1/reports/models/ -> Report configuration

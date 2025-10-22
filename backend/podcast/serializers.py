@@ -41,7 +41,10 @@ class PodcastSerializer(serializers.ModelSerializer):
         ]
 
     def get_audio_url(self, obj):
-        return obj.audio_url
+        # Return stable backend gateway for audio; backend will issue a fresh presigned redirect
+        if getattr(obj, 'audio_object_key', None):
+            return f"/api/v1/podcasts/{obj.id}/audio/"
+        return None
     
     def get_notebook_id(self, obj):
         return obj.notebook.pk if obj.notebook else None
@@ -119,7 +122,9 @@ class PodcastListSerializer(serializers.ModelSerializer):
         ]
 
     def get_audio_url(self, obj):
-        return obj.audio_url
+        if getattr(obj, 'audio_object_key', None):
+            return f"/api/v1/podcasts/{obj.id}/audio/"
+        return None
     
     def get_notebook_id(self, obj):
         return obj.notebook.pk if obj.notebook else None

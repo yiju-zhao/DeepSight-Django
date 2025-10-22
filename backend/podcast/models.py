@@ -89,14 +89,9 @@ class Podcast(models.Model):
         return f"Podcast {self.id} - {self.title} ({self.status})"
 
     def get_audio_url(self, expires=3600):
-        """Get pre-signed URL for audio access"""
+        """Return stable backend gateway for audio (redirects to fresh presigned URL)."""
         if self.audio_object_key:
-            try:
-                from notebooks.utils.storage import get_minio_backend
-                backend = get_minio_backend()
-                return backend.get_presigned_url(self.audio_object_key, expires)
-            except Exception:
-                return None
+            return f"/api/v1/podcasts/{self.id}/audio/"
         return None
 
     @property

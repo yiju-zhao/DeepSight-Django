@@ -79,22 +79,9 @@ export class PodcastService implements IPodcastService {
   }
 
   async getPodcastAudio(id: string): Promise<PodcastAudio> {
-    try {
-      const endpoint = `/podcasts/${id}/audio/`;
-      // Request JSON metadata (stable backend URL) via explicit Accept header
-      const res = await fetch(`${this.api.getBaseUrl()}${endpoint}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: { 'Accept': 'application/json' },
-      });
-      if (!res.ok) {
-        throw new Error(`Failed to fetch podcast audio: ${res.statusText}`);
-      }
-      return await res.json();
-    } catch (error) {
-      console.error('Failed to fetch podcast audio:', error);
-      throw new Error('Failed to fetch podcast audio');
-    }
+    // Audio endpoint is a stable redirect gateway; use directly in players
+    const endpoint = `/podcasts/${id}/audio/`;
+    return { audioUrl: `${this.api.getBaseUrl()}${endpoint}` };
   }
 
   async generatePodcast(config: PodcastGenerationRequest): Promise<PodcastGenerationResponse> {
@@ -130,22 +117,15 @@ export class PodcastService implements IPodcastService {
   }
 
   async downloadPodcast(id: string, filename?: string): Promise<void> {
-    try {
-      const endpoint = `/podcasts/${id}/download-audio/`;
-
-      const blob = await this.api.downloadFile(endpoint);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = filename || `podcast-${id}.wav`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to download podcast:', error);
-      throw new Error('Failed to download podcast');
-    }
+    // Use unified gateway with download hint; browser will follow redirect
+    const endpoint = `/podcasts/${id}/audio/?download=1`;
+    const url = `${this.api.getBaseUrl()}${endpoint}`;
+    const link = document.createElement('a');
+    link.href = url;
+    if (filename) link.download = filename; // optional hint
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   async getPodcastStats(): Promise<PodcastStats> {

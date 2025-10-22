@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from django.http import StreamingHttpResponse, HttpResponse, FileResponse
+from django.http import StreamingHttpResponse, HttpResponse, HttpResponseRedirect
 from rest_framework import status, permissions, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -179,77 +179,6 @@ class PodcastJobCancelView(APIView):
             return Response({"error": f"Failed to cancel job: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class PodcastJobAudioView(APIView):
-    """Canonical: Serve audio files for podcast jobs"""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, job_id):
-        try:
-            job = get_object_or_404(Podcast.objects.filter(user=request.user), id=job_id)
-            logger.info(f"Audio request for job {job_id}: status={job.status}, audio_object_key={job.audio_object_key}")
-            if not job.audio_object_key:
-                return Response({"error": "Audio file not available"}, status=status.HTTP_404_NOT_FOUND)
-            # If client asks JSON, return stable backend URL to this endpoint
-            if request.headers.get('Accept') == 'application/json':
-                return Response({"audio_url": f"/api/v1/podcasts/jobs/{job_id}/audio/"})
-
-            # Proxy the audio bytes through backend to avoid exposing MinIO directly
-            try:
-                from notebooks.utils.storage import get_minio_backend
-                minio_backend = get_minio_backend()
-                iterator, length, ctype = minio_backend.stream_file(job.audio_object_key)
-                if iterator is None:
-                    return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
-                # Serve inline audio (streaming)
-                resp = StreamingHttpResponse(iterator, content_type=ctype or 'audio/wav')
-                safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
-                resp["Content-Disposition"] = f'inline; filename="{filename}"'
-                if length:
-                    resp["Content-Length"] = str(length)
-                # Caching hints (short-lived)
-                resp["Cache-Control"] = 'max-age=60, must-revalidate'
-                return resp
-            except Exception as e:
-                logger.error(f"Error proxying audio for job {job_id}: {e}")
-                return Response({"error": f"Failed to read audio: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as e:
-            logger.error(f"Error serving audio for job {job_id}: {e}")
-            return Response({"error": f"Failed to serve audio: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class PodcastJobDownloadView(APIView):
-    """Canonical: Download audio files for podcast jobs"""
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get(self, request, job_id):
-        try:
-            job = get_object_or_404(Podcast.objects.filter(user=request.user), id=job_id)
-            logger.info(f"Download request for job {job_id}: status={job.status}, audio_object_key={job.audio_object_key}")
-            if not job.audio_object_key:
-                return Response({"error": "Audio file not available"}, status=status.HTTP_404_NOT_FOUND)
-            try:
-                from notebooks.utils.storage import get_minio_backend
-                minio_backend = get_minio_backend()
-                iterator, length, ctype = minio_backend.stream_file(job.audio_object_key)
-                if iterator is None:
-                    return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
-                # Prepare filename
-                safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
-                filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
-                # Serve as attachment (streaming)
-                response = StreamingHttpResponse(iterator, content_type=ctype or 'audio/wav')
-                response["Content-Disposition"] = f'attachment; filename="{filename}"'
-                if length:
-                    response["Content-Length"] = str(length)
-                response["Cache-Control"] = 'no-cache, no-store, must-revalidate'
-                return response
-            except Exception as e:
-                logger.error(f"Error streaming download for job {job_id}: {e}")
-                return Response({"error": f"Failed to stream download: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        except Exception as e:
-            logger.error(f"Error downloading audio for job {job_id}: {e}")
-            return Response({"error": f"Failed to download audio: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
 
 def podcast_job_status_stream(request, job_id):
@@ -306,9 +235,11 @@ def podcast_job_status_stream(request, job_id):
                         "status": current_job.status,
                         "progress": current_job.progress,
                         "error_message": current_job.error_message,
-                        "audio_file_url": current_job.get_audio_url(),
+                        "audio_file_url": f"/api/v1/podcasts/{current_job.id}/audio/",
                         "title": current_job.title,
                     }
+                # Always refresh audio URL to stable gateway in case cache was stale
+                status_data["audio_file_url"] = f"/api/v1/podcasts/{current_job.id}/audio/"
                 yield f"data: {json.dumps({'type': 'job_status', 'data': status_data})}\n\n"
                 if status_data.get("status") in ["completed", "error", "cancelled"]:
                     yield f"data: {json.dumps({'type': 'stream_closed'})}\n\n"
@@ -381,11 +312,44 @@ class PodcastCancelView(PodcastJobCancelView):
         return super().post(request, job_id=podcast_id)
 
 
-class PodcastAudioContentView(PodcastJobAudioView):
-    def get(self, request, podcast_id):
-        return super().get(request, job_id=podcast_id)
+# Legacy streaming audio routes removed in favor of redirect gateway
 
 
-class PodcastAudioDownloadView(PodcastJobDownloadView):
+class PodcastAudioRedirectView(APIView):
+    """Redirect to a short-lived MinIO URL for audio (unified gateway).
+
+    - GET /api/v1/podcasts/{podcast_id}/audio/
+      Returns 302 redirect to a fresh presigned MinIO URL.
+      Optional query param: download=1 to suggest attachment filename.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
     def get(self, request, podcast_id):
-        return super().get(request, job_id=podcast_id)
+        try:
+            job = get_object_or_404(Podcast.objects.filter(user=request.user), id=podcast_id)
+            if not job.audio_object_key:
+                return Response({"error": "Audio file not available"}, status=status.HTTP_404_NOT_FOUND)
+
+            response_headers = None
+            if request.GET.get('download'):
+                safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
+                response_headers = {
+                    'Content-Disposition': f'attachment; filename="{filename}"',
+                    'Content-Type': 'audio/wav',
+                }
+
+            # Generate a short-lived URL (default 5 minutes)
+            from notebooks.utils.storage import get_minio_backend
+            minio_backend = get_minio_backend()
+            download_url = minio_backend.get_presigned_url(
+                object_key=job.audio_object_key,
+                expires=300,
+                response_headers=response_headers,
+            )
+            if not download_url:
+                return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
+            return HttpResponseRedirect(download_url)
+        except Exception as e:
+            logger.error(f"Error generating audio redirect for podcast {podcast_id}: {e}")
+            return Response({"error": f"Failed to generate audio URL: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
