@@ -59,7 +59,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
     setRetryAttempts(0); // Reset retry attempts when podcast changes
   }, [podcast]);
 
-  // Load audio URL with retry logic - fetch as blob to avoid CORS issues
+  // Load audio URL with retry logic - same pattern as report downloads
   useEffect(() => {
     const loadAudio = async () => {
       setIsLoading(true);
@@ -71,21 +71,30 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
           return;
         }
 
-        // Fetch audio as blob to handle MinIO redirect properly
         const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
         const audioEndpoint = `${apiBaseUrl}/podcasts/${currentPodcast.id}/audio/`;
 
+        // Helper to get CSRF token
+        const getCookie = (name: string): string | null => {
+          const match = document.cookie.match(new RegExp(`(^| )${name}=([^;]+)`));
+          return match?.[2] ? decodeURIComponent(match[2]) : null;
+        };
+
+        // Fetch with redirect: 'manual' to intercept the redirect (same as reports)
         const response = await fetch(audioEndpoint, {
           method: 'GET',
           credentials: 'include',
+          headers: {
+            'X-CSRFToken': getCookie('csrftoken') ?? '',
+          },
           redirect: 'manual'
         });
 
-        // Handle redirect to MinIO
+        // Handle redirect to MinIO presigned URL (same as reports)
         if (response.status === 302 || response.status === 301) {
           const redirectUrl = response.headers.get('Location');
           if (redirectUrl) {
-            // Fetch from MinIO without credentials to avoid CORS issues
+            // Fetch from MinIO without credentials (same as reports)
             const minioResponse = await fetch(redirectUrl, {
               method: 'GET',
               credentials: 'omit',
@@ -98,12 +107,14 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
               setAudioUrl(blobUrl);
               return;
             } else {
-              throw new Error(`MinIO audio fetch failed: ${minioResponse.status}`);
+              throw new Error(`MinIO audio fetch failed: ${minioResponse.status} ${minioResponse.statusText}`);
             }
+          } else {
+            throw new Error('No redirect URL found in response headers');
           }
         }
 
-        // Direct response (no redirect)
+        // Direct response (no redirect) - same as reports
         if (response.ok) {
           const blob = await response.blob();
           const blobUrl = URL.createObjectURL(blob);
