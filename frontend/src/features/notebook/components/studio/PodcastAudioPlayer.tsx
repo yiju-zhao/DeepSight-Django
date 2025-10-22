@@ -59,7 +59,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
     setRetryAttempts(0); // Reset retry attempts when podcast changes
   }, [podcast]);
 
-  // Load audio URL with retry logic - same pattern as report downloads
+  // Load audio URL with retry logic - check status first, then use same pattern as reports
   useEffect(() => {
     const loadAudio = async () => {
       setIsLoading(true);
@@ -67,6 +67,19 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
       try {
         if (!currentPodcast.id) {
           console.log('No podcast ID available');
+          setAudioUrl(null);
+          return;
+        }
+
+        // Check if podcast is completed and has audio_object_key
+        if (currentPodcast.status !== 'completed') {
+          console.log(`Podcast status is '${currentPodcast.status}', not 'completed'`);
+          setAudioUrl(null);
+          return;
+        }
+
+        if (!(currentPodcast as any).audio_object_key) {
+          console.log('Podcast has no audio_object_key');
           setAudioUrl(null);
           return;
         }
@@ -80,6 +93,8 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
           return match?.[2] ? decodeURIComponent(match[2]) : null;
         };
 
+        console.log(`Fetching audio from: ${audioEndpoint}`);
+
         // Fetch with redirect: 'manual' to intercept the redirect (same as reports)
         const response = await fetch(audioEndpoint, {
           method: 'GET',
@@ -90,9 +105,13 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
           redirect: 'manual'
         });
 
+        console.log(`Response status: ${response.status}`);
+
         // Handle redirect to MinIO presigned URL (same as reports)
         if (response.status === 302 || response.status === 301) {
           const redirectUrl = response.headers.get('Location');
+          console.log(`Redirect URL: ${redirectUrl}`);
+
           if (redirectUrl) {
             // Fetch from MinIO without credentials (same as reports)
             const minioResponse = await fetch(redirectUrl, {
@@ -101,8 +120,11 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
               mode: 'cors'
             });
 
+            console.log(`MinIO response status: ${minioResponse.status}`);
+
             if (minioResponse.ok) {
               const blob = await minioResponse.blob();
+              console.log(`Blob size: ${blob.size} bytes`);
               const blobUrl = URL.createObjectURL(blob);
               setAudioUrl(blobUrl);
               return;
@@ -127,9 +149,9 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
         console.error('Error loading audio:', error);
 
         // Retry with exponential backoff if we haven't exceeded max attempts
-        if (retryAttempts < 5) {
-          const delay = Math.min(1000 * Math.pow(2, retryAttempts), 10000); // Max 10 seconds
-          console.log(`Retrying audio load in ${delay}ms (attempt ${retryAttempts + 1}/5)`);
+        if (retryAttempts < 3) {  // Reduced to 3 attempts
+          const delay = Math.min(1000 * Math.pow(2, retryAttempts), 5000); // Max 5 seconds
+          console.log(`Retrying audio load in ${delay}ms (attempt ${retryAttempts + 1}/3)`);
           setTimeout(() => {
             setRetryAttempts(prev => prev + 1);
           }, delay);
@@ -149,7 +171,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
         URL.revokeObjectURL(audioUrl);
       }
     };
-  }, [currentPodcast.id, notebookId, retryAttempts]);
+  }, [currentPodcast.id, currentPodcast.status, notebookId, retryAttempts]);
 
   return (
     <div className="p-4 border border-gray-200 rounded-lg bg-white">
@@ -198,12 +220,12 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
         <div className="flex items-center justify-center py-2 text-gray-500">
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
           <span className="text-sm">
-            {retryAttempts > 0 ? `Retrying audio load... (${retryAttempts}/5)` : 'Loading audio...'}
+            {retryAttempts > 0 ? `Retrying audio load... (${retryAttempts}/3)` : 'Loading audio...'}
           </span>
         </div>
       ) : audioUrl ? (
-        <audio 
-          controls 
+        <audio
+          controls
           className="w-full"
           preload="metadata"
           style={{ height: '40px' }}
@@ -213,7 +235,13 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
         </audio>
       ) : (
         <div className="text-center py-2 text-gray-500 text-sm">
-          {retryAttempts >= 5 ? 'Audio not available after retries' : 'Audio not available'}
+          {currentPodcast.status !== 'completed'
+            ? `Podcast ${currentPodcast.status}...`
+            : !(currentPodcast as any).audio_object_key
+            ? 'Audio file not found'
+            : retryAttempts >= 3
+            ? 'Audio not available after retries'
+            : 'Audio not available'}
         </div>
       )}
     </div>
