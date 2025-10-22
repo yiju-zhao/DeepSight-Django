@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Podcast, PodcastDetailProps, PodcastAudio } from '../types/type';
 import { PodcastService } from '../services/PodcastService';
+import { config } from '@/config';
 
 const PodcastDetail: React.FC<PodcastDetailProps> = ({
   podcast,
@@ -92,7 +93,11 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
             url = podcastService.getAudioUrl(audio as any) || url;
           }
           
-          setAudioUrl(url);
+          // Prefer stable backend audio endpoint to avoid direct MinIO links
+          if (currentPodcast.id) {
+            url = `${config.API_BASE_URL}/podcasts/jobs/${currentPodcast.id}/audio/`;
+          }
+          setAudioUrl(url || null);
         } catch (error) {
           console.error('Error loading audio:', error);
         } finally {

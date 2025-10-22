@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Podcast } from '../types/type';
+import { config } from '@/config';
 
 interface PodcastListItemProps {
   podcast: Podcast;
@@ -64,13 +65,21 @@ const PodcastListItem: React.FC<PodcastListItemProps> = ({ podcast, onSelect }) 
       {/* Expanded audio player */}
       {isExpanded && podcast.status === 'completed' && (
         <div className="mt-3 ml-11 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+          {/** Prefer backend audio endpoint to avoid direct MinIO links */}
+          {/** Fallback order: backend endpoint by id -> audioUrl -> audio_file */}
+          {(() => {
+            const fallbackUrl = podcast.id ? `${config.API_BASE_URL}/podcasts/jobs/${podcast.id}/audio/` : undefined;
+            const src = fallbackUrl || podcast.audioUrl || (podcast as any).audio_file;
+            return (
           <audio 
             controls 
             className="w-full"
-            src={podcast.audioUrl || podcast.audio_file}
+            src={src}
           >
             Your browser does not support the audio element.
           </audio>
+            );
+          })()}
           {podcast.duration && (
             <p className="text-xs text-gray-500 mt-2">
               Duration: {Math.floor(podcast.duration / 60)}:{(podcast.duration % 60).toString().padStart(2, '0')}

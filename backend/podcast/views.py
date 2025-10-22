@@ -191,14 +191,29 @@ class PodcastJobAudioView(APIView):
             logger.info(f"Audio request for job {job_id}: status={job.status}, audio_object_key={job.audio_object_key}")
             if not job.audio_object_key:
                 return Response({"error": "Audio file not available"}, status=status.HTTP_404_NOT_FOUND)
-            audio_url = job.get_audio_url()
-            if not audio_url:
-                return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
+            # If client asks JSON, return stable backend URL to this endpoint
             if request.headers.get('Accept') == 'application/json':
-                return Response({"audio_url": audio_url})
-            else:
-                from django.http import HttpResponseRedirect
-                return HttpResponseRedirect(audio_url)
+                return Response({"audio_url": f"/api/v1/podcasts/jobs/{job_id}/audio/"})
+
+            # Proxy the audio bytes through backend to avoid exposing MinIO directly
+            try:
+                from notebooks.utils.storage import get_minio_backend
+                minio_backend = get_minio_backend()
+                content = minio_backend.get_file(job.audio_object_key)
+                if content is None:
+                    return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
+
+                # Serve inline audio
+                resp = HttpResponse(content, content_type='audio/wav')
+                safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
+                resp["Content-Disposition"] = f'inline; filename="{filename}"'
+                # Caching hints (short-lived)
+                resp["Cache-Control"] = 'max-age=60, must-revalidate'
+                return resp
+            except Exception as e:
+                logger.error(f"Error proxying audio for job {job_id}: {e}")
+                return Response({"error": f"Failed to read audio: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"Error serving audio for job {job_id}: {e}")
             return Response({"error": f"Failed to serve audio: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
@@ -217,22 +232,22 @@ class PodcastJobDownloadView(APIView):
             try:
                 from notebooks.utils.storage import get_minio_backend
                 minio_backend = get_minio_backend()
+                content = minio_backend.get_file(job.audio_object_key)
+                if content is None:
+                    return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
+                # Prepare filename
                 safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
                 filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
-                download_url = minio_backend.get_presigned_url(
-                    object_key=job.audio_object_key,
-                    response_headers={
-                        'Content-Disposition': f'attachment; filename="{filename}"',
-                        'Content-Type': 'audio/wav'
-                    }
-                )
-                if not download_url:
-                    return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
-                from django.http import HttpResponseRedirect
-                return HttpResponseRedirect(download_url)
+                # Serve as attachment
+                from django.http import FileResponse
+                import io
+                file_like = io.BytesIO(content)
+                response = FileResponse(file_like, as_attachment=True, filename=filename, content_type='audio/wav')
+                response["Cache-Control"] = 'no-cache'
+                return response
             except Exception as e:
-                logger.error(f"Error generating download URL for job {job_id}: {e}")
-                return Response({"error": f"Failed to generate download URL: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                logger.error(f"Error streaming download for job {job_id}: {e}")
+                return Response({"error": f"Failed to stream download: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
             logger.error(f"Error downloading audio for job {job_id}: {e}")
             return Response({"error": f"Failed to download audio: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
