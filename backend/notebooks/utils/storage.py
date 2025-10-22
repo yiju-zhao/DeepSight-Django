@@ -32,17 +32,20 @@ class MinIOBackend:
     
     def __init__(self):
         self.logger = logging.getLogger(f"{__name__}.minio_backend")
-        
+
         if not MINIO_AVAILABLE:
             raise ImportError("MinIO is not available. Install with: pip install minio")
-        
+
         # Initialize MinIO client
         self.client = self._initialize_client()
         self.bucket_name = getattr(settings, 'MINIO_BUCKET_NAME', 'deepsight-users')
-        
+        self.endpoint = getattr(settings, 'MINIO_ENDPOINT', 'localhost:9000')
+        self.public_endpoint = getattr(settings, 'MINIO_PUBLIC_ENDPOINT', self.endpoint)
+        self.use_ssl = getattr(settings, 'MINIO_USE_SSL', False)
+
         # Ensure bucket exists
         self._ensure_bucket_exists()
-        
+
         self.logger.info(f"MinIO backend initialized with bucket: {self.bucket_name}")
     
     def _initialize_client(self) -> Minio:
@@ -210,11 +213,21 @@ class MinIOBackend:
                 'object_name': object_key,
                 'expires': timedelta(seconds=expires)
             }
-            
+
             if response_headers:
                 kwargs['response_headers'] = response_headers
-                
+
             url = self.client.presigned_get_object(**kwargs)
+
+            # Replace internal endpoint with public endpoint for browser access
+            if url and self.endpoint != self.public_endpoint:
+                protocol = 'https' if self.use_ssl else 'http'
+                internal_url = f"{protocol}://{self.endpoint}"
+                public_protocol = 'https' if self.use_ssl else 'http'
+                public_url = f"{public_protocol}://{self.public_endpoint}"
+                url = url.replace(internal_url, public_url)
+                self.logger.debug(f"Replaced endpoint in presigned URL: {internal_url} -> {public_url}")
+
             return url
         except S3Error as e:
             self.logger.error(f"Error generating presigned URL for {object_key}: {e}")

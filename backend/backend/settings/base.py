@@ -187,12 +187,22 @@ DEFAULT_FILE_STORAGE = 'infrastructure.storage.backends.MinIOStorage'
 # MinIO Configuration
 MINIO_SETTINGS = {
     'ENDPOINT': os.getenv('MINIO_ENDPOINT', 'localhost:9000'),
+    'PUBLIC_ENDPOINT': os.getenv('MINIO_PUBLIC_ENDPOINT', os.getenv('MINIO_ENDPOINT', 'localhost:9000')),  # Public URL for browser access
     'ACCESS_KEY': os.getenv('MINIO_ACCESS_KEY', 'minioadmin'),
     'SECRET_KEY': os.getenv('MINIO_SECRET_KEY', 'minioadmin'),
     'BUCKET_NAME': os.getenv('MINIO_BUCKET_NAME', 'deepsight-users'),
     'SECURE': get_env_bool('MINIO_SECURE', False),
     'REGION': os.getenv('MINIO_REGION', 'us-east-1'),
 }
+
+# Expose individual settings for easier access
+MINIO_ENDPOINT = MINIO_SETTINGS['ENDPOINT']
+MINIO_PUBLIC_ENDPOINT = MINIO_SETTINGS['PUBLIC_ENDPOINT']
+MINIO_ACCESS_KEY = MINIO_SETTINGS['ACCESS_KEY']
+MINIO_SECRET_KEY = MINIO_SETTINGS['SECRET_KEY']
+MINIO_BUCKET_NAME = MINIO_SETTINGS['BUCKET_NAME']
+MINIO_USE_SSL = MINIO_SETTINGS['SECURE']
+MINIO_REGION = MINIO_SETTINGS['REGION']
 
 # AWS S3 settings configured for MinIO compatibility
 AWS_ACCESS_KEY_ID = MINIO_SETTINGS['ACCESS_KEY']
