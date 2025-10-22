@@ -271,9 +271,6 @@ TTS_ENABLE_PARALLEL = os.getenv('TTS_ENABLE_PARALLEL', 'false').lower() in ('1',
 # Document Processing
 MINERU_BASE_URL = os.getenv("MINERU_BASE_URL")
 
-# MinIO external/public endpoint for presigned URLs (optional)
-MINIO_PUBLIC_ENDPOINT = os.getenv('MINIO_PUBLIC_ENDPOINT')  # e.g., 'http://10.218.163.144:9000'
-
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = BASE_DIR / 'logs'

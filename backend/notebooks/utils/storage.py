@@ -180,27 +180,6 @@ class MinIOBackend:
                 kwargs['response_headers'] = response_headers
                 
             url = self.client.presigned_get_object(**kwargs)
-
-            # Optionally rewrite URL to use a public/external MinIO endpoint
-            public_base = getattr(settings, 'MINIO_PUBLIC_ENDPOINT', None)
-            if public_base:
-                try:
-                    from urllib.parse import urlparse, urlunparse
-                    parsed_presign = urlparse(url)
-                    parsed_public = urlparse(public_base)
-                    # Replace scheme+netloc from public base; keep path and query from presigned
-                    rebuilt = urlunparse((
-                        parsed_public.scheme or parsed_presign.scheme,
-                        parsed_public.netloc or parsed_presign.netloc,
-                        parsed_presign.path,
-                        parsed_presign.params,
-                        parsed_presign.query,
-                        parsed_presign.fragment,
-                    ))
-                    return rebuilt
-                except Exception:
-                    # If rewrite fails, fall back to original URL
-                    return url
             return url
         except S3Error as e:
             self.logger.error(f"Error generating presigned URL for {object_key}: {e}")
