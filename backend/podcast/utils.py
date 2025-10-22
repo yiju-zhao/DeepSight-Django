@@ -2,10 +2,10 @@
 Podcast generation utilities.
 
 This module provides utilities for:
-- XML conversation parsing for panel discussions
+- Bracket-format conversation parsing
 - Content extraction from knowledge base items
-- Optimized text-to-speech audio generation
-- Audio processing and concatenation
+- Text-to-speech generation via Higgs (primary) and OpenAI (fallback)
+- Audio processing and concatenation (WAV output)
 """
 
 import logging
@@ -17,24 +17,13 @@ from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
 import os   
 
+import base64
 import requests
 from django.conf import settings
 
 # =============================================================================
 # CONSTANTS AND CONFIGURATION
 # =============================================================================
-
-# Voice mapping for Minimax TTS API
-VOICE_MAPPING = {
-    "alex": "Chinese (Mandarin)_Lyrical_Voice",
-    "Ilya": "Chinese (Mandarin)_Humorous_Elder", 
-    "feifei": "Chinese (Mandarin)_Kind-hearted_Antie",
-    "dao": "Chinese (Mandarin)_Southern_Young_Man",
-    "elon": "Chinese (Mandarin)_Unrestrained_Young_Man"
-}
-
-# Available voice types for speaker assignment
-AVAILABLE_VOICES = ["alex", "Ilya", "feifei", "dao", "elon"]
 
 # Content extraction limits
 MAX_CONTENT_LENGTH = 8000
@@ -141,80 +130,145 @@ async def extract_selected_content(selected_item_ids: List[int]) -> str:
 # AUDIO PROCESSING FUNCTIONS
 # =============================================================================
 
-def create_speaker_voice_mapping(conversation: List[Dict[str, Any]]) -> Dict[str, str]:
+def _get_higgs_client_and_model():
+    """Create an OpenAI-compatible client for Higgs and choose a model.
+    Returns a tuple (client, model_id).
     """
-    Create a mapping of speakers to voice types for TTS.
-    
-    Args:
-        conversation: List of conversation turns
-        
-    Returns:
-        Dictionary mapping speaker names to voice identifiers
-        
-    Raises:
-        ValueError: If number of speakers exceeds available voices
-    """
-    speakers = set()
-    for turn in conversation:
-        speaker = turn.get("speaker", "Unknown")
-        speakers.add(speaker)
-    
-    logger.info(f"Found speakers in conversation: {sorted(speakers)}")
-    
-    # Check if we have enough voices for all speakers
-    if len(speakers) > len(AVAILABLE_VOICES):
-        raise ValueError(
-            f"Too many speakers ({len(speakers)}) for available voices ({len(AVAILABLE_VOICES)}). "
-            f"Speakers: {sorted(speakers)}, Available voices: {AVAILABLE_VOICES}"
+    try:
+        from openai import OpenAI
+    except Exception as e:
+        logger.error(f"OpenAI client not available for Higgs: {e}")
+        return None, None
+
+    base_url = getattr(settings, 'HIGGS_API_BASE', 'http://localhost:8000/v1')
+    model = getattr(settings, 'HIGGS_TTS_MODEL', None)
+    try:
+        client = OpenAI(api_key="EMPTY", base_url=base_url)
+        if not model:
+            # Discover first available model
+            try:
+                models = client.models.list()
+                if models and getattr(models, 'data', None):
+                    model = models.data[0].id
+                else:
+                    logger.error("Higgs: no models returned; set HIGGS_TTS_MODEL in settings")
+                    return client, None
+            except Exception as e:
+                logger.error(f"Higgs: failed to list models: {e}")
+                return client, None
+        return client, model
+    except Exception as e:
+        logger.error(f"Failed to init Higgs client: {e}")
+        return None, None
+
+
+def _higgs_smart_voice(text: str) -> Optional[bytes]:
+    """Generate WAV audio bytes using Higgs 'smart voice' (no reference)."""
+    client, model = _get_higgs_client_and_model()
+    if not client or not model:
+        return None
+    DEFAULT_SYSTEM_PROMPT = (
+        "Generate audio following instruction.\n\n"
+        "<|scene_desc_start|>\n"
+        "Audio is recorded from a quiet room.\n"
+        "<|scene_desc_end|>"
+    )
+    try:
+        chat_completion = client.chat.completions.create(
+            messages=[
+                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            model=model,
+            modalities=["text", "audio"],
+            temperature=1.0,
+            top_p=0.95,
+            extra_body={"top_k": 50},
+            stop=["<|eot_id|>", "<|end_of_text|>", "<|audio_eos|>"],
         )
-    
-    # Create intentional speaker-to-voice mapping for better audio experience
-    preferred_voice_mapping = {
-        '雷克思': 'alex',         
-        '伊利亚': 'Ilya',    
-        '崔道': 'dao',  
-        '李飞飞': 'feifei',
-        '一龙': 'elon'
-    }
-    
-    logger.info(f"Preferred voice mapping: {preferred_voice_mapping}")
-    logger.info(f"Available voices: {AVAILABLE_VOICES}")
-    
-    # Map speakers to voices using preferred mapping with fallback
-    speaker_voices = {}
-    available_voices_copy = AVAILABLE_VOICES.copy()
-    
-    for speaker in sorted(speakers):
-        logger.debug(f"Processing speaker: '{speaker}' (type: {type(speaker)})")
-        if speaker in preferred_voice_mapping:
-            voice_type = preferred_voice_mapping[speaker]
-            speaker_voices[speaker] = voice_type
-            logger.info(f"Assigned voice '{voice_type}' to speaker '{speaker}'")
-            # Remove assigned voice from available list
-            if voice_type in available_voices_copy:
-                available_voices_copy.remove(voice_type)
-        else:
-            # Fallback: assign any available voice for unknown speakers
-            if available_voices_copy:
-                voice_type = available_voices_copy.pop(0)
-                speaker_voices[speaker] = voice_type
-                logger.warning(f"Speaker '{speaker}' not in preferred mapping. Assigned fallback voice '{voice_type}'")
-            else:
-                # Use default voice as last resort
-                voice_type = "alex"
-                speaker_voices[speaker] = voice_type
-                logger.warning(f"No available voices left for speaker '{speaker}'. Using default voice '{voice_type}'")
-    
-    logger.debug(f"Final speaker_voices mapping: {speaker_voices}")
-    return speaker_voices
+        audio_b64 = chat_completion.choices[0].message.audio.data
+        return base64.b64decode(audio_b64)
+    except Exception as e:
+        logger.error(f"Higgs smart voice failed: {e}")
+        return None
+
+
+def _higgs_voice_clone(seed_audio_wav: bytes, seed_text: str, new_text: str) -> Optional[bytes]:
+    """Generate WAV audio bytes using Higgs 'voice clone' given a seed audio+text."""
+    client, model = _get_higgs_client_and_model()
+    if not client or not model:
+        return None
+    try:
+        audio_b64 = base64.b64encode(seed_audio_wav).decode("utf-8")
+        messages = [
+            {"role": "user", "content": seed_text},
+            {
+                "role": "assistant",
+                "content": [
+                    {
+                        "type": "input_audio",
+                        "input_audio": {"data": audio_b64, "format": "wav"},
+                    }
+                ],
+            },
+            {"role": "user", "content": new_text},
+        ]
+        chat_completion = client.chat.completions.create(
+            messages=messages,
+            model=model,
+            max_completion_tokens=1000,
+            stream=False,
+            modalities=["text", "audio"],
+            temperature=1.0,
+            top_p=0.95,
+            extra_body={"top_k": 50},
+            stop=["<|eot_id|>", "<|end_of_text|>", "<|audio_eos|>"],
+        )
+        audio_b64_out = chat_completion.choices[0].message.audio.data
+        return base64.b64decode(audio_b64_out)
+    except Exception as e:
+        logger.error(f"Higgs voice clone failed: {e}")
+        return None
+
+
+def _openai_tts(text: str) -> Optional[bytes]:
+    """Fallback TTS using OpenAI gpt-4o-mini-tts via REST to produce WAV bytes.
+    Note: voice cloning is not supported here; used for both first and later segments if Higgs fails.
+    """
+    api_key = os.getenv('OPENAI_API_KEY')
+    if not api_key:
+        logger.error("OPENAI_API_KEY not set; cannot use fallback TTS")
+        return None
+    try:
+        url = "https://api.openai.com/v1/audio/speech"
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": "gpt-4o-mini-tts",
+            "voice": "alloy",
+            "input": text,
+            "format": "wav",
+        }
+        resp = requests.post(url, headers=headers, json=payload, timeout=60)
+        resp.raise_for_status()
+        return resp.content if resp.content else None
+    except Exception as e:
+        logger.error(f"OpenAI TTS fallback failed: {e}")
+        try:
+            logger.error(f"Response: {resp.status_code} {resp.text[:200]}...")
+        except Exception:
+            pass
+        return None
 
 
 def generate_audio_segment(
-    content: str, 
-    speaker: str, 
-    voice: str, 
-    segment_index: int, 
-    audio_output_dir: Path
+    content: str,
+    speaker: str,
+    segment_index: int,
+    audio_output_dir: Path,
+    speaker_state: Dict[str, Dict[str, Any]],
 ) -> Optional[Path]:
     """
     Generate audio segment for a single conversation turn.
@@ -222,77 +276,56 @@ def generate_audio_segment(
     Args:
         content: Text content to convert
         speaker: Speaker name
-        voice: Voice type to use
         segment_index: Index of this segment
         audio_output_dir: Directory for audio output
+        speaker_state: Tracks first-segment seed per speaker for cloning
         
     Returns:
         Path to generated audio segment or None if failed
     """
     try:
-        logger.debug(f"generate_audio_segment called: speaker='{speaker}', voice='{voice}', segment_index={segment_index}")
+        logger.debug(f"generate_audio_segment called: speaker='{speaker}', segment_index={segment_index}")
         
         # Create temporary file for this segment
-        temp_filename = f"segment_{segment_index:03d}_{voice}.mp3"
+        temp_filename = f"segment_{segment_index:03d}_{speaker}.wav"
         temp_file_path = audio_output_dir / temp_filename
         
-        # Add a brief pause before speaker identification for naturalness
-        if segment_index > 0:
-            content_with_pause = f"... {content}"
+        audio_bytes: Optional[bytes] = None
+
+        if speaker not in speaker_state:
+            # First segment for this speaker: smart voice
+            audio_bytes = _higgs_smart_voice(content)
+            if audio_bytes:
+                # Cache seed for cloning later: keep both audio and text
+                speaker_state[speaker] = {"seed_audio": audio_bytes, "seed_text": content}
         else:
-            content_with_pause = content
-        
-        # Generate audio using Minimax TTS
-        success = minimax_text_to_speech(content_with_pause, temp_file_path, voice)
-        
-        if success and temp_file_path.exists():
-            return temp_file_path
-        else:
+            # Subsequent segments: voice clone using first segment as seed
+            seed = speaker_state[speaker]
+            audio_bytes = _higgs_voice_clone(seed.get("seed_audio", b""), seed.get("seed_text", ""), content)
+            if not audio_bytes:
+                # Try smart voice again if clone fails
+                audio_bytes = _higgs_smart_voice(content)
+
+        # Fallback to OpenAI TTS if Higgs failed
+        if not audio_bytes:
+            audio_bytes = _openai_tts(content)
+
+        if not audio_bytes:
             logger.warning(f"Failed to generate audio segment {segment_index} for {speaker}")
             return None
+
+        # Write WAV bytes to file
+        os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
+        with open(temp_file_path, "wb") as f:
+            f.write(audio_bytes)
+
+        if temp_file_path.exists() and os.path.getsize(temp_file_path) > 0:
+            return temp_file_path
+        logger.warning(f"Generated audio segment but file invalid: {temp_file_path}")
+        return None
             
     except Exception as e:
         logger.error(f"Error generating audio segment for {speaker}: {e}")
-        return None
-
-
-def generate_audio_segment_bulk(
-    content: str, 
-    speaker: str, 
-    voice: str, 
-    audio_output_dir: Path
-) -> Optional[Path]:
-    """
-    Generate audio for bulk content from a single speaker.
-    
-    Args:
-        content: Combined text content for the speaker
-        speaker: Speaker name
-        voice: Voice type to use
-        audio_output_dir: Directory for audio output
-        
-    Returns:
-        Path to generated audio file or None if failed
-    """
-    try:
-        logger.debug(f"generate_audio_segment_bulk called: speaker='{speaker}', voice='{voice}'")
-        
-        # Create filename for this speaker's audio
-        temp_filename = f"speaker_{speaker}_{voice}_{uuid.uuid4().hex[:8]}.mp3"
-        temp_file_path = audio_output_dir / temp_filename
-        
-        # Generate audio using Minimax TTS
-        success = minimax_text_to_speech(content, temp_file_path, voice)
-        
-        if success and temp_file_path.exists():
-            logger.info(f"Successfully generated bulk audio for speaker {speaker}")
-            return temp_file_path
-        else:
-            logger.warning(f"Failed to generate bulk audio for speaker {speaker}")
-            return None
-            
-    except Exception as e:
-        logger.error(f"Error generating bulk audio for speaker {speaker}: {e}")
         return None
 
 
@@ -314,90 +347,43 @@ def generate_conversation_audio_optimized(
         Path to generated audio file or None if failed
     """
     try:
-        # Create speaker voice mapping
-        speaker_voices = create_speaker_voice_mapping(conversation_turns)
-        
-        # Group content by speaker while preserving order
-        speaker_content = {}
-        turn_to_speaker_segment = {}
-        
+        # Track per-speaker seed (first segment) to support cloning later
+        speaker_state: Dict[str, Dict[str, Any]] = {}
+
+        # Generate per-turn segments in order, grouping by speaker implicitly
+        audio_segments: List[Path] = []
         for i, turn in enumerate(conversation_turns):
-            speaker = turn['speaker']
-            content = turn['content'].strip()
-            
-            if not content:
+            speaker = turn.get('speaker', '').strip()
+            content = (turn.get('content') or '').strip()
+            if not speaker or not content:
                 continue
-                
-            if speaker not in speaker_content:
-                speaker_content[speaker] = []
-            
-            # Store content with turn index for mapping back
-            speaker_content[speaker].append({
-                'content': content,
-                'turn_index': i
-            })
-        
-        # Generate audio for each speaker's content in bulk
-        speaker_audio_files = {}
-        for speaker, content_list in speaker_content.items():
-            voice = speaker_voices.get(speaker, "alex")
-            
-            # Combine all content for this speaker with separators
-            combined_content = " ... ".join([item['content'] for item in content_list])
-            
-            # Generate single audio file for this speaker
-            speaker_audio_file = generate_audio_segment_bulk(
-                combined_content, speaker, voice, audio_output_dir
+            segment_file = generate_audio_segment(
+                content=content,
+                speaker=speaker,
+                segment_index=i,
+                audio_output_dir=audio_output_dir,
+                speaker_state=speaker_state,
             )
-            
-            if speaker_audio_file and speaker_audio_file.exists():
-                speaker_audio_files[speaker] = speaker_audio_file
-                
-                # Map the single audio file to each turn for this speaker
-                for item in content_list:
-                    turn_to_speaker_segment[item['turn_index']] = speaker_audio_file
-        
-        # For now, we'll create individual segments for concatenation
-        # This is a simplified approach - for true optimization, we'd split the bulk audio
-        audio_segments = []
-        for i, turn in enumerate(conversation_turns):
-            if i in turn_to_speaker_segment:
-                # Generate individual segment for proper concatenation
-                speaker = turn['speaker']
-                content = turn['content'].strip()
-                voice = speaker_voices.get(speaker, "alex")
-                
-                if content:
-                    segment_file = generate_audio_segment(
-                        content, speaker, voice, i, audio_output_dir
-                    )
-                    if segment_file and segment_file.exists():
-                        audio_segments.append(segment_file)
-        
-        # Generate final audio file
+            if segment_file and segment_file.exists():
+                audio_segments.append(segment_file)
+
+        # Generate final audio file (WAV)
         if audio_segments:
-            audio_filename = f"panel_podcast_optimized_{uuid.uuid4().hex[:8]}.mp3"
+            audio_filename = f"panel_podcast_optimized_{uuid.uuid4().hex[:8]}.wav"
             final_audio_path = audio_output_dir / audio_filename
-            
+
             success = concatenate_audio_segments(audio_segments, final_audio_path, audio_output_dir)
-            
+
             # Clean up temporary files
             for segment in audio_segments:
                 try:
                     segment.unlink()
-                except:
+                except Exception:
                     pass
-            
-            # Clean up speaker bulk files
-            for speaker_file in speaker_audio_files.values():
-                try:
-                    speaker_file.unlink()
-                except:
-                    pass
-            
+
             if success and final_audio_path.exists():
                 return final_audio_path
-        
+
         logger.error("No audio segments generated in optimized approach")
         return None
         
@@ -436,7 +422,7 @@ def concatenate_audio_segments(
         try:
             # Try ffmpeg concatenation first
             subprocess.run([
-                "ffmpeg", "-f", "concat", "-safe", "0", 
+                "ffmpeg", "-f", "concat", "-safe", "0",
                 "-i", str(concat_list_file),
                 "-c", "copy", str(output_file)
             ], check=True, capture_output=True, timeout=300)
@@ -485,135 +471,5 @@ def _simple_audio_concatenation(segments: List[Path], output_file: Path) -> bool
         return False
 
 
-def minimax_text_to_speech(text: str, output_file: Path, voice: str = "alex") -> bool:
-    """
-    Convert text to speech using Minimax API.
-    
-    Args:
-        text: Text to convert
-        output_file: Output audio file path
-        voice: Voice identifier (maps to Minimax voice IDs)
-        
-    Returns:
-        True if successful, False otherwise
-    """
-    # Get Minimax API credentials from settings
-    api_key = getattr(settings, 'MINIMAX_API_KEY', None)
-    group_id = getattr(settings, 'MINIMAX_GROUP_ID', None)
-    if not api_key or not group_id:
-        raise ValueError("Minimax API key or group ID is not set")
-    
-    # Map local voice names to Minimax voice IDs with robust error handling
-    logger.debug(f"minimax_text_to_speech called with voice parameter: '{voice}' (type: {type(voice)})")
-    
-    # Ensure voice is a string and handle any unexpected values
-    if not isinstance(voice, str):
-        logger.warning(f"Voice parameter is not a string: {voice} (type: {type(voice)}). Converting to string.")
-        voice = str(voice)
-    
-    # Handle empty or whitespace-only voice
-    if not voice or not voice.strip():
-        logger.warning(f"Voice parameter is empty or whitespace. Using 'alex' as fallback.")
-        voice = "alex"
-    
-    # Handle 'default' specifically (in case it's still passed from somewhere)
-    if voice == "default":
-        logger.warning(f"Voice 'default' is not supported. Using 'alex' as fallback.")
-        voice = "alex"
-    
-    # Check if voice exists in mapping
-    if voice not in VOICE_MAPPING:
-        logger.warning(f"Voice '{voice}' not found in VOICE_MAPPING. Available voices: {list(VOICE_MAPPING.keys())}. Using 'alex' as fallback.")
-        voice = "alex"
-    
-    minimax_voice = VOICE_MAPPING[voice]
-    logger.debug(f"Mapped voice '{voice}' to Minimax voice: '{minimax_voice}'")
-    
-    # Prepare API request
-    api_url = f"https://api.minimaxi.chat/v1/t2a_v2?GroupId={group_id}"
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "model": "speech-02-hd",
-        "text": text,
-        "stream": False,
-        "output_format": "hex",
-        "voice_setting": {
-            "voice_id": minimax_voice,
-            "speed": 1,
-            "vol": 1,
-            "pitch": 0,
-        },
-        "audio_setting": {
-            "sample_rate": 16000,
-            "bitrate": 128000,
-            "format": "mp3",
-            "channel": 1,
-        },
-    }
-    
-    logger.info(f"Generating audio with Minimax TTS: voice={minimax_voice}, text_length={len(text)}")
-        
-    try:
-        response = requests.post(api_url, headers=headers, json=payload, timeout=30)
-        response.raise_for_status()
-        
-        response_data = response.json()
-        
-        if response_data.get("base_resp", {}).get("status_code") == 0:
-            # Get the audio data (hex string)
-            audio_hex = response_data.get("data", {}).get("audio")
-
-            if audio_hex:
-                # Convert hex string to binary audio data
-                audio_binary = bytes.fromhex(audio_hex)
-                
-                # Ensure output directory exists
-                os.makedirs(os.path.dirname(output_file), exist_ok=True)
-                
-                with open(output_file, "wb") as f:
-                    f.write(audio_binary)
-                
-                # Verify file was created and has content
-                if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
-                    logger.info(f"Successfully generated audio segment: {output_file}")
-                    return True
-                else:
-                    logger.error(f"Audio file was created but is empty or invalid: {output_file}")
-                    return False
-            else:
-                logger.error(f"No audio data (hex string) received from Minimax.")
-                logger.error(f"Full response data: {response_data}")
-                return False
-        else:
-            status_msg = response_data.get("base_resp", {}).get("status_msg", "Unknown API error")
-            error_code = response_data.get("base_resp", {}).get("status_code", "N/A")
-            logger.error(f"Minimax API error: {status_msg} (Code: {error_code})")
-            logger.error(f"Full response data: {response_data}")
-            return False
-
-    except requests.exceptions.Timeout:
-        logger.error(f"Timeout error occurred while generating audio")
-    except requests.exceptions.HTTPError as http_err:
-        logger.error(f"HTTP error occurred while generating audio: {http_err}")
-        try:
-            logger.error(f"Response content: {response.text}")
-        except:
-            logger.error("Could not decode response content")
-    except requests.exceptions.ConnectionError:
-        logger.error(f"Connection error occurred while generating audio")
-    except requests.exceptions.RequestException as req_err:
-        logger.error(f"Request error occurred while generating audio: {req_err}")
-    except json.JSONDecodeError:
-        logger.error(f"Error decoding JSON response.")
-        try:
-            logger.error(f"Response content: {response.text if 'response' in locals() else 'No response object'}")
-        except:
-            logger.error("Could not access response content")
-    except Exception as e:
-        logger.error(f"An unexpected error occurred generating audio: {str(e)}")
-    
-    return False
+    # Minimax TTS removed
+    pass

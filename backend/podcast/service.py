@@ -73,6 +73,10 @@ class PodcastService:
             # Convert to audio and store in MinIO
             audio_object_key = self._process_conversation_to_audio(conversation_turns, user_id, podcast_id, notebook_id)
             
+            # If audio generation/storage failed, treat as failure
+            if not audio_object_key:
+                raise Exception("Audio generation failed: no audio object key produced")
+
             return {
                 "status": "completed",
                 "conversation_turns": conversation_turns,
@@ -175,5 +179,4 @@ class PodcastService:
             logger.error(f"Audio storage with metadata failed: {e}")
             return None
     
-
 

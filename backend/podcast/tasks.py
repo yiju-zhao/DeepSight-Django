@@ -102,8 +102,8 @@ def process_podcast_generation(self, job_id: str):
             # Store file metadata
             if result.get("audio_object_key"):
                 job.file_metadata = {
-                    "filename": f"podcast_{job.id}.mp3",
-                    "content_type": "audio/mpeg",
+                    "filename": f"podcast_{job.id}.wav",
+                    "content_type": "audio/wav",
                     "object_key": result["audio_object_key"],
                     "participants": result["metadata"]["participants"],
                     "conversation_turns": result["metadata"]["total_turns"]

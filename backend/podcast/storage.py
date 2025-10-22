@@ -50,7 +50,7 @@ class PodcastStorageService:
             storage_success = backend.store_file(
                 object_key=object_key,
                 file_content=audio_content,
-                content_type="audio/mpeg"
+                content_type="audio/wav"
             )
             
             # Clean up temporary file and directory
@@ -182,7 +182,7 @@ class PodcastStorageService:
         """
         timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         unique_id = str(uuid.uuid4()).replace('-', '')[:8]
-        filename = f"podcast_{timestamp}_{unique_id}.mp3"
+        filename = f"podcast_{timestamp}_{unique_id}.wav"
         
         # Follow reports pattern but use 'podcast' instead of 'report': 
         # {user_id}/notebook/{notebook_id}/podcast/{podcast_id}/filename
@@ -206,8 +206,8 @@ class PodcastStorageService:
             "filename": object_key.split('/')[-1],
             "object_key": object_key,
             "file_size": len(audio_content),
-            "content_type": "audio/mpeg",
-            "format": "mp3",
+            "content_type": "audio/wav",
+            "format": "wav",
             "stored_at": datetime.now(timezone.utc).isoformat(),
         }
         
@@ -267,8 +267,8 @@ class PodcastStorageService:
             return {
                 "object_key": object_key,
                 "filename": object_key.split('/')[-1],
-                "content_type": "audio/mpeg",
-                "format": "mp3",
+                "content_type": "audio/wav",
+                "format": "wav",
                 "exists": True  # Assume exists for now
             }
             

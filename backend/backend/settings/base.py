@@ -251,8 +251,13 @@ AZURE_AI_SEARCH_ENDPOINT = os.getenv('AZURE_AI_SEARCH_ENDPOINT')
 AZURE_AI_SEARCH_INDEX = os.getenv('AZURE_AI_SEARCH_INDEX')
 
 # MiniMax TTS Configuration
-MINIMAX_GROUP_ID = os.getenv('MINIMAX_GROUP_ID')
-MINIMAX_API_KEY = os.getenv('MINIMAX_API_KEY')
+# Deprecated: Minimax removed from podcast TTS pipeline
+MINIMAX_GROUP_ID = None
+MINIMAX_API_KEY = None
+
+# Higgs TTS (OpenAI-compatible) Configuration
+HIGGS_API_BASE = os.getenv('HIGGS_API_BASE', 'http://localhost:8000/v1')
+HIGGS_TTS_MODEL = os.getenv('HIGGS_TTS_MODEL')  # optional; if not set, first available model is used
 
 # Document Processing
 MINERU_BASE_URL = os.getenv("MINERU_BASE_URL")
