@@ -112,13 +112,38 @@ export class ApiClient {
     this.baseUrl = baseUrl;
   }
 
+  getBaseUrl(): string {
+    return this.baseUrl;
+  }
+
+  private getCookie(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop()!.split(';').shift() || null;
+    return null;
+  }
+
   private async request(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.baseUrl}${endpoint}`;
+    const method = (options.method || 'GET').toUpperCase();
+    const isUnsafe = !['GET', 'HEAD', 'OPTIONS'].includes(method);
+    const csrf = this.getCookie('csrftoken');
+    const baseHeaders: Record<string, string> = {
+      ...(options.headers as any),
+    };
+    // Only set JSON content type if body isn't FormData
+    const isFormData = typeof FormData !== 'undefined' && options.body instanceof FormData;
+    if (!isFormData) {
+      baseHeaders['Content-Type'] = baseHeaders['Content-Type'] || 'application/json';
+    }
+    if (isUnsafe && csrf) {
+      baseHeaders['X-CSRFToken'] = csrf;
+    }
+
     const response = await fetch(url, {
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      credentials: 'include',
+      headers: baseHeaders,
       ...options,
     });
 
@@ -134,10 +159,11 @@ export class ApiClient {
   }
 
   async post(endpoint: string, data?: any): Promise<any> {
-    return this.request(endpoint, {
-      method: 'POST',
-      body: data ? JSON.stringify(data) : null,
-    });
+    // Respect FormData bodies
+    if (typeof FormData !== 'undefined' && data instanceof FormData) {
+      return this.request(endpoint, { method: 'POST', body: data });
+    }
+    return this.request(endpoint, { method: 'POST', body: data ? JSON.stringify(data) : null });
   }
 
   async put(endpoint: string, data?: any): Promise<any> {
@@ -155,7 +181,7 @@ export class ApiClient {
 
   async downloadFile(endpoint: string): Promise<Blob> {
     const url = `${this.baseUrl}${endpoint}`;
-    const response = await fetch(url);
+    const response = await fetch(url, { credentials: 'include' });
     
     if (!response.ok) {
       throw new Error(`Download failed: ${response.statusText}`);
