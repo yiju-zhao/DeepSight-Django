@@ -130,7 +130,7 @@ export class PodcastService implements IPodcastService {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = filename || `podcast-${id}.mp3`;
+      link.download = filename || `podcast-${id}.wav`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

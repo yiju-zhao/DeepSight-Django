@@ -382,7 +382,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${podcast.title || 'podcast'}.mp3`;
+      link.download = `${podcast.title || 'podcast'}.wav`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

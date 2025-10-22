@@ -149,15 +149,21 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
           </span>
         </div>
       ) : audioUrl ? (
+        {(() => {
+          const lower = (audioUrl || '').toLowerCase();
+          const mime = lower.includes('.wav') ? 'audio/wav' : lower.includes('.mp3') ? 'audio/mpeg' : undefined;
+          return (
         <audio 
           controls 
           className="w-full"
           preload="metadata"
           style={{ height: '40px' }}
         >
-          <source src={audioUrl} type="audio/mpeg" />
+          {mime ? <source src={audioUrl!} type={mime} /> : <source src={audioUrl!} />}
           Your browser does not support the audio element.
         </audio>
+          );
+        })()}
       ) : (
         <div className="text-center py-2 text-gray-500 text-sm">
           {retryAttempts >= 5 ? 'Audio not available after retries' : 'Audio not available'}
