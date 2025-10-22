@@ -18,6 +18,7 @@ from pathlib import Path
 import os   
 
 import base64
+import time
 import requests
 from django.conf import settings
 
@@ -30,6 +31,10 @@ MAX_CONTENT_LENGTH = 8000
 MAX_ITEM_PREVIEW_LENGTH = 500
 
 logger = logging.getLogger(__name__)
+
+# Module-level cache for Higgs client/model
+_HIGGS_CLIENT_CACHE = None
+_HIGGS_MODEL_CACHE = None
 
 
 # =============================================================================
@@ -140,6 +145,9 @@ def _get_higgs_client_and_model():
         logger.error(f"OpenAI client not available for Higgs: {e}")
         return None, None
 
+    global _HIGGS_CLIENT_CACHE, _HIGGS_MODEL_CACHE
+    if _HIGGS_CLIENT_CACHE and _HIGGS_MODEL_CACHE:
+        return _HIGGS_CLIENT_CACHE, _HIGGS_MODEL_CACHE
     base_url = getattr(settings, 'HIGGS_API_BASE', 'http://localhost:8000/v1')
     model = getattr(settings, 'HIGGS_TTS_MODEL', None)
     try:
@@ -156,7 +164,8 @@ def _get_higgs_client_and_model():
             except Exception as e:
                 logger.error(f"Higgs: failed to list models: {e}")
                 return client, None
-        return client, model
+        _HIGGS_CLIENT_CACHE, _HIGGS_MODEL_CACHE = client, model
+        return _HIGGS_CLIENT_CACHE, _HIGGS_MODEL_CACHE
     except Exception as e:
         logger.error(f"Failed to init Higgs client: {e}")
         return None, None
@@ -167,10 +176,11 @@ def _higgs_smart_voice(text: str) -> Optional[bytes]:
     client, model = _get_higgs_client_and_model()
     if not client or not model:
         return None
+    scene_desc = getattr(settings, 'TTS_SCENE_PROMPT', 'Audio is recorded from a quiet room.')
     DEFAULT_SYSTEM_PROMPT = (
         "Generate audio following instruction.\n\n"
         "<|scene_desc_start|>\n"
-        "Audio is recorded from a quiet room.\n"
+        f"{scene_desc}\n"
         "<|scene_desc_end|>"
     )
     try:
@@ -239,6 +249,56 @@ def _openai_tts(text: str) -> Optional[bytes]:
     if not api_key:
         logger.error("OPENAI_API_KEY not set; cannot use fallback TTS")
         return None
+
+
+# =============================
+# Text normalization and chunking
+# =============================
+
+FULL_TO_HALF_PUNCT = {
+    "，": ",", "。": ".", "：": ":", "；": ";", "？": "?", "！": "!",
+    "（": "(", "）": ")", "【": "[", "】": "]", "《": "<", "》": ">",
+    "“": '"', "”": '"', "‘": "'", "’": "'", "、": ",", "—": "-",
+    "…": "...", "·": ".", "「": '"', "」": '"', "『": '"', "』": '"',
+}
+
+def normalize_text_for_tts(text: str) -> str:
+    if not getattr(settings, 'TTS_ENABLE_NORMALIZATION', True):
+        return text
+    # convert full-width punctuation; light cleanup
+    for zh, en in FULL_TO_HALF_PUNCT.items():
+        text = text.replace(zh, en)
+    # lightweight symbol cleanup
+    text = text.replace("\u200b", " ").strip()
+    return text
+
+
+PUNCT_SPLIT_REGEX = re.compile(r"([。.!！?？;；]\s*)")
+
+def chunk_text_by_punct(text: str, max_chars: int) -> List[str]:
+    if len(text) <= max_chars:
+        return [text]
+    parts: List[str] = []
+    # split while keeping delimiters
+    tokens = PUNCT_SPLIT_REGEX.split(text)
+    buf = ""
+    for tok in tokens:
+        if len(buf) + len(tok) > max_chars and buf:
+            parts.append(buf.strip())
+            buf = tok
+        else:
+            buf += tok
+    if buf.strip():
+        parts.append(buf.strip())
+    # fallback: if any very long chunk remains, force-cut
+    out: List[str] = []
+    for p in parts:
+        if len(p) <= max_chars:
+            out.append(p)
+        else:
+            for i in range(0, len(p), max_chars):
+                out.append(p[i:i+max_chars])
+    return out
     try:
         url = "https://api.openai.com/v1/audio/speech"
         headers = {
@@ -286,42 +346,99 @@ def generate_audio_segment(
     try:
         logger.debug(f"generate_audio_segment called: speaker='{speaker}', segment_index={segment_index}")
         
-        # Create temporary file for this segment
+        # Prepare temp files
         temp_filename = f"segment_{segment_index:03d}_{speaker}.wav"
         temp_file_path = audio_output_dir / temp_filename
         
-        audio_bytes: Optional[bytes] = None
+        # Optional normalization
+        content_norm = normalize_text_for_tts(content)
+        # Chunk long content
+        max_chars = getattr(settings, 'TTS_MAX_CHARS_PER_CHUNK', 800)
+        chunks = chunk_text_by_punct(content_norm, max_chars=max_chars)
 
-        if speaker not in speaker_state:
-            # First segment for this speaker: smart voice
-            audio_bytes = _higgs_smart_voice(content)
-            if audio_bytes:
-                # Cache seed for cloning later: keep both audio and text
-                speaker_state[speaker] = {"seed_audio": audio_bytes, "seed_text": content}
-        else:
-            # Subsequent segments: voice clone using first segment as seed
-            seed = speaker_state[speaker]
-            audio_bytes = _higgs_voice_clone(seed.get("seed_audio", b""), seed.get("seed_text", ""), content)
+        chunk_files: List[Path] = []
+        start_ts = time.time()
+        for ci, chunk in enumerate(chunks):
+            path_used = None
+            audio_bytes: Optional[bytes] = None
+            origin = None
+            if speaker not in speaker_state:
+                # First chunk for this speaker → smart voice
+                audio_bytes = _higgs_smart_voice(chunk)
+                origin = 'higgs_smart'
+                if audio_bytes:
+                    # Cache seed only once (use first chunk output and text)
+                    speaker_state[speaker] = {"seed_audio": audio_bytes, "seed_text": chunk, "history": [chunk]}
+                else:
+                    # fallback to OpenAI
+                    audio_bytes = _openai_tts(chunk)
+                    origin = 'openai_fallback'
+            else:
+                # Subsequent chunks → try clone first
+                seed = speaker_state[speaker]
+                hist_window = getattr(settings, 'TTS_HISTORY_WINDOW', 0)
+                history = seed.get("history", [])
+                context_suffix = ("\n" + "\n".join(history[-hist_window:])) if hist_window and history else ""
+                audio_bytes = _higgs_voice_clone(seed.get("seed_audio", b""), seed.get("seed_text", ""), chunk + context_suffix)
+                origin = 'higgs_clone'
+                if not audio_bytes:
+                    # Try trimmed seed text
+                    trimmed_seed = seed.get("seed_text", "")[:200]
+                    audio_bytes = _higgs_voice_clone(seed.get("seed_audio", b""), trimmed_seed, chunk)
+                    origin = 'higgs_clone_trimmed'
+                if not audio_bytes:
+                    # As last resort, smart voice again
+                    audio_bytes = _higgs_smart_voice(chunk)
+                    origin = 'higgs_smart_retry'
+                if not audio_bytes:
+                    audio_bytes = _openai_tts(chunk)
+                    origin = 'openai_fallback'
+
+                # update history
+                history.append(chunk)
+                seed["history"] = history[-max(1, hist_window):] if hist_window else history
+
             if not audio_bytes:
-                # Try smart voice again if clone fails
-                audio_bytes = _higgs_smart_voice(content)
+                logger.warning(f"Chunk generation failed: seg={segment_index} chunk={ci} speaker={speaker}")
+                continue
 
-        # Fallback to OpenAI TTS if Higgs failed
-        if not audio_bytes:
-            audio_bytes = _openai_tts(content)
+            # Write chunk wav
+            chunk_file = audio_output_dir / f"segment_{segment_index:03d}_{speaker}_chunk{ci}.wav"
+            os.makedirs(os.path.dirname(chunk_file), exist_ok=True)
+            with open(chunk_file, "wb") as f:
+                f.write(audio_bytes)
+            # Apply fade + resample to unify format
+            processed_chunk = _process_segment_wave(chunk_file)
+            if processed_chunk:
+                chunk_files.append(processed_chunk)
+                # cleanup raw chunk
+                try:
+                    if chunk_file.exists():
+                        chunk_file.unlink()
+                except Exception:
+                    pass
+            else:
+                chunk_files.append(chunk_file)
 
-        if not audio_bytes:
-            logger.warning(f"Failed to generate audio segment {segment_index} for {speaker}")
+            logger.info(f"TTS chunk generated: seg={segment_index} chunk={ci} speaker={speaker} origin={origin} bytes={len(audio_bytes)}")
+
+        if not chunk_files:
+            logger.warning(f"Failed to generate any chunks for seg={segment_index} speaker={speaker}")
             return None
 
-        # Write WAV bytes to file
-        os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
-        with open(temp_file_path, "wb") as f:
-            f.write(audio_bytes)
-
-        if temp_file_path.exists() and os.path.getsize(temp_file_path) > 0:
+        # Concatenate chunk files into a single segment wav
+        ok = concatenate_audio_segments(chunk_files, temp_file_path, audio_output_dir)
+        # Cleanup chunk files
+        for cf in chunk_files:
+            try:
+                if cf.exists():
+                    cf.unlink()
+            except Exception:
+                pass
+        if ok and temp_file_path.exists() and os.path.getsize(temp_file_path) > 0:
+            logger.info(f"Segment generated: seg={segment_index} speaker={speaker} chunks={len(chunks)} dur_ms={int((time.time()-start_ts)*1000)}")
             return temp_file_path
-        logger.warning(f"Generated audio segment but file invalid: {temp_file_path}")
+        logger.warning(f"Generated segment but invalid file: {temp_file_path}")
         return None
             
     except Exception as e:
@@ -420,11 +537,13 @@ def concatenate_audio_segments(
                 f.write(f"file '{segment.absolute()}'\n")
         
         try:
-            # Try ffmpeg concatenation first
+            # Re-encode to enforce sample rate, mono, and avoid header mismatches
+            target_sr = str(getattr(settings, 'TTS_TARGET_SAMPLE_RATE', 24000))
             subprocess.run([
                 "ffmpeg", "-f", "concat", "-safe", "0",
                 "-i", str(concat_list_file),
-                "-c", "copy", str(output_file)
+                "-ar", target_sr, "-ac", "1", "-c:a", "pcm_s16le",
+                str(output_file)
             ], check=True, capture_output=True, timeout=300)
             
             # Clean up concat list file
@@ -452,6 +571,30 @@ def concatenate_audio_segments(
     except Exception as e:
         logger.error(f"Error concatenating audio segments: {e}")
         return False
+
+
+def _process_segment_wave(input_wav: Path) -> Optional[Path]:
+    """Apply tiny fade in/out and resample to target SR/mono. Returns new file path."""
+    try:
+        target_sr = str(getattr(settings, 'TTS_TARGET_SAMPLE_RATE', 24000))
+        fade_ms = max(0, int(getattr(settings, 'TTS_CROSSFADE_MS', 10)))
+        fade_s = str(fade_ms / 1000.0)
+        out_path = input_wav.with_name(input_wav.stem + "_proc.wav")
+        # Apply fade in/out with afade; resample and set mono
+        # For fade-out, estimate duration dynamically is hard without probing; we apply symmetric fades by re-encoding twice is complex.
+        # Use short fade-in and fade-out by chaining filters; ffmpeg handles end fade with 'st=duration-...:d=...'.
+        # We'll use simple fades that won't error if duration < fade length.
+        cmd = [
+            "ffmpeg", "-y", "-i", str(input_wav),
+            "-af", f"afade=t=in:st=0:d={fade_s},afade=t=out:st=0:d={fade_s}",
+            "-ar", target_sr, "-ac", "1", "-c:a", "pcm_s16le",
+            str(out_path)
+        ]
+        subprocess.run(cmd, check=True, capture_output=True, timeout=120)
+        return out_path if out_path.exists() else None
+    except Exception as e:
+        logger.warning(f"Segment post-process failed for {input_wav}: {e}")
+        return None
 
 
 def _simple_audio_concatenation(segments: List[Path], output_file: Path) -> bool:
