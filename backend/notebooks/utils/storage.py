@@ -101,6 +101,41 @@ class MinIOBackend:
         except S3Error as e:
             self.logger.error(f"Error retrieving file {object_key}: {e}")
             return None
+
+    def stream_file(self, object_key: str, chunk_size: int = 64 * 1024):
+        """Stream file content from MinIO without loading into memory.
+
+        Returns a tuple of (iterator, content_length, content_type) or (None, None, None) on error.
+        """
+        try:
+            resp = self.client.get_object(self.bucket_name, object_key)
+
+            def file_iter():
+                try:
+                    for data in resp.stream(chunk_size):
+                        if data:
+                            yield data
+                finally:
+                    try:
+                        resp.close()
+                        resp.release_conn()
+                    except Exception:
+                        pass
+
+            length = None
+            ctype = None
+            try:
+                # MinIO returns headers like a requests-like object
+                headers = getattr(resp, 'headers', {}) or {}
+                length = headers.get('Content-Length')
+                ctype = headers.get('Content-Type')
+            except Exception:
+                pass
+
+            return file_iter(), length, ctype
+        except S3Error as e:
+            self.logger.error(f"Error streaming file {object_key}: {e}")
+            return None, None, None
     
     def delete_file(self, object_key: str) -> bool:
         """Delete a single file from MinIO."""

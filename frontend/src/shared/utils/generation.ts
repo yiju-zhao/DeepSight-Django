@@ -293,7 +293,7 @@ export const downloadFile = async (fileId: string, filename: string, notebookId:
   try {
     const endpoint = type === 'report'
       ? `/reports/${fileId}/download/`
-      : `/podcasts/jobs/${fileId}/download/`;
+      : `/podcasts/${fileId}/download-audio/`;
     
     const blob = await new ApiClient().downloadFile(endpoint);
     const url = window.URL.createObjectURL(blob);

@@ -122,7 +122,7 @@ export function usePodcasts(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: queryKeys.podcasts.list(),
     queryFn: async (): Promise<Podcast[]> => {
-      const response = await apiClient.get('/podcasts/jobs/');
+      const response = await apiClient.get('/podcasts/');
 
       // Handle different response formats
       if (Array.isArray(response)) {
@@ -223,7 +223,7 @@ export function useDashboardData(options?: { enabled?: boolean }) {
       {
         queryKey: queryKeys.podcasts.list(),
         queryFn: async (): Promise<Podcast[]> => {
-          const response = await apiClient.get('/podcasts/jobs/');
+          const response = await apiClient.get('/podcasts/');
           // Handle different response formats
           if (Array.isArray(response)) {
             return response;

@@ -92,8 +92,11 @@ Notebooks (Core):
 - /api/v1/notebooks/{id}/chat/ -> Chat sessions and messaging
 
 Podcasts:
-- /api/v1/podcasts/jobs/ -> Podcast jobs (list/create; filter with ?notebook=)
-- /api/v1/podcasts/jobs/{job_id}/ -> Job detail/cancel/audio/download/stream
+- /api/v1/podcasts/ -> Podcasts (list/create; filter with ?notebook=)
+- /api/v1/podcasts/{podcast_id}/ -> Detail/delete
+- /api/v1/podcasts/{podcast_id}/cancel/ -> Cancel generation
+- /api/v1/podcasts/{podcast_id}/audio/ -> Audio content (streaming)
+- /api/v1/podcasts/{podcast_id}/download-audio/ -> Audio download (streaming attachment)
 
 Reports:
 - /api/v1/reports/models/ -> Report configuration

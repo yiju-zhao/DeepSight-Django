@@ -35,9 +35,9 @@ export class PodcastService implements IPodcastService {
 
   async getPodcasts(filters?: PodcastFilters): Promise<Podcast[]> {
     try {
-      let endpoint = '/podcasts/jobs/';
+      let endpoint = '/podcasts/';
       if (this.notebookId) {
-        endpoint = `/podcasts/jobs/?notebook=${encodeURIComponent(this.notebookId)}`;
+        endpoint = `/podcasts/?notebook=${encodeURIComponent(this.notebookId)}`;
       }
 
       // Add query parameters for filters
@@ -68,7 +68,7 @@ export class PodcastService implements IPodcastService {
 
   async getPodcast(id: string): Promise<Podcast> {
     try {
-      const endpoint = `/podcasts/jobs/${id}/`;
+      const endpoint = `/podcasts/${id}/`;
 
       const response = await this.api.get(endpoint);
       return response;
@@ -80,10 +80,17 @@ export class PodcastService implements IPodcastService {
 
   async getPodcastAudio(id: string): Promise<PodcastAudio> {
     try {
-      const endpoint = `/podcasts/jobs/${id}/audio/`;
-
-      const response = await this.api.get(endpoint);
-      return response;
+      const endpoint = `/podcasts/${id}/audio/`;
+      // Request JSON metadata (stable backend URL) via explicit Accept header
+      const res = await fetch(`${this.api.getBaseUrl()}${endpoint}`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!res.ok) {
+        throw new Error(`Failed to fetch podcast audio: ${res.statusText}`);
+      }
+      return await res.json();
     } catch (error) {
       console.error('Failed to fetch podcast audio:', error);
       throw new Error('Failed to fetch podcast audio');
@@ -92,7 +99,7 @@ export class PodcastService implements IPodcastService {
 
   async generatePodcast(config: PodcastGenerationRequest): Promise<PodcastGenerationResponse> {
     try {
-      const endpoint = '/podcasts/jobs/';
+      const endpoint = '/podcasts/';
       const formData = createFormData({ ...config, notebook: this.notebookId });
       const response = await this.api.post(endpoint, formData);
       return response;
@@ -104,7 +111,7 @@ export class PodcastService implements IPodcastService {
 
   async cancelPodcast(id: string): Promise<void> {
     try {
-      const endpoint = `/podcasts/jobs/${id}/cancel/`;
+      const endpoint = `/podcasts/${id}/cancel/`;
       await this.api.post(endpoint);
     } catch (error) {
       console.error('Failed to cancel podcast:', error);
@@ -114,7 +121,7 @@ export class PodcastService implements IPodcastService {
 
   async deletePodcast(id: string): Promise<void> {
     try {
-      const endpoint = `/podcasts/jobs/${id}/`;
+      const endpoint = `/podcasts/${id}/`;
       await this.api.delete(endpoint);
     } catch (error) {
       console.error('Failed to delete podcast:', error);
@@ -124,7 +131,7 @@ export class PodcastService implements IPodcastService {
 
   async downloadPodcast(id: string, filename?: string): Promise<void> {
     try {
-      const endpoint = `/podcasts/jobs/${id}/download/`;
+      const endpoint = `/podcasts/${id}/download-audio/`;
 
       const blob = await this.api.downloadFile(endpoint);
       const url = window.URL.createObjectURL(blob);
@@ -271,7 +278,7 @@ export class PodcastService implements IPodcastService {
     if (podcast.audio_file) return podcast.audio_file;
     // Even if audio_object_key isn't included by the API, expose the audio endpoint when we have an id.
     const podcastId = podcast.id || podcast.job_id;
-    if (podcastId) return `${config.API_BASE_URL}/podcasts/jobs/${podcastId}/audio/`;
+    if (podcastId) return `${config.API_BASE_URL}/podcasts/${podcastId}/audio/`;
     return null;
   }
 } 

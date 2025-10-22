@@ -81,7 +81,7 @@ describe('useDashboardData', () => {
     // Verify API calls were made
     expect(mockFetchJson).toHaveBeenCalledTimes(3);
     expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/reports/`);
-    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/podcasts/jobs/`);
+    expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/podcasts/`);
     expect(mockFetchJson).toHaveBeenCalledWith(`${config.API_BASE_URL}/conferences/overview/general/`);
   });
 

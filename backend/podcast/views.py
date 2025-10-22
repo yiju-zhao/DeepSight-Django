@@ -1,8 +1,9 @@
 from django.shortcuts import get_object_or_404
-from django.http import StreamingHttpResponse, HttpResponse
+from django.http import StreamingHttpResponse, HttpResponse, FileResponse
 from rest_framework import status, permissions, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import generics
 import logging
 import json
 import time
@@ -86,9 +87,6 @@ class PodcastJobListCreateView(APIView):
         except Exception as e:
             logger.error(f"Error creating podcast job (canonical): {e}")
             return Response({"error": f"Failed to create podcast-job: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
-
-
-from rest_framework import generics
 
 
 class PodcastJobDetailView(generics.RetrieveDestroyAPIView):
@@ -199,15 +197,16 @@ class PodcastJobAudioView(APIView):
             try:
                 from notebooks.utils.storage import get_minio_backend
                 minio_backend = get_minio_backend()
-                content = minio_backend.get_file(job.audio_object_key)
-                if content is None:
+                iterator, length, ctype = minio_backend.stream_file(job.audio_object_key)
+                if iterator is None:
                     return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
-
-                # Serve inline audio
-                resp = HttpResponse(content, content_type='audio/wav')
+                # Serve inline audio (streaming)
+                resp = StreamingHttpResponse(iterator, content_type=ctype or 'audio/wav')
                 safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
                 filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
                 resp["Content-Disposition"] = f'inline; filename="{filename}"'
+                if length:
+                    resp["Content-Length"] = str(length)
                 # Caching hints (short-lived)
                 resp["Cache-Control"] = 'max-age=60, must-revalidate'
                 return resp
@@ -232,18 +231,18 @@ class PodcastJobDownloadView(APIView):
             try:
                 from notebooks.utils.storage import get_minio_backend
                 minio_backend = get_minio_backend()
-                content = minio_backend.get_file(job.audio_object_key)
-                if content is None:
+                iterator, length, ctype = minio_backend.stream_file(job.audio_object_key)
+                if iterator is None:
                     return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
                 # Prepare filename
                 safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
                 filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
-                # Serve as attachment
-                from django.http import FileResponse
-                import io
-                file_like = io.BytesIO(content)
-                response = FileResponse(file_like, as_attachment=True, filename=filename, content_type='audio/wav')
-                response["Cache-Control"] = 'no-cache'
+                # Serve as attachment (streaming)
+                response = StreamingHttpResponse(iterator, content_type=ctype or 'audio/wav')
+                response["Content-Disposition"] = f'attachment; filename="{filename}"'
+                if length:
+                    response["Content-Length"] = str(length)
+                response["Cache-Control"] = 'no-cache, no-store, must-revalidate'
                 return response
             except Exception as e:
                 logger.error(f"Error streaming download for job {job_id}: {e}")
@@ -262,6 +261,33 @@ def podcast_job_status_stream(request, job_id):
         response["Access-Control-Allow-Headers"] = "Cache-Control, Authorization"
         response["Access-Control-Allow-Credentials"] = "true"
         return response
+
+
+# ==============================
+# Report-style views (no 'jobs')
+# ==============================
+
+class PodcastListCreateView(PodcastJobListCreateView):
+    pass
+
+
+class PodcastDetailView(PodcastJobDetailView):
+    lookup_url_kwarg = 'podcast_id'
+
+
+class PodcastCancelView(PodcastJobCancelView):
+    def post(self, request, podcast_id):
+        return super().post(request, job_id=podcast_id)
+
+
+class PodcastAudioContentView(PodcastJobAudioView):
+    def get(self, request, podcast_id):
+        return super().get(request, job_id=podcast_id)
+
+
+class PodcastAudioDownloadView(PodcastJobDownloadView):
+    def get(self, request, podcast_id):
+        return super().get(request, job_id=podcast_id)
 
     if not request.user.is_authenticated:
         response = StreamingHttpResponse(

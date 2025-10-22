@@ -259,7 +259,7 @@ class StudioService {
     
     // Send notebook id in body for canonical endpoint
     formData.append('notebook', notebookId);
-    return apiClient.post(`/podcasts/jobs/`, formData);
+    return apiClient.post(`/podcasts/`, formData);
   }
 
   async listPodcastJobs(notebookId: string): Promise<{ jobs: any[]; }> {
@@ -267,7 +267,7 @@ class StudioService {
       throw new Error('notebookId is required for listing podcast jobs');
     }
     
-    const response = await apiClient.get(`/podcasts/jobs/?notebook=${encodeURIComponent(notebookId)}`);
+    const response = await apiClient.get(`/podcasts/?notebook=${encodeURIComponent(notebookId)}`);
     const jobs = response.results || response || [];
 
     // Normalize the ID field to ensure consistency, similar to listReportJobs
@@ -291,7 +291,7 @@ class StudioService {
       throw new Error('notebookId is required for cancelling podcast jobs');
     }
     
-    return apiClient.post(`/podcasts/jobs/${jobId}/cancel/`);
+    return apiClient.post(`/podcasts/${jobId}/cancel/`);
   }
 
   async getPodcastJobStatus(jobId: string, notebookId: string): Promise<any> {
@@ -299,45 +299,34 @@ class StudioService {
       throw new Error('notebookId is required for getting podcast job status');
     }
     
-    return apiClient.get(`/podcasts/jobs/${jobId}/`);
+    return apiClient.get(`/podcasts/${jobId}/`);
   }
 
   async downloadPodcastAudio(jobId: string, notebookId: string): Promise<Blob> {
     if (!notebookId) {
       throw new Error('notebookId is required for downloading podcast audio');
     }
-    
-    const response = await fetch(`${apiClient.getBaseUrl()}/podcasts/jobs/${jobId}/audio/`, {
+    // Directly fetch streaming audio from backend; no extra JSON roundtrip
+    const response = await fetch(`${apiClient.getBaseUrl()}/podcasts/${jobId}/audio/`, {
       method: 'GET',
       credentials: 'include',
       headers: {
         'X-CSRFToken': getCookie('csrftoken') ?? '',
-        'Accept': 'application/json',
       },
     });
 
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`;
       try {
-        const errorData = await response.json();
-        errorMessage = errorData.error || errorData.detail || errorMessage;
+        const errorText = await response.text();
+        errorMessage = errorText || response.statusText || errorMessage;
       } catch (e) {
         errorMessage = response.statusText || errorMessage;
       }
       throw new Error(errorMessage);
     }
 
-    const data = await response.json();
-    if (!data.audio_url) {
-      throw new Error('No audio URL returned from server');
-    }
-    
-    const audioResponse = await fetch(data.audio_url);
-    if (!audioResponse.ok) {
-      throw new Error('Failed to download audio file');
-    }
-    
-    return audioResponse.blob();
+    return response.blob();
   }
 
   async deletePodcast(jobId: string, notebookId: string): Promise<any> {
@@ -345,7 +334,7 @@ class StudioService {
       throw new Error('notebookId is required for deleting podcast');
     }
     
-    return apiClient.delete(`/podcasts/jobs/${jobId}/`);
+    return apiClient.delete(`/podcasts/${jobId}/`);
   }
 
   getPodcastJobStatusStreamUrl(jobId: string, notebookId: string): string {
@@ -353,7 +342,7 @@ class StudioService {
       throw new Error('notebookId is required for podcast job status stream');
     }
     
-    return `${apiClient.getBaseUrl()}/podcasts/jobs/${jobId}/stream/`;
+    return `${apiClient.getBaseUrl()}/podcasts/${jobId}/stream/`;
   }
 }
 

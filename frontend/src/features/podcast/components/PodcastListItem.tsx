@@ -68,7 +68,7 @@ const PodcastListItem: React.FC<PodcastListItemProps> = ({ podcast, onSelect }) 
           {/** Prefer backend audio endpoint to avoid direct MinIO links */}
           {/** Fallback order: backend endpoint by id -> audioUrl -> audio_file */}
           {(() => {
-            const fallbackUrl = podcast.id ? `${config.API_BASE_URL}/podcasts/jobs/${podcast.id}/audio/` : undefined;
+            const fallbackUrl = podcast.id ? `${config.API_BASE_URL}/podcasts/${podcast.id}/audio/` : undefined;
             const src = fallbackUrl || podcast.audioUrl || (podcast as any).audio_file;
             return (
           <audio 

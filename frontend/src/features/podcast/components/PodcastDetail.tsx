@@ -95,7 +95,7 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
           
           // Prefer stable backend audio endpoint to avoid direct MinIO links
           if (currentPodcast.id) {
-            url = `${config.API_BASE_URL}/podcasts/jobs/${currentPodcast.id}/audio/`;
+            url = `${config.API_BASE_URL}/podcasts/${currentPodcast.id}/audio/`;
           }
           setAudioUrl(url || null);
         } catch (error) {

@@ -3,9 +3,9 @@ Podcast App URL Configuration.
 
 Canonical, notebook-agnostic endpoints for podcast generation and management.
 
-URL Structure:
-- /api/v1/podcasts/jobs/              - Podcast jobs (list/create; filter with ?notebook=)
-- /api/v1/podcasts/jobs/{job_id}/...  - Job operations (detail/cancel/audio/download/stream)
+URL Structure (report-style):
+- /api/v1/podcasts/                      - Podcasts (list/create; filter with ?notebook=)
+- /api/v1/podcasts/{podcast_id}/...      - Detail/cancel/audio/download/stream
 """
 
 from django.urls import path
@@ -18,39 +18,40 @@ app_name = 'podcast'
 
 urlpatterns = [
     # ========================================
-    # Canonical Podcast Job Endpoints (no notebook in path)
+    # New canonical endpoints (report-style, no 'jobs' in path)
     # ========================================
     path(
-        'jobs/',
-        views.PodcastJobListCreateView.as_view(),
-        name='podcast-jobs'
+        '',
+        views.PodcastListCreateView.as_view(),
+        name='podcast-list-create'
     ),
     path(
-        'jobs/<uuid:job_id>/',
-        views.PodcastJobDetailView.as_view(),
-        name='podcast-job-detail'
+        '<uuid:podcast_id>/',
+        views.PodcastDetailView.as_view(),
+        name='podcast-detail'
     ),
     path(
-        'jobs/<uuid:job_id>/cancel/',
-        views.PodcastJobCancelView.as_view(),
-        name='podcast-job-cancel'
+        '<uuid:podcast_id>/cancel/',
+        views.PodcastCancelView.as_view(),
+        name='podcast-cancel'
     ),
     path(
-        'jobs/<uuid:job_id>/audio/',
-        views.PodcastJobAudioView.as_view(),
-        name='podcast-job-audio'
+        '<uuid:podcast_id>/audio/',
+        views.PodcastAudioContentView.as_view(),
+        name='podcast-audio'
     ),
     path(
-        'jobs/<uuid:job_id>/download/',
-        views.PodcastJobDownloadView.as_view(),
-        name='podcast-job-download'
+        '<uuid:podcast_id>/download-audio/',
+        views.PodcastAudioDownloadView.as_view(),
+        name='podcast-audio-download'
     ),
     path(
-        'jobs/<uuid:job_id>/stream/',
+        '<uuid:podcast_id>/stream/',
         csrf_exempt(views.podcast_job_status_stream),
-        name='podcast-job-status-stream'
+        name='podcast-status-stream'
     ),
 
+    # Note: legacy '/jobs/' endpoints removed in favor of report-style naming
 ]
 
 # ========================================
@@ -60,12 +61,12 @@ urlpatterns = [
 """
 Generated URL Patterns (canonical only):
 
-- GET  /api/v1/podcasts/jobs/?notebook={id}
-- POST /api/v1/podcasts/jobs/
-- GET  /api/v1/podcasts/jobs/{job_id}/
-- DEL  /api/v1/podcasts/jobs/{job_id}/
-- POST /api/v1/podcasts/jobs/{job_id}/cancel/
-- GET  /api/v1/podcasts/jobs/{job_id}/audio/
-- GET  /api/v1/podcasts/jobs/{job_id}/download/
-- GET  /api/v1/podcasts/jobs/{job_id}/stream/
+- GET  /api/v1/podcasts/?notebook={id}
+- POST /api/v1/podcasts/
+- GET  /api/v1/podcasts/{podcast_id}/
+- DEL  /api/v1/podcasts/{podcast_id}/
+- POST /api/v1/podcasts/{podcast_id}/cancel/
+- GET  /api/v1/podcasts/{podcast_id}/audio/
+- GET  /api/v1/podcasts/{podcast_id}/download-audio/
+- GET  /api/v1/podcasts/{podcast_id}/stream/
 """

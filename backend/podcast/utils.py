@@ -130,6 +130,88 @@ async def extract_selected_content(selected_item_ids: List[int]) -> str:
 # AUDIO PROCESSING FUNCTIONS
 # =============================================================================
 
+def _normalize_chinese_punctuation(text: str) -> str:
+    """Convert full-width Chinese punctuation to half-width English equivalents."""
+    mapping = {
+        "，": ", ",
+        "。": ".",
+        "：": ":",
+        "；": ";",
+        "？": "?",
+        "！": "!",
+        "（": "(",
+        "）": ")",
+        "【": "[",
+        "】": "]",
+        "《": "<",
+        "》": ">",
+        "“": '"',
+        "”": '"',
+        "‘": "'",
+        "’": "'",
+        "、": ",",
+        "—": "-",
+        "…": "...",
+        "·": ".",
+        "「": '"',
+        "」": '"',
+        "『": '"',
+        "』": '"',
+    }
+    for zh, en in mapping.items():
+        text = text.replace(zh, en)
+    return text
+
+
+def normalize_tts_text(text: str) -> str:
+    """Normalize transcript/content prior to TTS generation.
+
+    Mirrors the example normalization: punctuation, special-event tags, whitespace cleanup,
+    temperature units, and ensuring terminal punctuation.
+    """
+    if not text:
+        return text
+
+    # 1) Chinese punctuation to half-width
+    text = _normalize_chinese_punctuation(text)
+
+    # 2) Replace some symbols/units and parentheses
+    replacements_simple = [
+        ("(", " "),
+        (")", " "),
+        ("°F", " degrees Fahrenheit"),
+        ("°C", " degrees Celsius"),
+    ]
+    for a, b in replacements_simple:
+        text = text.replace(a, b)
+
+    # 3) Convert common stage/event markers to tags the model can understand
+    stage_tags = [
+        ("[laugh]", "<SE>[Laughter]</SE>"),
+        ("[humming start]", "<SE_s>[Humming]</SE_s>"),
+        ("[humming end]", "<SE_e>[Humming]</SE_e>"),
+        ("[music start]", "<SE_s>[Music]</SE_s>"),
+        ("[music end]", "<SE_e>[Music]</SE_e>"),
+        ("[music]", "<SE>[Music]</SE>"),
+        ("[sing start]", "<SE_s>[Singing]</SE_s>"),
+        ("[sing end]", "<SE_e>[Singing]</SE_e>"),
+        ("[applause]", "<SE>[Applause]</SE>"),
+        ("[cheering]", "<SE>[Cheering]</SE>"),
+        ("[cough]", "<SE>[Cough]</SE>"),
+    ]
+    for a, b in stage_tags:
+        text = text.replace(a, b)
+
+    # 4) Collapse excessive whitespace and empty lines
+    lines = [" ".join(line.split()) for line in text.split("\n") if line.strip()]
+    text = "\n".join(lines).strip()
+
+    # 5) Ensure terminal punctuation for smoother prosody
+    if text and not any(text.endswith(c) for c in [".", "!", "?", ",", ";", '"', "'", "</SE_e>", "</SE>"]):
+        text += "."
+
+    return text
+
 def _get_higgs_client_and_model():
     """Create an OpenAI-compatible client for Higgs and choose a model.
     Returns a tuple (client, model_id).
@@ -286,6 +368,9 @@ def generate_audio_segment(
     try:
         logger.debug(f"generate_audio_segment called: speaker='{speaker}', segment_index={segment_index}")
         
+        # Normalize content prior to TTS
+        content = normalize_tts_text(content)
+
         # Create temporary file for this segment
         temp_filename = f"segment_{segment_index:03d}_{speaker}.wav"
         temp_file_path = audio_output_dir / temp_filename
