@@ -16,6 +16,7 @@ from .serializers import (
     PodcastCreateSerializer,
 )
 from notebooks.models import Notebook
+from django.utils.http import parsedate_to_datetime
 
 logger = logging.getLogger(__name__)
 
@@ -39,12 +40,34 @@ class PodcastJobListCreateView(APIView):
                 notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_id)
                 qs = qs.filter(notebook=notebook)
 
+            # Compute last modified for conditional requests first
+            try:
+                from django.db.models import Max
+                last_modified = qs.aggregate(max_updated=Max('updated_at'))['max_updated']
+            except Exception:
+                last_modified = None
+
+            # Honor If-Modified-Since to avoid unnecessary payloads
+            if last_modified:
+                ims = request.META.get('HTTP_IF_MODIFIED_SINCE')
+                if ims:
+                    try:
+                        ims_dt = parsedate_to_datetime(ims)
+                        if ims_dt.tzinfo is None:
+                            from django.utils.timezone import utc
+                            ims_dt = ims_dt.replace(tzinfo=utc)
+                        if last_modified <= ims_dt:
+                            resp = Response(status=status.HTTP_304_NOT_MODIFIED)
+                            resp['Last-Modified'] = last_modified.strftime('%a, %d %b %Y %H:%M:%S GMT')
+                            return resp
+                    except Exception:
+                        pass
+
             jobs = qs.order_by('-created_at')
             serializer = PodcastListSerializer(jobs, many=True)
 
             response = Response(serializer.data)
-            if jobs:
-                last_modified = max(job.updated_at for job in jobs)
+            if last_modified:
                 response['Last-Modified'] = last_modified.strftime('%a, %d %b %Y %H:%M:%S GMT')
 
             has_active_jobs = any(job_data.get('status') in ['pending', 'generating'] for job_data in serializer.data)
@@ -239,7 +262,7 @@ class PodcastJobDownloadView(APIView):
 
 
 def podcast_job_status_stream(request, job_id):
-    """Canonical SSE endpoint for podcast job status by job_id"""
+    """Canonical SSE endpoint for podcast job status by job_id (Pub/Sub push)."""
     if request.method == "OPTIONS":
         response = HttpResponse(status=200)
         response["Access-Control-Allow-Origin"] = "*"
@@ -272,45 +295,63 @@ def podcast_job_status_stream(request, job_id):
         redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
 
         def event_stream():
-            last_status = None
             max_duration = 3600
             start_time = time.time()
-            poll_interval = 2
+            channel = f"podcast_job_status:{job_id}"
 
-            while time.time() - start_time < max_duration:
+            # Send initial snapshot immediately
+            try:
+                current_job = Podcast.objects.filter(id=job_id, user=request.user).first()
+                if not current_job:
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'Job not found'})}\n\n"
+                    return
+                cached_status = redis_client.get(channel)
+                if cached_status:
+                    status_data = json.loads(cached_status.decode("utf-8"))
+                else:
+                    status_data = {
+                        "job_id": str(current_job.id),
+                        "status": current_job.status,
+                        "progress": current_job.progress,
+                        "error_message": current_job.error_message,
+                        "audio_file_url": current_job.get_audio_url(),
+                        "title": current_job.title,
+                    }
+                yield f"data: {json.dumps({'type': 'job_status', 'data': status_data})}\n\n"
+                if status_data.get("status") in ["completed", "error", "cancelled"]:
+                    yield f"data: {json.dumps({'type': 'stream_closed'})}\n\n"
+                    return
+            except Exception as e:
+                logger.error(f"Error sending initial SSE snapshot for job {job_id}: {e}")
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+                return
+
+            # Subscribe for live updates
+            pubsub = redis_client.pubsub()
+            try:
+                pubsub.subscribe(channel)
+                for message in pubsub.listen():
+                    if time.time() - start_time >= max_duration:
+                        break
+                    if message.get("type") != "message":
+                        continue
+                    try:
+                        payload = json.loads(message.get("data") or b"{}")
+                        if payload.get("type") == "job_status":
+                            data = payload.get("data", {})
+                            yield f"data: {json.dumps({'type': 'job_status', 'data': data})}\n\n"
+                            if data.get("status") in ["completed", "error", "cancelled"]:
+                                break
+                    except Exception as inner_e:
+                        logger.debug(f"Malformed pubsub message for job {job_id}: {inner_e}")
+                        continue
+            except Exception as sub_e:
+                logger.error(f"Error in Redis pubsub for job {job_id}: {sub_e}")
+            finally:
                 try:
-                    current_job = Podcast.objects.filter(id=job_id, user=request.user).first()
-                    if not current_job:
-                        yield f"data: {json.dumps({'type': 'error', 'message': 'Job not found'})}\n\n"
-                        break
-
-                    cached_status = redis_client.get(f"podcast_job_status:{job_id}")
-                    if cached_status:
-                        status_data = json.loads(cached_status.decode("utf-8"))
-                    else:
-                        status_data = {
-                            "job_id": str(current_job.id),
-                            "status": current_job.status,
-                            "progress": current_job.progress,
-                            "error_message": current_job.error_message,
-                            "audio_file_url": current_job.get_audio_url(),
-                            "title": current_job.title,
-                        }
-
-                    current_status_str = json.dumps(status_data, sort_keys=True)
-                    if current_status_str != last_status:
-                        yield f"data: {json.dumps({'type': 'job_status', 'data': status_data})}\n\n"
-                        last_status = current_status_str
-
-                    if status_data["status"] in ["completed", "error", "cancelled"]:
-                        break
-
-                    time.sleep(poll_interval)
-
-                except Exception as e:
-                    logger.error(f"Error in SSE stream for job {job_id}: {e}")
-                    yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                    break
+                    pubsub.close()
+                except Exception:
+                    pass
 
             yield f"data: {json.dumps({'type': 'stream_closed'})}\n\n"
 
