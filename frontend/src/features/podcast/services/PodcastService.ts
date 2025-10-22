@@ -265,15 +265,13 @@ export class PodcastService implements IPodcastService {
   }
 
   getAudioUrl(podcast: Podcast): string | null {
-    // Priority order: audioUrl -> audio_file -> construct from object key
+    // Priority order: backend-provided URLs, then constructed endpoint by id
+    if ((podcast as any).audio_url) return (podcast as any).audio_url;
     if (podcast.audioUrl) return podcast.audioUrl;
     if (podcast.audio_file) return podcast.audio_file;
-    if (podcast.audio_object_key) {
-      const podcastId = podcast.id || podcast.job_id;
-      if (podcastId) {
-        return `${config.API_BASE_URL}/podcasts/jobs/${podcastId}/audio/`;
-      }
-    }
+    // Even if audio_object_key isn't included by the API, expose the audio endpoint when we have an id.
+    const podcastId = podcast.id || podcast.job_id;
+    if (podcastId) return `${config.API_BASE_URL}/podcasts/jobs/${podcastId}/audio/`;
     return null;
   }
 } 

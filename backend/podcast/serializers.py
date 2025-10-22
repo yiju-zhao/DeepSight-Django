@@ -6,10 +6,13 @@ class PodcastSerializer(serializers.ModelSerializer):
     job_id = serializers.UUIDField(source='id', read_only=True)
     audio_url = serializers.SerializerMethodField()
     notebook_id = serializers.SerializerMethodField()
+    audio_object_key = serializers.CharField(read_only=True)
+    id = serializers.UUIDField(source='id', read_only=True)
 
     class Meta:
         model = Podcast
         fields = [
+            "id",
             "job_id",
             "title",
             "description",
@@ -18,6 +21,7 @@ class PodcastSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "audio_url",
+            "audio_object_key",
             "conversation_text",
             "error_message",
             "source_file_ids",
@@ -94,10 +98,13 @@ class PodcastListSerializer(serializers.ModelSerializer):
     job_id = serializers.UUIDField(source='id', read_only=True)
     audio_url = serializers.SerializerMethodField()
     notebook_id = serializers.SerializerMethodField()
+    audio_object_key = serializers.CharField(read_only=True)
+    id = serializers.UUIDField(source='id', read_only=True)
 
     class Meta:
         model = Podcast
         fields = [
+            "id",
             "job_id",
             "title",
             "description",
@@ -106,6 +113,7 @@ class PodcastListSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "audio_url",
+            "audio_object_key",
             "error_message",
             "notebook_id",
         ]
