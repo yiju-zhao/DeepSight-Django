@@ -6,8 +6,8 @@ class PodcastSerializer(serializers.ModelSerializer):
     job_id = serializers.UUIDField(source='id', read_only=True)
     audio_url = serializers.SerializerMethodField()
     notebook_id = serializers.SerializerMethodField()
-    audio_object_key = serializers.CharField(read_only=True, allow_null=True, allow_blank=True)
-    id = serializers.UUIDField(read_only=True)
+    audio_object_key = serializers.CharField(read_only=True)
+    id = serializers.UUIDField(source='id', read_only=True)
 
     class Meta:
         model = Podcast
@@ -98,8 +98,8 @@ class PodcastListSerializer(serializers.ModelSerializer):
     job_id = serializers.UUIDField(source='id', read_only=True)
     audio_url = serializers.SerializerMethodField()
     notebook_id = serializers.SerializerMethodField()
-    audio_object_key = serializers.CharField(read_only=True, allow_null=True, allow_blank=True)
-    id = serializers.UUIDField(read_only=True)
+    audio_object_key = serializers.CharField(read_only=True)
+    id = serializers.UUIDField(source='id', read_only=True)
 
     class Meta:
         model = Podcast
