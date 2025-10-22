@@ -4,7 +4,6 @@ from .models import Podcast
 
 class PodcastSerializer(serializers.ModelSerializer):
     job_id = serializers.UUIDField(source='id', read_only=True)
-    audio_url = serializers.SerializerMethodField()
     notebook_id = serializers.SerializerMethodField()
     audio_object_key = serializers.CharField(read_only=True, allow_null=True, allow_blank=True)
     id = serializers.UUIDField(read_only=True)
@@ -20,7 +19,6 @@ class PodcastSerializer(serializers.ModelSerializer):
             "progress",
             "created_at",
             "updated_at",
-            "audio_url",
             "audio_object_key",
             "conversation_text",
             "error_message",
@@ -34,17 +32,10 @@ class PodcastSerializer(serializers.ModelSerializer):
             "progress",
             "created_at",
             "updated_at",
-            "audio_url",
             "conversation_text",
             "error_message",
             "notebook_id",
         ]
-
-    def get_audio_url(self, obj):
-        # Return stable backend gateway for audio; backend will issue a fresh presigned redirect
-        if getattr(obj, 'audio_object_key', None):
-            return f"/api/v1/podcasts/{obj.id}/audio/"
-        return None
     
     def get_notebook_id(self, obj):
         return obj.notebook.pk if obj.notebook else None
@@ -99,7 +90,6 @@ class PodcastCreateSerializer(serializers.Serializer):
 
 class PodcastListSerializer(serializers.ModelSerializer):
     job_id = serializers.UUIDField(source='id', read_only=True)
-    audio_url = serializers.SerializerMethodField()
     notebook_id = serializers.SerializerMethodField()
     audio_object_key = serializers.CharField(read_only=True, allow_null=True, allow_blank=True)
     id = serializers.UUIDField(read_only=True)
@@ -115,16 +105,10 @@ class PodcastListSerializer(serializers.ModelSerializer):
             "progress",
             "created_at",
             "updated_at",
-            "audio_url",
             "audio_object_key",
             "error_message",
             "notebook_id",
         ]
-
-    def get_audio_url(self, obj):
-        if getattr(obj, 'audio_object_key', None):
-            return f"/api/v1/podcasts/{obj.id}/audio/"
-        return None
     
     def get_notebook_id(self, obj):
         return obj.notebook.pk if obj.notebook else None

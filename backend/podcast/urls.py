@@ -41,6 +41,11 @@ urlpatterns = [
         name='podcast-audio'
     ),
     path(
+        '<uuid:podcast_id>/files/',
+        views.PodcastFilesView.as_view(),
+        name='podcast-files'
+    ),
+    path(
         '<uuid:podcast_id>/stream/',
         csrf_exempt(views.podcast_job_status_stream),
         name='podcast-status-stream'
@@ -62,5 +67,6 @@ Generated URL Patterns (canonical only):
 - DEL  /api/v1/podcasts/{podcast_id}/
 - POST /api/v1/podcasts/{podcast_id}/cancel/
 - GET  /api/v1/podcasts/{podcast_id}/audio/
+- GET  /api/v1/podcasts/{podcast_id}/files/
 - GET  /api/v1/podcasts/{podcast_id}/stream/
 """

@@ -237,11 +237,11 @@ def podcast_job_status_stream(request, podcast_id):
                         "status": current_job.status,
                         "progress": current_job.progress,
                         "error_message": current_job.error_message,
-                        "audio_file_url": f"/api/v1/podcasts/{current_job.id}/audio/",
                         "title": current_job.title,
                     }
-                # Always refresh audio URL to stable gateway in case cache was stale
-                status_data["audio_file_url"] = f"/api/v1/podcasts/{current_job.id}/audio/"
+                # Do not include audio URLs in SSE payloads; use files endpoint
+                if "audio_file_url" in status_data:
+                    status_data.pop("audio_file_url", None)
                 yield f"data: {json.dumps({'type': 'job_status', 'data': status_data})}\n\n"
                 if status_data.get("status") in ["completed", "error", "cancelled"]:
                     yield f"data: {json.dumps({'type': 'stream_closed'})}\n\n"
@@ -264,6 +264,9 @@ def podcast_job_status_stream(request, podcast_id):
                         payload = json.loads(message.get("data") or b"{}")
                         if payload.get("type") == "job_status":
                             data = payload.get("data", {})
+                            # Strip audio URL fields to follow two-step pattern (use files endpoint)
+                            if isinstance(data, dict) and "audio_file_url" in data:
+                                data.pop("audio_file_url", None)
                             yield f"data: {json.dumps({'type': 'job_status', 'data': data})}\n\n"
                             if data.get("status") in ["completed", "error", "cancelled"]:
                                 break
@@ -355,3 +358,41 @@ class PodcastAudioRedirectView(APIView):
         except Exception as e:
             logger.error(f"Error generating audio redirect for podcast {podcast_id}: {e}")
             return Response({"error": f"Failed to generate audio URL: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class PodcastFilesView(APIView):
+    """Return stable gateway URLs for podcast files (two-step pattern).
+
+    - GET /api/v1/podcasts/{podcast_id}/files/
+      Returns JSON listing available files with stable download_url.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, podcast_id):
+        try:
+            job = get_object_or_404(Podcast.objects.filter(user=request.user), id=podcast_id)
+            files = []
+
+            if getattr(job, 'audio_object_key', None):
+                # Prefer filename from stored metadata; otherwise derive from title/id
+                filename = None
+                try:
+                    metadata = getattr(job, 'file_metadata', None) or {}
+                    if isinstance(metadata, dict):
+                        filename = metadata.get('filename') or metadata.get('main_report_filename')
+                except Exception:
+                    filename = None
+
+                if not filename:
+                    safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
+                    filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
+
+                files.append({
+                    "filename": filename,
+                    "download_url": f"/api/v1/podcasts/{job.id}/audio/",
+                })
+
+            return Response({"files": files})
+        except Exception as e:
+            logger.error(f"Error listing podcast files for {podcast_id}: {e}")
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
