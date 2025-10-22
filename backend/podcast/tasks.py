@@ -29,7 +29,7 @@ def update_job_status(job, redis_client=None):
         "status": job.status,
         "progress": job.progress,
         "error_message": job.error_message,
-        "audio_file_url": job.get_audio_url() if hasattr(job, 'get_audio_url') else None,
+        "audio_file_url": f"/api/v1/podcasts/{job.id}/audio/" if job.audio_object_key else None,
         "title": job.title,
         "status_message": getattr(job, 'status_message', None),
     }
