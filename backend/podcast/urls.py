@@ -46,7 +46,7 @@ urlpatterns = [
         name='podcast-files'
     ),
     path(
-        '<uuid:podcast_id>/stream/',
+        '<str:podcast_id>/stream/',
         csrf_exempt(views.podcast_job_status_stream),
         name='podcast-status-stream'
     ),

@@ -185,6 +185,20 @@ def podcast_job_status_stream(request, podcast_id):
     """Canonical SSE endpoint for podcast job status by job_id (Pub/Sub push)."""
     # URL kwarg is `podcast_id` in canonical routes; map to `job_id` internally
     job_id = podcast_id
+    # Normalize/validate UUID string to avoid router strictness issues
+    try:
+        import uuid as _uuid
+        job_id = str(_uuid.UUID(str(job_id)))
+    except Exception:
+        # Return SSE error with 404 semantics if ID is malformed
+        response = StreamingHttpResponse(
+            f"data: {json.dumps({'type': 'error', 'message': 'Job not found'})}\n\n",
+            content_type="text/event-stream",
+            status=404,
+        )
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Credentials"] = "true"
+        return response
     if request.method == "OPTIONS":
         response = HttpResponse(status=200)
         response["Access-Control-Allow-Origin"] = "*"
