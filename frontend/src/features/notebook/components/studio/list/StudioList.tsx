@@ -88,7 +88,7 @@ const StudioList: React.FC<StudioListProps> = ({
   // Render list
   return (
     <div className="px-4 py-2">
-      <div className="space-y-1">
+      <div className="space-y-0.5">
         {items.map((item) => (
           <StudioItemRenderer
             key={item.id}

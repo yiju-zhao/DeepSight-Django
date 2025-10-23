@@ -77,7 +77,7 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
     <div className="relative">
       {/* Header */}
       <div
-        className="relative overflow-hidden cursor-pointer group transition-colors duration-150 hover:bg-gray-50 rounded-lg"
+        className="relative overflow-hidden cursor-pointer group transition-colors duration-150 hover:bg-gray-50 rounded-lg px-3"
         onClick={() => onToggleExpand(item)}
       >
         <div className="flex items-center justify-between py-3 h-14">

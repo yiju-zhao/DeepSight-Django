@@ -18,7 +18,7 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
   const iconColor = item.kind === 'report' ? 'text-emerald-600' : 'text-violet-600';
 
   return (
-    <div className="relative overflow-hidden cursor-default group transition-colors duration-150 hover:bg-gray-50 rounded-lg">
+    <div className="relative overflow-hidden cursor-default group transition-colors duration-150 hover:bg-gray-50 rounded-lg px-3">
       <div className="flex items-center justify-between py-3 h-14">
         <div className="flex items-center space-x-4 flex-1 min-w-0">
           {/* Loading icon */}
@@ -60,7 +60,7 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
 
       {/* Sweep animation overlay */}
       <div className="pointer-events-none absolute inset-0">
-        <div className={`absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent ${sweepColor} to-transparent animate-sweep`} />
+        <div className={`absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent ${sweepColor} to-transparent animate-sweep-full`} />
       </div>
     </div>
   );

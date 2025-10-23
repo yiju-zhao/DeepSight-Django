@@ -155,6 +155,26 @@
   animation: sweep 3s ease-in-out infinite;
 }
 
+/* Wider travel sweep to cross full container when the bar width is fractional (e.g., w-1/3) */
+@keyframes sweep-full {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    /* For a bar width = 1/3 of container, move 300% to fully traverse */
+    transform: translateX(300%);
+    opacity: 0;
+  }
+}
+
+.animate-sweep-full {
+  animation: sweep-full 3s ease-in-out infinite;
+}
+
 /* Text truncation utilities */
 .line-clamp-2 {
   display: -webkit-box;
