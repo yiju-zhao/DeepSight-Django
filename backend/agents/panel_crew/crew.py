@@ -53,8 +53,7 @@ class PanelCrewCollaboration:
         return Agent(
             config=self.agents_config['researcher'],
             tools=[self.search_tool],
-            llm=research_llm,
-            StringKnowledgeSource=self.knowledge_source
+            llm=research_llm
         )
 
     @agent
@@ -113,7 +112,6 @@ class PanelCrewCollaboration:
         return Task(
             config=self.tasks_config['editing_task'],
             context=[self.script_writing_task(), self.research_task()],
-            StringKnowledgeSource=self.knowledge_source
         )
 
     # ==================== CREW ====================
@@ -126,4 +124,5 @@ class PanelCrewCollaboration:
             tasks=self.tasks,
             process=Process.sequential,
             verbose=True,
+            knowledge_sources=[self.knowledge_source]
         )
