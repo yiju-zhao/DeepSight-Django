@@ -64,7 +64,7 @@ class PodcastJobListCreateView(APIView):
             notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=serializer.validated_data["notebook"])
 
             source_file_ids = serializer.validated_data["source_file_ids"]
-            title = serializer.validated_data.get("title", "Generated Podcast")
+            title = serializer.validated_data.get("title", "Panel Conversation")
             description = serializer.validated_data.get("description", "")
 
             job = Podcast.objects.create(

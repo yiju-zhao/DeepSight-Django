@@ -31,7 +31,7 @@ class Podcast(models.Model):
     celery_task_id = models.CharField(max_length=255, null=True, blank=True)
 
     # Job metadata
-    title = models.CharField(max_length=200, default="Generated Podcast")
+    title = models.CharField(max_length=200, default="Panel Conversation")
     description = models.TextField(blank=True, default="")
     custom_instruction = models.TextField(blank=True, null=True, help_text="Custom discussion instruction")
 

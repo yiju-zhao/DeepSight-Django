@@ -53,7 +53,7 @@ class NotebookPodcastCreateSerializer(serializers.Serializer):
     )
     title = serializers.CharField(
         max_length=200,
-        default="Generated Podcast",
+        default="Panel Conversation",
         help_text="Title for the generated podcast",
     )
     description = serializers.CharField(
@@ -77,7 +77,7 @@ class PodcastCreateSerializer(serializers.Serializer):
     )
     title = serializers.CharField(
         max_length=200,
-        default="Generated Podcast",
+        default="Panel Conversation",
         help_text="Title for the generated podcast",
     )
     description = serializers.CharField(

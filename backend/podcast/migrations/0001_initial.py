@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.UUIDField(default=uuid.uuid4, editable=False, primary_key=True, serialize=False, unique=True)),
                 ('celery_task_id', models.CharField(blank=True, max_length=255, null=True)),
-                ('title', models.CharField(default='Generated Podcast', max_length=200)),
+                ('title', models.CharField(default='Panel Conversation', max_length=200)),
                 ('description', models.TextField(blank=True, default='')),
                 ('custom_instruction', models.TextField(blank=True, help_text='Custom discussion instruction', null=True)),
                 ('status', models.CharField(choices=[('pending', 'Pending'), ('generating', 'Generating'), ('completed', 'Completed'), ('error', 'Error'), ('cancelled', 'Cancelled')], default='pending', max_length=20)),

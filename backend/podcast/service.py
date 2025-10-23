@@ -71,7 +71,7 @@ class PodcastService:
                 raise Exception("No conversation turns extracted from panel discussion")
 
             # Use generated title or fallback to default
-            podcast_title = title if title else "Generated Podcast"
+            podcast_title = title if title else "Panel Conversation"
             logger.info(f"Using podcast title: {podcast_title}")
             
             # Convert to audio and store in MinIO
