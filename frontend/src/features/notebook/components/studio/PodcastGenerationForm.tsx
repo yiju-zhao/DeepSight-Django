@@ -134,8 +134,8 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
 
         {/* Title and subtitle at bottom */}
         <div className="p-5 pt-16">
-          <h3 className="text-lg font-semibold text-gray-900">Conversation</h3>
-          <p className="text-sm text-gray-600">One host with two guests</p>
+          <h3 className="text-lg font-semibold text-violet-800">Conversation</h3>
+          <p className="text-sm text-violet-700">One host with two guests</p>
         </div>
       </div>
 

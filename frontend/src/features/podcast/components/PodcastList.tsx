@@ -1,7 +1,6 @@
 import React from 'react';
 import { Podcast, PodcastListProps } from '../types/type';
 import PodcastCard from './PodcastCard';
-import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
 
 const PodcastList: React.FC<PodcastListProps> = ({
   podcasts,
@@ -77,7 +76,10 @@ const PodcastList: React.FC<PodcastListProps> = ({
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
                       {podcast.status === 'generating' || podcast.status === 'pending' ? (
-                        <LoadingSpinner size="sm" className="text-purple-600" />
+                        <div className="relative w-6 h-6">
+                          <div className="absolute inset-0 border-2 border-purple-200 rounded-full"></div>
+                          <div className="absolute inset-0 border-2 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
+                        </div>
                       ) : (
                         <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
@@ -105,7 +107,9 @@ const PodcastList: React.FC<PodcastListProps> = ({
                   podcast.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                   'bg-gray-100 text-gray-800'
                 }`}>
-                  {podcast.status}
+                  {podcast.status === 'generating' || podcast.status === 'pending'
+                    ? 'Come back in a few minutes'
+                    : podcast.status}
                 </span>
                 
                 {/* Duration */}

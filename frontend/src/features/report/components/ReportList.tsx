@@ -1,7 +1,6 @@
 import React from 'react';
 import { Report, ReportListProps } from '../types/type';
 import ReportCard from './ReportCard';
-import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
 
 const ReportList: React.FC<ReportListProps> = ({
   reports,
@@ -75,7 +74,10 @@ const ReportList: React.FC<ReportListProps> = ({
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
                       {report.status === 'running' || report.status === 'pending' ? (
-                        <LoadingSpinner size="sm" className="text-blue-600" />
+                        <div className="relative w-6 h-6">
+                          <div className="absolute inset-0 border-2 border-blue-200 rounded-full"></div>
+                          <div className="absolute inset-0 border-2 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+                        </div>
                       ) : (
                         <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -103,7 +105,9 @@ const ReportList: React.FC<ReportListProps> = ({
                   report.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                   'bg-gray-100 text-gray-800'
                 }`}>
-                  {report.status}
+                  {report.status === 'running' || report.status === 'pending'
+                    ? 'Come back in a few minutes'
+                    : report.status}
                 </span>
                 
                 {/* Date */}
