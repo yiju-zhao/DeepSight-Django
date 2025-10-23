@@ -4,13 +4,10 @@
 import React, { useState } from 'react';
 import {
   Search,
-  FileText,
-  Loader2,
   Edit
 } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { GenerationState } from "./types";
-import { COLORS } from "@/features/notebook/config/uiConfig";
 
 // Type definitions
 interface ReportConfig {
@@ -82,14 +79,33 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
 
   return (
     <>
-      <div className="bg-emerald-50/40 rounded-2xl relative">
+      <div
+        className={`rounded-2xl relative transition-all duration-200 min-h-[140px] flex flex-col justify-between ${
+          canGenerate
+            ? 'bg-emerald-100/50 cursor-pointer hover:bg-emerald-100/70'
+            : 'bg-emerald-50/30 cursor-not-allowed opacity-60'
+        }`}
+        onClick={() => {
+          if (canGenerate) {
+            onGenerate();
+          }
+        }}
+      >
+        {/* Icon in top left */}
+        <div className="absolute top-4 left-4">
+          <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center">
+            <Search className="h-4 w-4 text-emerald-700" />
+          </div>
+        </div>
+
         {/* Customize button in top right */}
         <div className="absolute top-4 right-4">
           <Button
             variant="ghost"
             size="sm"
             className="h-8 w-8 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100/50 rounded-lg"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation();
               // Import CustomizeModal component dynamically
               import('./CustomizeModal').then(({ default: CustomizeModal }) => {
                 const customizeContent = (
@@ -111,50 +127,20 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
           </Button>
         </div>
 
-        {/* ====== SINGLE RESPONSIBILITY: Card content ====== */}
-        <div className="p-5">
-          {/* Card header with icon and info */}
-          <div className="flex items-center space-x-3 mb-4">
-            <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
-              <Search className="h-5 w-5 text-emerald-700" />
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Report</h3>
-              <p className="text-sm text-gray-600">Comprehensive AI-powered analysis</p>
-            </div>
-          </div>
-
-          {/* Action button */}
-          <div className="relative group">
-            <Button
-              className={`w-full px-6 py-2 rounded-full transition-colors text-sm ${
-                !canGenerate
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              }`}
-              onClick={() => onGenerate()}
-              disabled={!canGenerate}
-            >
-              {generationState.state === GenerationState.GENERATING ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Generate
-                </>
-              )}
-            </Button>
-            {!canGenerate && (
-              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                Select at least one source to generate
-                <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-800"></div>
-              </div>
-            )}
-          </div>
+        {/* Title and subtitle at bottom */}
+        <div className="p-5 pt-16">
+          <h3 className="text-lg font-semibold text-gray-900">Report</h3>
+          <p className="text-sm text-gray-600">Comprehensive AI-powered analysis</p>
         </div>
+
+        {/* Tooltip for disabled state */}
+        {!canGenerate && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="px-3 py-2 bg-gray-800 text-white text-xs rounded-lg">
+              Select sources to generate
+            </div>
+          </div>
+        )}
       </div>
 
     </>
