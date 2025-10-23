@@ -1,4 +1,4 @@
-"""Panel crew collaboration module for dynamic expert discussions."""
+"""Panel crew collaboration module for podcast generation."""
 
 import logging
 import os
@@ -19,17 +19,19 @@ os.environ["CREWAI_STORAGE_DIR"] = str(storage_dir)
 # Configure logging
 logger = logging.getLogger(__name__)
 
-manager_llm = LLM(model="openai/gpt-4.1", temperature=0.1)
-engineer_llm = LLM(model="openai/gpt-4.1", temperature=0.5)
+# LLM configurations
 research_llm = LLM(model="openai/gpt-4.1", temperature=0.5)
-content_llm = LLM(model='openai/gpt-4.1', temperature=0.1)
+design_llm = LLM(model="openai/gpt-4.1", temperature=0.7)
+editor_llm = LLM(model='openai/gpt-4.1', temperature=0.1)
 
 
 @CrewBase
 class PanelCrewCollaboration:
+    """Podcast generation crew with 5-step workflow: Research -> Role Design -> Framework Design -> Script Writing -> Editing"""
+
     agents_config = 'config/agents.yaml'
     tasks_config = 'config/tasks.yaml'
-    
+
     def __init__(self, material_content: str = "") -> None:
         # CrewBase-decorated classes shouldn't call super().__init__()
         # Tools
@@ -43,63 +45,80 @@ class PanelCrewCollaboration:
         else:
             self.material_knowledge_source = ""
 
-    # Panel discussion agents
-    @agent
-    def moderator(self) -> Agent:
-        return Agent(
-            config=self.agents_config['moderator'],
-            tools=[self.search_tool],
-            llm=manager_llm
-        )
+    # ==================== AGENTS ====================
 
     @agent
-    def ai_scientist(self) -> Agent:
+    def researcher(self) -> Agent:
+        """Research specialist who conducts in-depth research on the topic"""
         return Agent(
-            config=self.agents_config['ai_scientist'],
-            tools=[self.search_tool],
-            llm=engineer_llm
-        )
-
-    @agent
-    def ai_researcher(self) -> Agent:
-        return Agent(
-            config=self.agents_config['ai_researcher'],
-            tools=[self.search_tool],
-            llm=engineer_llm
-        )
-
-    @agent
-    def cs_professor(self) -> Agent:
-        return Agent(
-            config=self.agents_config['cs_professor'],
+            config=self.agents_config['researcher'],
             tools=[self.search_tool],
             llm=research_llm
         )
-    
+
     @agent
-    def conversation_optimizer(self) -> Agent:
+    def podcast_designer(self) -> Agent:
+        """Podcast designer who handles role design, framework design, and script writing"""
         return Agent(
-            config=self.agents_config['conversation_optimizer'],
-            llm=content_llm
+            config=self.agents_config['podcast_designer'],
+            llm=design_llm
         )
 
-    # Dynamic task - moderator analyzes input and selects appropriate experts
+    @agent
+    def editor(self) -> Agent:
+        """Editor who polishes the script and fact-checks technical content"""
+        return Agent(
+            config=self.agents_config['editor'],
+            tools=[self.search_tool],
+            llm=editor_llm
+        )
+
+    # ==================== TASKS ====================
+
     @task
-    def panel_discussion_task(self) -> Task:
+    def research_task(self) -> Task:
+        """Step 1: Conduct in-depth research on the topic"""
         return Task(
-            config=self.tasks_config['panel_discussion_task']
+            config=self.tasks_config['research_task']
         )
 
     @task
-    def polish_transcript_task(self) -> Task:
+    def role_design_task(self) -> Task:
+        """Step 2: Design expert roles for the podcast based on research notes"""
         return Task(
-            config=self.tasks_config['polish_transcript_task'],
-            context=[self.panel_discussion_task()]
+            config=self.tasks_config['role_design_task'],
+            context=[self.research_task()]
         )
+
+    @task
+    def framework_design_task(self) -> Task:
+        """Step 3: Design discussion framework/outline based on research and roles"""
+        return Task(
+            config=self.tasks_config['framework_design_task'],
+            context=[self.research_task(), self.role_design_task()]
+        )
+
+    @task
+    def script_writing_task(self) -> Task:
+        """Step 4: Write complete podcast script based on research, roles, and framework"""
+        return Task(
+            config=self.tasks_config['script_writing_task'],
+            context=[self.research_task(), self.role_design_task(), self.framework_design_task()]
+        )
+
+    @task
+    def editing_task(self) -> Task:
+        """Step 5: Polish script and fact-check content"""
+        return Task(
+            config=self.tasks_config['editing_task'],
+            context=[self.script_writing_task(), self.research_task()]
+        )
+
+    # ==================== CREW ====================
 
     @crew
     def crew(self) -> Crew:
-
+        """Creates the podcast generation crew with sequential 5-step workflow"""
         return Crew(
             agents=self.agents,
             tasks=self.tasks,
