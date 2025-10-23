@@ -94,7 +94,12 @@ def process_podcast_generation(self, job_id: str):
             job.progress = 100
             job.status_message = "Podcast generation completed successfully"
             job.processing_completed_at = timezone.now()
-            
+
+            # Update title with generated title from panel crew
+            if result.get("title"):
+                job.title = result["title"]
+                logger.info(f"Updated podcast title to: {job.title}")
+
             # Store the audio object key in the database
             job.audio_object_key = result.get("audio_object_key")
             

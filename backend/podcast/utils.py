@@ -36,41 +36,53 @@ logger = logging.getLogger(__name__)
 # CONVERSATION PARSING FUNCTIONS
 # =============================================================================
 
-def parse_conversation(conversation_text: str) -> List[Dict[str, str]]:
+def parse_conversation(conversation_text: str) -> Tuple[Optional[str], List[Dict[str, str]]]:
     """
-    Parse conversation into structured turns using bracket format.
-    
-    Expected format: [speaker_name] content
-    
+    Parse conversation into structured turns using bracket format, and extract title.
+
+    Expected format:
+    #播客标题
+    [speaker_name] content
+    [speaker_name] content
+
     Args:
-        conversation_text: Raw conversation text with bracket format
-        
+        conversation_text: Raw conversation text with bracket format and optional title
+
     Returns:
-        List of conversation turns with speaker and content
+        Tuple of (title, conversation_turns)
+        - title: Extracted title from #标题 line, or None if not found
+        - conversation_turns: List of conversation turns with speaker and content
     """
+    title = None
     conversation_turns = []
-    
+
+    # Extract title from first line if it starts with #
+    lines = conversation_text.split('\n')
+    if lines and lines[0].strip().startswith('#'):
+        title = lines[0].strip()[1:].strip()  # Remove # and whitespace
+        logger.info(f"Extracted podcast title: {title}")
+
     # Pattern to match bracket format: [speaker] content
     pattern = r'\[([^\]]+)\]\s*(.*?)(?=\n\[|$)'
     matches = re.findall(pattern, conversation_text, re.DOTALL)
-    
+
     for speaker, content in matches:
         # Clean up speaker name and content
         speaker = speaker.strip()
         content = content.strip()
-        
+
         # Extract just the name from role descriptions (e.g., "AI研究科学家 - 伊利亚" -> "伊利亚")
         if " - " in speaker:
             speaker = speaker.split(" - ")[-1].strip()
-        
+
         if speaker and content:
             conversation_turns.append({
                 'speaker': speaker,
                 'content': content
             })
-    
+
     logger.info(f"Extracted {len(conversation_turns)} conversation turns from bracket format")
-    return conversation_turns
+    return title, conversation_turns
 
 
 # =============================================================================
@@ -253,6 +265,7 @@ def _higgs_smart_voice(text: str) -> Optional[bytes]:
         "Generate audio following instruction.\n\n"
         "<|scene_desc_start|>\n"
         "Audio is recorded from a quiet room.\n"
+        "Speaker will speak chinese mixed with a few english words.\n"
         "<|scene_desc_end|>"
     )
     try:

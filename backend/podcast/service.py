@@ -63,12 +63,16 @@ class PodcastService:
             
             logger.info(f"Starting panel crew discussion for topic: {topic}")
             result = panel_crew.crew().kickoff(inputs={'topic': topic, 'material_content': selected_content})
-            
-            # Parse conversation directly from crew result
-            conversation_turns = parse_conversation(str(result))
-            
+
+            # Parse conversation directly from crew result (now returns title and turns)
+            title, conversation_turns = parse_conversation(str(result))
+
             if not conversation_turns:
                 raise Exception("No conversation turns extracted from panel discussion")
+
+            # Use generated title or fallback to default
+            podcast_title = title if title else "Generated Podcast"
+            logger.info(f"Using podcast title: {podcast_title}")
             
             # Convert to audio and store in MinIO
             audio_object_key = self._process_conversation_to_audio(conversation_turns, user_id, podcast_id, notebook_id)
@@ -82,6 +86,7 @@ class PodcastService:
                 "conversation_turns": conversation_turns,
                 "crew_result": str(result),  # Convert crew result to string
                 "audio_object_key": audio_object_key,
+                "title": podcast_title,
                 "metadata": {
                     "total_turns": len(conversation_turns),
                     "participants": list(set([turn['speaker'] for turn in conversation_turns])),
