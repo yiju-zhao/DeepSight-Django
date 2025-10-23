@@ -335,11 +335,11 @@ class PodcastCancelView(PodcastJobCancelView):
 
 
 class PodcastAudioRedirectView(APIView):
-    """Redirect to a short-lived MinIO URL for audio (unified gateway).
+    """Stream podcast audio file through Django (avoids CORS and presigned URL issues).
 
     - GET /api/v1/podcasts/{podcast_id}/audio/
-      Returns 302 redirect to a fresh presigned MinIO URL.
-      Optional query param: download=1 to suggest attachment filename.
+      Streams audio file from MinIO through Django.
+      Optional query param: download=1 to trigger download instead of inline playback.
     """
     permission_classes = [permissions.IsAuthenticated]
 
@@ -349,29 +349,43 @@ class PodcastAudioRedirectView(APIView):
             if not job.audio_object_key:
                 return Response({"error": "Audio file not available"}, status=status.HTTP_404_NOT_FOUND)
 
-            response_headers = None
+            # Stream file from MinIO through Django
+            from notebooks.utils.storage import get_minio_backend
+            minio_backend = get_minio_backend()
+
+            file_iter, content_length, content_type = minio_backend.stream_file(job.audio_object_key)
+
+            if not file_iter:
+                return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
+
+            # Determine content disposition based on download parameter
             if request.GET.get('download'):
                 safe_title = "".join(c for c in (job.title or "podcast") if c.isalnum() or c in (' ', '-', '_')).rstrip()
                 filename = f"{safe_title}.wav" if safe_title else f"podcast-{job.id}.wav"
-                response_headers = {
-                    'Content-Disposition': f'attachment; filename="{filename}"',
-                    'Content-Type': 'audio/wav',
-                }
+                disposition = f'attachment; filename="{filename}"'
+            else:
+                disposition = 'inline'
 
-            # Generate a short-lived URL (default 5 minutes)
-            from notebooks.utils.storage import get_minio_backend
-            minio_backend = get_minio_backend()
-            download_url = minio_backend.get_presigned_url(
-                object_key=job.audio_object_key,
-                expires=300,
-                response_headers=response_headers,
+            # Create streaming response
+            response = StreamingHttpResponse(
+                file_iter,
+                content_type=content_type or 'audio/wav'
             )
-            if not download_url:
-                return Response({"error": "Audio file not accessible"}, status=status.HTTP_404_NOT_FOUND)
-            return HttpResponseRedirect(download_url)
+            response['Content-Disposition'] = disposition
+
+            if content_length:
+                response['Content-Length'] = content_length
+
+            # Add CORS headers for audio playback
+            response['Access-Control-Allow-Origin'] = request.META.get('HTTP_ORIGIN', '*')
+            response['Access-Control-Allow-Credentials'] = 'true'
+            response['Accept-Ranges'] = 'bytes'
+
+            return response
+
         except Exception as e:
-            logger.error(f"Error generating audio redirect for podcast {podcast_id}: {e}")
-            return Response({"error": f"Failed to generate audio URL: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            logger.error(f"Error streaming audio for podcast {podcast_id}: {e}")
+            return Response({"error": f"Failed to stream audio: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class PodcastFilesView(APIView):
