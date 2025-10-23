@@ -437,9 +437,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, [deleteReportMutation, selectedFile, toast, reportGeneration]);
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
-    const isGenerating = (podcast.status === 'running' || podcast.status === 'generating' || podcast.status === 'pending') ||
+    const isGenerating = (podcast.status === 'running' || podcast.status === 'pending') ||
                         (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === podcast.id &&
-                         (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'generating' || podcastGeneration.activeJob.status === 'pending'));
+                         (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'pending'));
 
     const confirmMessage = isGenerating
       ? 'Are you sure you want to cancel this podcast generation?'
@@ -733,7 +733,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         return (
                           <div
                             key={`report-${itemId}`}
-                            className="relative rounded-xl transition-all duration-300 cursor-pointer group border overflow-hidden bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-md"
+                            className="relative rounded-xl transition-all duration-300 cursor-pointer group border overflow-hidden bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-md h-[72px]"
                             onClick={() => handleSelectReport(item)}
                           >
                             {/* Highlight sweep for generating state */}
@@ -743,9 +743,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                               </div>
                             )}
 
-                            <div className="relative z-10 p-3">
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                            <div className="relative z-10 p-3 h-full flex items-center">
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center space-x-3 flex-1 min-w-0">
                                   {/* Report Icon */}
                                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-500 group-hover:bg-emerald-600 shadow-sm">
                                     <BookOpen className="h-4 w-4 text-white" />
@@ -764,14 +764,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                         </span>
                                       )}
                                     </div>
-
-                                    {/* Preview text */}
-                                    <p className="text-xs text-gray-600 leading-relaxed mb-2 line-clamp-1">
-                                      {isGenerating
-                                        ? (item.progress || reportGeneration.progress || 'Analyzing sources and generating insights...')
-                                        : getReportPreview(item)
-                                      }
-                                    </p>
 
                                     {/* Metadata */}
                                     <div className="flex items-center text-xs space-x-3">
@@ -810,9 +802,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                       } else if (item.type === 'podcast') {
                         const isExpanded = expandedPodcasts.has(itemId);
                         // Check if this podcast is currently being generated
-                        const isGenerating = (item.status === 'running' || item.status === 'generating' || item.status === 'pending') ||
+                        const isGenerating = (item.status === 'running' || item.status === 'pending') ||
                           (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === item.id &&
-                           (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'generating' || podcastGeneration.activeJob.status === 'pending'));
+                           (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'pending'));
 
                         const sourceCount = getSourceCount(item);
                         const timeAgo = getRelativeTime(item.created_at);
@@ -831,11 +823,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
                             {/* Podcast Header */}
                             <div
-                              className="p-3 cursor-pointer hover:bg-gray-50 transition-colors duration-200 group relative z-10"
+                              className="p-3 cursor-pointer hover:bg-gray-50 transition-colors duration-200 group relative z-10 h-[72px] flex items-center"
                               onClick={() => handlePodcastClick(item)}
                             >
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-start space-x-3 flex-1 min-w-0">
+                              <div className="flex items-center justify-between w-full">
+                                <div className="flex items-center space-x-3 flex-1 min-w-0">
                                   {/* Podcast Icon */}
                                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-violet-500 group-hover:bg-violet-600 shadow-sm">
                                     {isExpanded ? (
@@ -859,18 +851,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                       )}
                                     </div>
 
-                                    {/* Description/Progress */}
-                                    {isGenerating && (item.progress || podcastGeneration.progress) && (
-                                      <p className="text-xs text-blue-700 mb-2 font-medium">
-                                        {item.progress || podcastGeneration.progress}
-                                      </p>
-                                    )}
-                                    {!isGenerating && item.description && (
-                                      <p className="text-xs text-gray-600 leading-relaxed mb-2 line-clamp-1">
-                                        {item.description}
-                                      </p>
-                                    )}
-
                                     {/* Metadata */}
                                     <div className="flex items-center text-xs space-x-3">
                                       <div className="flex items-center text-gray-500">
@@ -885,20 +865,18 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                         <Users className="h-3 w-3 mr-1" />
                                         <span>{item.expert_names ? Object.keys(item.expert_names).length : 3} speakers</span>
                                       </div>
-                                      <div className="flex items-center text-violet-600">
-                                        <div className="w-1.5 h-1.5 bg-violet-500 rounded-full mr-1"></div>
-                                        <span className="font-medium">Podcast</span>
-                                      </div>
                                     </div>
                                   </div>
                                 </div>
 
                                 {/* Actions */}
-                                <div className="flex items-center space-x-2">
+                                <div className={`transition-opacity ${
+                                  isGenerating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                                }`}>
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md opacity-0 group-hover:opacity-100 transition-opacity"
+                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleDeletePodcast(item);
@@ -906,7 +884,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
-                                  <div className={`w-2 h-2 rounded-full transition-colors ${isExpanded ? 'bg-violet-400' : 'bg-gray-300'}`}></div>
                                 </div>
                               </div>
                             </div>
