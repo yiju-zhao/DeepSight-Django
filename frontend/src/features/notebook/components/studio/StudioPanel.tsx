@@ -731,14 +731,14 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         return (
                           <div
                             key={`report-${itemId}`}
-                            className="relative cursor-pointer group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4"
+                            className="relative overflow-hidden cursor-pointer group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4"
                             onClick={() => handleSelectReport(item)}
                           >
                             <div className="flex items-center justify-between py-2 h-[48px]">
                               <div className="flex items-center space-x-3 flex-1 min-w-0">
                                 {/* Report Icon */}
                                 <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                                  <BookOpen className="h-4 w-4 text-emerald-600" />
+                                  <BookOpen className={`h-4 w-4 text-emerald-600 ${isGenerating ? 'animate-spin' : ''}`} />
                                 </div>
 
                                 {/* Content */}
@@ -774,6 +774,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                 </Button>
                               </div>
                             </div>
+                            {isGenerating && (
+                              <div className="pointer-events-none absolute inset-0">
+                                <div className="absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-emerald-200/60 to-transparent animate-sweep" />
+                              </div>
+                            )}
                           </div>
                         );
                       } else if (item.type === 'podcast') {
@@ -787,14 +792,16 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                           <div key={`podcast-${itemId}`} className="relative">
                             {/* Podcast Header */}
                             <div
-                              className="cursor-pointer group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4"
+                              className="relative overflow-hidden cursor-pointer group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4"
                               onClick={() => handlePodcastClick(item)}
                             >
                               <div className="flex items-center justify-between py-2 h-[48px]">
                                 <div className="flex items-center space-x-3 flex-1 min-w-0">
                                   {/* Podcast Icon */}
                                   <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-                                    {isExpanded ? (
+                                    {isGenerating ? (
+                                      <Headphones className="h-4 w-4 text-violet-600 animate-spin" />
+                                    ) : isExpanded ? (
                                       <ChevronDown className="h-4 w-4 text-violet-600" />
                                     ) : (
                                       <Headphones className="h-4 w-4 text-violet-600" />
@@ -834,6 +841,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                   </Button>
                                 </div>
                               </div>
+                              {isGenerating && (
+                                <div className="pointer-events-none absolute inset-0">
+                                  <div className="absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-violet-200/60 to-transparent animate-sweep" />
+                                </div>
+                              )}
                             </div>
 
                             {/* Expanded Audio Player */}

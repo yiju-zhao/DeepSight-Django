@@ -74,25 +74,32 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
   // ====== SINGLE RESPONSIBILITY: Validation logic ======
   const hasSelectedFiles = selectedFiles.length > 0;
   const canGenerate = hasSelectedFiles && generationState.state !== GenerationState.GENERATING;
+  const isGenerating = generationState.state === GenerationState.GENERATING;
+
+  const containerClasses = [
+    'rounded-2xl relative overflow-hidden transition-all duration-200 min-h-[140px] flex flex-col justify-between',
+    isGenerating
+      ? 'bg-violet-100/70 ring-1 ring-violet-300'
+      : canGenerate
+        ? 'bg-violet-100/50 cursor-pointer hover:bg-violet-100/70'
+        : 'bg-violet-50/30 cursor-not-allowed opacity-60'
+  ].join(' ');
 
   return (
     <>
       <div
-        className={`rounded-2xl relative transition-all duration-200 min-h-[140px] flex flex-col justify-between ${
-          canGenerate
-            ? 'bg-violet-100/50 cursor-pointer hover:bg-violet-100/70'
-            : 'bg-violet-50/30 cursor-not-allowed opacity-60'
-        }`}
+        className={containerClasses}
         onClick={() => {
           if (canGenerate) {
             onGenerate();
           }
         }}
+        aria-busy={isGenerating}
       >
         {/* Icon in top left */}
         <div className="absolute top-4 left-4">
           <div className="w-8 h-8 bg-violet-100 rounded-full flex items-center justify-center">
-            <MessageSquare className="h-4 w-4 text-violet-700" />
+            <MessageSquare className={`h-4 w-4 text-violet-700 ${isGenerating ? 'animate-spin' : ''}`} />
           </div>
         </div>
 
@@ -131,7 +138,12 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
           <p className="text-sm text-gray-600">One host with two guests</p>
         </div>
 
-        {/* Tooltip removed for simplified UI */}
+        {/* Generating sweep highlight */}
+        {isGenerating && (
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-violet-200/60 to-transparent animate-sweep" />
+          </div>
+        )}
       </div>
 
     </>
