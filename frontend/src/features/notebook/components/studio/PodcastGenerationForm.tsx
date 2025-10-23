@@ -79,7 +79,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
   const containerClasses = [
     'rounded-2xl relative overflow-hidden transition-all duration-200 min-h-[140px] flex flex-col justify-between',
     isGenerating
-      ? 'bg-violet-100/70 ring-1 ring-violet-300'
+      ? 'bg-violet-100/70'
       : canGenerate
         ? 'bg-violet-100/50 cursor-pointer hover:bg-violet-100/70'
         : 'bg-violet-50/30 cursor-not-allowed opacity-60'

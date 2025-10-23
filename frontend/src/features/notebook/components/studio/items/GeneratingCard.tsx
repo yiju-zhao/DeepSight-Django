@@ -2,7 +2,7 @@
 // Unified "generating" state display for both reports and podcasts
 
 import React from 'react';
-import { BookOpen, Headphones } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import type { StudioItem } from '../../../types/studioItem';
@@ -13,8 +13,7 @@ interface GeneratingCardProps {
 }
 
 const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
-  // Choose icon and color based on item kind
-  const Icon = item.kind === 'report' ? BookOpen : Headphones;
+  // Choose color based on item kind
   const sweepColor = item.kind === 'report' ? 'via-emerald-200/60' : 'via-violet-200/60';
   const iconColor = item.kind === 'report' ? 'text-emerald-600' : 'text-violet-600';
 
@@ -22,9 +21,9 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
     <div className="relative overflow-hidden cursor-default group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4">
       <div className="flex items-center justify-between py-2 h-[48px]">
         <div className="flex items-center space-x-3 flex-1 min-w-0">
-          {/* Icon */}
+          {/* Loading icon */}
           <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
-            <Icon className={`h-4 w-4 ${iconColor} animate-spin`} />
+            <Loader2 className={`h-4 w-4 ${iconColor} animate-spin`} />
           </div>
 
           {/* Content */}
@@ -33,14 +32,13 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
               <h4 className="text-sm font-medium truncate text-gray-900">
                 {item.title}
               </h4>
+            </div>
+            <div className="mt-0.5">
               <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                 <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping mr-1"></div>
-                Generating
+                Come back in a few minutes
               </span>
             </div>
-            {item.progress && (
-              <p className="text-xs text-gray-500 mt-0.5 truncate">{item.progress}</p>
-            )}
           </div>
         </div>
 

@@ -442,7 +442,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, [deleteReportMutation, selectedFile, toast, reportGeneration]);
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
-    const isGenerating = (podcast.status === 'running' || podcast.status === 'pending') ||
+    const isGenerating = (podcast.status === 'running' || podcast.status === 'pending' || podcast.status === 'generating') ||
                         (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === podcast.id &&
                          (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'pending'));
 
@@ -467,12 +467,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
 
       if (isGenerating) {
-        // Cancel and delete via backend
         await podcastGeneration.cancel(podcastId);
-        toast({ title: "Generation Cancelled", description: "Podcast cancelled and removed" });
+        toast({ title: 'Generation Cancelled', description: 'Podcast cancelled and removed' });
       } else {
         await deletePodcastMutation.mutateAsync(podcastId);
-        toast({ title: "Podcast Deleted", description: "Deleted successfully" });
+        toast({ title: 'Podcast Deleted', description: 'Deleted successfully' });
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -480,7 +479,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       toast({
         title: `${actionText === 'cancel' ? 'Cancel' : 'Delete'} Failed`,
         description: `Failed to ${actionText} podcast: ${errorMessage}`,
-        variant: "destructive"
+        variant: 'destructive'
       });
     }
   }, [deletePodcastMutation, selectedFile, toast, podcastGeneration]);

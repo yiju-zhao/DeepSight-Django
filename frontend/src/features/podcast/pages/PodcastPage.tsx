@@ -4,6 +4,7 @@ import {
   usePodcast,
   usePodcastStats,
   useDeletePodcast,
+  useCancelPodcast,
 } from '@/features/podcast/hooks/usePodcasts';
 import { PodcastService } from '@/features/podcast/services/PodcastService';
 import PodcastList from "@/features/podcast/components/PodcastList";
@@ -12,6 +13,7 @@ import PodcastStats from "@/features/podcast/components/PodcastStats";
 import PodcastDetail from "@/features/podcast/components/PodcastDetail";
 import { Podcast, PodcastFilters as PodcastFiltersType } from "@/features/podcast/types/type";
 import { config } from "@/config";
+import { useToast } from "@/shared/components/ui/use-toast";
 
 const PodcastPage: React.FC = () => {
   // UI state (local)
@@ -26,6 +28,8 @@ const PodcastPage: React.FC = () => {
   const { data: podcasts = [], isLoading, error } = usePodcasts(undefined, filters);
   const { data: stats } = usePodcastStats();
   const deletePodcastMutation = useDeletePodcast();
+  const cancelPodcastMutation = useCancelPodcast();
+  const { toast } = useToast();
 
   // Service for client-side filtering and sorting
   const podcastService = useMemo(() => new PodcastService(), []);
@@ -101,10 +105,29 @@ const PodcastPage: React.FC = () => {
   };
 
   const handleDeletePodcast = async (podcast: Podcast) => {
+    const isGenerating = podcast.status === 'generating' || podcast.status === 'pending' || (podcast as any).status === 'running';
+
+    if (isGenerating) {
+      const confirmMessage = 'Are you sure you want to cancel this podcast generation?';
+      if (!confirm(confirmMessage)) return;
+      try {
+        await cancelPodcastMutation.mutateAsync(podcast.id);
+        toast({ title: 'Generation Cancelled', description: 'Podcast cancelled and removed' });
+      } catch (error) {
+        console.error('Failed to cancel podcast:', error);
+        toast({ title: 'Cancel Failed', description: 'Failed to cancel podcast', variant: 'destructive' });
+      }
+      return;
+    }
+
+    const confirmMessage = 'Are you sure you want to delete this podcast?';
+    if (!confirm(confirmMessage)) return;
     try {
       await deletePodcastMutation.mutateAsync(podcast.id);
+      toast({ title: 'Podcast Deleted', description: 'Deleted successfully' });
     } catch (error) {
       console.error('Failed to delete podcast:', error);
+      toast({ title: 'Delete Failed', description: 'Failed to delete podcast', variant: 'destructive' });
     }
   };
 
