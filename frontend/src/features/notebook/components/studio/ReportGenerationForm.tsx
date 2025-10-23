@@ -80,7 +80,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
   return (
     <>
       <div
-        className={`group rounded-2xl relative transition-all duration-200 min-h-[140px] flex flex-col justify-between ${
+        className={`rounded-2xl relative transition-all duration-200 min-h-[140px] flex flex-col justify-between ${
           canGenerate
             ? 'bg-emerald-100/50 cursor-pointer hover:bg-emerald-100/70'
             : 'bg-emerald-50/30 cursor-not-allowed opacity-60'
@@ -133,14 +133,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
           <p className="text-sm text-gray-600">Comprehensive AI-powered analysis</p>
         </div>
 
-        {/* Tooltip for disabled state - only show on hover */}
-        {!canGenerate && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-            <div className="px-3 py-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg">
-              Select sources to generate
-            </div>
-          </div>
-        )}
+        {/* Tooltip removed for simplified UI */}
       </div>
 
     </>
