@@ -108,14 +108,16 @@ const PodcastPage: React.FC = () => {
     const isGenerating = podcast.status === 'generating' || podcast.status === 'pending' || (podcast as any).status === 'running';
 
     if (isGenerating) {
-      const confirmMessage = 'Are you sure you want to cancel this podcast generation?';
+      const confirmMessage = 'Are you sure you want to cancel and delete this podcast?';
       if (!confirm(confirmMessage)) return;
       try {
+        // First cancel the running generation, then delete the item
         await cancelPodcastMutation.mutateAsync(podcast.id);
-        toast({ title: 'Generation Cancelled', description: 'Podcast cancelled and removed' });
+        await deletePodcastMutation.mutateAsync(podcast.id);
+        toast({ title: 'Podcast Cancelled', description: 'Generation cancelled and deleted' });
       } catch (error) {
         console.error('Failed to cancel podcast:', error);
-        toast({ title: 'Cancel Failed', description: 'Failed to cancel podcast', variant: 'destructive' });
+        toast({ title: 'Cancel/Delete Failed', description: 'Failed to cancel and delete podcast', variant: 'destructive' });
       }
       return;
     }

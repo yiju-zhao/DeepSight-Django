@@ -17,28 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 def update_job_status(job, redis_client=None):
-    """Update job status in both database and Redis cache"""
+    """Persist job status to database (no Redis/progress)."""
     job.save()
-    
-    if not redis_client:
-        redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
-    
-    # Create status data for Redis
-    status_data = {
-        "job_id": str(job.id),
-        "status": job.status,
-        "progress": job.progress,
-        "error_message": job.error_message,
-        "title": job.title,
-        "status_message": getattr(job, 'status_message', None),
-    }
-    
-    # Update Redis cache with 1 hour expiration
-    redis_client.setex(
-        f"podcast_job_status:{job.id}",
-        3600,  # 1 hour
-        json.dumps(status_data)
-    )
 
 
 @shared_task(bind=True)
@@ -68,19 +48,15 @@ def process_podcast_generation(self, job_id: str):
                 logger.info(f"Task {self.request.id} was revoked, aborting podcast generation")
                 return {"status": "revoked", "message": "Task was revoked"}
 
-        # Update job status to processing
+        # Update job status to processing (status only)
         job.status = "generating"
-        job.progress = 10
-        job.status_message = "Preparing content from selected sources..."
         job.processing_started_at = timezone.now()
         update_job_status(job, redis_client)
         # Get selected item IDs from job metadata
         selected_item_ids = job.source_file_ids or []
         
 
-        # Update job status to generating panel discussion
-        job.status_message = "Generating panel discussion..."
-        update_job_status(job, redis_client)
+        # No intermediate progress/status messages
         # Generate the podcast using service instance
         podcast_service = PodcastService()
         result = asyncio.run(podcast_service.create_podcast_with_panel_crew(
@@ -91,16 +67,12 @@ def process_podcast_generation(self, job_id: str):
             custom_instruction=getattr(job, 'custom_instruction', None)
         ))
         
-        # Update progress - generating audio
-        job.progress = 70
-        job.status_message = "Converting conversation to audio..."
-        update_job_status(job, redis_client)
+        # No progress updates while generating audio
         
         if result["status"] == "completed":
             # Update job with results
             job.status = "completed"
-            job.progress = 100
-            job.status_message = "Podcast generation completed successfully"
+            # No progress/status message on success
             job.processing_completed_at = timezone.now()
 
             # Update title with generated title from panel crew
@@ -152,8 +124,6 @@ def process_podcast_generation(self, job_id: str):
         else:
             # Handle failure
             job.status = "error"
-            job.progress = 0
-            job.status_message = f"Generation failed: {result['error']}"
             job.processing_completed_at = timezone.now()
             update_job_status(job, redis_client)
             
@@ -173,8 +143,6 @@ def process_podcast_generation(self, job_id: str):
             job = Podcast.objects.get(id=job_id)
             redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
             job.status = "error"
-            job.progress = 0
-            job.status_message = f"Unexpected error: {str(e)}"
             job.processing_completed_at = timezone.now()
             update_job_status(job, redis_client)
         except:
@@ -204,12 +172,10 @@ def cancel_podcast_generation(self, job_id: str):
             except Exception as e:
                 logger.warning(f"Failed to revoke Celery task for job {job_id}: {e}")
         
-        # Update job status in database and Redis
+        # Update job status in database (no Redis/progress)
         redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
         job.status = "cancelled"
         job.error_message = "Job cancelled by user"
-        job.progress = 0
-        job.status_message = "Job cancelled"
         update_job_status(job, redis_client)
         
         logger.info(f"Successfully cancelled podcast generation for job {job_id}")

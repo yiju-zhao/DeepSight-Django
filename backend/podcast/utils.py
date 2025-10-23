@@ -20,6 +20,15 @@ import os
 import base64
 import requests
 from django.conf import settings
+try:
+    import langid  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    langid = None  # type: ignore
+
+try:
+    import jieba  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    jieba = None  # type: ignore
 
 # =============================================================================
 # CONSTANTS AND CONFIGURATION
@@ -224,6 +233,137 @@ def normalize_tts_text(text: str) -> str:
 
     return text
 
+
+# =============================================================================
+# TEXT CHUNKING FUNCTIONS
+# =============================================================================
+
+_CJK_RANGE = (
+    (0x4E00, 0x9FFF),  # CJK Unified Ideographs
+    (0x3400, 0x4DBF),  # CJK Unified Ideographs Extension A
+    (0x20000, 0x2A6DF),  # Extension B
+    (0x2A700, 0x2B73F),  # Extension C
+    (0x2B740, 0x2B81F),  # Extension D
+    (0x2B820, 0x2CEAF),  # Extension E
+    (0xF900, 0xFAFF),  # CJK Compatibility Ideographs
+)
+
+
+def _has_cjk(text: str) -> bool:
+    for ch in text:
+        code = ord(ch)
+        for lo, hi in _CJK_RANGE:
+            if lo <= code <= hi:
+                return True
+    return False
+
+
+def _detect_language(text: str) -> str:
+    if langid is not None:
+        try:
+            return langid.classify(text)[0]
+        except Exception:
+            pass
+    # Heuristic fallback
+    return "zh" if _has_cjk(text) else "en"
+
+
+def _split_sentences_en(paragraph: str) -> List[str]:
+    # Simple sentence splitter that keeps punctuation.
+    # Splits on . ! ? ; : while preserving delimiter with the sentence.
+    parts: List[str] = []
+    buf: List[str] = []
+    for token in re.split(r"(\s+)", paragraph):
+        buf.append(token)
+        if re.search(r"[\.!?;:][\)\"]?$", token.strip()):
+            parts.append("".join(buf).strip())
+            buf = []
+    if buf:
+        parts.append("".join(buf).strip())
+    return [s for s in parts if s]
+
+
+def prepare_chunk_text(
+    text: str,
+    chunk_method: Optional[str] = None,
+    chunk_max_word_num: int = 100,
+    chunk_max_num_turns: int = 1,
+) -> List[str]:
+    """Chunk text into smaller pieces for TTS generation.
+
+    chunk_method:
+      - None: no chunking
+      - "speaker": merge lines by speaker tags like [SPEAKER0]
+      - "word": paragraph-first, then sentence/word granularity with language awareness
+    """
+    if not text:
+        return [text]
+
+    if chunk_method is None:
+        return [text]
+
+    if chunk_method == "speaker":
+        lines = text.split("\n")
+        speaker_chunks: List[str] = []
+        speaker_utterance = ""
+        for line in lines:
+            line = line.strip()
+            if line.startswith("[SPEAKER") or line.startswith("<|speaker_id_start|>"):
+                if speaker_utterance:
+                    speaker_chunks.append(speaker_utterance.strip())
+                speaker_utterance = line
+            else:
+                if speaker_utterance:
+                    speaker_utterance += "\n" + line
+                else:
+                    speaker_utterance = line
+        if speaker_utterance:
+            speaker_chunks.append(speaker_utterance.strip())
+        if chunk_max_num_turns > 1:
+            merged_chunks: List[str] = []
+            for i in range(0, len(speaker_chunks), chunk_max_num_turns):
+                merged_chunk = "\n".join(speaker_chunks[i : i + chunk_max_num_turns])
+                merged_chunks.append(merged_chunk)
+            return merged_chunks
+        return speaker_chunks
+
+    if chunk_method == "word":
+        language = _detect_language(text)
+        paragraphs = text.split("\n\n")
+        chunks: List[str] = []
+        for paragraph in paragraphs:
+            para = paragraph.strip()
+            if not para:
+                continue
+            lang = _detect_language(para) or language
+            if lang == "zh":
+                if jieba is not None:
+                    tokens = list(jieba.cut(para, cut_all=False))
+                else:
+                    tokens = list(para)  # fallback: character-level
+                for i in range(0, len(tokens), chunk_max_word_num):
+                    chunk = "".join(tokens[i : i + chunk_max_word_num])
+                    if chunk:
+                        chunks.append(chunk + "\n\n")
+            else:
+                # sentence-aware accumulation up to word limit
+                sentences = _split_sentences_en(para)
+                buf: List[str] = []
+                count = 0
+                for sent in sentences:
+                    words = sent.split()
+                    if count + len(words) > chunk_max_word_num and buf:
+                        chunks.append(" ".join(buf) + "\n\n")
+                        buf = []
+                        count = 0
+                    buf.append(sent)
+                    count += len(words)
+                if buf:
+                    chunks.append(" ".join(buf) + "\n\n")
+        return chunks if chunks else [text]
+
+    raise ValueError(f"Unknown chunk method: {chunk_method}")
+
 def _get_higgs_client_and_model():
     """Create an OpenAI-compatible client for Higgs and choose a model.
     Returns a tuple (client, model_id).
@@ -384,42 +524,79 @@ def generate_audio_segment(
         # Normalize content prior to TTS
         content = normalize_tts_text(content)
 
-        # Create temporary file for this segment
+        # Decide whether to chunk: only chunk if content is relatively long
+        words_count = len(content.split())
+        do_chunk = words_count > 100 or len(content) > 400
+        chunks: List[str] = (
+            prepare_chunk_text(content, chunk_method="word", chunk_max_word_num=100)
+            if do_chunk
+            else [content]
+        )
+
+        # For each chunk, generate a small WAV and then concatenate
+        chunk_files: List[Path] = []
+        for ci, chunk_text in enumerate(chunks):
+            audio_bytes: Optional[bytes] = None
+
+            if speaker not in speaker_state:
+                audio_bytes = _higgs_smart_voice(chunk_text)
+                if audio_bytes:
+                    speaker_state[speaker] = {"seed_audio": audio_bytes, "seed_text": chunk_text}
+            else:
+                seed = speaker_state[speaker]
+                audio_bytes = _higgs_voice_clone(
+                    seed.get("seed_audio", b""), seed.get("seed_text", ""), chunk_text
+                )
+                if not audio_bytes:
+                    audio_bytes = _higgs_smart_voice(chunk_text)
+
+            if not audio_bytes:
+                audio_bytes = _openai_tts(chunk_text)
+
+            if not audio_bytes:
+                logger.warning(
+                    f"Failed to generate audio for chunk {ci} of segment {segment_index} ({speaker})"
+                )
+                # Abort the whole segment on first failure to avoid broken audio
+                for f in chunk_files:
+                    try:
+                        f.unlink()
+                    except Exception:
+                        pass
+                return None
+
+            temp_chunk_name = f"segment_{segment_index:03d}_{speaker}_{ci:02d}.wav"
+            temp_chunk_path = audio_output_dir / temp_chunk_name
+            os.makedirs(os.path.dirname(temp_chunk_path), exist_ok=True)
+            with open(temp_chunk_path, "wb") as f:
+                f.write(audio_bytes)
+            if temp_chunk_path.exists() and os.path.getsize(temp_chunk_path) > 0:
+                chunk_files.append(temp_chunk_path)
+            else:
+                logger.warning(f"Invalid chunk file: {temp_chunk_path}")
+                for f in chunk_files:
+                    try:
+                        f.unlink()
+                    except Exception:
+                        pass
+                return None
+
+        # Concatenate chunk files into final segment file
         temp_filename = f"segment_{segment_index:03d}_{speaker}.wav"
         temp_file_path = audio_output_dir / temp_filename
-        
-        audio_bytes: Optional[bytes] = None
+        success = concatenate_audio_segments(chunk_files, temp_file_path, audio_output_dir)
 
-        if speaker not in speaker_state:
-            # First segment for this speaker: smart voice
-            audio_bytes = _higgs_smart_voice(content)
-            if audio_bytes:
-                # Cache seed for cloning later: keep both audio and text
-                speaker_state[speaker] = {"seed_audio": audio_bytes, "seed_text": content}
-        else:
-            # Subsequent segments: voice clone using first segment as seed
-            seed = speaker_state[speaker]
-            audio_bytes = _higgs_voice_clone(seed.get("seed_audio", b""), seed.get("seed_text", ""), content)
-            if not audio_bytes:
-                # Try smart voice again if clone fails
-                audio_bytes = _higgs_smart_voice(content)
+        # Cleanup chunk files
+        for f in chunk_files:
+            try:
+                f.unlink()
+            except Exception:
+                pass
 
-        # Fallback to OpenAI TTS if Higgs failed
-        if not audio_bytes:
-            audio_bytes = _openai_tts(content)
-
-        if not audio_bytes:
-            logger.warning(f"Failed to generate audio segment {segment_index} for {speaker}")
-            return None
-
-        # Write WAV bytes to file
-        os.makedirs(os.path.dirname(temp_file_path), exist_ok=True)
-        with open(temp_file_path, "wb") as f:
-            f.write(audio_bytes)
-
-        if temp_file_path.exists() and os.path.getsize(temp_file_path) > 0:
+        if success and temp_file_path.exists() and os.path.getsize(temp_file_path) > 0:
             return temp_file_path
-        logger.warning(f"Generated audio segment but file invalid: {temp_file_path}")
+
+        logger.warning(f"Generated segment but concatenation failed: {temp_file_path}")
         return None
             
     except Exception as e:
@@ -518,26 +695,36 @@ def concatenate_audio_segments(
                 f.write(f"file '{segment.absolute()}'\n")
         
         try:
-            # Try ffmpeg concatenation first
+            # Try ffmpeg concatenation with stream copy (fast, requires same codec/params)
             subprocess.run([
                 "ffmpeg", "-f", "concat", "-safe", "0",
                 "-i", str(concat_list_file),
                 "-c", "copy", str(output_file)
             ], check=True, capture_output=True, timeout=300)
-            
-            # Clean up concat list file
+
             concat_list_file.unlink()
             return True
-            
+
         except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
-            # Fallback: copy first file if only one segment
-            if len(segments) == 1:
-                import shutil
-                shutil.copy2(segments[0], output_file)
+            # Retry with re-encode to a common PCM WAV to handle mismatched params
+            try:
+                subprocess.run([
+                    "ffmpeg", "-f", "concat", "-safe", "0",
+                    "-i", str(concat_list_file),
+                    "-c:a", "pcm_s16le", "-ar", "24000", "-ac", "1", str(output_file)
+                ], check=True, capture_output=True, timeout=300)
+
+                concat_list_file.unlink()
                 return True
-            else:
-                logger.warning("ffmpeg not available and multiple segments - using simple concatenation")
-                return _simple_audio_concatenation(segments, output_file)
+            except Exception:
+                # Fallbacks
+                if len(segments) == 1:
+                    import shutil
+                    shutil.copy2(segments[0], output_file)
+                    return True
+                else:
+                    logger.warning("ffmpeg failed; using simple concatenation as last resort")
+                    return _simple_audio_concatenation(segments, output_file)
         
         finally:
             # Clean up concat list file if it exists

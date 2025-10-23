@@ -45,11 +45,7 @@ urlpatterns = [
         views.PodcastFilesView.as_view(),
         name='podcast-files'
     ),
-    path(
-        '<str:podcast_id>/stream/',
-        csrf_exempt(views.podcast_job_status_stream),
-        name='podcast-status-stream'
-    ),
+    # Stream endpoint removed: progress/SSE no longer supported
 
     # Note: legacy '/jobs/' endpoints removed in favor of report-style naming
 ]
@@ -68,5 +64,5 @@ Generated URL Patterns (canonical only):
 - POST /api/v1/podcasts/{podcast_id}/cancel/
 - GET  /api/v1/podcasts/{podcast_id}/audio/
 - GET  /api/v1/podcasts/{podcast_id}/files/
-- GET  /api/v1/podcasts/{podcast_id}/stream/
+  (stream endpoint removed)
 """

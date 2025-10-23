@@ -154,11 +154,8 @@ class JobService:
                     if crash_info['crashed']:
                         # Update report status to failed with actual error message
                         error_msg = crash_info.get('error_message', 'Celery worker crashed (SIGSEGV or similar fatal error)')
-                        progress_msg = crash_info.get('progress_message', 'Worker crashed during report generation')
-
                         report.update_status(
                             Report.STATUS_FAILED,
-                            progress=progress_msg,
                             error=error_msg
                         )
                         logger.error(f"Detected worker crash for report {report_id}: {error_msg}")
@@ -167,7 +164,6 @@ class JobService:
                     "report_id": str(report.id),  # Convert UUID to string for JSON serialization
                     "user_id": str(report.user.pk),  # Convert UUID to string for JSON serialization
                     "status": report.status,
-                    "progress": report.progress,
                     "created_at": report.created_at.isoformat(),
                     "updated_at": report.updated_at.isoformat(),
                     "error": report.error_message or None,
@@ -189,7 +185,7 @@ class JobService:
             return None
     
     def update_job_progress(self, report_id: str, progress: str, status: Optional[str] = None):
-        """Update job progress and optionally status"""
+        """Update job status (progress messages ignored/unsupported)."""
         try:
             # Check if the progress message contains MainProcess critical errors that should fail the task
             if self.error_detector.should_fail_task(report_id, progress):
@@ -201,20 +197,19 @@ class JobService:
             if self.error_detector.is_error_message(progress):
                 logger.warning(f"Non-critical ERROR message for report {report_id}: {progress[:200]}")
 
-            # Update in database
+            # Update in database (do not persist textual progress)
             try:
                 report = Report.objects.get(id=report_id)
                 if status:
-                    report.update_status(status, progress=progress)
+                    report.update_status(status)
                 else:
-                    report.progress = progress
-                    report.save(update_fields=["progress", "updated_at"])
+                    # Touch updated_at only
+                    report.save(update_fields=["updated_at"])
 
                 # Update cache
                 cache_key = f"report_job:{report_id}"
                 job_data = cache.get(cache_key, {})
                 job_data.update({
-                    "progress": progress,
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 })
                 if status:
@@ -417,14 +412,13 @@ class JobService:
             report.save(update_fields=["result_content", "file_metadata", "article_title", "topic", "generated_files", "processing_logs", "main_report_object_key", "updated_at"])
             
             # Update status after saving content and metadata
-            report.update_status(status, progress="Report generation completed successfully")
+            report.update_status(status)
             
             # Update cache
             cache_key = f"report_job:{report_id}"
             job_data = cache.get(cache_key, {})
             job_data.update({
                 "status": status,
-                "progress": "Report generation completed successfully",
                 "result": self._format_result(report),
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             })
@@ -449,8 +443,7 @@ class JobService:
             self._cleanup_report_images_on_failure(report)
             
             report.update_status(
-                Report.STATUS_FAILED, 
-                progress=f"Job failed: {error}", 
+                Report.STATUS_FAILED,
                 error=error
             )
             
@@ -475,7 +468,6 @@ class JobService:
             job_data = cache.get(cache_key, {})
             job_data.update({
                 "status": Report.STATUS_FAILED,
-                "progress": f"Job failed: {error}",
                 "error": error,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             })
@@ -517,7 +509,7 @@ class JobService:
 
                 # Update status to cancelled only after confirmed termination
                 try:
-                    report.update_status(Report.STATUS_CANCELLED, progress="Job cancelled - task terminated")
+                    report.update_status(Report.STATUS_CANCELLED)
                     logger.info(f"Updated report {report_id} status to CANCELLED")
                 except Exception as e:
                     logger.warning(f"Failed to update status for report {report_id}: {e}")
@@ -854,7 +846,6 @@ class JobService:
                     try:
                         report.update_status(
                             Report.STATUS_FAILED,
-                            progress="Task failed during execution",
                             error=error_msg,
                         )
 
@@ -867,7 +858,6 @@ class JobService:
                         job_data.update(
                             {
                                 "status": Report.STATUS_FAILED,
-                                "progress": "Task failed during execution",
                                 "error": error_msg,
                                 "updated_at": datetime.now(timezone.utc).isoformat(),
                             }
@@ -882,7 +872,6 @@ class JobService:
                 if report.status not in [Report.STATUS_CANCELLED, Report.STATUS_COMPLETED]:
                     report.update_status(
                         Report.STATUS_CANCELLED,
-                        progress="Task was cancelled by system or user",
                         error="Task was revoked/cancelled",
                     )
 
@@ -894,7 +883,6 @@ class JobService:
                     job_data.update(
                         {
                             "status": Report.STATUS_CANCELLED,
-                            "progress": "Task was cancelled by system or user",
                             "error": "Task was revoked/cancelled",
                             "updated_at": datetime.now(timezone.utc).isoformat(),
                         }

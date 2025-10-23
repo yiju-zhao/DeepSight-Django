@@ -1,5 +1,5 @@
 """
-Canonical report job views and SSE endpoints following SOLID principles.
+Canonical report job views (SSE removed) following SOLID principles.
 """
 
 import json
@@ -8,7 +8,7 @@ import time
 import shutil
 from pathlib import Path
 
-from django.http import FileResponse, Http404, StreamingHttpResponse, HttpResponse
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from django.db import models
 
@@ -48,7 +48,6 @@ class ReportViewHelper:
         return {
             "report_id": str(report.id),
             "status": report.status,
-            "progress": report.progress,
             "title": report.article_title,
             "article_title": report.article_title,
             "created_at": report.created_at.isoformat(),
@@ -82,7 +81,7 @@ class ReportJobListCreateView(APIView):
 
             # Use only() to limit fields for better performance
             reports = qs.only(
-                'id', 'status', 'progress', 'article_title', 'created_at',
+                'id', 'status', 'article_title', 'created_at',
                 'updated_at', 'error_message', 'main_report_object_key', 'result_content'
             ).order_by('-created_at')
 
@@ -173,7 +172,6 @@ class ReportJobDetailView(APIView):
             response_data = {
                 "report_id": str(report.id),
                 "status": report.status,
-                "progress": report.progress,
                 "result": job_data.get("result"),
                 "error": report.error_message,
                 "created_at": report.created_at.isoformat(),
@@ -680,15 +678,7 @@ class ReportJobCancelView(APIView):
 
             # Step 2: Update Report status to CANCELLED
             report.status = Report.STATUS_CANCELLED
-            report.progress = "Job cancelled by user"
-            report.save(update_fields=['status', 'progress', 'updated_at'])
-
-            # Step 3: Update cache to reflect cancellation
-            report_orchestrator.update_job_progress(
-                report_id,
-                "Job cancelled by user",
-                Report.STATUS_CANCELLED
-            )
+            report.save(update_fields=['status', 'updated_at'])
 
             # Log cancellation with details
             logger.info(
@@ -761,99 +751,4 @@ class XinferenceModelsView(APIView):
             )
 
 
-# ---------------------------------------------------------------------------
-# SSE endpoint (plain Django view) – avoids DRF content-negotiation 406 errors
-# ---------------------------------------------------------------------------
-
-
-
-def report_status_stream(request, report_id):
-    """Canonical SSE endpoint: real-time report-job status updates by report_id."""
-
-    if request.method == "OPTIONS":
-        response = HttpResponse(status=200)
-        response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
-        response["Access-Control-Allow-Headers"] = "Cache-Control, Authorization"
-        response["Access-Control-Allow-Credentials"] = "true"
-        return response
-
-    if not request.user.is_authenticated:
-        response = StreamingHttpResponse(
-            f"data: {json.dumps({'type': 'error', 'message': 'Authentication required'})}\n\n",
-            content_type="text/event-stream",
-            status=401,
-        )
-        response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Credentials"] = "true"
-        return response
-
-    try:
-        if not Report.objects.filter(id=report_id, user=request.user).exists():
-            response = StreamingHttpResponse(
-                f"data: {json.dumps({'type': 'error', 'message': 'Report not found'})}\n\n",
-                content_type="text/event-stream",
-                status=404,
-            )
-            response["Access-Control-Allow-Origin"] = "*"
-            response["Access-Control-Allow-Credentials"] = "true"
-            return response
-
-        def event_stream():
-            last_status = None
-            max_duration = 3600
-            start_time = time.time()
-            poll_interval = 2
-
-            while time.time() - start_time < max_duration:
-                try:
-                    status_data = report_orchestrator.get_job_status(report_id)
-                    if not status_data:
-                        # Use only() to limit database fields for better performance
-                        current_report = Report.objects.filter(id=report_id).only(
-                            'id', 'status', 'progress', 'error_message', 'updated_at'
-                        ).first()
-                        if not current_report:
-                            yield f"data: {json.dumps({'type': 'error', 'message': 'Report not found'})}\n\n"
-                            break
-                        status_data = {
-                            "report_id": str(current_report.id),
-                            "status": current_report.status,
-                            "progress": current_report.progress,
-                            "error_message": current_report.error_message,
-                            "result": None,
-                            "updated_at": current_report.updated_at.isoformat(),
-                        }
-
-                    current_status_str = json.dumps(status_data, sort_keys=True)
-                    if current_status_str != last_status:
-                        yield f"data: {json.dumps({'type': 'job_status', 'data': status_data})}\n\n"
-                        last_status = current_status_str
-
-                    if status_data.get("status") in ["completed", "failed", "cancelled"]:
-                        break
-
-                    time.sleep(poll_interval)
-
-                except Exception as e:
-                    logger.error(f"Error in SSE stream for report {report_id}: {e}")
-                    yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-                    break
-
-            yield f"data: {json.dumps({'type': 'stream_closed'})}\n\n"
-
-        response = StreamingHttpResponse(event_stream(), content_type="text/event-stream")
-        response["Cache-Control"] = "no-cache"
-        response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Headers"] = "Cache-Control"
-        response["Access-Control-Allow-Credentials"] = "true"
-        return response
-    except Exception as e:
-        logger.error(f"Error setting up SSE stream (canonical) for report {report_id}: {e}")
-        response = StreamingHttpResponse(
-            f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n",
-            content_type="text/event-stream",
-        )
-        response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Credentials"] = "true"
-        return response
+    # SSE endpoint removed: use list/detail polling instead

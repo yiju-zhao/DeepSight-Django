@@ -27,6 +27,8 @@ crewai
 crewai-tools
 litellm
 xinference
+langid
+jieba
 
 # Search and Retrieval
 tavily-python

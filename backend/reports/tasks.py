@@ -22,22 +22,13 @@ def process_report_generation(self, report_id: int):
         from .models import Report
         try:
             report = Report.objects.get(id=report_id)
-            
         except Report.DoesNotExist:
             logger.error(f"Report {report_id} not found")
             raise Exception(f"Report {report_id} not found")
 
-        # -------------------------------------------------------------------
-        # Attach progress-log handler so INFO messages update frontend
-        # -------------------------------------------------------------------
-        progress_handler = ReportProgressLogHandler(report_id, report_orchestrator)
-        root_logger = logging.getLogger()  # capture logs from all modules
-        root_logger.addHandler(progress_handler)
-
         # Check if job was cancelled before we start
         if report.status == Report.STATUS_CANCELLED:
             logger.info(f"Report {report_id} was cancelled before processing started")
-            root_logger.removeHandler(progress_handler)
             return {"status": "cancelled", "message": "Report was cancelled"}
 
         # Check if task was revoked by Celery
@@ -46,31 +37,21 @@ def process_report_generation(self, report_id: int):
             task_result = AsyncResult(self.request.id)
             if task_result.state == 'REVOKED':
                 logger.info(f"Task {self.request.id} was revoked, aborting report generation")
-                root_logger.removeHandler(progress_handler)
                 return {"status": "revoked", "message": "Task was revoked"}
 
-        # Update job status to running
-        report_orchestrator.update_job_progress(
-            report_id, "Starting report generation", Report.STATUS_RUNNING
-        )
+        # Mark as running (status only)
+        try:
+            report.update_status(Report.STATUS_RUNNING)
+        except Exception:
+            # Non-fatal: continue generation even if status update fails
+            pass
 
         # Generate the report
-        start_ts = time.time()
-        try:
-            result = report_orchestrator.generate_report(report_id)
-        finally:
-            # Detach handler regardless of success/failure to avoid leaks
-            root_logger.removeHandler(progress_handler)
+        result = report_orchestrator.generate_report(report_id)
 
         if result.get('success', False):
             # Update job with success
             report_orchestrator.update_job_result(report_id, result, Report.STATUS_COMPLETED)
-            # Push final success progress so that frontend can display last stage
-            elapsed = time.time() - start_ts
-            success_msg = (
-                f"Task reports.tasks.process_report_generation[{self.request.id}] succeeded in {elapsed:.1f}s"
-            )
-            report_orchestrator.update_job_progress(report_id, success_msg)
             logger.info(f"Successfully completed report generation for report {report_id}")
             return result
         else:
@@ -166,67 +147,4 @@ def validate_report_configuration(config: Dict[str, Any]):
             "validation_results": {},
             "supported_options": {}
         }
-
-
-# ---------------------------------------------------------------------------
-# Progress-bar support – custom log handler
-# ---------------------------------------------------------------------------
-
-
-class ReportProgressLogHandler(logging.Handler):
-    """Intercept specific Celery worker INFO messages and push them to the
-    report orchestrator so that the frontend progress-bar can update in real
-    time. We only care about five well-defined stages of report generation.
-    
-    Additionally, forward all ERROR messages to the orchestrator so they can be
-    displayed in the SSE progress bar. Only MainProcess ERROR messages will cause
-    task failure, while other ERROR messages are displayed without stopping the task.
-
-    The handler is lightweight and attaches only for the lifetime of the
-    `process_report_generation` task – see usage below.
-    """
-
-    # Pre-compile regexes once; keep order to map to user-visible stages
-    _PATTERNS = [
-        re.compile(r"run_knowledge_curation_module executed", re.IGNORECASE),
-        re.compile(r"run_outline_generation_module executed", re.IGNORECASE),
-        re.compile(r"run_article_generation_module executed", re.IGNORECASE),
-        re.compile(r"run_article_polishing_module executed", re.IGNORECASE),
-        re.compile(r"Task reports\.tasks\.process_report_generation\[.*?\] succeeded", re.IGNORECASE),
-    ]
-
-    def __init__(self, report_id: str, orchestrator):
-        super().__init__(level=logging.INFO)  # Monitor both INFO and ERROR levels
-        self.report_id = report_id
-        self.orchestrator = orchestrator
-
-    def emit(self, record: logging.LogRecord):
-        try:
-            msg = record.getMessage()
-            
-            # Handle ERROR messages - forward all ERROR messages to orchestrator
-            # The orchestrator will decide whether to fail the task (MainProcess) or just display (others)
-            if record.levelno == logging.ERROR:
-                try:
-                    self.orchestrator.update_job_progress(self.report_id, msg)
-                except Exception as e:  # pragma: no cover – never crash handler
-                    logging.getLogger(__name__).warning(
-                        f"Failed to process error message for {self.report_id}: {e}"
-                    )
-                return
-            
-            # Handle INFO messages that match our progress patterns
-            if record.levelno == logging.INFO:
-                for pattern in self._PATTERNS:
-                    if pattern.search(msg):
-                        # Push raw log line to progress – keeps message identical to log
-                        try:
-                            self.orchestrator.update_job_progress(self.report_id, msg)
-                        except Exception as e:  # pragma: no cover – never crash handler
-                            logging.getLogger(__name__).warning(
-                                f"Failed to update progress for {self.report_id}: {e}"
-                            )
-                        break  # Stop after first match
-        except Exception:
-            # Never raise from a logging handler – swallow any errors gracefully
-            pass
+        

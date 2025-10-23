@@ -447,7 +447,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                          (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'pending'));
 
     const confirmMessage = isGenerating
-      ? 'Are you sure you want to cancel this podcast generation?'
+      ? 'Are you sure you want to cancel and delete this podcast?'
       : 'Are you sure you want to delete this podcast?';
 
     if (!confirm(confirmMessage)) {
@@ -467,8 +467,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
 
       if (isGenerating) {
+        // First cancel the running generation, then delete the item
         await podcastGeneration.cancel(podcastId);
-        toast({ title: 'Generation Cancelled', description: 'Podcast cancelled and removed' });
+        await deletePodcastMutation.mutateAsync(podcastId);
+        toast({ title: 'Podcast Cancelled', description: 'Generation cancelled and deleted' });
       } else {
         await deletePodcastMutation.mutateAsync(podcastId);
         toast({ title: 'Podcast Deleted', description: 'Deleted successfully' });

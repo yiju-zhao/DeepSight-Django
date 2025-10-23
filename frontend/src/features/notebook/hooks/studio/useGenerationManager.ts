@@ -5,7 +5,6 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchEventSource } from '@microsoft/fetch-event-source';
 import studioService from '@/features/notebook/services/StudioService';
 import { studioKeys } from './useStudio';
 
@@ -18,7 +17,6 @@ export interface ActiveJob {
   jobId: string;
   type: 'report' | 'podcast';
   status: 'pending' | 'running' | 'generating' | 'completed' | 'failed' | 'cancelled';
-  progress: string;
   config: GenerationConfig;
   startTime: string;
 }
@@ -38,7 +36,7 @@ export const useGenerationManager = (
   onComplete?: (jobData: any) => void
 ) => {
   const queryClient = useQueryClient();
-  const sseControllerRef = useRef<AbortController | null>(null);
+  const sseControllerRef = useRef<AbortController | null>(null); // retained for API compatibility; unused
 
   // Local state for form config (not job state)
   const [config, setConfig] = useState<GenerationConfig>({});
@@ -61,7 +59,6 @@ export const useGenerationManager = (
           jobId: runningJob.id,
           type,
           status: runningJob.status,
-          progress: runningJob.progress || `Generating ${type}...`,
           config: runningJob.config || {},
           startTime: runningJob.created_at || new Date().toISOString(),
         };
@@ -70,110 +67,13 @@ export const useGenerationManager = (
       return null;
     },
     enabled: !!notebookId,
-    refetchInterval: false, // Disable polling - SSE handles real-time updates
-    staleTime: 30 * 1000, // 30 seconds - SSE provides real-time updates
+    refetchInterval: 5000, // Simple polling for status changes
+    staleTime: 15 * 1000,
     refetchOnMount: true, // Always refetch on component mount to recover active jobs after refresh
     refetchOnWindowFocus: true, // Refetch when user returns to tab to check for status updates
   });
 
-  // SSE connections are managed internally when jobs become active
-
-  // Start SSE connection when job becomes active
-  const connectSSE = useCallback((jobId: string) => {
-    if (sseControllerRef.current) {
-      sseControllerRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    sseControllerRef.current = controller;
-
-    const sseUrl = type === 'report'
-      ? studioService.getReportJobStatusStreamUrl(jobId, notebookId)
-      : studioService.getPodcastJobStatusStreamUrl(jobId, notebookId);
-
-    fetchEventSource(sseUrl, {
-      method: 'GET',
-      headers: { 'Accept': 'text/event-stream' },
-      credentials: 'include',
-      signal: controller.signal,
-
-      onmessage: (event) => {
-        try {
-          const parsedEvent = JSON.parse(event.data);
-          const jobData = parsedEvent.data;
-
-          if (jobData) {
-            // Update active job cache directly
-            queryClient.setQueryData(
-              generationKeys.activeJob(notebookId, type),
-              (old: ActiveJob | null) => {
-                if (!old || old.jobId !== jobId) return old;
-
-                return {
-                  ...old,
-                  status: jobData.status,
-                  progress: jobData.progress || old.progress,
-                };
-              }
-            );
-
-            // Update the report/podcast list cache with new progress
-            const listQueryKey = type === 'report'
-              ? studioKeys.reportJobs(notebookId)
-              : studioKeys.podcastJobs(notebookId);
-
-            queryClient.setQueryData(listQueryKey, (old: any) => {
-              if (!old?.jobs) return old;
-
-              const updatedJobs = old.jobs.map((job: any) => {
-                if (job.id === jobId || job.job_id === jobId) {
-                  return {
-                    ...job,
-                    status: jobData.status,
-                    progress: jobData.progress || job.progress,
-                    updated_at: new Date().toISOString(),
-                  };
-                }
-                return job;
-              });
-
-              return {
-                ...old,
-                jobs: updatedJobs,
-              };
-            });
-
-            // If job completed, trigger completion flow
-            if (jobData.status === 'completed') {
-              handleJobComplete(jobData);
-            } else if (jobData.status === 'failed' || jobData.status === 'error') {
-              handleJobError(jobData.error_message || jobData.error || 'Job failed');
-            } else if (jobData.status === 'cancelled') {
-              // Treat as terminal: clear active job and refresh list
-              queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
-              const listKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
-              queryClient.invalidateQueries({ queryKey: listKey });
-              queryClient.refetchQueries({ queryKey: listKey });
-              if (sseControllerRef.current) {
-                sseControllerRef.current.abort();
-                sseControllerRef.current = null;
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Error parsing SSE data:', error);
-        }
-      },
-
-      onerror: (error) => {
-        console.error('SSE connection error:', error);
-      },
-
-      onclose: () => {
-        sseControllerRef.current = null;
-      }
-    });
-  }, [type, notebookId, queryClient]);
+  // SSE removed: rely on simple polling and list/detail queries
 
   // Start job completion handler
   const handleJobComplete = useCallback((jobData: any) => {
@@ -265,15 +165,13 @@ export const useGenerationManager = (
         jobId,
         type,
         status: 'pending',
-        progress: `Starting ${type} generation...`,
         config,
         startTime: new Date().toISOString(),
       };
 
       queryClient.setQueryData(generationKeys.activeJob(notebookId, type), newJob);
 
-      // Start SSE connection
-      connectSSE(jobId);
+      // No SSE: rely on periodic list/detail refetching
 
       // Optimistically add the new job to the cache for immediate UI feedback
       const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
@@ -354,8 +252,8 @@ export const useGenerationManager = (
     activeJob: activeJobQuery.data,
     config,
     isGenerating: !!activeJobQuery.data && (activeJobQuery.data.status === 'running' || activeJobQuery.data.status === 'generating' || activeJobQuery.data.status === 'pending'),
-    progress: activeJobQuery.data?.progress || '',
-    error: activeJobQuery.data?.status === 'failed' ? activeJobQuery.data.progress : null,
+    progress: '',
+    error: null,
 
     // Actions
     generate: generateMutation.mutate,
