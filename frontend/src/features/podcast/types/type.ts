@@ -5,8 +5,7 @@ export interface Podcast {
   job_id?: string;
   title: string;
   description?: string;
-  audioUrl?: string;
-  audio_file?: string;
+  audio_url?: string;  // Django streaming endpoint (e.g., /api/v1/podcasts/{id}/audio/)
   duration?: number;
   status: 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled';
   progress?: string;
@@ -24,7 +23,6 @@ export interface Podcast {
   error_message?: string;
   conversation_text?: string;
   file_metadata?: any;
-  audio_object_key?: string;
 }
 
 export interface PodcastState {
@@ -63,12 +61,6 @@ export interface PodcastGenerationResponse {
   job_id: string;
   status: string;
   message: string;
-}
-
-export interface PodcastAudio {
-  audioUrl: string;
-  duration?: number;
-  metadata?: any;
 }
 
 export interface PodcastFilters {
@@ -116,7 +108,6 @@ export interface PodcastListProps {
 
 export interface PodcastDetailProps {
   podcast: Podcast;
-  audio?: PodcastAudio;
   isLoading: boolean;
   onDownload: (podcast: Podcast) => void;
   onDelete: (podcast: Podcast) => void;

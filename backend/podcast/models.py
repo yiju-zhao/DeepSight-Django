@@ -89,15 +89,10 @@ class Podcast(models.Model):
         return f"Podcast {self.id} - {self.title} ({self.status})"
 
     def get_audio_url(self, expires=3600):
-        """Return stable backend gateway for audio (redirects to fresh presigned URL)."""
+        """Return Django streaming endpoint for audio playback."""
         if self.audio_object_key:
             return f"/api/v1/podcasts/{self.id}/audio/"
         return None
-
-    @property
-    def audio_url(self):
-        """Legacy property for backward compatibility"""
-        return self.get_audio_url()
 
     def get_result_dict(self):
         """Return result data as dictionary"""

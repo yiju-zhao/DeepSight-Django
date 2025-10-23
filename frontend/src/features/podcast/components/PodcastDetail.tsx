@@ -1,11 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Podcast, PodcastDetailProps, PodcastAudio } from '../types/type';
+import { Podcast, PodcastDetailProps } from '../types/type';
 import { PodcastService } from '../services/PodcastService';
-import { config } from '@/config';
 
 const PodcastDetail: React.FC<PodcastDetailProps> = ({
   podcast,
-  audio,
   isLoading,
   onDownload,
   onDelete,
@@ -13,10 +11,7 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
   onEdit,
   onBack
 }) => {
-  const [podcastAudio, setPodcastAudio] = useState<PodcastAudio | null>(audio || null);
-  const [isLoadingAudio, setIsLoadingAudio] = useState(false);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
-  const [refreshAttempts, setRefreshAttempts] = useState(0);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast>(podcast);
   const pollingIntervalRef = useRef<number | null>(null);
 
@@ -62,52 +57,16 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
     return () => {};
   }, [currentPodcast.status, currentPodcast.id]);
 
+  // Set audio URL from podcast object
   useEffect(() => {
-    const loadAudio = async () => {
-      if (currentPodcast.status === 'completed') {
-        try {
-          setIsLoadingAudio(true);
-          const podcastService = new PodcastService();
-          
-          // First try to get audio URL from the podcast object itself
-          let url = podcastService.getAudioUrl(currentPodcast);
-          
-          // If no URL from podcast object and we don't have audio data, fetch it
-          if (!url && !audio) {
-            try {
-              const fetchedAudio = await podcastService.getPodcastAudio(currentPodcast.id);
-              setPodcastAudio(fetchedAudio);
-              url = podcastService.getAudioUrl(fetchedAudio as any);
-            } catch (error) {
-              console.error('Failed to load podcast audio:', error);
-              // If fetching audio fails, retry a few times with delay
-              if (refreshAttempts < 3) {
-                setTimeout(() => {
-                  setRefreshAttempts(prev => prev + 1);
-                }, 2000); // Retry after 2 seconds
-              }
-            }
-          } else if (audio) {
-            // If audio is provided, use it
-            setPodcastAudio(audio);
-            url = podcastService.getAudioUrl(audio as any) || url;
-          }
-          
-          // Prefer stable backend audio endpoint to avoid direct MinIO links
-          if (currentPodcast.id) {
-            url = `${config.API_BASE_URL}/podcasts/${currentPodcast.id}/audio/`;
-          }
-          setAudioUrl(url || null);
-        } catch (error) {
-          console.error('Error loading audio:', error);
-        } finally {
-          setIsLoadingAudio(false);
-        }
-      }
-    };
-    
-    loadAudio();
-  }, [currentPodcast, audio, refreshAttempts]);
+    if (currentPodcast.status === 'completed' && currentPodcast.audio_url) {
+      const podcastService = new PodcastService();
+      const url = podcastService.getAudioUrl(currentPodcast);
+      setAudioUrl(url);
+    } else {
+      setAudioUrl(null);
+    }
+  }, [currentPodcast.status, currentPodcast.audio_url]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString();
@@ -294,41 +253,30 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
         </div>
 
         {/* Audio Player */}
-        {currentPodcast.status === 'completed' && podcastAudio && (
+        {currentPodcast.status === 'completed' && audioUrl && (
           <div className="bg-white rounded-lg shadow mb-6">
             <div className="px-6 py-4 border-b border-gray-200">
               <h2 className="text-lg font-medium text-gray-900">Audio Player</h2>
             </div>
             <div className="px-6 py-4">
-              {isLoadingAudio ? (
-                <div className="animate-pulse space-y-4">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              ) : audioUrl ? (
-                <div className="space-y-4">
-                  <audio 
-                    controls 
-                    className="w-full"
-                    src={audioUrl}
-                  >
-                    Your browser does not support the audio element.
-                  </audio>
-                  
-                  {podcastAudio.duration && (
-                    <div className="flex items-center text-sm text-gray-500">
-                      <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      Duration: {formatDuration(podcastAudio.duration)}
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="text-center py-4 text-gray-500">
-                  Audio not available
-                </div>
-              )}
+              <div className="space-y-4">
+                <audio
+                  controls
+                  className="w-full"
+                  src={audioUrl}
+                >
+                  Your browser does not support the audio element.
+                </audio>
+
+                {currentPodcast.file_metadata?.duration_seconds && (
+                  <div className="flex items-center text-sm text-gray-500">
+                    <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Duration: {formatDuration(currentPodcast.file_metadata.duration_seconds)}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}

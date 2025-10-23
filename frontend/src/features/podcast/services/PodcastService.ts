@@ -2,20 +2,18 @@
 // Handles all podcast-related API operations and business logic
 
 import { ApiClient, createFormData } from "@/shared/utils/generation";
-import { 
-  Podcast, 
-  PodcastGenerationRequest, 
-  PodcastGenerationResponse, 
-  PodcastAudio, 
+import {
+  Podcast,
+  PodcastGenerationRequest,
+  PodcastGenerationResponse,
   PodcastFilters,
-  PodcastStats 
+  PodcastStats
 } from "@/features/podcast/types/type";
 import { config } from "@/config";
 
 export interface IPodcastService {
   getPodcasts(filters?: PodcastFilters): Promise<Podcast[]>;
   getPodcast(id: string): Promise<Podcast>;
-  getPodcastAudio(id: string): Promise<PodcastAudio>;
   generatePodcast(config: PodcastGenerationRequest): Promise<PodcastGenerationResponse>;
   cancelPodcast(id: string): Promise<void>;
   deletePodcast(id: string): Promise<void>;
@@ -78,11 +76,6 @@ export class PodcastService implements IPodcastService {
     }
   }
 
-  async getPodcastAudio(id: string): Promise<PodcastAudio> {
-    // Audio endpoint is a stable redirect gateway; use directly in players
-    const endpoint = `/podcasts/${id}/audio/`;
-    return { audioUrl: `${this.api.getBaseUrl()}${endpoint}` };
-  }
 
   async generatePodcast(config: PodcastGenerationRequest): Promise<PodcastGenerationResponse> {
     try {
@@ -252,13 +245,11 @@ export class PodcastService implements IPodcastService {
   }
 
   getAudioUrl(podcast: Podcast): string | null {
-    // Priority order: backend-provided URLs, then constructed endpoint by id
-    if ((podcast as any).audio_url) return (podcast as any).audio_url;
-    if (podcast.audioUrl) return podcast.audioUrl;
-    if (podcast.audio_file) return podcast.audio_file;
-    // Even if audio_object_key isn't included by the API, expose the audio endpoint when we have an id.
-    const podcastId = podcast.id || podcast.job_id;
-    if (podcastId) return `${config.API_BASE_URL}/podcasts/${podcastId}/audio/`;
-    return null;
+    if (!podcast.audio_url) {
+      return null;
+    }
+    // Backend returns absolute path like "/api/v1/podcasts/{id}/audio/"
+    // Prepend origin to make it a full URL
+    return `${window.location.origin}${podcast.audio_url}`;
   }
 } 

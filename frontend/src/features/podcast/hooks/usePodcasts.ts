@@ -53,22 +53,6 @@ export const usePodcast = (id: string) => {
 };
 
 /**
- * Hook to fetch podcast audio
- */
-export const usePodcastAudio = (id: string, enabled: boolean = true) => {
-  const service = new PodcastService();
-
-  return useQuery({
-    queryKey: [...queryKeys.podcasts.detail(id), 'audio'] as const,
-    queryFn: () => service.getPodcastAudio(id),
-    enabled: !!id && enabled,
-    staleTime: 10 * 60 * 1000, // 10 minutes - audio doesn't change
-    gcTime: 30 * 60 * 1000, // 30 minutes cache
-    retry: 1,
-  });
-};
-
-/**
  * Hook to fetch podcast stats
  */
 export const usePodcastStats = () => {

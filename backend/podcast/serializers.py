@@ -5,7 +5,7 @@ from .models import Podcast
 class PodcastSerializer(serializers.ModelSerializer):
     job_id = serializers.UUIDField(source='id', read_only=True)
     notebook_id = serializers.SerializerMethodField()
-    audio_object_key = serializers.CharField(read_only=True, allow_null=True, allow_blank=True)
+    audio_url = serializers.SerializerMethodField()
     id = serializers.UUIDField(read_only=True)
 
     class Meta:
@@ -19,7 +19,7 @@ class PodcastSerializer(serializers.ModelSerializer):
             "progress",
             "created_at",
             "updated_at",
-            "audio_object_key",
+            "audio_url",
             "conversation_text",
             "error_message",
             "source_file_ids",
@@ -36,9 +36,13 @@ class PodcastSerializer(serializers.ModelSerializer):
             "error_message",
             "notebook_id",
         ]
-    
+
     def get_notebook_id(self, obj):
         return obj.notebook.pk if obj.notebook else None
+
+    def get_audio_url(self, obj):
+        """Return the Django streaming endpoint URL for audio playback."""
+        return obj.get_audio_url()
 
 
 class NotebookPodcastCreateSerializer(serializers.Serializer):
@@ -91,7 +95,7 @@ class PodcastCreateSerializer(serializers.Serializer):
 class PodcastListSerializer(serializers.ModelSerializer):
     job_id = serializers.UUIDField(source='id', read_only=True)
     notebook_id = serializers.SerializerMethodField()
-    audio_object_key = serializers.CharField(read_only=True, allow_null=True, allow_blank=True)
+    audio_url = serializers.SerializerMethodField()
     id = serializers.UUIDField(read_only=True)
 
     class Meta:
@@ -105,10 +109,14 @@ class PodcastListSerializer(serializers.ModelSerializer):
             "progress",
             "created_at",
             "updated_at",
-            "audio_object_key",
+            "audio_url",
             "error_message",
             "notebook_id",
         ]
     
     def get_notebook_id(self, obj):
         return obj.notebook.pk if obj.notebook else None
+
+    def get_audio_url(self, obj):
+        """Return the Django streaming endpoint URL for audio playback."""
+        return obj.get_audio_url()

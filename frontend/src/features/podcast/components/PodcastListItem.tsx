@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Podcast } from '../types/type';
-import { config } from '@/config';
+import { PodcastService } from '../services/PodcastService';
 
 interface PodcastListItemProps {
   podcast: Podcast;
@@ -9,6 +9,7 @@ interface PodcastListItemProps {
 
 const PodcastListItem: React.FC<PodcastListItemProps> = ({ podcast, onSelect }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const podcastService = useMemo(() => new PodcastService(), []);
 
   const handleClick = () => {
     if (isExpanded) {
@@ -63,30 +64,25 @@ const PodcastListItem: React.FC<PodcastListItemProps> = ({ podcast, onSelect }) 
       </div>
 
       {/* Expanded audio player */}
-      {isExpanded && podcast.status === 'completed' && (
-        <div className="mt-3 ml-11 p-4 bg-gray-50 border border-gray-200 rounded-lg">
-          {/** Prefer backend audio endpoint to avoid direct MinIO links */}
-          {/** Fallback order: backend endpoint by id -> audioUrl -> audio_file */}
-          {(() => {
-            const fallbackUrl = podcast.id ? `${config.API_BASE_URL}/podcasts/${podcast.id}/audio/` : undefined;
-            const src = fallbackUrl || podcast.audioUrl || (podcast as any).audio_file;
-            return (
-          <audio 
-            controls 
-            className="w-full"
-            src={src}
-          >
-            Your browser does not support the audio element.
-          </audio>
-            );
-          })()}
-          {podcast.duration && (
-            <p className="text-xs text-gray-500 mt-2">
-              Duration: {Math.floor(podcast.duration / 60)}:{(podcast.duration % 60).toString().padStart(2, '0')}
-            </p>
-          )}
-        </div>
-      )}
+      {isExpanded && podcast.status === 'completed' && (() => {
+        const audioUrl = podcastService.getAudioUrl(podcast);
+        return audioUrl ? (
+          <div className="mt-3 ml-11 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+            <audio
+              controls
+              className="w-full"
+              src={audioUrl}
+            >
+              Your browser does not support the audio element.
+            </audio>
+            {podcast.file_metadata?.duration_seconds && (
+              <p className="text-xs text-gray-500 mt-2">
+                Duration: {Math.floor(podcast.file_metadata.duration_seconds / 60)}:{(podcast.file_metadata.duration_seconds % 60).toString().padStart(2, '0')}
+              </p>
+            )}
+          </div>
+        ) : null;
+      })()}
     </div>
   );
 };

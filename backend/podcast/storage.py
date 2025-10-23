@@ -86,24 +86,6 @@ class PodcastStorageService:
                 "error": str(e)
             }
     
-    def get_audio_url(self, object_key: str, expires: int = 3600) -> Optional[str]:
-        """
-        Get pre-signed URL for audio access.
-        
-        Args:
-            object_key: MinIO object key for the audio file
-            expires: URL expiration time in seconds
-            
-        Returns:
-            Pre-signed URL string or None if failed
-        """
-        try:
-            backend = self._get_minio_backend()
-            return backend.get_presigned_url(object_key, expires)
-        except Exception as e:
-            logger.error(f"Error getting audio URL for {object_key}: {e}")
-            return None
-    
     def delete_podcast_audio(self, object_key: str) -> bool:
         """
         Delete podcast audio file from storage.

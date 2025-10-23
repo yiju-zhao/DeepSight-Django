@@ -53,7 +53,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
 
   // Set audio URL - let browser handle fetching and redirects directly
   useEffect(() => {
-    // Check if podcast is completed and has audio_object_key
+    // Check if podcast is completed and has audio URL
     if (!currentPodcast.id) {
       console.log('No podcast ID available');
       setAudioUrl(null);
@@ -68,19 +68,21 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
       return;
     }
 
-    if (!(currentPodcast as any).audio_object_key) {
-      console.log('Podcast has no audio_object_key');
+    // Check if audio_url is available from the API
+    if (!currentPodcast.audio_url) {
+      console.log('Podcast has no audio_url (audio file not available)');
       setAudioUrl(null);
       setIsLoading(false);
       return;
     }
 
-    // Use endpoint URL directly - browser will handle auth and redirects
-    const audioEndpoint = `${config.API_BASE_URL}/podcasts/${currentPodcast.id}/audio/`;
+    // Use the audio_url from the API (Django streaming endpoint)
+    // Backend returns absolute path like "/api/v1/podcasts/{id}/audio/"
+    const audioEndpoint = `${window.location.origin}${currentPodcast.audio_url}`;
     console.log(`Setting audio URL: ${audioEndpoint}`);
     setAudioUrl(audioEndpoint);
     setIsLoading(false);
-  }, [currentPodcast.id, currentPodcast.status]);
+  }, [currentPodcast.id, currentPodcast.status, currentPodcast.audio_url]);
 
   return (
     <div className="p-4 border border-gray-200 rounded-lg bg-white">
@@ -144,7 +146,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
         <div className="text-center py-2 text-gray-500 text-sm">
           {currentPodcast.status !== 'completed'
             ? `Podcast ${currentPodcast.status}...`
-            : !(currentPodcast as any).audio_object_key
+            : !currentPodcast.audio_url
             ? 'Audio file not found'
             : 'Audio not available'}
         </div>

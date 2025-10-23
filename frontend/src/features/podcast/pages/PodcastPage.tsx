@@ -122,7 +122,6 @@ const PodcastPage: React.FC = () => {
     return (
       <PodcastDetail
         podcast={displayPodcast}
-        audio={displayPodcast.audioUrl ? { audioUrl: displayPodcast.audioUrl } : undefined}
         isLoading={isLoading}
         onDownload={handleDownloadPodcast}
         onDelete={handleDeletePodcast}
