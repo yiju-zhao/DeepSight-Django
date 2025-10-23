@@ -659,40 +659,41 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       {!isReportPreview ? (
         <div className="flex-1 flex flex-col overflow-hidden pt-16">
           {/* ====== FIXED SECTIONS: Generation Forms ====== */}
-          <div className="flex-shrink-0 p-4 space-y-4 bg-gray-50/50 border-b border-gray-200/60">
+          <div className="flex-shrink-0 p-4 bg-gray-50/50 border-b border-gray-200/60">
             {/* ====== LISKOV SUBSTITUTION PRINCIPLE (LSP) ====== */}
             {/* Both forms follow the same interface contract */}
-            
-            <ReportGenerationForm
-              config={reportGeneration.config}
-              onConfigChange={reportGeneration.updateConfig}
-              availableModels={reportModels.data || {}}
-              generationState={{
-                state: reportGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
-                progress: reportGeneration.progress,
-                error: reportGeneration.error || undefined,
-                isGenerating: reportGeneration.isGenerating
-              }}
-              onGenerate={handleGenerateReport}
-              selectedFiles={selectedFiles}
-              onOpenModal={onOpenModal}
-              onCloseModal={onCloseModal}
-            />
+            <div className="grid grid-cols-2 gap-4">
+              <ReportGenerationForm
+                config={reportGeneration.config}
+                onConfigChange={reportGeneration.updateConfig}
+                availableModels={reportModels.data || {}}
+                generationState={{
+                  state: reportGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
+                  progress: reportGeneration.progress,
+                  error: reportGeneration.error || undefined,
+                  isGenerating: reportGeneration.isGenerating
+                }}
+                onGenerate={handleGenerateReport}
+                selectedFiles={selectedFiles}
+                onOpenModal={onOpenModal}
+                onCloseModal={onCloseModal}
+              />
 
-            <PodcastGenerationForm
-              config={podcastGeneration.config}
-              onConfigChange={podcastGeneration.updateConfig}
-              generationState={{
-                state: podcastGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
-                progress: podcastGeneration.progress,
-                error: podcastGeneration.error || undefined
-              }}
-              onGenerate={handleGeneratePodcast}
-              selectedFiles={selectedFiles}
-              selectedSources={selectedSources}
-              onOpenModal={onOpenModal}
-              onCloseModal={onCloseModal}
-            />
+              <PodcastGenerationForm
+                config={podcastGeneration.config}
+                onConfigChange={podcastGeneration.updateConfig}
+                generationState={{
+                  state: podcastGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
+                  progress: podcastGeneration.progress,
+                  error: podcastGeneration.error || undefined
+                }}
+                onGenerate={handleGeneratePodcast}
+                selectedFiles={selectedFiles}
+                selectedSources={selectedSources}
+                onOpenModal={onOpenModal}
+                onCloseModal={onCloseModal}
+              />
+            </div>
           </div>
 
           {/* ====== SCROLLABLE SECTION: Generated Files List ====== */}
