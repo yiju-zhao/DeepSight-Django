@@ -374,24 +374,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       if (!podcastId) {
         throw new Error('Podcast ID not found');
       }
-      
-      // Use the API service to download the podcast audio as a blob
-      const blob = await studioService.downloadPodcastAudio(podcastId, notebookId);
-      
-      // Create download link and trigger download
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `${podcast.title || 'podcast'}.wav`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Clean up the blob URL
-      setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 1000);
-      
+
+      // Download directly using browser navigation (avoids CORS issues)
+      await studioService.downloadPodcastAudio(podcastId, notebookId);
+
       toast({
         title: "Download Started",
         description: "Your podcast download should begin shortly"
@@ -400,7 +386,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
         title: "Download Failed",
-        description: errorMessage, 
+        description: errorMessage,
         variant: "destructive"
       });
     }

@@ -302,41 +302,25 @@ class StudioService {
     return apiClient.get(`/podcasts/${jobId}/`);
   }
 
-  async downloadPodcastAudio(jobId: string, notebookId: string): Promise<Blob> {
+  async downloadPodcastAudio(jobId: string, notebookId: string): Promise<void> {
     if (!notebookId) {
       throw new Error('notebookId is required for downloading podcast audio');
     }
 
-    const url = `/podcasts/${jobId}/audio/`;
+    // Use browser's native download mechanism to avoid CORS issues
+    // Browser will automatically:
+    // 1. Send cookies to Django for authentication
+    // 2. Follow redirect to MinIO without cookies (avoiding CORS wildcard issue)
+    // 3. Download the file
+    const downloadUrl = `${apiClient.getBaseUrl()}/podcasts/${jobId}/audio/?download=1`;
 
-    try {
-      // Let browser handle redirect automatically (don't use redirect: 'manual')
-      const response = await fetch(`${apiClient.getBaseUrl()}${url}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'X-CSRFToken': getCookie('csrftoken') ?? '',
-        }
-        // Browser will automatically follow redirect from Django to MinIO
-      });
-
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}`;
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.error || errorData.detail || errorMessage;
-        } catch (e) {
-          errorMessage = response.statusText || errorMessage;
-        }
-        throw new Error(errorMessage);
-      }
-
-      return response.blob();
-    } catch (error: unknown) {
-      console.error('=== PODCAST AUDIO DOWNLOAD ERROR ===');
-      console.error('Error:', error);
-      throw error;
-    }
+    // Create a temporary link and trigger download
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 
   async deletePodcast(jobId: string, notebookId: string): Promise<any> {
