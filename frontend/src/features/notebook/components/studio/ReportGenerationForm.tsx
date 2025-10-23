@@ -119,7 +119,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
               <Search className="h-5 w-5 text-emerald-700" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Research Report</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Report</h3>
               <p className="text-sm text-gray-600">Comprehensive AI-powered analysis</p>
             </div>
           </div>
@@ -130,7 +130,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
               className={`w-full px-6 py-2 rounded-full transition-colors text-sm ${
                 !canGenerate
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : `${COLORS.tw.primary.bg[600]} ${COLORS.tw.primary.hover.bg[700]} text-white`
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
               }`}
               onClick={() => onGenerate()}
               disabled={!canGenerate}

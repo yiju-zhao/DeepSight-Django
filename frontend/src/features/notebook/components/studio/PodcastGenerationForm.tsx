@@ -117,7 +117,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
               <MessageSquare className="h-5 w-5 text-violet-700" />
             </div>
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">Deep Dive Conversation</h3>
+              <h3 className="text-lg font-semibold text-gray-900">Conversation</h3>
               <p className="text-sm text-gray-600">One host with two guests</p>
             </div>
           </div>
@@ -128,7 +128,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
               className={`w-full px-6 py-2 rounded-full transition-colors text-sm ${
                 !canGenerate
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : `${COLORS.tw.primary.bg[600]} ${COLORS.tw.primary.hover.bg[700]} text-white`
+                  : 'bg-violet-600 hover:bg-violet-700 text-white'
               }`}
               onClick={() => onGenerate()}
               disabled={!canGenerate}
