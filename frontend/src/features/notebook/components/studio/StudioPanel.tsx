@@ -2,7 +2,7 @@
 // This component demonstrates all 5 SOLID principles in action
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Maximize2, Minimize2, Settings, FileText, Palette, ChevronDown, Trash2, Edit, Download, Save, X, Eye, BookOpen, Headphones, Clock, Database, Users } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, Settings, FileText, Palette, ChevronDown, Trash2, Edit, Download, Save, X, Eye, BookOpen, Headphones } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { useToast } from "@/shared/components/ui/use-toast";
 
@@ -727,9 +727,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                           (reportGeneration.activeJob && reportGeneration.activeJob.jobId === item.id &&
                            (reportGeneration.activeJob.status === 'running' || reportGeneration.activeJob.status === 'pending'));
 
-                        const sourceCount = getSourceCount(item);
-                        const timeAgo = getRelativeTime(item.created_at);
-
                         return (
                           <div
                             key={`report-${itemId}`}
@@ -753,7 +750,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
                                   {/* Content */}
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center space-x-2 mb-1">
+                                    <div className="flex items-center space-x-2">
                                       <h4 className="text-sm font-semibold truncate text-gray-900 group-hover:text-emerald-800">
                                         {item.title || item.article_title || 'Research Report'}
                                       </h4>
@@ -763,18 +760,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                           Generating
                                         </span>
                                       )}
-                                    </div>
-
-                                    {/* Metadata */}
-                                    <div className="flex items-center text-xs space-x-3">
-                                      <div className="flex items-center text-gray-500">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        <span>{timeAgo}</span>
-                                      </div>
-                                      <div className="flex items-center text-gray-500">
-                                        <Database className="h-3 w-3 mr-1" />
-                                        <span>{sourceCount} sources</span>
-                                      </div>
                                     </div>
                                   </div>
                                 </div>
@@ -806,9 +791,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                           (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === item.id &&
                            (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'pending'));
 
-                        const sourceCount = getSourceCount(item);
-                        const timeAgo = getRelativeTime(item.created_at);
-
                         return (
                           <div
                             key={`podcast-${itemId}`}
@@ -839,7 +821,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
                                   {/* Content */}
                                   <div className="flex-1 min-w-0">
-                                    <div className="flex items-center space-x-2 mb-1">
+                                    <div className="flex items-center space-x-2">
                                       <h4 className="text-sm font-semibold truncate text-gray-900 group-hover:text-violet-800">
                                         {item.title || 'Panel Discussion'}
                                       </h4>
@@ -849,22 +831,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                           Generating
                                         </span>
                                       )}
-                                    </div>
-
-                                    {/* Metadata */}
-                                    <div className="flex items-center text-xs space-x-3">
-                                      <div className="flex items-center text-gray-500">
-                                        <Clock className="h-3 w-3 mr-1" />
-                                        <span>{timeAgo}</span>
-                                      </div>
-                                      <div className="flex items-center text-gray-500">
-                                        <Database className="h-3 w-3 mr-1" />
-                                        <span>{sourceCount} sources</span>
-                                      </div>
-                                      <div className="flex items-center text-gray-500">
-                                        <Users className="h-3 w-3 mr-1" />
-                                        <span>{item.expert_names ? Object.keys(item.expert_names).length : 3} speakers</span>
-                                      </div>
                                     </div>
                                   </div>
                                 </div>
