@@ -39,11 +39,11 @@ class PanelCrewCollaboration:
 
         # Create knowledge source from material content if provided
         if material_content:
-            self.material_knowledge_source = StringKnowledgeSource(
+            self.knowledge_source = StringKnowledgeSource(
                 content=f"Discussion Material Content:\n\n{material_content}"
             )
         else:
-            self.material_knowledge_source = ""
+            self.knowledge_source = ""
 
     # ==================== AGENTS ====================
 
@@ -53,7 +53,8 @@ class PanelCrewCollaboration:
         return Agent(
             config=self.agents_config['researcher'],
             tools=[self.search_tool],
-            llm=research_llm
+            llm=research_llm,
+            StringKnowledgeSource=self.knowledge_source
         )
 
     @agent
@@ -111,7 +112,8 @@ class PanelCrewCollaboration:
         """Step 5: Polish script and fact-check content"""
         return Task(
             config=self.tasks_config['editing_task'],
-            context=[self.script_writing_task(), self.research_task()]
+            context=[self.script_writing_task(), self.research_task()],
+            StringKnowledgeSource=self.knowledge_source
         )
 
     # ==================== CREW ====================
