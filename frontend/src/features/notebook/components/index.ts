@@ -40,4 +40,3 @@ export { default as CreateNotebookForm } from './CreateNotebookForm';
 
 // Types and utilities
 export * from './studio/types';
-export * from './studio/utils';

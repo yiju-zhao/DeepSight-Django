@@ -136,7 +136,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
 
         {/* Title and subtitle at bottom */}
         <div className="p-5 pt-16">
-          <h3 className="text-lg font-semibold text-emerald-800">Report</h3>
+          <h3 className="text font-semibold text-emerald-800">Report</h3>
           <p className="text-sm text-emerald-700">AI-powered analysis</p>
         </div>
       </div>

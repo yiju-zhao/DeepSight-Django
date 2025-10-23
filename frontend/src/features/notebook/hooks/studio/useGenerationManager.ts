@@ -17,7 +17,7 @@ export interface GenerationConfig {
 export interface ActiveJob {
   jobId: string;
   type: 'report' | 'podcast';
-  status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
+  status: 'pending' | 'running' | 'generating' | 'completed' | 'failed' | 'cancelled';
   progress: string;
   config: GenerationConfig;
   startTime: string;

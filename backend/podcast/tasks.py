@@ -60,6 +60,14 @@ def process_podcast_generation(self, job_id: str):
             logger.info(f"Job {job_id} was cancelled before processing started")
             return {"status": "cancelled", "message": "Job was cancelled"}
 
+        # Check if task was revoked by Celery
+        if self.request.called_directly is False:  # Only check if running in worker
+            from celery.result import AsyncResult
+            task_result = AsyncResult(self.request.id)
+            if task_result.state == 'REVOKED':
+                logger.info(f"Task {self.request.id} was revoked, aborting podcast generation")
+                return {"status": "revoked", "message": "Task was revoked"}
+
         # Update job status to processing
         job.status = "generating"
         job.progress = 10

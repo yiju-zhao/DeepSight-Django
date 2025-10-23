@@ -106,7 +106,15 @@ class PodcastJobDetailView(generics.RetrieveDestroyAPIView):
     def perform_destroy(self, instance):
         """
         Override to delete the associated audio file from MinIO before deleting the object.
+        Prevents deletion of running or pending jobs.
         """
+        # Check if job is in a deletable state (not running or pending)
+        if instance.status in ["pending", "generating"]:
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(
+                f"Cannot delete job in '{instance.status}' status. Use POST /{instance.id}/cancel/ to cancel running jobs first."
+            )
+
         if instance.audio_object_key:
             try:
                 from notebooks.utils.storage import get_minio_backend
@@ -116,7 +124,7 @@ class PodcastJobDetailView(generics.RetrieveDestroyAPIView):
             except Exception as e:
                 # Log the error but don't block the deletion of the database record
                 logger.error(f"Error deleting podcast audio file for job {instance.id}: {e}")
-        
+
         instance.delete()
 
     def destroy(self, request, *args, **kwargs):
@@ -139,44 +147,91 @@ class PodcastJobDetailView(generics.RetrieveDestroyAPIView):
 
 
 class PodcastJobCancelView(APIView):
-    """Canonical: Cancel a podcast job by job_id"""
+    """Canonical: Cancel a podcast job by job_id (follows report cancel pattern)"""
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, job_id):
-        """Cancel and delete a running or pending podcast job"""
+        """Cancel a running or pending podcast job immediately with SIGKILL"""
         try:
             job = get_object_or_404(Podcast.objects.filter(user=request.user), id=job_id)
-            if job.status in ["pending", "generating"]:
-                from .tasks import cancel_podcast_generation
-                task_result = cancel_podcast_generation.delay(str(job.id))
-                result = task_result.get(timeout=10)
-                if result.get("status") == "cancelled":
-                    job.refresh_from_db()
 
-                    # Now delete the cancelled job
-                    if job.status == "cancelled":
-                        job.delete()
-                        return Response({
-                            "job_id": str(job_id),
-                            "status": "cancelled_and_deleted",
-                            "message": "Podcast has been cancelled and deleted successfully"
-                        }, status=status.HTTP_200_OK)
-                    else:
-                        # Job was cancelled but not deleted
-                        serializer = PodcastSerializer(job)
-                        return Response({
-                            "job_id": str(job_id),
-                            "status": "cancelled_only",
-                            "message": "Podcast was cancelled but not deleted",
-                            "detail": serializer.data
-                        }, status=status.HTTP_206_PARTIAL_CONTENT)
-                else:
-                    return Response({"error": result.get("message", "Failed to cancel job")}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-            else:
-                return Response({"error": f"Cannot cancel job with status: {job.status}"}, status=status.HTTP_400_BAD_REQUEST)
+            # Check if job is in a cancellable state
+            if job.status not in ["pending", "generating"]:
+                return Response(
+                    {"detail": f"Job cannot be cancelled. Current status: {job.status}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            logger.info(f"Cancelling podcast {job_id} (status: {job.status}, celery_task_id: {job.celery_task_id})")
+
+            # Step 1: Immediately revoke Celery task with SIGKILL for non-ignorable termination
+            if job.celery_task_id:
+                try:
+                    from backend.celery import app as celery_app
+
+                    # Use SIGKILL for immediate, non-ignorable termination
+                    celery_app.control.revoke(
+                        job.celery_task_id,
+                        terminate=True,
+                        signal='SIGKILL'
+                    )
+                    logger.info(f"Sent SIGKILL to Celery task {job.celery_task_id} for immediate termination")
+
+                except Exception as e:
+                    logger.error(f"Failed to revoke Celery task {job.celery_task_id}: {e}")
+
+            # Step 2: Update Podcast status to cancelled
+            job.status = "cancelled"
+            job.progress = 0
+            job.status_message = "Job cancelled by user"
+            job.error_message = "Job cancelled by user"
+            job.save(update_fields=['status', 'progress', 'status_message', 'error_message', 'updated_at'])
+
+            # Step 3: Update Redis cache to reflect cancellation
+            try:
+                redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
+                status_data = {
+                    "job_id": str(job.id),
+                    "status": "cancelled",
+                    "progress": 0,
+                    "error_message": "Job cancelled by user",
+                    "title": job.title,
+                    "status_message": "Job cancelled by user",
+                }
+                redis_client.setex(
+                    f"podcast_job_status:{job.id}",
+                    3600,
+                    json.dumps(status_data)
+                )
+
+                # Publish cancellation event to SSE subscribers
+                redis_client.publish(
+                    f"podcast_job_status:{job.id}",
+                    json.dumps({"type": "job_status", "data": status_data})
+                )
+            except Exception as e:
+                logger.error(f"Failed to update Redis cache for job {job_id}: {e}")
+
+            # Log cancellation with details
+            logger.info(
+                f"✓ Podcast generation cancelled successfully:\n"
+                f"  - Podcast ID: {job_id}\n"
+                f"  - Celery Task ID: {job.celery_task_id}\n"
+                f"  - Status: cancelled\n"
+                f"  - User: {request.user.username}"
+            )
+
+            return Response({
+                "job_id": str(job_id),
+                "status": "cancelled",
+                "message": "Job has been cancelled successfully"
+            }, status=status.HTTP_200_OK)
+
+        except Podcast.DoesNotExist:
+            return Response({"detail": "Podcast not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
-            logger.error(f"Error cancelling podcast job {job_id}: {e}")
-            return Response({"error": f"Failed to cancel job: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            logger.error(f"Error cancelling job podcast {job_id}: {e}", exc_info=True)
+            return Response({"detail": f"Error cancelling job: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
