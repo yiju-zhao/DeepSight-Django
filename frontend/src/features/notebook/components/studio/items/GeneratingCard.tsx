@@ -33,12 +33,7 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
                 {item.title}
               </h4>
             </div>
-            <div className="mt-0.5">
-              <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping mr-1"></div>
-                Come back in a few minutes
-              </span>
-            </div>
+            <p className="text-xs text-gray-500 mt-0.5">Come back in a few minites</p>
           </div>
         </div>
 
