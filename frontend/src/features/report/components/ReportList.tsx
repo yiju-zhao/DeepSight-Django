@@ -1,7 +1,7 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
 import { Report, ReportListProps } from '../types/type';
 import ReportCard from './ReportCard';
+import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
 
 const ReportList: React.FC<ReportListProps> = ({
   reports,
@@ -57,22 +57,25 @@ const ReportList: React.FC<ReportListProps> = ({
         {reports.map((report) => (
           <div
             key={report.id}
-            className={`p-6 hover:bg-gray-50 cursor-pointer relative ${
+            className={`p-6 hover:bg-gray-50 cursor-pointer relative overflow-hidden ${
               selectedReportId === report.id ? 'bg-blue-50' : ''
-            } ${
-              report.status === 'running' || report.status === 'pending'
-                ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 bg-[length:200%_100%] animate-shimmer'
-                : ''
             }`}
             onClick={() => onSelectReport(report)}
           >
-            <div className="flex items-center justify-between">
+            {/* Sweep animation overlay for generating state */}
+            {(report.status === 'running' || report.status === 'pending') && (
+              <div className="pointer-events-none absolute inset-0">
+                <div className="absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-blue-200/60 to-transparent animate-sweep" />
+              </div>
+            )}
+
+            <div className="flex items-center justify-between relative z-10">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
                       {report.status === 'running' || report.status === 'pending' ? (
-                        <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
+                        <LoadingSpinner size="sm" className="text-blue-600" />
                       ) : (
                         <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

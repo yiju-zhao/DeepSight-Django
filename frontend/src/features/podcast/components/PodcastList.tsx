@@ -1,7 +1,7 @@
 import React from 'react';
-import { Loader2 } from 'lucide-react';
 import { Podcast, PodcastListProps } from '../types/type';
 import PodcastCard from './PodcastCard';
+import { LoadingSpinner } from '@/shared/components/ui/LoadingSpinner';
 
 const PodcastList: React.FC<PodcastListProps> = ({
   podcasts,
@@ -59,22 +59,25 @@ const PodcastList: React.FC<PodcastListProps> = ({
         {podcasts.map((podcast) => (
           <div
             key={podcast.id}
-            className={`p-6 hover:bg-gray-50 cursor-pointer relative ${
+            className={`p-6 hover:bg-gray-50 cursor-pointer relative overflow-hidden ${
               selectedPodcastId === podcast.id ? 'bg-blue-50' : ''
-            } ${
-              podcast.status === 'generating' || podcast.status === 'pending'
-                ? 'bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 bg-[length:200%_100%] animate-shimmer'
-                : ''
             }`}
             onClick={() => onSelectPodcast(podcast)}
           >
-            <div className="flex items-center justify-between">
+            {/* Sweep animation overlay for generating state */}
+            {(podcast.status === 'generating' || podcast.status === 'pending') && (
+              <div className="pointer-events-none absolute inset-0">
+                <div className="absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-purple-200/60 to-transparent animate-sweep" />
+              </div>
+            )}
+
+            <div className="flex items-center justify-between relative z-10">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
                       {podcast.status === 'generating' || podcast.status === 'pending' ? (
-                        <Loader2 className="h-6 w-6 text-purple-600 animate-spin" />
+                        <LoadingSpinner size="sm" className="text-purple-600" />
                       ) : (
                         <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
