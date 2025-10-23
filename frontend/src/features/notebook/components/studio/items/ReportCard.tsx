@@ -48,8 +48,8 @@ const ReportCard: React.FC<ReportCardProps> = ({ item, onSelect, onDelete }) => 
       className="relative overflow-hidden cursor-pointer group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4"
       onClick={() => onSelect(item)}
     >
-      <div className="flex items-center justify-between py-2 h-[48px]">
-        <div className="flex items-center space-x-3 flex-1 min-w-0">
+      <div className="flex items-center justify-between py-3 h-14">
+        <div className="flex items-center space-x-4 flex-1 min-w-0">
           {/* Icon */}
           <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
             {getStatusIcon()}

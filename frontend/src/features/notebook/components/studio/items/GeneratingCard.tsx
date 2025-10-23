@@ -19,8 +19,8 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
 
   return (
     <div className="relative overflow-hidden cursor-default group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4">
-      <div className="flex items-center justify-between py-2 h-[48px]">
-        <div className="flex items-center space-x-3 flex-1 min-w-0">
+      <div className="flex items-center justify-between py-3 h-14">
+        <div className="flex items-center space-x-4 flex-1 min-w-0">
           {/* Loading icon */}
           <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
             <Loader2 className={`h-4 w-4 ${iconColor} animate-spin`} />
