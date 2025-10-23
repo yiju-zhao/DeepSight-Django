@@ -18,7 +18,7 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
   const iconColor = item.kind === 'report' ? 'text-emerald-600' : 'text-violet-600';
 
   return (
-    <div className="relative overflow-hidden cursor-default group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4">
+    <div className="relative overflow-hidden cursor-default group transition-colors duration-150 hover:bg-gray-50 rounded-lg">
       <div className="flex items-center justify-between py-3 h-14">
         <div className="flex items-center space-x-4 flex-1 min-w-0">
           {/* Loading icon */}

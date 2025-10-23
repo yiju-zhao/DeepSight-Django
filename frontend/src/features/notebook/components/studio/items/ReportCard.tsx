@@ -45,7 +45,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ item, onSelect, onDelete }) => 
 
   return (
     <div
-      className="relative overflow-hidden cursor-pointer group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4"
+      className="relative overflow-hidden cursor-pointer group transition-colors duration-150 hover:bg-gray-50 rounded-lg"
       onClick={() => onSelect(item)}
     >
       <div className="flex items-center justify-between py-3 h-14">

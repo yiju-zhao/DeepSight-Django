@@ -77,7 +77,7 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
     <div className="relative">
       {/* Header */}
       <div
-        className="relative overflow-hidden cursor-pointer group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4"
+        className="relative overflow-hidden cursor-pointer group transition-colors duration-150 hover:bg-gray-50 rounded-lg"
         onClick={() => onToggleExpand(item)}
       >
         <div className="flex items-center justify-between py-3 h-14">
@@ -120,7 +120,7 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
 
       {/* Expanded Audio Player */}
       {isExpanded && isCompleted && (
-        <div className="bg-gray-50 -mx-4 px-4 py-3 border-t border-b border-gray-200">
+        <div className="bg-gray-50 px-3 py-3 border border-gray-200 rounded-lg mt-2">
           <PodcastAudioPlayer
             podcast={legacyPodcast}
             onDownload={() => onDownload(item)}
