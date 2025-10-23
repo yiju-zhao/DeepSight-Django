@@ -309,65 +309,34 @@ class StudioService {
 
     const url = `/podcasts/${jobId}/audio/`;
 
-    let response;
     try {
-      response = await fetch(`${apiClient.getBaseUrl()}${url}`, {
+      // Let browser handle redirect automatically (don't use redirect: 'manual')
+      const response = await fetch(`${apiClient.getBaseUrl()}${url}`, {
         method: 'GET',
         credentials: 'include',
         headers: {
           'X-CSRFToken': getCookie('csrftoken') ?? '',
-        },
-        redirect: 'manual'
-      });
-    } catch (fetchError: unknown) {
-      console.error('=== PODCAST AUDIO FETCH ERROR ===');
-      console.error('Error type:', (fetchError as Error).constructor.name);
-      console.error('Error message:', (fetchError as Error).message);
-      console.error('Error stack:', (fetchError as Error).stack);
-
-      if ((fetchError as Error).name === 'TypeError' && (fetchError as Error).message.includes('Failed to fetch')) {
-        console.error('This looks like a network connectivity or CORS issue');
-      } else if ((fetchError as Error).message.includes('NetworkError') || (fetchError as Error).message.includes('net::ERR_FAILED')) {
-        console.error('This looks like a network error (possibly server down or DNS issue)');
-      }
-
-      console.error('==================');
-      throw new Error(`Network request failed (HTTP 0): ${(fetchError as Error).message}. Check console for details.`);
-    }
-
-    // Handle redirect to MinIO presigned URL
-    if (response.status === 302 || response.status === 301) {
-      const redirectUrl = response.headers.get('Location');
-      if (redirectUrl) {
-        const minioResponse = await fetch(redirectUrl, {
-          method: 'GET',
-          credentials: 'omit',  // Don't send cookies to MinIO
-          mode: 'cors'
-        });
-
-        if (minioResponse.ok) {
-          return minioResponse.blob();
-        } else {
-          throw new Error(`MinIO audio download failed: ${minioResponse.status} ${minioResponse.statusText}`);
         }
-      } else {
-        throw new Error('No redirect URL found in response headers');
+        // Browser will automatically follow redirect from Django to MinIO
+      });
+
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorData.detail || errorMessage;
+        } catch (e) {
+          errorMessage = response.statusText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
-    }
 
-    // Direct response (no redirect)
-    if (response.ok) {
       return response.blob();
+    } catch (error: unknown) {
+      console.error('=== PODCAST AUDIO DOWNLOAD ERROR ===');
+      console.error('Error:', error);
+      throw error;
     }
-
-    let errorMessage = `HTTP ${response.status}`;
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.error || errorData.detail || errorMessage;
-    } catch (e) {
-      errorMessage = response.statusText || errorMessage;
-    }
-    throw new Error(errorMessage);
   }
 
   async deletePodcast(jobId: string, notebookId: string): Promise<any> {
