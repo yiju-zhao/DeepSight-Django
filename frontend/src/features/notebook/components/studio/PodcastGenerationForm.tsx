@@ -99,7 +99,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
         {/* Icon in top left */}
         <div className="absolute top-4 left-4">
           <div className="w-8 h-8 bg-violet-100 rounded-full flex items-center justify-center">
-            <MessageSquare className={`h-4 w-4 text-violet-700 ${isGenerating ? 'animate-spin' : ''}`} />
+            <MessageSquare className="h-4 w-4 text-violet-700" />
           </div>
         </div>
 
@@ -137,13 +137,6 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
           <h3 className="text-lg font-semibold text-gray-900">Conversation</h3>
           <p className="text-sm text-gray-600">One host with two guests</p>
         </div>
-
-        {/* Generating sweep highlight */}
-        {isGenerating && (
-          <div className="pointer-events-none absolute inset-0">
-            <div className="absolute top-0 bottom-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-violet-200/60 to-transparent animate-sweep" />
-          </div>
-        )}
       </div>
 
     </>

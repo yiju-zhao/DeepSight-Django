@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import { Report, ReportListProps } from '../types/type';
 import ReportCard from './ReportCard';
 
@@ -56,8 +57,12 @@ const ReportList: React.FC<ReportListProps> = ({
         {reports.map((report) => (
           <div
             key={report.id}
-            className={`p-6 hover:bg-gray-50 cursor-pointer ${
+            className={`p-6 hover:bg-gray-50 cursor-pointer relative ${
               selectedReportId === report.id ? 'bg-blue-50' : ''
+            } ${
+              report.status === 'running' || report.status === 'pending'
+                ? 'bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 bg-[length:200%_100%] animate-shimmer'
+                : ''
             }`}
             onClick={() => onSelectReport(report)}
           >
@@ -66,9 +71,13 @@ const ReportList: React.FC<ReportListProps> = ({
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
+                      {report.status === 'running' || report.status === 'pending' ? (
+                        <Loader2 className="h-6 w-6 text-blue-600 animate-spin" />
+                      ) : (
+                        <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      )}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -146,18 +155,6 @@ const ReportList: React.FC<ReportListProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* Progress for running reports only */}
-            {report.status === 'running' && report.progress && (
-              <div className="mt-3">
-                <div className="flex items-center space-x-2">
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: "60%" }}></div>
-                  </div>
-                  <span className="text-xs text-gray-500">{report.progress}</span>
-                </div>
-              </div>
-            )}
 
             {/* Error message for failed reports */}
             {report.status === 'failed' && report.error_message && (

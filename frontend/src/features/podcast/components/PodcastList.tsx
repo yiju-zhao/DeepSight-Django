@@ -1,4 +1,5 @@
 import React from 'react';
+import { Loader2 } from 'lucide-react';
 import { Podcast, PodcastListProps } from '../types/type';
 import PodcastCard from './PodcastCard';
 
@@ -58,8 +59,12 @@ const PodcastList: React.FC<PodcastListProps> = ({
         {podcasts.map((podcast) => (
           <div
             key={podcast.id}
-            className={`p-6 hover:bg-gray-50 cursor-pointer ${
+            className={`p-6 hover:bg-gray-50 cursor-pointer relative ${
               selectedPodcastId === podcast.id ? 'bg-blue-50' : ''
+            } ${
+              podcast.status === 'generating' || podcast.status === 'pending'
+                ? 'bg-gradient-to-r from-purple-50 via-indigo-50 to-purple-50 bg-[length:200%_100%] animate-shimmer'
+                : ''
             }`}
             onClick={() => onSelectPodcast(podcast)}
           >
@@ -68,9 +73,13 @@ const PodcastList: React.FC<PodcastListProps> = ({
                 <div className="flex items-center space-x-3">
                   <div className="flex-shrink-0">
                     <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                      </svg>
+                      {podcast.status === 'generating' || podcast.status === 'pending' ? (
+                        <Loader2 className="h-6 w-6 text-purple-600 animate-spin" />
+                      ) : (
+                        <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                      )}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
@@ -170,18 +179,6 @@ const PodcastList: React.FC<PodcastListProps> = ({
                 </div>
               </div>
             </div>
-            
-            {/* Progress for generating podcasts */}
-            {podcast.status === 'generating' && podcast.progress && (
-              <div className="mt-3">
-                <div className="flex items-center space-x-2">
-                  <div className="flex-1 bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-600 h-2 rounded-full animate-pulse" style={{ width: "60%" }}></div>
-                  </div>
-                  <span className="text-xs text-gray-500">{podcast.progress}</span>
-                </div>
-              </div>
-            )}
           </div>
         ))}
       </div>
