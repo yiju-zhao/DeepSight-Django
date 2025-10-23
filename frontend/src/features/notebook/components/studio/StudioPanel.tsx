@@ -269,7 +269,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       if (!reportId) {
         throw new Error('Report ID not found');
       }
-      
+
       const content = await studioService.getReportContent(reportId, notebookId);
       setSelectedFile(report);
       setSelectedFileContent(content.content || content.markdown_content || '');
@@ -716,8 +716,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
               allItems.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
               return (
-                <div className="p-6">
-                  <div className="space-y-3">
+                <div className="px-4 py-2">
+                  <div className="space-y-1">
                     {allItems.map((item: any, index: number) => {
                       const itemId = item.id || index.toString();
 
@@ -730,56 +730,47 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         return (
                           <div
                             key={`report-${itemId}`}
-                            className="relative rounded-xl transition-all duration-300 cursor-pointer group border overflow-hidden bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-md h-[72px]"
+                            className="relative cursor-pointer group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4"
                             onClick={() => handleSelectReport(item)}
                           >
-                            {/* Highlight sweep for generating state */}
-                            {isGenerating && (
-                              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 via-blue-100/60 to-blue-50/80">
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/40 to-transparent animate-sweep"></div>
+                            <div className="flex items-center justify-between py-2 h-[48px]">
+                              <div className="flex items-center space-x-3 flex-1 min-w-0">
+                                {/* Report Icon */}
+                                <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+                                  <BookOpen className="h-4 w-4 text-emerald-600" />
+                                </div>
+
+                                {/* Content */}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center space-x-2">
+                                    <h4 className="text-sm font-medium truncate text-gray-900">
+                                      {item.title || item.article_title || 'Research Report'}
+                                    </h4>
+                                    {isGenerating && (
+                                      <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                                        <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping mr-1"></div>
+                                        Generating
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
-                            )}
 
-                            <div className="relative z-10 p-3 h-full flex items-center">
-                              <div className="flex items-center justify-between w-full">
-                                <div className="flex items-center space-x-3 flex-1 min-w-0">
-                                  {/* Report Icon */}
-                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-emerald-500 group-hover:bg-emerald-600 shadow-sm">
-                                    <BookOpen className="h-4 w-4 text-white" />
-                                  </div>
-
-                                  {/* Content */}
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center space-x-2">
-                                      <h4 className="text-sm font-semibold truncate text-gray-900 group-hover:text-emerald-800">
-                                        {item.title || item.article_title || 'Research Report'}
-                                      </h4>
-                                      {isGenerating && (
-                                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
-                                          <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-ping mr-1"></div>
-                                          Generating
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Actions */}
-                                <div className={`transition-opacity ${
-                                  isGenerating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                                }`}>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteReport(item);
-                                    }}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
+                              {/* Actions */}
+                              <div className={`transition-opacity ${
+                                isGenerating ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                              }`}>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteReport(item);
+                                  }}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
                               </div>
                             </div>
                           </div>
@@ -792,37 +783,27 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                            (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'pending'));
 
                         return (
-                          <div
-                            key={`podcast-${itemId}`}
-                            className="relative rounded-xl border transition-all duration-300 overflow-hidden bg-white hover:bg-gray-50 border-gray-200 hover:border-gray-300 hover:shadow-md"
-                          >
-                            {/* Highlight sweep for generating state */}
-                            {isGenerating && (
-                              <div className="absolute inset-0 bg-gradient-to-r from-blue-50/80 via-blue-100/60 to-blue-50/80">
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/40 to-transparent animate-sweep"></div>
-                              </div>
-                            )}
-
+                          <div key={`podcast-${itemId}`} className="relative">
                             {/* Podcast Header */}
                             <div
-                              className="p-3 cursor-pointer hover:bg-gray-50 transition-colors duration-200 group relative z-10 h-[72px] flex items-center"
+                              className="cursor-pointer group transition-colors duration-150 hover:bg-gray-100/80 -mx-4 px-4"
                               onClick={() => handlePodcastClick(item)}
                             >
-                              <div className="flex items-center justify-between w-full">
+                              <div className="flex items-center justify-between py-2 h-[48px]">
                                 <div className="flex items-center space-x-3 flex-1 min-w-0">
                                   {/* Podcast Icon */}
-                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-violet-500 group-hover:bg-violet-600 shadow-sm">
+                                  <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
                                     {isExpanded ? (
-                                      <ChevronDown className="h-4 w-4 text-white" />
+                                      <ChevronDown className="h-4 w-4 text-violet-600" />
                                     ) : (
-                                      <Headphones className="h-4 w-4 text-white" />
+                                      <Headphones className="h-4 w-4 text-violet-600" />
                                     )}
                                   </div>
 
                                   {/* Content */}
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center space-x-2">
-                                      <h4 className="text-sm font-semibold truncate text-gray-900 group-hover:text-violet-800">
+                                      <h4 className="text-sm font-medium truncate text-gray-900">
                                         {item.title || 'Panel Discussion'}
                                       </h4>
                                       {isGenerating && (
@@ -842,7 +823,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-7 w-7 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
+                                    className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleDeletePodcast(item);
@@ -856,7 +837,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
                             {/* Expanded Audio Player */}
                             {isExpanded && (
-                              <div className="border-t border-gray-100 bg-gray-50">
+                              <div className="bg-gray-50 -mx-4 px-4 py-3 border-t border-b border-gray-200">
                                 <PodcastAudioPlayer
                                   podcast={item}
                                   onDownload={() => handleDownloadPodcast(item)}
