@@ -828,8 +828,8 @@ class NotebookJobsSSEView(View):
 
             logger.info(f"Subscribed to Redis channel: {channel}")
 
-            # Send initial connection message
-            yield f"data: {json.dumps({'type': 'connected', 'notebookId': notebook_id})}\n\n"
+            # Send initial connection message (ensure UUID is JSON-serializable)
+            yield f"data: {json.dumps({'type': 'connected', 'notebookId': str(notebook_id)})}\n\n"
 
             start_time = time.time()
             last_heartbeat = start_time
