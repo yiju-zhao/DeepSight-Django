@@ -28,6 +28,12 @@ const ReportPage: React.FC = () => {
   useNotebookJobStream({
     notebookId: filters.notebook_id,
     enabled: !!filters.notebook_id,
+    onConnected: (nbId) => {
+      // Sync current state when SSE reconnects (e.g., after page refresh)
+      console.log('[ReportPage] SSE connected, syncing report list');
+      // Since this is the global report list, we don't have notebook-specific keys
+      // The default invalidation in the hook will handle this
+    },
   });
 
   // Extract raw API reports array from response

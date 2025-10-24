@@ -20,15 +20,6 @@ import os
 import base64
 import requests
 from django.conf import settings
-try:
-    import langid  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    langid = None  # type: ignore
-
-try:
-    import jieba  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    jieba = None  # type: ignore
 
 # =============================================================================
 # CONSTANTS AND CONFIGURATION
@@ -235,68 +226,109 @@ def normalize_tts_text(text: str) -> str:
 
 
 # =============================================================================
-# TEXT CHUNKING FUNCTIONS
+# HIGGS TTS SESSION (INIT ONCE PER AUDIO JOB)
 # =============================================================================
 
-_CJK_RANGE = (
-    (0x4E00, 0x9FFF),  # CJK Unified Ideographs
-    (0x3400, 0x4DBF),  # CJK Unified Ideographs Extension A
-    (0x20000, 0x2A6DF),  # Extension B
-    (0x2A700, 0x2B73F),  # Extension C
-    (0x2B740, 0x2B81F),  # Extension D
-    (0x2B820, 0x2CEAF),  # Extension E
-    (0xF900, 0xFAFF),  # CJK Compatibility Ideographs
-)
+class HiggsTTSSession:
+    """
+    Manage a single OpenAI-compatible client + model for Higgs across one audio job.
+    Avoids repeated model listing and client creation per chunk.
+    """
 
-
-def _has_cjk(text: str) -> bool:
-    for ch in text:
-        code = ord(ch)
-        for lo, hi in _CJK_RANGE:
-            if lo <= code <= hi:
-                return True
-    return False
-
-
-def _detect_language(text: str) -> str:
-    if langid is not None:
+    def __init__(self) -> None:
+        self.client = None
+        self.model = None
         try:
-            return langid.classify(text)[0]
-        except Exception:
-            pass
-    # Heuristic fallback
-    return "zh" if _has_cjk(text) else "en"
+            from openai import OpenAI  # type: ignore
+        except Exception as e:  # pragma: no cover - optional dependency
+            logger.error(f"OpenAI client not available for Higgs: {e}")
+            return
 
+        base_url = getattr(settings, 'HIGGS_API_BASE', 'http://localhost:8000/v1')
+        model = getattr(settings, 'HIGGS_TTS_MODEL', None)
+        try:
+            client = OpenAI(api_key="EMPTY", base_url=base_url)  # type: ignore
+            if not model:
+                try:
+                    models = client.models.list()
+                    if models and getattr(models, 'data', None):
+                        model = models.data[0].id
+                    else:
+                        logger.error("Higgs: no models returned; set HIGGS_TTS_MODEL in settings")
+                except Exception as e:
+                    logger.error(f"Higgs: failed to list models: {e}")
+            self.client = client
+            self.model = model
+        except Exception as e:
+            logger.error(f"Failed to init Higgs client: {e}")
+            self.client = None
+            self.model = None
 
-def _split_sentences_en(paragraph: str) -> List[str]:
-    # Simple sentence splitter that keeps punctuation.
-    # Splits on . ! ? ; : while preserving delimiter with the sentence.
-    parts: List[str] = []
-    buf: List[str] = []
-    for token in re.split(r"(\s+)", paragraph):
-        buf.append(token)
-        if re.search(r"[\.!?;:][\)\"]?$", token.strip()):
-            parts.append("".join(buf).strip())
-            buf = []
-    if buf:
-        parts.append("".join(buf).strip())
-    return [s for s in parts if s]
+    def smart_voice(self, text: str) -> Optional[bytes]:
+        if not self.client or not self.model:
+            return None
+        DEFAULT_SYSTEM_PROMPT = (
+            "Generate audio following instruction.\n\n"
+            "<|scene_desc_start|>\n"
+            "Audio is recorded from a quiet room.\n"
+            "Speaker will speak chinese mixed with a few english words.\n"
+            "<|scene_desc_end|>"
+        )
+        try:
+            chat_completion = self.client.chat.completions.create(
+                messages=[
+                    {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
+                    {"role": "user", "content": text},
+                ],
+                model=self.model,
+                max_completion_tokens=1000,
+                stream=False,
+                modalities=["text", "audio"],
+                temperature=1.0,
+                top_p=0.95,
+                extra_body={"top_k": 50},
+                stop=["<|eot_id|>", "<|end_of_text|>", "<|audio_eos|>"],
+            )
+            audio_b64 = chat_completion.choices[0].message.audio.data
+            return base64.b64decode(audio_b64)
+        except Exception as e:
+            logger.error(f"Higgs smart voice failed: {e}")
+            return None
 
-
-def prepare_chunk_text(
-    text: str,
-    chunk_method: Optional[str] = None,
-    chunk_max_word_num: int = 100,
-    chunk_max_num_turns: int = 1,
-) -> List[str]:
-    """
-    Deprecated: legacy chunking function retained for backward compatibility.
-    Prefer using `_chunk_text_by_length` for per-turn chunking and
-    `split_turns_by_speaker` for speaker-level splitting.
-    """
-    if not text:
-        return [text]
-    return [text]
+    def voice_clone(self, seed_audio_wav: bytes, seed_text: str, new_text: str) -> Optional[bytes]:
+        if not self.client or not self.model:
+            return None
+        try:
+            audio_b64 = base64.b64encode(seed_audio_wav).decode("utf-8")
+            messages = [
+                {"role": "user", "content": seed_text},
+                {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "input_audio",
+                            "input_audio": {"data": audio_b64, "format": "wav"},
+                        }
+                    ],
+                },
+                {"role": "user", "content": new_text},
+            ]
+            chat_completion = self.client.chat.completions.create(
+                messages=messages,
+                model=self.model,
+                max_completion_tokens=1000,
+                stream=False,
+                modalities=["text", "audio"],
+                temperature=1.0,
+                top_p=0.95,
+                extra_body={"top_k": 50},
+                stop=["<|eot_id|>", "<|end_of_text|>", "<|audio_eos|>"],
+            )
+            audio_b64_out = chat_completion.choices[0].message.audio.data
+            return base64.b64decode(audio_b64_out)
+        except Exception as e:
+            logger.error(f"Higgs voice clone failed: {e}")
+            return None
 
 
 def split_turns_by_speaker(conversation_turns: List[Dict[str, str]]) -> List[Dict[str, str]]:
@@ -376,107 +408,6 @@ def _chunk_text_by_length(text: str, max_chars: int = 250) -> List[str]:
 
     return out
 
-def _get_higgs_client_and_model():
-    """Create an OpenAI-compatible client for Higgs and choose a model.
-    Returns a tuple (client, model_id).
-    """
-    try:
-        from openai import OpenAI
-    except Exception as e:
-        logger.error(f"OpenAI client not available for Higgs: {e}")
-        return None, None
-
-    base_url = getattr(settings, 'HIGGS_API_BASE', 'http://localhost:8000/v1')
-    model = getattr(settings, 'HIGGS_TTS_MODEL', None)
-    try:
-        client = OpenAI(api_key="EMPTY", base_url=base_url)
-        if not model:
-            # Discover first available model
-            try:
-                models = client.models.list()
-                if models and getattr(models, 'data', None):
-                    model = models.data[0].id
-                else:
-                    logger.error("Higgs: no models returned; set HIGGS_TTS_MODEL in settings")
-                    return client, None
-            except Exception as e:
-                logger.error(f"Higgs: failed to list models: {e}")
-                return client, None
-        return client, model
-    except Exception as e:
-        logger.error(f"Failed to init Higgs client: {e}")
-        return None, None
-
-
-def _higgs_smart_voice(text: str) -> Optional[bytes]:
-    """Generate WAV audio bytes using Higgs 'smart voice' (no reference)."""
-    client, model = _get_higgs_client_and_model()
-    if not client or not model:
-        return None
-    DEFAULT_SYSTEM_PROMPT = (
-        "Generate audio following instruction.\n\n"
-        "<|scene_desc_start|>\n"
-        "Audio is recorded from a quiet room.\n"
-        "Speaker will speak chinese mixed with a few english words.\n"
-        "<|scene_desc_end|>"
-    )
-    try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
-                {"role": "user", "content": text},
-            ],
-            model=model,
-            modalities=["text", "audio"],
-            temperature=1.0,
-            top_p=0.95,
-            extra_body={"top_k": 50},
-            stop=["<|eot_id|>", "<|end_of_text|>", "<|audio_eos|>"],
-        )
-        audio_b64 = chat_completion.choices[0].message.audio.data
-        return base64.b64decode(audio_b64)
-    except Exception as e:
-        logger.error(f"Higgs smart voice failed: {e}")
-        return None
-
-
-def _higgs_voice_clone(seed_audio_wav: bytes, seed_text: str, new_text: str) -> Optional[bytes]:
-    """Generate WAV audio bytes using Higgs 'voice clone' given a seed audio+text."""
-    client, model = _get_higgs_client_and_model()
-    if not client or not model:
-        return None
-    try:
-        audio_b64 = base64.b64encode(seed_audio_wav).decode("utf-8")
-        messages = [
-            {"role": "user", "content": seed_text},
-            {
-                "role": "assistant",
-                "content": [
-                    {
-                        "type": "input_audio",
-                        "input_audio": {"data": audio_b64, "format": "wav"},
-                    }
-                ],
-            },
-            {"role": "user", "content": new_text},
-        ]
-        chat_completion = client.chat.completions.create(
-            messages=messages,
-            model=model,
-            max_completion_tokens=1000,
-            stream=False,
-            modalities=["text", "audio"],
-            temperature=1.0,
-            top_p=0.95,
-            extra_body={"top_k": 50},
-            stop=["<|eot_id|>", "<|end_of_text|>", "<|audio_eos|>"],
-        )
-        audio_b64_out = chat_completion.choices[0].message.audio.data
-        return base64.b64decode(audio_b64_out)
-    except Exception as e:
-        logger.error(f"Higgs voice clone failed: {e}")
-        return None
-
 
 def _openai_tts(text: str) -> Optional[bytes]:
     """Fallback TTS using OpenAI gpt-4o-mini-tts via REST to produce WAV bytes.
@@ -516,6 +447,7 @@ def _synthesize_and_merge_turn_chunks(
     segment_index: int,
     audio_output_dir: Path,
     speaker_state: Dict[str, Dict[str, Any]],
+    higgs_session: Optional[HiggsTTSSession] = None,
 ) -> Optional[Path]:
     """
     Given pre-chunked text for a single speaker turn, synthesize each chunk to audio,
@@ -525,21 +457,24 @@ def _synthesize_and_merge_turn_chunks(
         if not chunks:
             return None
 
+        # Ensure we have a session; prefer caller-provided (one per job)
+        session = higgs_session or HiggsTTSSession()
+
         chunk_files: List[Path] = []
         for ci, chunk_text in enumerate(chunks):
             audio_bytes: Optional[bytes] = None
 
             if speaker not in speaker_state:
-                audio_bytes = _higgs_smart_voice(chunk_text)
+                audio_bytes = session.smart_voice(chunk_text)
                 if audio_bytes:
                     speaker_state[speaker] = {"seed_audio": audio_bytes, "seed_text": chunk_text}
             else:
                 seed = speaker_state[speaker]
-                audio_bytes = _higgs_voice_clone(
+                audio_bytes = session.voice_clone(
                     seed.get("seed_audio", b""), seed.get("seed_text", ""), chunk_text
                 )
                 if not audio_bytes:
-                    audio_bytes = _higgs_smart_voice(chunk_text)
+                    audio_bytes = session.smart_voice(chunk_text)
 
             if not audio_bytes:
                 audio_bytes = _openai_tts(chunk_text)
@@ -600,6 +535,7 @@ def generate_audio_segment(
     segment_index: int,
     audio_output_dir: Path,
     speaker_state: Dict[str, Dict[str, Any]],
+    higgs_session: Optional[HiggsTTSSession] = None,
 ) -> Optional[Path]:
     """
     Generate audio segment for a single conversation turn.
@@ -629,6 +565,7 @@ def generate_audio_segment(
             segment_index=segment_index,
             audio_output_dir=audio_output_dir,
             speaker_state=speaker_state,
+            higgs_session=higgs_session,
         )
             
     except Exception as e:
@@ -659,6 +596,8 @@ def generate_conversation_audio_optimized(
 
         # Track per-speaker seed (first segment) to support cloning later
         speaker_state: Dict[str, Dict[str, Any]] = {}
+        # Initialize one Higgs client/model session for the whole job
+        higgs_session = HiggsTTSSession()
 
         # Generate per-turn segments in order, grouping by speaker implicitly
         audio_segments: List[Path] = []
@@ -673,6 +612,7 @@ def generate_conversation_audio_optimized(
                 segment_index=i,
                 audio_output_dir=audio_output_dir,
                 speaker_state=speaker_state,
+                higgs_session=higgs_session,
             )
             if segment_file and segment_file.exists():
                 audio_segments.append(segment_file)
@@ -790,6 +730,3 @@ def _simple_audio_concatenation(segments: List[Path], output_file: Path) -> bool
         logger.error(f"Simple concatenation failed: {e}")
         return False
 
-
-    # Minimax TTS removed
-    pass

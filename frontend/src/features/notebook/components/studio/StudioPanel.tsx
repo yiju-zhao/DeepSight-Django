@@ -190,6 +190,13 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   useNotebookJobStream({
     notebookId,
     enabled: !!notebookId,
+    onConnected: (nbId) => {
+      // Sync current state when SSE connection is established/re-established
+      // This ensures we don't miss status changes that happened during page refresh
+      console.log('[StudioPanel] SSE connected, syncing current state');
+      queryClient.invalidateQueries({ queryKey: studioKeys.reportJobs(nbId) });
+      queryClient.invalidateQueries({ queryKey: studioKeys.podcastJobs(nbId) });
+    },
     onJobEvent: (event) => {
       if (!notebookId) return;
       if (event.entity === 'report') {

@@ -43,6 +43,7 @@ export interface UseNotebookJobStreamOptions {
   enabled?: boolean;
   onJobEvent?: (event: JobEvent) => void;
   onConnectionChange?: (connected: boolean) => void;
+  onConnected?: (notebookId: string) => void; // Called when SSE connection is established
 }
 
 export function useNotebookJobStream({
@@ -50,6 +51,7 @@ export function useNotebookJobStream({
   enabled = true,
   onJobEvent,
   onConnectionChange,
+  onConnected,
 }: UseNotebookJobStreamOptions) {
   const queryClient = useQueryClient();
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -98,6 +100,13 @@ export function useNotebookJobStream({
         setConnectionError(null);
         reconnectAttemptsRef.current = 0;
         onConnectionChange?.(true);
+
+        // Notify callback for state sync (e.g., invalidate queries)
+        // This ensures we don't miss any status changes that happened while disconnected
+        if (data.notebookId) {
+          onConnected?.(data.notebookId);
+        }
+
         return;
       }
 
@@ -131,7 +140,7 @@ export function useNotebookJobStream({
     } catch (error) {
       console.error('[SSE] Failed to parse message:', error);
     }
-  }, [onJobEvent, invalidateQueries, onConnectionChange]);
+  }, [onJobEvent, invalidateQueries, onConnectionChange, onConnected]);
 
   /**
    * Handle SSE errors

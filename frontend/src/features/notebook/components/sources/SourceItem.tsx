@@ -82,7 +82,9 @@ export const SourceItem = React.memo<SourceItemProps>(({
         <div className="flex items-center space-x-2 flex-shrink-0">
           {/* Show image icon when caption is ready */}
           {isCaptionReady && (
-            <ImageIcon className="h-4 w-4 text-green-600" title="Caption ready" />
+            <div title="Caption ready">
+              <ImageIcon className="h-4 w-4 text-green-600" />
+            </div>
           )}
 
           {/* Only show checkbox when content is ready */}

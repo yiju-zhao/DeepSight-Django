@@ -27,6 +27,11 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
   useNotebookJobStream({
     notebookId: currentPodcast.notebook_id,
     enabled: !!(currentPodcast.notebook_id && (currentPodcast.status === 'generating' || currentPodcast.status === 'pending')),
+    onConnected: () => {
+      // Sync current state when SSE reconnects (e.g., after page refresh)
+      console.log('[PodcastDetail] SSE connected, syncing podcast state');
+      queryClient.invalidateQueries({ queryKey: queryKeys.podcasts.detail(currentPodcast.id) });
+    },
     onJobEvent: (event) => {
       // Invalidate and refetch if this is our podcast
       if (event.entity === 'podcast' && event.id === currentPodcast.id) {

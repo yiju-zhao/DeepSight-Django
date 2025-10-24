@@ -20,8 +20,8 @@ export const renderFileStatus = (source: Source): React.ReactNode => {
   const isFailed = source.parsing_status === 'failed' || source.parsing_status === 'error';
 
   // Check RagFlow status
-  const ragflowProcessing = source.ragflow_processing_status &&
-    ['uploading', 'parsing'].includes(source.ragflow_processing_status);
+  const ragflowProcessing = !!(source.ragflow_processing_status &&
+    ['uploading', 'parsing'].includes(source.ragflow_processing_status));
   const ragflowCompleted = source.ragflow_processing_status === 'completed';
   const ragflowFailed = source.ragflow_processing_status === 'failed';
 

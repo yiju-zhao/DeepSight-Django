@@ -116,7 +116,7 @@ class SessionChatService {
 
     // Handle 204 No Content response from DRF
     if (response.status === 204) {
-      return { success: true, message: 'Session closed successfully' };
+      return { success: true, session_id: sessionId, status: 'closed' };
     }
 
     return response.json();
