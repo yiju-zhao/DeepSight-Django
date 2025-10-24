@@ -7,6 +7,12 @@ import {
   Edit
 } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/components/ui/tooltip";
 import { GenerationState } from './types';
 
 // TypeScript interfaces
@@ -78,64 +84,70 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
       ? 'bg-violet-100/70'
       : canGenerate
         ? 'bg-violet-100/50 cursor-pointer hover:bg-violet-100/70'
-        : 'bg-violet-50/30 cursor-not-allowed opacity-60'
+        : 'bg-violet-50/50 cursor-not-allowed' // Changed from opacity-60 and removed hover effect
   ].join(' ');
 
+  const tooltipContent = !hasSelectedFiles ? "Select files to generate a podcast" : "";
+
   return (
-    <>
-      <div
-        className={containerClasses}
-        onClick={() => {
-          if (canGenerate) {
-            onGenerate();
-          }
-        }}
-        aria-busy={isGenerating}
-      >
-        {/* Icon in top left */}
-        <div className="absolute top-4 left-4">
-          <div className="w-8 h-8 bg-violet-100 rounded-full flex items-center justify-center">
-            <MessageSquare className="h-4 w-4 text-violet-700" />
-          </div>
-        </div>
-
-        {/* Customize button in top right */}
-        <div className="absolute top-4 right-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 w-8 p-0 text-violet-600 hover:text-violet-700 hover:bg-violet-100/50 rounded-lg"
-            onClick={(e) => {
-              e.stopPropagation();
-              // Import CustomizeModal component dynamically
-              import('./CustomizeModal').then(({ default: CustomizeModal }) => {
-                const customizeContent = (
-                  <CustomizeModal
-                    isOpen={true}
-                    onClose={() => onCloseModal('customizePodcast')}
-                    config={config}
-                    onConfigChange={onConfigChange}
-                    type="podcast"
-                    selectedFiles={selectedFiles}
-                    onGenerate={(configOverrides) => onGenerate(configOverrides)}
-                  />
-                );
-                onOpenModal('customizePodcast', customizeContent);
-              });
+    <TooltipProvider>
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <div
+            className={containerClasses}
+            onClick={() => {
+              if (canGenerate) {
+                onGenerate();
+              }
             }}
+            aria-busy={isGenerating}
           >
-            <Edit className="h-4 w-4" />
-          </Button>
-        </div>
+            {/* Icon in top left */}
+            <div className="absolute top-4 left-4">
+              <div className="w-8 h-8 bg-violet-100 rounded-full flex items-center justify-center">
+                <MessageSquare className="h-4 w-4 text-violet-700" />
+              </div>
+            </div>
 
-        {/* Title and subtitle at bottom */}
-        <div className="p-5 pt-16">
-          <h3 className="text font-semibold text-violet-800">Conversation</h3>
-          <p className="text-sm text-violet-700">One host with two guests</p>
-        </div>
-      </div>
+            {/* Customize button in top right */}
+            <div className="absolute top-4 right-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 text-violet-600 hover:text-violet-700 hover:bg-violet-100/50 rounded-lg"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Import CustomizeModal component dynamically
+                  import('./CustomizeModal').then(({ default: CustomizeModal }) => {
+                    const customizeContent = (
+                      <CustomizeModal
+                        isOpen={true}
+                        onClose={() => onCloseModal('customizePodcast')}
+                        config={config}
+                        onConfigChange={onConfigChange}
+                        type="podcast"
+                        selectedFiles={selectedFiles}
+                        onGenerate={(configOverrides) => onGenerate(configOverrides)}
+                      />
+                    );
+                    onOpenModal('customizePodcast', customizeContent);
+                  });
+                }}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            </div>
 
-    </>
+            {/* Title and subtitle at bottom */}
+            <div className="p-5 pt-16">
+              <h3 className="text font-semibold text-violet-800">Conversation</h3>
+              <p className="text-sm text-violet-700">One host with two guests</p>
+            </div>
+          </div>
+        </TooltipTrigger>
+        {tooltipContent && <TooltipContent>{tooltipContent}</TooltipContent>}
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
