@@ -14,11 +14,7 @@ interface PodcastConfig {
   title?: string;
   description?: string;
   topic?: string;
-  expert_names?: {
-    host?: string;
-    expert1?: string;
-    expert2?: string;
-  };
+  language?: 'en' | 'zh' | string;
 }
 
 interface FileItem {

@@ -169,11 +169,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       title: '',
       description: '',
       topic: '',
-      expert_names: {
-        host: '杨飞飞',
-        expert1: '奥立昆',
-        expert2: '李特曼'
-      },
+      language: 'en',
       model: 'gpt-4'
     });
   }, [reportGeneration.updateConfig, podcastGeneration.updateConfig]);

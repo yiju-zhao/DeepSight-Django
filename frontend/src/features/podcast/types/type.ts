@@ -10,11 +10,7 @@ export interface Podcast {
   status: 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled';
   progress?: string;
   topic?: string;
-  expert_names?: {
-    host?: string;
-    expert1?: string;
-    expert2?: string;
-  };
+  language?: 'en' | 'zh' | string;
   notebook_id?: string;
   source_file_ids?: string[];
   created_at: string;
@@ -44,11 +40,7 @@ export interface PodcastGenerationRequest {
   title: string;
   description?: string;
   topic?: string;
-  expert_names?: {
-    host?: string;
-    expert1?: string;
-    expert2?: string;
-  };
+  language?: 'en' | 'zh' | string;
   notebook_id?: string;
   source_file_ids?: string[];
   model?: string;

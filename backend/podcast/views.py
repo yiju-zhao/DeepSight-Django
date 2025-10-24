@@ -67,6 +67,7 @@ class PodcastJobListCreateView(APIView):
             source_file_ids = serializer.validated_data["source_file_ids"]
             title = serializer.validated_data.get("title", "Panel Conversation")
             description = serializer.validated_data.get("description", "")
+            language = serializer.validated_data.get("language", "en")
 
             job = Podcast.objects.create(
                 user=request.user,
@@ -74,7 +75,7 @@ class PodcastJobListCreateView(APIView):
                 title=title,
                 description=description,
                 source_file_ids=source_file_ids,
-                source_metadata={},
+                source_metadata={"language": language},
                 status="pending",
             )
 

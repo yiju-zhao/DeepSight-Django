@@ -192,29 +192,16 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
               </div>
             </div>
             
-            {/* Expert Names */}
-            {currentPodcast.expert_names && (
+            {/* Language */}
+            {currentPodcast.language && (
               <div className="mt-4">
-                <h3 className="text-sm font-medium text-gray-500">Participants</h3>
-                <div className="mt-2 grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {currentPodcast.expert_names.host && (
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Host</p>
-                      <p className="text-sm font-medium text-gray-900">{currentPodcast.expert_names.host}</p>
-                    </div>
-                  )}
-                  {currentPodcast.expert_names.expert1 && (
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Expert 1</p>
-                      <p className="text-sm font-medium text-gray-900">{currentPodcast.expert_names.expert1}</p>
-                    </div>
-                  )}
-                  {currentPodcast.expert_names.expert2 && (
-                    <div className="bg-gray-50 p-3 rounded-lg">
-                      <p className="text-xs text-gray-500">Expert 2</p>
-                      <p className="text-sm font-medium text-gray-900">{currentPodcast.expert_names.expert2}</p>
-                    </div>
-                  )}
+                <h3 className="text-sm font-medium text-gray-500">Language</h3>
+                <div className="mt-2">
+                  <div className="bg-gray-50 p-3 rounded-lg inline-block">
+                    <p className="text-sm font-medium text-gray-900">
+                      {currentPodcast.language === 'en' ? 'English' : currentPodcast.language === 'zh' ? '中文 (Chinese)' : currentPodcast.language}
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

@@ -152,11 +152,7 @@ export class PodcastService implements IPodcastService {
       // Return default models if API fails
       return {
         models: ['gpt-4', 'gpt-3.5-turbo'],
-        expert_names: {
-          host: '杨飞飞',
-          expert1: '奥立昆',
-          expert2: '李特曼'
-        }
+        language: 'en'
       };
     }
   }

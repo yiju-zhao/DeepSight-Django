@@ -34,6 +34,34 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
+# TTS SYSTEM PROMPT HELPERS
+# =============================================================================
+
+def build_tts_system_prompt(language: str = 'en') -> str:
+    """
+    Build TTS system prompt based on language selection.
+
+    Args:
+        language: Language code ('en' for English, 'zh' for Chinese)
+
+    Returns:
+        Formatted system prompt for TTS
+    """
+    lines = ["Generate audio following instruction.\n"]
+
+    lines.append("<|scene_desc_start|>")
+
+    if language == 'zh':
+        lines.append("在一个安静的房间录制的博客语音，全程使用中文自然表达。")
+    else:
+        lines.append("Audio for podcast conversation in a quite room. Speak only English with natural prosody.")
+
+    lines.append("<|scene_desc_end|>")
+
+    return "\n".join(lines)
+
+
+# =============================================================================
 # CONVERSATION PARSING FUNCTIONS
 # =============================================================================
 
@@ -304,7 +332,7 @@ class HiggsTTSSession:
             self.client = None
             self.model = None
 
-    def smart_voice(self, text: str) -> Optional[bytes]:
+    def smart_voice(self, text: str, system_prompt: Optional[str] = None) -> Optional[bytes]:
         if not self.client or not self.model:
             return None
         DEFAULT_SYSTEM_PROMPT = (
@@ -314,10 +342,11 @@ class HiggsTTSSession:
             "Speaker will speak chinese mixed with a few english words.\n"
             "<|scene_desc_end|>"
         )
+        prompt_to_use = system_prompt if system_prompt else DEFAULT_SYSTEM_PROMPT
         try:
             chat_completion = self.client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": DEFAULT_SYSTEM_PROMPT},
+                    {"role": "system", "content": prompt_to_use},
                     {"role": "user", "content": text},
                 ],
                 model=self.model,
@@ -471,6 +500,7 @@ def _synthesize_and_merge_turn_chunks(
     audio_output_dir: Path,
     speaker_state: Dict[str, Dict[str, Any]],
     higgs_session: Optional[HiggsTTSSession] = None,
+    language: str = 'en',
 ) -> Optional[Path]:
     """
     Given pre-chunked text for a single speaker turn, synthesize each chunk to audio,
@@ -483,12 +513,15 @@ def _synthesize_and_merge_turn_chunks(
         # Ensure we have a session; prefer caller-provided (one per job)
         session = higgs_session or HiggsTTSSession()
 
+        # Build system prompt based on language
+        system_prompt = build_tts_system_prompt(language=language)
+
         chunk_files: List[Path] = []
         for ci, chunk_text in enumerate(chunks):
             audio_bytes: Optional[bytes] = None
 
             if speaker not in speaker_state:
-                audio_bytes = session.smart_voice(chunk_text)
+                audio_bytes = session.smart_voice(chunk_text, system_prompt=system_prompt)
                 if audio_bytes:
                     speaker_state[speaker] = {"seed_audio": audio_bytes, "seed_text": chunk_text}
             else:
@@ -497,7 +530,7 @@ def _synthesize_and_merge_turn_chunks(
                     seed.get("seed_audio", b""), seed.get("seed_text", ""), chunk_text
                 )
                 if not audio_bytes:
-                    audio_bytes = session.smart_voice(chunk_text)
+                    audio_bytes = session.smart_voice(chunk_text, system_prompt=system_prompt)
 
             if not audio_bytes:
                 audio_bytes = _openai_tts(chunk_text)
@@ -559,17 +592,19 @@ def generate_audio_segment(
     audio_output_dir: Path,
     speaker_state: Dict[str, Dict[str, Any]],
     higgs_session: Optional[HiggsTTSSession] = None,
+    language: str = 'en',
 ) -> Optional[Path]:
     """
     Generate audio segment for a single conversation turn.
-    
+
     Args:
         content: Text content to convert
         speaker: Speaker name
         segment_index: Index of this segment
         audio_output_dir: Directory for audio output
         speaker_state: Tracks first-segment seed per speaker for cloning
-        
+        language: Language for the podcast (en or zh), default 'en'
+
     Returns:
         Path to generated audio segment or None if failed
     """
@@ -589,6 +624,7 @@ def generate_audio_segment(
             audio_output_dir=audio_output_dir,
             speaker_state=speaker_state,
             higgs_session=higgs_session,
+            language=language,
         )
             
     except Exception as e:
@@ -597,19 +633,21 @@ def generate_audio_segment(
 
 
 def generate_conversation_audio_optimized(
-    conversation_turns: List[Dict[str, str]], 
-    audio_output_dir: Path
+    conversation_turns: List[Dict[str, str]],
+    audio_output_dir: Path,
+    language: str = 'en'
 ) -> Optional[Path]:
     """
     Generate audio file from conversation turns using optimized approach:
     1. Group content by speaker
     2. Generate audio for each speaker's content in bulk
     3. Create individual segments and concatenate in original order
-    
+
     Args:
         conversation_turns: List of conversation turns with speaker and content
         audio_output_dir: Directory for audio output
-        
+        language: Language for the podcast (en or zh), default 'en'
+
     Returns:
         Path to generated audio file or None if failed
     """
@@ -633,6 +671,7 @@ def generate_conversation_audio_optimized(
                 audio_output_dir=audio_output_dir,
                 speaker_state=speaker_state,
                 higgs_session=higgs_session,
+                language=language,
             )
             if segment_file and segment_file.exists():
                 audio_segments.append(segment_file)

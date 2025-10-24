@@ -56,7 +56,9 @@ def process_podcast_generation(self, job_id: str):
             )
         # Get selected item IDs from job metadata
         selected_item_ids = job.source_file_ids or []
-        
+
+        # Get language from source_metadata (default to 'en')
+        language = job.source_metadata.get('language', 'en') if job.source_metadata else 'en'
 
         # No intermediate progress/status messages
         # Generate the podcast using service instance
@@ -66,7 +68,8 @@ def process_podcast_generation(self, job_id: str):
             user_id=job.user.id,
             podcast_id=str(job.id),
             notebook_id=job.notebook.id if job.notebook else None,
-            custom_instruction=getattr(job, 'custom_instruction', None)
+            custom_instruction=getattr(job, 'custom_instruction', None),
+            language=language
         ))
         
         # No progress updates while generating audio

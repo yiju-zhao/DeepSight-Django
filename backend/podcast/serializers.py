@@ -85,6 +85,12 @@ class PodcastCreateSerializer(serializers.Serializer):
         allow_blank=True,
         help_text="Description for the generated podcast",
     )
+    language = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default='en',
+        help_text="Language for the generated podcast (en or zh)",
+    )
 
     def validate_source_file_ids(self, value):
         if not value:

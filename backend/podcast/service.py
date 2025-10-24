@@ -32,18 +32,19 @@ class PodcastService:
         self.storage_service = PodcastStorageService()
     
     
-    async def create_podcast_with_panel_crew(self, selected_item_ids: List[int], 
-                                     user_id: int, podcast_id: str, notebook_id: Optional[int] = None, custom_instruction: str = None) -> Dict[str, Any]:
+    async def create_podcast_with_panel_crew(self, selected_item_ids: List[int],
+                                     user_id: int, podcast_id: str, notebook_id: Optional[int] = None, custom_instruction: str = None, language: str = 'en') -> Dict[str, Any]:
         """
         Create a podcast from selected knowledge base items using panel_crew.
-        
+
         Args:
             selected_item_ids: List of KnowledgeBaseItem IDs selected by frontend
             user_id: User ID for the podcast
             podcast_id: Podcast ID for the podcast
             notebook_id: Notebook ID (optional)
             custom_instruction: Optional custom discussion instruction
-            
+            language: Language for the podcast (en or zh), default 'en'
+
         Returns:
             Dictionary with conversation result and metadata
         """
@@ -62,8 +63,15 @@ class PodcastService:
                 material_content=selected_content
             )
             
-            logger.info(f"Starting panel crew discussion for topic: {topic}")
-            result = panel_crew.crew().kickoff(inputs={'topic': topic, 'material_content': selected_content})
+            # Prepare language instruction for the crew
+            language_instruction = "中文" if language == 'zh' else "English"
+
+            logger.info(f"Starting panel crew discussion for topic: {topic} in {language_instruction}")
+            result = panel_crew.crew().kickoff(inputs={
+                'topic': topic,
+                'material_content': selected_content,
+                'language': language_instruction
+            })
 
             # Extract title only; keep conversation text unchanged
             title, conversation_text = parse_conversation(str(result))
@@ -76,9 +84,9 @@ class PodcastService:
             # Use generated title or fallback to default
             podcast_title = title if title else "Panel Conversation"
             logger.info(f"Using podcast title: {podcast_title}")
-            
+
             # Convert to audio and store in MinIO
-            audio_object_key = self._process_conversation_to_audio(conversation_turns, user_id, podcast_id, notebook_id)
+            audio_object_key = self._process_conversation_to_audio(conversation_turns, user_id, podcast_id, notebook_id, language)
             
             # If audio generation/storage failed, treat as failure
             if not audio_object_key:
@@ -110,16 +118,17 @@ class PodcastService:
             }
 
     
-    def _process_conversation_to_audio(self, conversation_turns: List[Dict[str, str]], user_id: int, podcast_id: str, notebook_id: Optional[int] = None) -> Optional[str]:
+    def _process_conversation_to_audio(self, conversation_turns: List[Dict[str, str]], user_id: int, podcast_id: str, notebook_id: Optional[int] = None, language: str = 'en') -> Optional[str]:
         """
         Main orchestration method for converting conversation to audio and storing in MinIO.
-        
+
         Args:
             conversation_turns: Already parsed conversation turns
             user_id: User ID for the podcast
             podcast_id: Podcast ID for the podcast
             notebook_id: Notebook ID (optional)
-            
+            language: Language for the podcast (en or zh), default 'en'
+
         Returns:
             MinIO object key for the stored audio file, or None if failed
         """
@@ -131,12 +140,12 @@ class PodcastService:
             
             try:
                 # Generate audio file using optimized approach from utils
-                audio_file_path = generate_conversation_audio_optimized(conversation_turns, temp_dir)
-                
+                audio_file_path = generate_conversation_audio_optimized(conversation_turns, temp_dir, language)
+
                 # Store in MinIO using storage service
                 if audio_file_path:
                     return self._store_audio_with_metadata(audio_file_path, conversation_turns, user_id, podcast_id, notebook_id)
-                
+
                 return None
                 
             finally:

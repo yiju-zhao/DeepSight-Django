@@ -14,11 +14,7 @@ interface ReportConfig {
 }
 
 interface PodcastConfig {
-  expert_names?: {
-    host?: string;
-    expert1?: string;
-    expert2?: string;
-  };
+  language?: 'en' | 'zh' | string;
   [key: string]: any;
 }
 
@@ -276,40 +272,15 @@ const AdvancedSettingsModal: React.FC<AdvancedSettingsModalProps> = ({
             <h3 className="text-base font-semibold text-gray-900 border-b pb-2">Panel Discussion Settings</h3>
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Host Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g., 杨飞飞"
+                <label className="block text-sm font-medium text-gray-700">Language</label>
+                <select
                   className="w-full p-3 border border-gray-300 rounded-lg text-sm accent-red-500 focus:ring-2 focus:ring-red-500 focus:border-transparent focus:outline-none"
-                  value={localPodcastConfig.expert_names?.host || ''}
-                  onChange={(e) => handlePodcastConfigChange({ 
-                    expert_names: { ...localPodcastConfig.expert_names, host: e.target.value }
-                  })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Expert 1</label>
-                <input
-                  type="text"
-                  placeholder="e.g., 奥立昆"
-                  className="w-full p-3 border border-gray-300 rounded-lg text-sm accent-red-500 focus:ring-2 focus:ring-red-500 focus:border-transparent focus:outline-none"
-                  value={localPodcastConfig.expert_names?.expert1 || ''}
-                  onChange={(e) => handlePodcastConfigChange({ 
-                    expert_names: { ...localPodcastConfig.expert_names, expert1: e.target.value }
-                  })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">Expert 2</label>
-                <input
-                  type="text"
-                  placeholder="e.g., 李特曼"
-                  className="w-full p-3 border border-gray-300 rounded-lg text-sm accent-red-500 focus:ring-2 focus:ring-red-500 focus:border-transparent focus:outline-none"
-                  value={localPodcastConfig.expert_names?.expert2 || ''}
-                  onChange={(e) => handlePodcastConfigChange({ 
-                    expert_names: { ...localPodcastConfig.expert_names, expert2: e.target.value }
-                  })}
-                />
+                  value={localPodcastConfig.language || 'en'}
+                  onChange={(e) => handlePodcastConfigChange({ language: e.target.value })}
+                >
+                  <option value="en">English</option>
+                  <option value="zh">中文 (Chinese)</option>
+                </select>
               </div>
             </div>
           </div>

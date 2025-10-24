@@ -39,11 +39,7 @@ export interface PodcastConfig extends GenerationConfig {
   title?: string;
   description?: string;
   topic?: string;
-  expert_names?: {
-    host?: string;
-    expert1?: string;
-    expert2?: string;
-  };
+  language?: 'en' | 'zh' | string;
   notebook_id?: string;
   source_file_ids?: string[];
 }
