@@ -8,8 +8,10 @@ previous notebooks/views/* modules.
 import json
 import logging
 import time
+import redis
 from typing import Any, Generator, Dict
 
+from django.conf import settings
 from django.http import HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -749,7 +751,17 @@ class FileStatusSSEView(View):
         return response
 
 
-class NotebookFilesSSEView(View):
+class NotebookJobsSSEView(View):
+    """
+    SSE endpoint for real-time job status updates (podcasts and reports).
+
+    Subscribes to Redis Pub/Sub channel: sse:notebook:{notebook_id}
+    Streams job events (STARTED, SUCCESS, FAILURE, CANCELLED) to the client.
+    """
+
+    MAX_DURATION_SECONDS = 600  # 10 minutes max connection time
+    HEARTBEAT_INTERVAL = 30  # Send heartbeat every 30 seconds
+
     @method_decorator(csrf_exempt)
     @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs):
@@ -761,3 +773,114 @@ class NotebookFilesSSEView(View):
         response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
         response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
         return response
+
+    def get(self, request, notebook_id: str):
+        """Stream job events for a specific notebook."""
+        try:
+            # Verify notebook ownership
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user),
+                pk=notebook_id
+            )
+
+            logger.info(f"Starting job stream for notebook {notebook_id}, user {request.user.id}")
+
+            response = StreamingHttpResponse(
+                self.generate_job_stream(notebook_id),
+                content_type="text/event-stream"
+            )
+            response["Cache-Control"] = "no-cache"
+            response["X-Accel-Buffering"] = "no"  # Disable nginx buffering
+            response["Access-Control-Allow-Origin"] = "*"
+            response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
+            response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+            return response
+
+        except Exception as e:
+            logger.exception(f"Failed to create job SSE stream: {e}")
+            return HttpResponse(
+                f"Error: {str(e)}",
+                status=500,
+                content_type="text/plain"
+            )
+
+    def generate_job_stream(self, notebook_id: str) -> Generator[str, None, None]:
+        """
+        Generate SSE stream by subscribing to Redis Pub/Sub channel.
+
+        Yields:
+            SSE formatted messages with job status updates
+        """
+        redis_client = None
+        pubsub = None
+
+        try:
+            # Connect to Redis
+            redis_client = redis.Redis.from_url(
+                settings.CELERY_BROKER_URL,
+                decode_responses=True
+            )
+            pubsub = redis_client.pubsub()
+
+            # Subscribe to notebook channel
+            channel = f"sse:notebook:{notebook_id}"
+            pubsub.subscribe(channel)
+
+            logger.info(f"Subscribed to Redis channel: {channel}")
+
+            # Send initial connection message
+            yield f"data: {json.dumps({'type': 'connected', 'notebookId': notebook_id})}\n\n"
+
+            start_time = time.time()
+            last_heartbeat = start_time
+
+            # Listen for messages with timeout
+            while True:
+                # Check max duration
+                elapsed = time.time() - start_time
+                if elapsed > self.MAX_DURATION_SECONDS:
+                    logger.info(f"Job stream for notebook {notebook_id} reached max duration")
+                    yield f"data: {json.dumps({'type': 'timeout', 'message': 'Stream timeout'})}\n\n"
+                    break
+
+                # Get message with timeout
+                message = pubsub.get_message(timeout=1.0)
+
+                if message and message['type'] == 'message':
+                    # Forward the event to client
+                    event_data = message['data']
+                    yield f"data: {event_data}\n\n"
+                    logger.debug(f"Forwarded event: {event_data}")
+                    last_heartbeat = time.time()
+
+                # Send heartbeat if idle
+                elif time.time() - last_heartbeat > self.HEARTBEAT_INTERVAL:
+                    yield f": heartbeat\n\n"
+                    last_heartbeat = time.time()
+
+        except GeneratorExit:
+            logger.info(f"Client disconnected from job stream for notebook {notebook_id}")
+
+        except Exception as e:
+            logger.exception(f"Error in job stream for notebook {notebook_id}: {e}")
+            try:
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            except:
+                pass
+
+        finally:
+            # Clean up Redis connection
+            if pubsub:
+                try:
+                    pubsub.unsubscribe()
+                    pubsub.close()
+                except:
+                    pass
+
+            if redis_client:
+                try:
+                    redis_client.close()
+                except:
+                    pass
+
+            logger.info(f"Closed job stream for notebook {notebook_id}")

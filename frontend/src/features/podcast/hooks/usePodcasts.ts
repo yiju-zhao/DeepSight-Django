@@ -10,7 +10,7 @@ import { queryKeys } from '@/shared/queries/keys';
 
 /**
  * Hook to fetch all podcasts with optional filters
- * Automatically polls for podcasts in progress
+ * Reduced polling frequency - SSE handles real-time updates
  */
 export const usePodcasts = (notebookId?: string, filters?: PodcastFilters) => {
   const service = new PodcastService(notebookId);
@@ -22,7 +22,7 @@ export const usePodcasts = (notebookId?: string, filters?: PodcastFilters) => {
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     retry: 2,
     refetchInterval: (query) => {
-      // Auto-poll if there are podcasts in progress
+      // Reduced polling as fallback - SSE handles real-time updates
       const data = query?.state?.data;
       if (!data) return false;
 
@@ -31,7 +31,8 @@ export const usePodcasts = (notebookId?: string, filters?: PodcastFilters) => {
         podcast.status === 'pending'
       );
 
-      return hasProcessing ? 5000 : false; // Poll every 5s if processing
+      // Poll every 15s as fallback (reduced from 5s) - SSE provides real-time updates
+      return hasProcessing ? 15000 : false;
     },
   });
 };

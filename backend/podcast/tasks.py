@@ -12,6 +12,7 @@ from django.conf import settings
 
 from .models import Podcast
 from .service import PodcastService
+from core.utils.sse import publish_notebook_event
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +53,15 @@ def process_podcast_generation(self, job_id: str):
         job.status = "generating"
         job.processing_started_at = timezone.now()
         update_job_status(job, redis_client)
+
+        # Publish STARTED event via SSE
+        if job.notebook:
+            publish_notebook_event(
+                notebook_id=str(job.notebook.id),
+                entity="podcast",
+                entity_id=str(job.id),
+                status="STARTED",
+            )
         # Get selected item IDs from job metadata
         selected_item_ids = job.source_file_ids or []
         
@@ -113,7 +123,21 @@ def process_podcast_generation(self, job_id: str):
             # Conversation JSON formatting available via utils if needed in the future
             
             update_job_status(job, redis_client)
-            
+
+            # Publish SUCCESS event via SSE
+            if job.notebook:
+                publish_notebook_event(
+                    notebook_id=str(job.notebook.id),
+                    entity="podcast",
+                    entity_id=str(job.id),
+                    status="SUCCESS",
+                    payload={
+                        "audio_object_key": result.get("audio_object_key"),
+                        "title": job.title,
+                        "conversation_turns": result["metadata"]["total_turns"],
+                    }
+                )
+
             logger.info(f"Podcast generation completed successfully for job {job_id}")
             return {
                 "status": "completed",
@@ -126,7 +150,17 @@ def process_podcast_generation(self, job_id: str):
             job.status = "error"
             job.processing_completed_at = timezone.now()
             update_job_status(job, redis_client)
-            
+
+            # Publish FAILURE event via SSE
+            if job.notebook:
+                publish_notebook_event(
+                    notebook_id=str(job.notebook.id),
+                    entity="podcast",
+                    entity_id=str(job.id),
+                    status="FAILURE",
+                    payload={"error": result.get("error", "Unknown error")}
+                )
+
             logger.error(f"Podcast generation failed for job {job_id}: {result['error']}")
             return {
                 "status": "failed",
@@ -145,9 +179,19 @@ def process_podcast_generation(self, job_id: str):
             job.status = "error"
             job.processing_completed_at = timezone.now()
             update_job_status(job, redis_client)
+
+            # Publish FAILURE event via SSE
+            if job.notebook:
+                publish_notebook_event(
+                    notebook_id=str(job.notebook.id),
+                    entity="podcast",
+                    entity_id=str(job.id),
+                    status="FAILURE",
+                    payload={"error": str(e)}
+                )
         except:
             pass
-            
+
         return {"status": "failed", "message": str(e)}
 
 
@@ -177,7 +221,16 @@ def cancel_podcast_generation(self, job_id: str):
         job.status = "cancelled"
         job.error_message = "Job cancelled by user"
         update_job_status(job, redis_client)
-        
+
+        # Publish CANCELLED event via SSE
+        if job.notebook:
+            publish_notebook_event(
+                notebook_id=str(job.notebook.id),
+                entity="podcast",
+                entity_id=str(job.id),
+                status="CANCELLED",
+            )
+
         logger.info(f"Successfully cancelled podcast generation for job {job_id}")
         return {"status": "cancelled", "job_id": job_id}
     

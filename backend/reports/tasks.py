@@ -8,6 +8,7 @@ import time
 from typing import Dict, Any
 from celery import shared_task
 from .orchestrator import report_orchestrator
+from core.utils.sse import publish_notebook_event
 
 logger = logging.getLogger(__name__)
 
@@ -46,18 +47,52 @@ def process_report_generation(self, report_id: int):
             # Non-fatal: continue generation even if status update fails
             pass
 
+        # Publish STARTED event via SSE
+        if report.notebooks:
+            publish_notebook_event(
+                notebook_id=str(report.notebooks.id),
+                entity="report",
+                entity_id=str(report.id),
+                status="STARTED",
+            )
+
         # Generate the report
         result = report_orchestrator.generate_report(report_id)
 
         if result.get('success', False):
             # Update job with success
             report_orchestrator.update_job_result(report_id, result, Report.STATUS_COMPLETED)
+
+            # Publish SUCCESS event via SSE
+            if report.notebooks:
+                publish_notebook_event(
+                    notebook_id=str(report.notebooks.id),
+                    entity="report",
+                    entity_id=str(report.id),
+                    status="SUCCESS",
+                    payload={
+                        "article_title": report.article_title,
+                        "pdf_object_key": result.get("pdf_object_key"),
+                    }
+                )
+
             logger.info(f"Successfully completed report generation for report {report_id}")
             return result
         else:
             # Handle generation failure
             error_msg = result.get('error_message', 'Report generation failed')
             report_orchestrator.update_job_error(report_id, error_msg)
+
+            # Publish FAILURE event via SSE
+            if report.notebooks:
+                publish_notebook_event(
+                    notebook_id=str(report.notebooks.id),
+                    entity="report",
+                    entity_id=str(report.id),
+                    status="FAILURE",
+                    payload={"error": error_msg}
+                )
+
             raise Exception(error_msg)
 
     except Exception as e:
@@ -68,6 +103,16 @@ def process_report_generation(self, report_id: int):
             from .models import Report
             report = Report.objects.get(id=report_id)
             report_orchestrator.update_job_error(str(report.id), str(e))
+
+            # Publish FAILURE event via SSE
+            if report.notebooks:
+                publish_notebook_event(
+                    notebook_id=str(report.notebooks.id),
+                    entity="report",
+                    entity_id=str(report.id),
+                    status="FAILURE",
+                    payload={"error": str(e)}
+                )
         except Report.DoesNotExist:
             logger.error(f"Could not update error for report {report_id} - report not found")
 

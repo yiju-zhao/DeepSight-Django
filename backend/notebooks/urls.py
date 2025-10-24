@@ -19,7 +19,7 @@ from .views import (
     SessionChatViewSet,
     SessionAgentInfoView,
     FileStatusSSEView,
-    NotebookFilesSSEView,
+    NotebookJobsSSEView,
 )
 
 # App namespace
@@ -48,9 +48,9 @@ urlpatterns = [
         name='file-status-stream',
     ),
     path(
-        'notebooks/<uuid:notebook_id>/files/stream/',
-        NotebookFilesSSEView.as_view(),
-        name='notebook-files-stream',
+        'notebooks/<uuid:notebook_id>/jobs/stream/',
+        NotebookJobsSSEView.as_view(),
+        name='notebook-jobs-stream',
     ),
 
     # Custom endpoints

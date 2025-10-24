@@ -6,6 +6,7 @@ import ReportStats from "@/features/report/components/ReportStats";
 import ReportDetail from "@/features/report/components/ReportDetail";
 import { Report, ReportFilters as ReportFiltersType } from "@/features/report/types/type";
 import { Report as QueryReport } from "@/features/report/hooks/useReports";
+import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
 
 const ReportPage: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -16,9 +17,17 @@ const ReportPage: React.FC = () => {
   const [filters, setFilters] = useState<ReportFiltersType>({});
 
   // Fetch reports using React Query
+  // Reduced polling interval - SSE handles real-time updates
   const { data: reportsResponse, isLoading, error } = useReportsList(undefined, {
     enabled: true,
-    refetchInterval: 5000, // Refresh every 5 seconds for active jobs
+    refetchInterval: 15000, // Reduced from 5s to 15s - SSE provides real-time updates
+  });
+
+  // Enable SSE for real-time updates (if notebook filter is set)
+  // Note: Reports may not always have notebook_id, so SSE is optional enhancement
+  useNotebookJobStream({
+    notebookId: filters.notebook_id,
+    enabled: !!filters.notebook_id,
   });
 
   // Extract raw API reports array from response

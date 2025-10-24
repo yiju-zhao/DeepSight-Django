@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Podcast, PodcastDetailProps } from '../types/type';
 import { PodcastService } from '../services/PodcastService';
+import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
+import { useQueryClient } from '@tanstack/react-query';
 
 const PodcastDetail: React.FC<PodcastDetailProps> = ({
   podcast,
@@ -14,21 +16,36 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [currentPodcast, setCurrentPodcast] = useState<Podcast>(podcast);
   const pollingIntervalRef = useRef<number | null>(null);
+  const queryClient = useQueryClient();
 
   // Update current podcast when prop changes
   useEffect(() => {
     setCurrentPodcast(podcast);
   }, [podcast]);
 
-  // Poll for podcast updates if status is generating or pending
+  // Use SSE for real-time updates
+  const { isConnected, shouldFallbackToPoll, fallbackPollInterval } = useNotebookJobStream({
+    notebookId: currentPodcast.notebook_id,
+    enabled: !!(currentPodcast.notebook_id && (currentPodcast.status === 'generating' || currentPodcast.status === 'pending')),
+    onJobEvent: (event) => {
+      // Invalidate and refetch if this is our podcast
+      if (event.entity === 'podcast' && event.id === currentPodcast.id) {
+        queryClient.invalidateQueries({ queryKey: ['podcast', currentPodcast.id] });
+      }
+    },
+  });
+
+  // Fallback polling only if SSE is not connected and we need it
   useEffect(() => {
-    if (currentPodcast.status === 'generating' || currentPodcast.status === 'pending') {
+    const needsUpdates = currentPodcast.status === 'generating' || currentPodcast.status === 'pending';
+
+    if (needsUpdates && (shouldFallbackToPoll || !currentPodcast.notebook_id)) {
       const pollForUpdates = async () => {
         try {
           const podcastService = new PodcastService();
           const updatedPodcast = await podcastService.getPodcast(currentPodcast.id);
           setCurrentPodcast(updatedPodcast);
-          
+
           // If status changed to completed, clear the interval
           if (updatedPodcast.status === 'completed' || updatedPodcast.status === 'failed' || updatedPodcast.status === 'cancelled') {
             if (pollingIntervalRef.current) {
@@ -41,21 +58,26 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
         }
       };
 
-      // Start polling every 2 seconds
-      pollingIntervalRef.current = window.setInterval(pollForUpdates, 2000);
+      // Use fallback interval or 10s if SSE not available
+      const interval = shouldFallbackToPoll ? fallbackPollInterval : 10000;
+      pollingIntervalRef.current = window.setInterval(pollForUpdates, interval);
 
-      // Cleanup on unmount or when status changes
       return () => {
         if (pollingIntervalRef.current) {
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
         }
       };
+    } else {
+      // Clear polling if not needed or SSE is connected
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
     }
-    
-    // Always return a cleanup function (even if it does nothing)
+
     return () => {};
-  }, [currentPodcast.status, currentPodcast.id]);
+  }, [currentPodcast.status, currentPodcast.id, currentPodcast.notebook_id, isConnected, shouldFallbackToPoll, fallbackPollInterval]);
 
   // Set audio URL from podcast object
   useEffect(() => {

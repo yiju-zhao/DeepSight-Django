@@ -87,6 +87,7 @@ export function useReportsList(notebookId?: string, options?: {
 
 /**
  * Hook to fetch a single report's details
+ * Reduced polling frequency - SSE handles real-time updates
  */
 export function useReport(jobId: string, options?: { enabled?: boolean }) {
   return useQuery({
@@ -95,11 +96,11 @@ export function useReport(jobId: string, options?: { enabled?: boolean }) {
       return apiClient.get(`/reports/${jobId}/`);
     },
     enabled: (options?.enabled ?? true) && !!jobId,
-    // Refresh frequently for running reports
+    // Reduced polling as fallback - SSE handles real-time updates
     refetchInterval: (query) => {
       const data = query?.state?.data as Report | undefined;
       if (data?.status === 'running' || data?.status === 'pending') {
-        return 2000; // 2 seconds
+        return 15000; // 15 seconds (reduced from 2s) - SSE provides real-time updates
       }
       return false;
     },
