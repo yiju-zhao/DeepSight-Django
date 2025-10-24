@@ -753,13 +753,13 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
               <PodcastAudioPlayer
                 podcast={{
                   id: selectedPodcast.id,
-                  title: selectedPodcast.title,
-                  audio_url: selectedPodcast.audio_file,
+                  title: selectedPodcast.title || 'Untitled Podcast',
+                  audio_url: selectedPodcast.audio_file || '',
                   duration: selectedPodcast.duration,
                   description: selectedPodcast.description || '',
                   status: selectedPodcast.status,
-                  created_at: selectedPodcast.created_at,
-                  updated_at: selectedPodcast.updated_at
+                  created_at: selectedPodcast.created_at || '',
+                  updated_at: selectedPodcast.updated_at || ''
                 }}
                 notebookId={notebookId}
                 onDownload={() => handleDownloadPodcast(selectedPodcast)}
