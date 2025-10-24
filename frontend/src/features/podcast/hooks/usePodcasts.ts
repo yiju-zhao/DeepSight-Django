@@ -7,10 +7,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { PodcastService } from '../services/PodcastService';
 import { Podcast, PodcastFilters, PodcastGenerationRequest } from '../types/type';
 import { queryKeys } from '@/shared/queries/keys';
+import notifications, { operationCallbacks } from '@/shared/utils/notifications';
 
 /**
  * Hook to fetch all podcasts with optional filters
- * Reduced polling frequency - SSE handles real-time updates
+ * No automatic polling - SSE handles real-time updates via useNotebookJobStream
  */
 export const usePodcasts = (notebookId?: string, filters?: PodcastFilters) => {
   const service = new PodcastService(notebookId);
@@ -21,19 +22,8 @@ export const usePodcasts = (notebookId?: string, filters?: PodcastFilters) => {
     staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     retry: 2,
-    refetchInterval: (query) => {
-      // Reduced polling as fallback - SSE handles real-time updates
-      const data = query?.state?.data;
-      if (!data) return false;
-
-      const hasProcessing = data.some((podcast: Podcast) =>
-        podcast.status === 'generating' ||
-        podcast.status === 'pending'
-      );
-
-      // Poll every 15s as fallback (reduced from 5s) - SSE provides real-time updates
-      return hasProcessing ? 15000 : false;
-    },
+    // No refetchInterval - SSE handles real-time updates
+    // List will be invalidated by useNotebookJobStream when jobs complete
   });
 };
 
@@ -128,10 +118,16 @@ export const useDeletePodcast = () => {
   return useMutation({
     mutationFn: (id: string) => service.deletePodcast(id),
     onSuccess: (_data, id) => {
+      // Notify success (replicate report behavior)
+      notifications.success.deleted('Podcast');
+
       // Remove from cache and invalidate lists
       queryClient.removeQueries({ queryKey: queryKeys.podcasts.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.podcasts.lists() });
       queryClient.invalidateQueries({ queryKey: [...queryKeys.podcasts.all, 'stats'] });
+    },
+    onError: (error) => {
+      notifications.error.generic(error instanceof Error ? error.message : 'Failed to delete podcast');
     },
   });
 };

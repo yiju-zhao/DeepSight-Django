@@ -279,7 +279,9 @@ class StudioService {
         id: job.id || job.job_id,
         status: normalizedStatus,
       };
-    });
+    })
+    // Hide cancelled podcasts from Studio list per product requirement
+    .filter((job: any) => job.status !== 'cancelled');
 
     return { 
       jobs: normalizedJobs

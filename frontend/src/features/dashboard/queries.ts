@@ -126,11 +126,11 @@ export function usePodcasts(options?: { enabled?: boolean }) {
 
       // Handle different response formats
       if (Array.isArray(response)) {
-        return response;
+        return response.filter(p => p.status !== 'cancelled');
       }
       // If response has a podcasts property, use that
       if (response && typeof response === 'object' && 'podcasts' in response) {
-        return (response as any).podcasts || [];
+        return ((response as any).podcasts || []).filter((p: Podcast) => p.status !== 'cancelled');
       }
       // Default to empty array
       return [];
@@ -226,11 +226,11 @@ export function useDashboardData(options?: { enabled?: boolean }) {
           const response = await apiClient.get('/podcasts/');
           // Handle different response formats
           if (Array.isArray(response)) {
-            return response;
+            return response.filter(p => p.status !== 'cancelled');
           }
           // If response has a podcasts property, use that
           if (response && typeof response === 'object' && 'podcasts' in response) {
-            return (response as any).podcasts || [];
+            return ((response as any).podcasts || []).filter((p: Podcast) => p.status !== 'cancelled');
           }
           // Default to empty array
           return [];

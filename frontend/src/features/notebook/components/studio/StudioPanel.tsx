@@ -467,10 +467,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
 
       if (isGenerating) {
-        // First cancel the running generation, then delete the item
+        // Replicate report behavior: cancel running job; no explicit delete
         await podcastGeneration.cancel(podcastId);
-        await deletePodcastMutation.mutateAsync(podcastId);
-        toast({ title: 'Podcast Cancelled', description: 'Generation cancelled and deleted' });
+        toast({ title: 'Podcast Cancelled', description: 'Generation cancelled' });
       } else {
         await deletePodcastMutation.mutateAsync(podcastId);
         toast({ title: 'Podcast Deleted', description: 'Deleted successfully' });

@@ -35,7 +35,8 @@ class PodcastJobListCreateView(APIView):
     def get(self, request):
         try:
             notebook_id = request.query_params.get("notebook")
-            qs = Podcast.objects.filter(user=request.user)
+            # Align with reports: do not surface cancelled items in list views
+            qs = Podcast.objects.filter(user=request.user).exclude(status="cancelled")
             if notebook_id:
                 notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_id)
                 qs = qs.filter(notebook=notebook)
@@ -103,47 +104,58 @@ class PodcastJobDetailView(generics.RetrieveDestroyAPIView):
         """Ensure users can only access their own podcasts."""
         return Podcast.objects.filter(user=self.request.user)
 
-    def perform_destroy(self, instance):
-        """
-        Override to delete the associated audio file from MinIO before deleting the object.
-        Prevents deletion of running or pending jobs.
-        """
-        # Check if job is in a deletable state (not running or pending)
-        if instance.status in ["pending", "generating"]:
-            from rest_framework.exceptions import ValidationError
-            raise ValidationError(
-                f"Cannot delete job in '{instance.status}' status. Use POST /{instance.id}/cancel/ to cancel running jobs first."
-            )
-
-        if instance.audio_object_key:
-            try:
-                from notebooks.utils.storage import get_minio_backend
-                minio_backend = get_minio_backend()
-                minio_backend.delete_file(instance.audio_object_key)
-                logger.info(f"Successfully deleted podcast audio file for job {instance.id}")
-            except Exception as e:
-                # Log the error but don't block the deletion of the database record
-                logger.error(f"Error deleting podcast audio file for job {instance.id}: {e}")
-
-        instance.delete()
-
     def destroy(self, request, *args, **kwargs):
         """
-        Override destroy to add cache-control headers to the response.
+        Replicate report deletion behavior:
+        - Disallow deleting pending/generating; instruct to cancel first
+        - Delete MinIO audio if present, then delete DB record
+        - Return JSON payload with success + previous_status (HTTP 200)
         """
         try:
             instance = self.get_object()
-            self.perform_destroy(instance)
-            response = Response(status=status.HTTP_204_NO_CONTENT)
-            response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-            response['Pragma'] = 'no-cache'
-            response['Expires'] = '0'
-            return response
+
+            logger.info(f"DELETE request for podcast {instance.id} (status: {instance.status})")
+
+            # Disallow deletion of running/pending jobs
+            if instance.status in ["pending", "generating"]:
+                return Response({
+                    "detail": f"Cannot delete job in '{instance.status}' status. Use POST /{instance.id}/cancel/ to cancel running jobs first.",
+                    "current_status": instance.status
+                }, status=status.HTTP_400_BAD_REQUEST)
+
+            # Delete associated audio from storage (best-effort)
+            if instance.audio_object_key:
+                try:
+                    from notebooks.utils.storage import get_minio_backend
+                    minio_backend = get_minio_backend()
+                    minio_backend.delete_file(instance.audio_object_key)
+                    logger.info(f"Successfully deleted podcast audio file for job {instance.id}")
+                except Exception as e:
+                    logger.error(f"Error deleting podcast audio file for job {instance.id}: {e}")
+
+            previous_status = instance.status
+            instance_id = str(instance.id)
+            instance.delete()
+
+            resp = Response({
+                "success": True,
+                "message": f"Job podcast {instance_id} successfully deleted",
+                "podcast_id": instance_id,
+                "previous_status": previous_status
+            }, status=status.HTTP_200_OK)
+            # Add cache headers similar to report flow
+            resp['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+            resp['Pragma'] = 'no-cache'
+            resp['Expires'] = '0'
+            return resp
         except Exception as e:
-            logger.error(f"Error deleting podcast job {kwargs.get(self.lookup_url_kwarg)}: {e}")
-            # The default exception handler will return a 404 if get_object() fails
-            # We add a generic handler for other potential errors during deletion.
-            return Response({"error": f"Failed to delete job: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            job_id = kwargs.get(self.lookup_url_kwarg)
+            logger.error(f"Error deleting podcast job {job_id}: {e}")
+            return Response({
+                "success": False,
+                "message": f"Failed to delete job podcast {job_id}",
+                "detail": str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 class PodcastJobCancelView(APIView):

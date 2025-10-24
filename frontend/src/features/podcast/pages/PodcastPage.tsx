@@ -105,23 +105,8 @@ const PodcastPage: React.FC = () => {
   };
 
   const handleDeletePodcast = async (podcast: Podcast) => {
-    const isGenerating = podcast.status === 'generating' || podcast.status === 'pending' || (podcast as any).status === 'running';
-
-    if (isGenerating) {
-      const confirmMessage = 'Are you sure you want to cancel and delete this podcast?';
-      if (!confirm(confirmMessage)) return;
-      try {
-        // First cancel the running generation, then delete the item
-        await cancelPodcastMutation.mutateAsync(podcast.id);
-        await deletePodcastMutation.mutateAsync(podcast.id);
-        toast({ title: 'Podcast Cancelled', description: 'Generation cancelled and deleted' });
-      } catch (error) {
-        console.error('Failed to cancel podcast:', error);
-        toast({ title: 'Cancel/Delete Failed', description: 'Failed to cancel and delete podcast', variant: 'destructive' });
-      }
-      return;
-    }
-
+    // Replicate report deletion flow: attempt delete;
+    // backend will reject running jobs with 400 instructing to cancel first.
     const confirmMessage = 'Are you sure you want to delete this podcast?';
     if (!confirm(confirmMessage)) return;
     try {
@@ -129,7 +114,8 @@ const PodcastPage: React.FC = () => {
       toast({ title: 'Podcast Deleted', description: 'Deleted successfully' });
     } catch (error) {
       console.error('Failed to delete podcast:', error);
-      toast({ title: 'Delete Failed', description: 'Failed to delete podcast', variant: 'destructive' });
+      const message = error instanceof Error ? error.message : 'Failed to delete podcast';
+      toast({ title: 'Delete Failed', description: message, variant: 'destructive' });
     }
   };
 

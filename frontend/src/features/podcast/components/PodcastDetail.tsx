@@ -35,19 +35,26 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
     },
   });
 
-  // Fallback polling only if SSE is not connected and we need it
+  // Fallback polling ONLY when SSE is not available or not connected
   useEffect(() => {
     const needsUpdates = currentPodcast.status === 'generating' || currentPodcast.status === 'pending';
 
-    if (needsUpdates && (shouldFallbackToPoll || !currentPodcast.notebook_id)) {
+    // Only poll if:
+    // 1. We need updates AND
+    // 2. Either no notebook_id (can't use SSE) OR SSE should fallback to polling
+    // 3. AND SSE is not currently connected
+    const shouldPoll = needsUpdates && (!currentPodcast.notebook_id || shouldFallbackToPoll) && !isConnected;
+
+    if (shouldPoll) {
+      console.log('[Polling] Starting fallback polling (SSE not available)');
+
       const pollForUpdates = async () => {
         try {
           const podcastService = new PodcastService();
           const updatedPodcast = await podcastService.getPodcast(currentPodcast.id);
           setCurrentPodcast(updatedPodcast);
 
-          // If status reached a terminal state, clear polling.
-          // If cancelled, navigate back since we don't display cancelled items.
+          // If status reached a terminal state, clear polling
           if (updatedPodcast.status === 'completed' || updatedPodcast.status === 'failed' || updatedPodcast.status === 'cancelled') {
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
@@ -58,7 +65,7 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
             }
           }
         } catch (error) {
-          console.error('Failed to poll for podcast updates:', error);
+          console.error('[Polling] Failed to poll for podcast updates:', error);
         }
       };
 
@@ -68,20 +75,22 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
 
       return () => {
         if (pollingIntervalRef.current) {
+          console.log('[Polling] Stopping fallback polling');
           clearInterval(pollingIntervalRef.current);
           pollingIntervalRef.current = null;
         }
       };
     } else {
-      // Clear polling if not needed or SSE is connected
+      // Clear polling if SSE is connected or updates not needed
       if (pollingIntervalRef.current) {
+        console.log('[Polling] Clearing polling - SSE is active or updates not needed');
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = null;
       }
     }
 
     return () => {};
-  }, [currentPodcast.status, currentPodcast.id, currentPodcast.notebook_id, isConnected, shouldFallbackToPoll, fallbackPollInterval]);
+  }, [currentPodcast.status, currentPodcast.id, currentPodcast.notebook_id, isConnected, shouldFallbackToPoll, fallbackPollInterval, onBack]);
 
   // Set audio URL from podcast object
   useEffect(() => {

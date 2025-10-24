@@ -17,10 +17,10 @@ const ReportPage: React.FC = () => {
   const [filters, setFilters] = useState<ReportFiltersType>({});
 
   // Fetch reports using React Query
-  // Reduced polling interval - SSE handles real-time updates
+  // No automatic polling - SSE handles real-time updates
   const { data: reportsResponse, isLoading, error } = useReportsList(undefined, {
     enabled: true,
-    refetchInterval: 15000, // Reduced from 5s to 15s - SSE provides real-time updates
+    // No refetchInterval - SSE handles real-time updates via useNotebookJobStream
   });
 
   // Enable SSE for real-time updates (if notebook filter is set)
