@@ -272,7 +272,7 @@ export const TYPOGRAPHY = {
 
 // Panel header configurations for consistency
 export const PANEL_HEADERS = {
-  container: 'flex-shrink-0 px-6 py-4 bg-white',
+  container: 'flex-shrink-0 px-6 py-2.5 bg-white',
   separator: '',
   layout: 'flex items-center justify-between',
   iconContainer: '',

@@ -67,6 +67,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const [isReportPreview, setIsReportPreview] = useState<boolean>(false);
   const [isPreviewingEdits, setIsPreviewingEdits] = useState<boolean>(false);
   const [expandedPodcasts, setExpandedPodcasts] = useState<Set<string>>(new Set());
+  const [selectedPodcast, setSelectedPodcast] = useState<PodcastItem | null>(null);
 
   // Prevent body scroll when a file/report is open
   useEffect(() => {
@@ -313,16 +314,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, [studioService, notebookId, toast]);
 
   const handlePodcastClick = useCallback((podcast: PodcastItem) => {
-    const podcastId = podcast.id || '';
-    setExpandedPodcasts(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(podcastId)) {
-        newSet.delete(podcastId);
-      } else {
-        newSet.add(podcastId);
-      }
-      return newSet;
-    });
+    // Set selected podcast for bottom player
+    setSelectedPodcast(podcast);
   }, []);
 
   const getReportPreview = useCallback((report: ReportItem): string => {
@@ -723,7 +716,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
           </div>
 
           {/* ====== SCROLLABLE SECTION: Generated Files List ====== */}
-          <div className="flex-1 overflow-auto scrollbar-overlay">
+          <div className={`flex-1 overflow-auto scrollbar-overlay ${selectedPodcast && selectedPodcast.status === 'completed' ? 'pb-20' : ''}`}>
             <StudioList
               items={combineStudioItems(reportJobs.jobs, podcastJobs.jobs)}
               isLoading={reportJobs.isLoading || podcastJobs.isLoading}
@@ -753,6 +746,27 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
               }}
             />
           </div>
+
+          {/* ====== FIXED BOTTOM: Podcast Player ====== */}
+          {selectedPodcast && selectedPodcast.status === 'completed' && (
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+              <PodcastAudioPlayer
+                podcast={{
+                  id: selectedPodcast.id,
+                  title: selectedPodcast.title,
+                  audio_url: selectedPodcast.audio_file,
+                  duration: selectedPodcast.duration,
+                  description: selectedPodcast.description || '',
+                  status: selectedPodcast.status,
+                  created_at: selectedPodcast.created_at,
+                  updated_at: selectedPodcast.updated_at
+                }}
+                notebookId={notebookId}
+                onDownload={() => handleDownloadPodcast(selectedPodcast)}
+                onClose={() => setSelectedPodcast(null)}
+              />
+            </div>
+          )}
         </div>
       ) : (
         <div className="flex-1 pt-16 overflow-hidden">

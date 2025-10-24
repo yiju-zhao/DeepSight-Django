@@ -2,11 +2,10 @@
 // Display for completed/failed/cancelled podcast states with inline player
 
 import React from 'react';
-import { Headphones, ChevronDown, AlertCircle, XCircle } from 'lucide-react';
+import { Headphones, AlertCircle, XCircle } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import type { PodcastStudioItem } from '../../../types/studioItem';
-import PodcastAudioPlayer from '../PodcastAudioPlayer';
 
 interface PodcastCardProps {
   item: PodcastStudioItem;
@@ -33,7 +32,6 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
   const getStatusIcon = () => {
     if (isFailed) return <AlertCircle className="h-4 w-4 text-red-500" />;
     if (isCancelled) return <XCircle className="h-4 w-4 text-amber-500" />;
-    if (isExpanded) return <ChevronDown className="h-4 w-4 text-violet-600" />;
     return <Headphones className="h-4 w-4 text-violet-600" />;
   };
 
@@ -53,24 +51,6 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
       );
     }
     return null;
-  };
-
-  // Convert podcast to legacy format for PodcastAudioPlayer
-  // Map StudioItemStatus to Podcast status
-  const mapStatus = (status: string): 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled' => {
-    if (status === 'idle') return 'pending';
-    return status as 'pending' | 'generating' | 'completed' | 'failed' | 'cancelled';
-  };
-
-  const legacyPodcast = {
-    id: item.id,
-    title: item.title,
-    audio_url: item.audioUrl,
-    duration: item.duration,
-    description: item.description,
-    status: mapStatus(item.status),
-    created_at: item.createdAt,
-    updated_at: item.createdAt // Use same as created_at
   };
 
   return (
@@ -118,17 +98,6 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
         </div>
       </div>
 
-      {/* Expanded Audio Player */}
-      {isExpanded && isCompleted && (
-        <div className="bg-gray-50 px-3 py-3 border border-gray-200 rounded-lg mt-2">
-          <PodcastAudioPlayer
-            podcast={legacyPodcast}
-            onDownload={() => onDownload(item)}
-            onDelete={() => onDelete(item)}
-            notebookId={notebookId}
-          />
-        </div>
-      )}
     </div>
   );
 };

@@ -5,7 +5,8 @@ import React, { useState, useEffect } from 'react';
 import {
   Download,
   Trash2,
-  Loader2
+  Loader2,
+  X
 } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { PodcastService } from "@/features/podcast/services/PodcastService";
@@ -15,7 +16,8 @@ import { config } from "@/config";
 interface PodcastAudioPlayerProps {
   podcast: Podcast;
   onDownload: (podcast: Podcast) => void;
-  onDelete: (podcast: Podcast) => void;
+  onDelete?: (podcast: Podcast) => void;
+  onClose?: () => void;
   notebookId?: string;
 }
 
@@ -23,6 +25,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
   podcast,
   onDownload,
   onDelete,
+  onClose,
   notebookId
 }) => {
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -85,14 +88,14 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
   }, [currentPodcast.id, currentPodcast.status, currentPodcast.audio_url]);
 
   return (
-    <div className="p-4 border border-gray-200 rounded-lg bg-white">
+    <div className={`p-4 ${onClose ? '' : 'border border-gray-200 rounded-lg'} bg-white`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-gray-900 truncate">
+          <h4 className="font-medium text-gray-900 truncate text-sm">
             {currentPodcast.title || 'Untitled Panel Discussion'}
           </h4>
-          <div className="flex items-center space-x-3 text-xs text-gray-500 mt-1">
+          <div className="flex items-center space-x-3 text-xs text-gray-500 mt-0.5">
             <span>{formatDate(currentPodcast.created_at)}</span>
             {(currentPodcast as any).file_size && (
               <>
@@ -113,16 +116,28 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
           >
             <Download className="h-4 w-4" />
           </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(currentPodcast)}
-            className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
-            title="Delete podcast"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+
+          {onClose ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+              title="Close player"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          ) : onDelete ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onDelete(currentPodcast)}
+              className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+              title="Delete podcast"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : null}
         </div>
       </div>
 
