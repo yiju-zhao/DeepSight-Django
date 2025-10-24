@@ -676,7 +676,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
       {/* ====== SINGLE RESPONSIBILITY: Main content area ====== */}
       {!isReportPreview ? (
-        <div className="flex-1 flex flex-col overflow-hidden pt-16">
+        <div className="flex-1 flex flex-col overflow-hidden">
           {/* ====== FIXED SECTIONS: Generation Forms ====== */}
           <div className="flex-shrink-0 p-4 bg-gray-50/50 border-b border-gray-200/60">
             {/* ====== LISKOV SUBSTITUTION PRINCIPLE (LSP) ====== */}
@@ -754,7 +754,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 podcast={{
                   id: selectedPodcast.id,
                   title: selectedPodcast.title || 'Untitled Podcast',
-                  audio_url: selectedPodcast.audio_file || '',
+                  audio_url: (selectedPodcast as any).audio_url || selectedPodcast.audio_file || '',
                   duration: selectedPodcast.duration,
                   description: selectedPodcast.description || '',
                   status: selectedPodcast.status,

@@ -71,17 +71,19 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
       return;
     }
 
-    // Check if audio_url is available from the API
-    if (!currentPodcast.audio_url) {
-      console.log('Podcast has no audio_url (audio file not available)');
+    // Check if audio_url is available from the API (try both field names)
+    const audioPath = currentPodcast.audio_url || (currentPodcast as any).audio_file;
+
+    if (!audioPath) {
+      console.log('Podcast has no audio_url or audio_file (audio file not available)');
       setAudioUrl(null);
       setIsLoading(false);
       return;
     }
 
-    // Use the audio_url from the API (Django streaming endpoint)
+    // Use the audio path from the API (Django streaming endpoint)
     // Backend returns absolute path like "/api/v1/podcasts/{id}/audio/"
-    const audioEndpoint = `${window.location.origin}${currentPodcast.audio_url}`;
+    const audioEndpoint = `${window.location.origin}${audioPath}`;
     console.log(`Setting audio URL: ${audioEndpoint}`);
     setAudioUrl(audioEndpoint);
     setIsLoading(false);
