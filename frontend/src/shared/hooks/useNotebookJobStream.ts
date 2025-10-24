@@ -56,6 +56,7 @@ export function useNotebookJobStream({
   const [isConnected, setIsConnected] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [lastEventTs, setLastEventTs] = useState<string | null>(null);
+  const lastEventTsRef = useRef<string | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
@@ -110,12 +111,13 @@ export function useNotebookJobStream({
         const jobEvent = data as JobEvent;
 
         // Deduplicate events using timestamp
-        if (lastEventTs && jobEvent.ts <= lastEventTs) {
+        if (lastEventTsRef.current && jobEvent.ts <= lastEventTsRef.current) {
           console.log('[SSE] Skipping duplicate event:', jobEvent);
           return;
         }
 
         setLastEventTs(jobEvent.ts);
+        lastEventTsRef.current = jobEvent.ts;
         console.log('[SSE] Job event received:', jobEvent);
 
         // Notify callback
@@ -129,7 +131,7 @@ export function useNotebookJobStream({
     } catch (error) {
       console.error('[SSE] Failed to parse message:', error);
     }
-  }, [lastEventTs, onJobEvent, invalidateQueries, onConnectionChange]);
+  }, [onJobEvent, invalidateQueries, onConnectionChange]);
 
   /**
    * Handle SSE errors
@@ -139,21 +141,7 @@ export function useNotebookJobStream({
     setIsConnected(false);
     setConnectionError('Connection lost');
     onConnectionChange?.(false);
-
-    // Attempt reconnection with exponential backoff
-    if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-      const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
-      reconnectAttemptsRef.current += 1;
-
-      console.log(`[SSE] Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
-
-      reconnectTimeoutRef.current = setTimeout(() => {
-        if (eventSourceRef.current) {
-          eventSourceRef.current.close();
-        }
-        // Reconnection will happen via useEffect cleanup and re-init
-      }, delay);
-    }
+    // Rely on native EventSource automatic reconnection; avoid manual close loops
   }, [onConnectionChange]);
 
   /**
@@ -162,9 +150,9 @@ export function useNotebookJobStream({
   const connect = useCallback(() => {
     if (!notebookId || !enabled) return;
 
-    // Close existing connection
+    // Avoid creating duplicate connections
     if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+      return;
     }
 
     try {
@@ -216,7 +204,7 @@ export function useNotebookJobStream({
     return () => {
       disconnect();
     };
-  }, [notebookId, enabled, connect, disconnect]);
+  }, [notebookId, enabled]);
 
   return {
     isConnected,
