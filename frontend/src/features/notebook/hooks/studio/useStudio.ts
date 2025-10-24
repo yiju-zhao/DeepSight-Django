@@ -54,14 +54,7 @@ export const usePodcastJobs = (notebookId: string) => {
     retry: 2,
     refetchOnWindowFocus: true, // Enable refetch on tab focus to catch updates
     refetchOnMount: true, // Always refetch on mount to ensure fresh data
-    // Auto-refresh when there are active jobs
-    refetchInterval: (query) => {
-      const data: any = query?.state?.data;
-      const jobs = data?.jobs || [];
-      const hasActiveJobs = jobs.some((job: any) => job.status === 'generating' || job.status === 'pending');
-      return hasActiveJobs ? 5000 : false; // 5 seconds when active
-    },
-    refetchIntervalInBackground: true,
+    // No periodic polling; updates come from SSE invalidations
     select: (data) => ({
       ...data,
       jobs: data.jobs || [],

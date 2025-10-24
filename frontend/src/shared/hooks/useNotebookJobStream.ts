@@ -12,6 +12,8 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from '@/shared/queries/keys';
+import { studioKeys } from '@/features/notebook/hooks/studio/useStudio';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
@@ -65,23 +67,19 @@ export function useNotebookJobStream({
     const { entity, id, notebookId: nbId } = event;
 
     if (entity === 'podcast') {
-      // Invalidate podcast list for this notebook
-      queryClient.invalidateQueries({
-        queryKey: ['podcasts', nbId],
-      });
-      // Invalidate specific podcast detail
-      queryClient.invalidateQueries({
-        queryKey: ['podcast', id],
-      });
+      // Detail view only (avoid forcing dashboard/global lists to refetch)
+      queryClient.invalidateQueries({ queryKey: queryKeys.podcasts.detail(id) });
+      // Studio podcast jobs for this notebook
+      if (nbId) {
+        queryClient.invalidateQueries({ queryKey: studioKeys.podcastJobs(nbId) });
+      }
     } else if (entity === 'report') {
-      // Invalidate report list for this notebook
-      queryClient.invalidateQueries({
-        queryKey: ['reports', nbId],
-      });
-      // Invalidate specific report detail
-      queryClient.invalidateQueries({
-        queryKey: ['report', id],
-      });
+      // Detail view only (avoid forcing dashboard/global lists to refetch)
+      queryClient.invalidateQueries({ queryKey: queryKeys.reports.detail(id) });
+      // Studio report jobs for this notebook
+      if (nbId) {
+        queryClient.invalidateQueries({ queryKey: studioKeys.reportJobs(nbId) });
+      }
     }
   }, [queryClient]);
 
@@ -123,8 +121,8 @@ export function useNotebookJobStream({
         // Notify callback
         onJobEvent?.(jobEvent);
 
-        // Invalidate queries on terminal states
-        if (['SUCCESS', 'FAILURE', 'CANCELLED'].includes(jobEvent.status)) {
+        // Invalidate queries on all meaningful status transitions (including STARTED)
+        if (['STARTED', 'SUCCESS', 'FAILURE', 'CANCELLED'].includes(jobEvent.status)) {
           invalidateQueries(jobEvent);
         }
       }

@@ -16,6 +16,9 @@ import { config } from "@/config";
 import { PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
 import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels, useDeleteReport, useDeletePodcast } from "@/features/notebook/hooks/studio/useStudio";
 import { useGenerationManager } from "@/features/notebook/hooks/studio/useGenerationManager";
+import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
+import { useQueryClient } from '@tanstack/react-query';
+import { studioKeys } from '@/features/notebook/hooks/studio/useStudio';
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused UI components
@@ -55,6 +58,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   isStudioExpanded
 }) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // ====== SINGLE RESPONSIBILITY: UI State Management ======
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
@@ -181,6 +185,20 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       podcastGeneration.cleanup();
     };
   }, [reportGeneration.cleanup, podcastGeneration.cleanup]);
+
+  // ====== Real-time updates via SSE ======
+  useNotebookJobStream({
+    notebookId,
+    enabled: !!notebookId,
+    onJobEvent: (event) => {
+      if (!notebookId) return;
+      if (event.entity === 'report') {
+        queryClient.invalidateQueries({ queryKey: studioKeys.reportJobs(notebookId) });
+      } else if (event.entity === 'podcast') {
+        queryClient.invalidateQueries({ queryKey: studioKeys.podcastJobs(notebookId) });
+      }
+    },
+  });
 
 
   // ====== JOB STATUS MONITORING ======

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Podcast, PodcastDetailProps } from '../types/type';
 import { PodcastService } from '../services/PodcastService';
 import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
+import { queryKeys } from '@/shared/queries/keys';
 import { useQueryClient } from '@tanstack/react-query';
 
 const PodcastDetail: React.FC<PodcastDetailProps> = ({
@@ -29,7 +30,7 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
     onJobEvent: (event) => {
       // Invalidate and refetch if this is our podcast
       if (event.entity === 'podcast' && event.id === currentPodcast.id) {
-        queryClient.invalidateQueries({ queryKey: ['podcast', currentPodcast.id] });
+        queryClient.invalidateQueries({ queryKey: queryKeys.podcasts.detail(currentPodcast.id) });
       }
     },
   });

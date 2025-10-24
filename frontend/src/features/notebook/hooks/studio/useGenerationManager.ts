@@ -67,7 +67,8 @@ export const useGenerationManager = (
       return null;
     },
     enabled: !!notebookId,
-    refetchInterval: 5000, // Simple polling for status changes
+    // Disable periodic polling; rely on SSE-driven invalidation
+    refetchInterval: false,
     staleTime: 15 * 1000,
     refetchOnMount: true, // Always refetch on component mount to recover active jobs after refresh
     refetchOnWindowFocus: true, // Refetch when user returns to tab to check for status updates
