@@ -243,11 +243,11 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                     {/* Message Content */}
                     <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
                       {message.sender === 'user' ? (
-                        <div className="px-5 py-3 rounded-2xl bg-gray-100 text-gray-900 border border-gray-200">
+                        <div className="px-5 py-3 rounded-2xl bg-gray-100 text-gray-900">
                           <p className="text-[15px] leading-6">{message.message}</p>
                         </div>
                       ) : (
-                        <div className="px-5 py-4 rounded-2xl bg-white border border-gray-200">
+                        <div className="px-5 py-4 rounded-2xl bg-gray-50/50">
                           <MarkdownContent content={message.message} />
                         </div>
                       )}
@@ -264,8 +264,8 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
       </div>
 
       {/* Input Area */}
-      <div className="flex-shrink-0 p-6 bg-gray-50/50 border-t border-gray-200">
-        <div className="flex items-end space-x-3 bg-white rounded-2xl p-4 shadow-sm border border-gray-200 focus-within:ring-2 focus-within:ring-red-300 focus-within:border-red-300">
+      <div className="flex-shrink-0 p-6 bg-gray-50/30">
+        <div className="flex items-end space-x-3 bg-white rounded-2xl p-4 shadow-sm focus-within:ring-2 focus-within:ring-red-300">
           <div className="flex-1 min-h-[40px]">
             <Textarea
               ref={textareaRef}

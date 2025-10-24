@@ -120,7 +120,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         >
           {/* Sources Panel */}
           <div
-            className={`${COLORS.panels.sources.background} ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} transition-all duration-300 overflow-hidden min-h-0 relative`}
+            className={`bg-gray-50/50 transition-all duration-300 overflow-hidden min-h-0 relative`}
           >
             {!isSourcesCollapsed && !isStudioExpanded ? (
               <div>
@@ -136,7 +136,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
               <div className="h-full flex flex-col">
                 {/* Collapsed Header - Entire bar clickable with subtle highlight */}
                 <div
-                  className="flex-shrink-0 py-4 bg-white border-b border-gray-200 flex items-center justify-center h-full w-full cursor-pointer hover:bg-gray-50 transition-all duration-200 group"
+                  className="flex-shrink-0 py-4 bg-white flex items-center justify-center h-full w-full cursor-pointer hover:bg-gray-50 transition-all duration-200 group"
                   onClick={() => {
                     if (isStudioExpanded) {
                       setIsStudioExpanded(false);
@@ -153,14 +153,14 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
           {/* Chat Panel */}
           <div
-            className={`${COLORS.panels.chat.background} ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} transition-all duration-300 overflow-hidden min-h-0`}
+            className={`${COLORS.panels.chat.background} transition-all duration-300 overflow-hidden min-h-0`}
           >
             {React.cloneElement(chatPanel, panelProps)}
           </div>
 
           {/* Studio Panel */}
           <div
-            className={`${COLORS.panels.studio.background} ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} transition-all duration-300 overflow-auto min-h-0`}
+            className={`bg-gray-50/30 transition-all duration-300 overflow-auto min-h-0`}
           >
             {React.cloneElement(studioPanel, {
               ...panelProps,

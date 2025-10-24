@@ -272,13 +272,13 @@ export const TYPOGRAPHY = {
 
 // Panel header configurations for consistency
 export const PANEL_HEADERS = {
-  container: 'flex-shrink-0 px-6 py-3 bg-white border-b border-gray-200',
+  container: 'flex-shrink-0 px-6 py-4 bg-white',
   separator: '',
   layout: 'flex items-center justify-between',
-  iconContainer: 'w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-200',
-  icon: 'h-4 w-4 text-gray-600',
-  title: 'text-base font-medium text-gray-900',
-  titleContainer: 'flex items-center space-x-3',
+  iconContainer: '',
+  icon: 'h-5 w-5 text-gray-600',
+  title: 'text-base font-semibold text-gray-900',
+  titleContainer: 'flex items-center space-x-2',
   actionsContainer: 'flex items-center space-x-2'
 };
 
@@ -296,11 +296,11 @@ export const SHADOWS = {
   normal: 'shadow-md',
   large: 'shadow-lg',
   xl: 'shadow-xl',
-  // Enhanced panel shadows - reduced for cleaner look
+  // Minimal panel shadows - no borders for cleaner look
   panel: {
-    base: 'shadow-sm border border-gray-200',
+    base: '',
     hover: '',
-    elevated: 'shadow-md border border-gray-200'
+    elevated: 'shadow-sm'
   }
 };
 

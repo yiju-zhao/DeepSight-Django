@@ -16,9 +16,10 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
   // Choose color based on item kind
   const sweepColor = item.kind === 'report' ? 'via-emerald-200/60' : 'via-violet-200/60';
   const iconColor = item.kind === 'report' ? 'text-emerald-600' : 'text-violet-600';
+  const bgColor = item.kind === 'report' ? 'bg-emerald-50/30 hover:bg-emerald-50/50' : 'bg-purple-50/30 hover:bg-purple-50/50';
 
   return (
-    <div className="relative overflow-hidden cursor-default group transition-colors duration-150 hover:bg-gray-50 rounded-lg px-3">
+    <div className={`relative overflow-hidden cursor-default group transition-colors duration-150 ${bgColor} rounded-lg px-3`}>
       <div className="flex items-center justify-between py-3 h-14">
         <div className="flex items-center space-x-4 flex-1 min-w-0">
           {/* Loading icon */}

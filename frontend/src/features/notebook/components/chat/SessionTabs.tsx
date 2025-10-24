@@ -55,7 +55,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
 
   return (
     <TooltipProvider>
-      <div className="flex items-center bg-white px-4 gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 border-b border-gray-200">
+      <div className="flex items-center bg-white px-4 gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300">
         <AnimatePresence>
           {sessions.map((session) => {
             const isActive = session.id === activeSessionId;
