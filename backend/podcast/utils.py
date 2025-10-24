@@ -289,80 +289,92 @@ def prepare_chunk_text(
     chunk_max_word_num: int = 100,
     chunk_max_num_turns: int = 1,
 ) -> List[str]:
-    """Chunk text into smaller pieces for TTS generation.
-
-    chunk_method:
-      - None: no chunking
-      - "speaker": merge lines by speaker tags like [SPEAKER0]
-      - "word": paragraph-first, then sentence/word granularity with language awareness
+    """
+    Deprecated: legacy chunking function retained for backward compatibility.
+    Prefer using `_chunk_text_by_length` for per-turn chunking and
+    `split_turns_by_speaker` for speaker-level splitting.
     """
     if not text:
         return [text]
+    return [text]
 
-    if chunk_method is None:
-        return [text]
 
-    if chunk_method == "speaker":
-        lines = text.split("\n")
-        speaker_chunks: List[str] = []
-        speaker_utterance = ""
-        for line in lines:
-            line = line.strip()
-            if line.startswith("[SPEAKER") or line.startswith("<|speaker_id_start|>"):
-                if speaker_utterance:
-                    speaker_chunks.append(speaker_utterance.strip())
-                speaker_utterance = line
-            else:
-                if speaker_utterance:
-                    speaker_utterance += "\n" + line
-                else:
-                    speaker_utterance = line
-        if speaker_utterance:
-            speaker_chunks.append(speaker_utterance.strip())
-        if chunk_max_num_turns > 1:
-            merged_chunks: List[str] = []
-            for i in range(0, len(speaker_chunks), chunk_max_num_turns):
-                merged_chunk = "\n".join(speaker_chunks[i : i + chunk_max_num_turns])
-                merged_chunks.append(merged_chunk)
-            return merged_chunks
-        return speaker_chunks
+def split_turns_by_speaker(conversation_turns: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    """
+    Normalize and filter conversation turns by speaker.
+    - Ensures each item has non-empty 'speaker' and 'content'.
+    - Trims whitespace.
 
-    if chunk_method == "word":
-        language = _detect_language(text)
-        paragraphs = text.split("\n\n")
-        chunks: List[str] = []
-        for paragraph in paragraphs:
-            para = paragraph.strip()
-            if not para:
-                continue
-            lang = _detect_language(para) or language
-            if lang == "zh":
-                if jieba is not None:
-                    tokens = list(jieba.cut(para, cut_all=False))
-                else:
-                    tokens = list(para)  # fallback: character-level
-                for i in range(0, len(tokens), chunk_max_word_num):
-                    chunk = "".join(tokens[i : i + chunk_max_word_num])
-                    if chunk:
-                        chunks.append(chunk + "\n\n")
-            else:
-                # sentence-aware accumulation up to word limit
-                sentences = _split_sentences_en(para)
-                buf: List[str] = []
-                count = 0
-                for sent in sentences:
-                    words = sent.split()
-                    if count + len(words) > chunk_max_word_num and buf:
-                        chunks.append(" ".join(buf) + "\n\n")
-                        buf = []
-                        count = 0
-                    buf.append(sent)
-                    count += len(words)
-                if buf:
-                    chunks.append(" ".join(buf) + "\n\n")
-        return chunks if chunks else [text]
+    This function establishes the top-level "speaker turn" segmentation.
+    """
+    normalized: List[Dict[str, str]] = []
+    for turn in conversation_turns:
+        speaker = (turn.get("speaker") or "").strip()
+        content = (turn.get("content") or "").strip()
+        if speaker and content:
+            normalized.append({"speaker": speaker, "content": content})
+    return normalized
 
-    raise ValueError(f"Unknown chunk method: {chunk_method}")
+
+def _chunk_text_by_length(text: str, max_chars: int = 250) -> List[str]:
+    """
+    Chunk a single speaker's turn into smaller pieces by length, with boundary awareness.
+
+    Strategy:
+    - Prefer splitting at strong boundaries within the window: "\n\n" > "\n" > sentence punctuation (。！？；.!?;:) > comma/space.
+    - As a last resort, hard-cut at max_chars.
+    - Avoid cutting inside simple XML-like tags (e.g., <SE>...</SE>): if the cut falls within an unclosed '<', backtrack to before '<'.
+    """
+    if not text:
+        return []
+
+    text = text.strip()
+    n = len(text)
+    i = 0
+    out: List[str] = []
+    strong_punct = "。！？；.!?:;"
+
+    def _avoid_mid_tag(start: int, end: int) -> int:
+        segment = text[start:end]
+        last_lt = segment.rfind("<")
+        last_gt = segment.rfind(">")
+        if last_lt != -1 and (last_gt == -1 or last_lt > last_gt):
+            # We're inside a tag; backtrack to before '<'
+            return start + last_lt
+        return end
+
+    while i < n:
+        j = min(i + max_chars, n)
+        window = text[i:j]
+
+        cut = -1
+        # 1) Double newline
+        cut = window.rfind("\n\n")
+        if cut == -1:
+            # 2) Single newline
+            cut = window.rfind("\n")
+        if cut == -1:
+            # 3) Sentence punctuation
+            cut = max((window.rfind(c) for c in strong_punct), default=-1)
+        if cut == -1:
+            # 4) Comma/space
+            cut = max(window.rfind(","), window.rfind(" "))
+
+        if cut != -1 and i + cut + 1 <= n:
+            candidate_end = i + cut + 1
+        else:
+            candidate_end = j
+
+        candidate_end = _avoid_mid_tag(i, candidate_end)
+        if candidate_end <= i:  # fallback to hard cut to avoid infinite loop
+            candidate_end = j
+
+        chunk = text[i:candidate_end].strip()
+        if chunk:
+            out.append(chunk)
+        i = candidate_end
+
+    return out
 
 def _get_higgs_client_and_model():
     """Create an OpenAI-compatible client for Higgs and choose a model.
@@ -498,42 +510,21 @@ def _openai_tts(text: str) -> Optional[bytes]:
         return None
 
 
-def generate_audio_segment(
-    content: str,
+def _synthesize_and_merge_turn_chunks(
+    chunks: List[str],
     speaker: str,
     segment_index: int,
     audio_output_dir: Path,
     speaker_state: Dict[str, Dict[str, Any]],
 ) -> Optional[Path]:
     """
-    Generate audio segment for a single conversation turn.
-    
-    Args:
-        content: Text content to convert
-        speaker: Speaker name
-        segment_index: Index of this segment
-        audio_output_dir: Directory for audio output
-        speaker_state: Tracks first-segment seed per speaker for cloning
-        
-    Returns:
-        Path to generated audio segment or None if failed
+    Given pre-chunked text for a single speaker turn, synthesize each chunk to audio,
+    then concatenate into a single segment file. Manages per-speaker cloning seed.
     """
     try:
-        logger.debug(f"generate_audio_segment called: speaker='{speaker}', segment_index={segment_index}")
-        
-        # Normalize content prior to TTS
-        content = normalize_tts_text(content)
+        if not chunks:
+            return None
 
-        # Decide whether to chunk: only chunk if content is relatively long
-        words_count = len(content.split())
-        do_chunk = words_count > 100 or len(content) > 400
-        chunks: List[str] = (
-            prepare_chunk_text(content, chunk_method="word", chunk_max_word_num=100)
-            if do_chunk
-            else [content]
-        )
-
-        # For each chunk, generate a small WAV and then concatenate
         chunk_files: List[Path] = []
         for ci, chunk_text in enumerate(chunks):
             audio_bytes: Optional[bytes] = None
@@ -598,6 +589,47 @@ def generate_audio_segment(
 
         logger.warning(f"Generated segment but concatenation failed: {temp_file_path}")
         return None
+    except Exception as e:
+        logger.error(f"Error synthesizing/merging chunks for {speaker}: {e}")
+        return None
+
+
+def generate_audio_segment(
+    content: str,
+    speaker: str,
+    segment_index: int,
+    audio_output_dir: Path,
+    speaker_state: Dict[str, Dict[str, Any]],
+) -> Optional[Path]:
+    """
+    Generate audio segment for a single conversation turn.
+    
+    Args:
+        content: Text content to convert
+        speaker: Speaker name
+        segment_index: Index of this segment
+        audio_output_dir: Directory for audio output
+        speaker_state: Tracks first-segment seed per speaker for cloning
+        
+    Returns:
+        Path to generated audio segment or None if failed
+    """
+    try:
+        logger.debug(f"generate_audio_segment called: speaker='{speaker}', segment_index={segment_index}")
+        
+        # Normalize content prior to TTS
+        content = normalize_tts_text(content)
+
+        # Split the single speaker's turn into chunks by length (uniformly)
+        chunks: List[str] = _chunk_text_by_length(content, max_chars=250) or [content]
+
+        return _synthesize_and_merge_turn_chunks(
+            chunks=chunks,
+            speaker=speaker,
+            segment_index=segment_index,
+            audio_output_dir=audio_output_dir,
+            speaker_state=speaker_state,
+        )
             
     except Exception as e:
         logger.error(f"Error generating audio segment for {speaker}: {e}")
@@ -622,6 +654,9 @@ def generate_conversation_audio_optimized(
         Path to generated audio file or None if failed
     """
     try:
+        # Normalize turns by speaker/content
+        conversation_turns = split_turns_by_speaker(conversation_turns)
+
         # Track per-speaker seed (first segment) to support cloning later
         speaker_state: Dict[str, Dict[str, Any]] = {}
 
