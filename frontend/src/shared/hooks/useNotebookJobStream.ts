@@ -7,7 +7,6 @@
  * Features:
  * - Real-time updates via SSE
  * - Automatic reconnection on failure
- * - Fallback to polling if SSE unavailable
  * - Query invalidation for podcast/report lists and details
  */
 
@@ -42,7 +41,6 @@ export interface UseNotebookJobStreamOptions {
   enabled?: boolean;
   onJobEvent?: (event: JobEvent) => void;
   onConnectionChange?: (connected: boolean) => void;
-  fallbackPollInterval?: number; // milliseconds, default 5000
 }
 
 export function useNotebookJobStream({
@@ -50,7 +48,6 @@ export function useNotebookJobStream({
   enabled = true,
   onJobEvent,
   onConnectionChange,
-  fallbackPollInterval = 5000,
 }: UseNotebookJobStreamOptions) {
   const queryClient = useQueryClient();
   const eventSourceRef = useRef<EventSource | null>(null);
@@ -158,9 +155,6 @@ export function useNotebookJobStream({
         }
         // Reconnection will happen via useEffect cleanup and re-init
       }, delay);
-    } else {
-      console.warn('[SSE] Max reconnection attempts reached, falling back to polling');
-      setConnectionError('Connection failed, using fallback polling');
     }
   }, [onConnectionChange]);
 
@@ -231,8 +225,5 @@ export function useNotebookJobStream({
     connectionError,
     reconnect: connect,
     disconnect,
-    // Expose state for fallback polling logic
-    shouldFallbackToPoll: !isConnected && reconnectAttemptsRef.current >= maxReconnectAttempts,
-    fallbackPollInterval,
   };
 }
