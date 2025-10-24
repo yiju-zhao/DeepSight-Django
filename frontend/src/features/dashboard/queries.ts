@@ -100,18 +100,7 @@ export function useReports(options?: { enabled?: boolean }) {
       return [];
     },
     enabled: options?.enabled ?? true,
-    // Auto-refresh when there are active jobs
-    refetchInterval: (query) => {
-      const data = query?.state?.data;
-      if (!isReportArray(data)) {
-        return false;
-      }
-      const hasActiveJobs = data.some(report =>
-        report.status === 'running' || report.status === 'pending'
-      );
-      return hasActiveJobs ? 5000 : false; // 5 seconds for active jobs
-    },
-    refetchIntervalInBackground: true,
+    // No refetchInterval - SSE handles real-time updates via useNotebookJobStream
   });
 }
 
@@ -136,18 +125,7 @@ export function usePodcasts(options?: { enabled?: boolean }) {
       return [];
     },
     enabled: options?.enabled ?? true,
-    // Auto-refresh when there are active jobs
-    refetchInterval: (query) => {
-      const data = query?.state?.data;
-      if (!isPodcastArray(data)) {
-        return false;
-      }
-      const hasActiveJobs = data.some(podcast =>
-        podcast.status === 'generating' || podcast.status === 'pending'
-      );
-      return hasActiveJobs ? 5000 : false; // 5 seconds for active jobs
-    },
-    refetchIntervalInBackground: true,
+    // No refetchInterval - SSE handles real-time updates via useNotebookJobStream
   });
 }
 
@@ -208,17 +186,7 @@ export function useDashboardData(options?: { enabled?: boolean }) {
           return [];
         },
         enabled: options?.enabled ?? true,
-        refetchInterval: (query: any) => {
-          const data = query?.state?.data;
-          if (!isReportArray(data)) {
-            return false;
-          }
-          const hasActiveJobs = data.some(report =>
-            report.status === 'running' || report.status === 'pending'
-          );
-          return hasActiveJobs ? 5000 : false;
-        },
-        refetchIntervalInBackground: true,
+        // No refetchInterval - SSE handles real-time updates via useNotebookJobStream
       },
       {
         queryKey: queryKeys.podcasts.list(),
@@ -236,17 +204,7 @@ export function useDashboardData(options?: { enabled?: boolean }) {
           return [];
         },
         enabled: options?.enabled ?? true,
-        refetchInterval: (query: any) => {
-          const data = query?.state?.data;
-          if (!isPodcastArray(data)) {
-            return false;
-          }
-          const hasActiveJobs = data.some(podcast =>
-            podcast.status === 'generating' || podcast.status === 'pending'
-          );
-          return hasActiveJobs ? 5000 : false;
-        },
-        refetchIntervalInBackground: true,
+        // No refetchInterval - SSE handles real-time updates via useNotebookJobStream
       },
       {
         queryKey: [...queryKeys.conferences.all, 'overview'],
