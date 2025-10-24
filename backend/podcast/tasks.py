@@ -97,7 +97,7 @@ def process_podcast_generation(self, job_id: str):
             
             # Store conversation text for search/display
             conversation_text = "\n\n".join([
-                f"{turn['speaker']}: {turn['content']}" 
+                f"[{turn['speaker']}] {turn['content']}" 
                 for turn in result["conversation_turns"]
             ])
             job.conversation_text = conversation_text

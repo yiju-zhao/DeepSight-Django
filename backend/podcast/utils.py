@@ -13,9 +13,10 @@ import uuid
 import json
 import subprocess
 import re
+import unicodedata
 from typing import Dict, Any, Optional, List, Tuple
 from pathlib import Path
-import os   
+import os
 
 import base64
 import requests
@@ -36,53 +37,45 @@ logger = logging.getLogger(__name__)
 # CONVERSATION PARSING FUNCTIONS
 # =============================================================================
 
-def parse_conversation(conversation_text: str) -> Tuple[Optional[str], List[Dict[str, str]]]:
+def parse_conversation(conversation_text: str) -> Tuple[Optional[str], str]:
     """
-    Parse conversation into structured turns using bracket format, and extract title.
+    Extract only the title from the conversation text and keep the
+    original conversation content unchanged.
 
-    Expected format:
+    Expected format (title optional):
     #播客标题
     [speaker_name] content
     [speaker_name] content
 
-    Args:
-        conversation_text: Raw conversation text with bracket format and optional title
-
-    Returns:
-        Tuple of (title, conversation_turns)
-        - title: Extracted title from #标题 line, or None if not found
-        - conversation_turns: List of conversation turns with speaker and content
+    Returns (title, original_text)
+    - title: Extracted from first line starting with '#', otherwise None
+    - original_text: The input conversation_text unchanged
     """
-    title = None
-    conversation_turns = []
-
-    # Extract title from first line if it starts with #
+    title: Optional[str] = None
     lines = conversation_text.split('\n')
     if lines and lines[0].strip().startswith('#'):
-        title = lines[0].strip()[1:].strip()  # Remove # and whitespace
+        title = lines[0].strip()[1:].strip()
         logger.info(f"Extracted podcast title: {title}")
+    return title, conversation_text
 
-    # Pattern to match bracket format: [speaker] content
+
+def parse_bracket_turns(conversation_text: str) -> List[Dict[str, str]]:
+    """
+    Parse bracket-formatted conversation into structured turns without altering
+    original content or speaker names.
+
+    Pattern: [speaker] content ... until next [ or end.
+    """
     pattern = r'\[([^\]]+)\]\s*(.*?)(?=\n\[|$)'
     matches = re.findall(pattern, conversation_text, re.DOTALL)
-
+    turns: List[Dict[str, str]] = []
     for speaker, content in matches:
-        # Clean up speaker name and content
-        speaker = speaker.strip()
-        content = content.strip()
-
-        # Extract just the name from role descriptions (e.g., "AI研究科学家 - 伊利亚" -> "伊利亚")
-        if " - " in speaker:
-            speaker = speaker.split(" - ")[-1].strip()
-
-        if speaker and content:
-            conversation_turns.append({
-                'speaker': speaker,
-                'content': content
-            })
-
-    logger.info(f"Extracted {len(conversation_turns)} conversation turns from bracket format")
-    return title, conversation_turns
+        s = speaker.strip()
+        c = content.strip()
+        if s and c:
+            turns.append({'speaker': s, 'content': c})
+    logger.info(f"Extracted {len(turns)} conversation turns from bracket format")
+    return turns
 
 
 # =============================================================================
@@ -175,11 +168,59 @@ def _normalize_chinese_punctuation(text: str) -> str:
     return text
 
 
+def _remove_extra_punctuation(text: str) -> str:
+    """
+    Remove all punctuation except comma, period, exclamation mark, and question mark.
+    Preserves XML-like tags (e.g., <SE>, </SE>) used for TTS special events.
+
+    Keeps: , . ! ? ， 。 ！ ？ (and XML tags)
+    Removes: All other punctuation including : ; " ' ( ) [ ] - — … etc.
+    """
+    # Pattern to match XML-like tags (e.g., <SE>, </SE>, <SE_s>, <SE_e>)
+    tag_pattern = r'<[^>]+>'
+
+    # Find all tags and replace them with placeholders
+    tags = re.findall(tag_pattern, text)
+    placeholder_template = "___TAG{:04d}___"
+    for i, tag in enumerate(tags):
+        text = text.replace(tag, placeholder_template.format(i), 1)
+
+    # Now remove unwanted punctuation
+    result = []
+    for char in text:
+        # Keep alphanumeric and whitespace
+        if char.isalnum() or char.isspace() or char == '_':
+            result.append(char)
+        # Keep allowed punctuation (comma, period, exclamation, question mark)
+        elif char in ',.!?，。！？':
+            result.append(char)
+        # Check if it's a punctuation character in Unicode
+        elif unicodedata.category(char).startswith('P'):
+            # Skip this punctuation - it's not in our allowed list
+            continue
+        else:
+            # Keep other characters (e.g., Chinese characters, special symbols that aren't punctuation)
+            result.append(char)
+
+    text = ''.join(result)
+
+    # Restore tags
+    for i, tag in enumerate(tags):
+        text = text.replace(placeholder_template.format(i), tag)
+
+    return text
+
+
 def normalize_tts_text(text: str) -> str:
     """Normalize transcript/content prior to TTS generation.
 
-    Mirrors the example normalization: punctuation, special-event tags, whitespace cleanup,
-    temperature units, and ensuring terminal punctuation.
+    Performs the following steps:
+    1. Convert Chinese punctuation to English equivalents
+    2. Replace temperature units
+    3. Convert stage/event markers to TTS-compatible tags
+    4. Remove all punctuation except comma, period, exclamation mark, and question mark
+    5. Collapse excessive whitespace
+    6. Ensure terminal punctuation
     """
     if not text:
         return text
@@ -187,17 +228,12 @@ def normalize_tts_text(text: str) -> str:
     # 1) Chinese punctuation to half-width
     text = _normalize_chinese_punctuation(text)
 
-    # 2) Replace some symbols/units and parentheses
-    replacements_simple = [
-        ("(", " "),
-        (")", " "),
-        ("°F", " degrees Fahrenheit"),
-        ("°C", " degrees Celsius"),
-    ]
-    for a, b in replacements_simple:
-        text = text.replace(a, b)
+    # 2) Replace temperature units (before removing punctuation)
+    text = text.replace("°F", " degrees Fahrenheit")
+    text = text.replace("°C", " degrees Celsius")
 
     # 3) Convert common stage/event markers to tags the model can understand
+    # Note: Do this BEFORE removing punctuation so we can match [brackets]
     stage_tags = [
         ("[laugh]", "<SE>[Laughter]</SE>"),
         ("[humming start]", "<SE_s>[Humming]</SE_s>"),
@@ -214,12 +250,16 @@ def normalize_tts_text(text: str) -> str:
     for a, b in stage_tags:
         text = text.replace(a, b)
 
-    # 4) Collapse excessive whitespace and empty lines
+    # 4) Remove all punctuation except comma, period, exclamation mark, and question mark
+    # This includes: parentheses, brackets, quotes, colons, semicolons, dashes, etc.
+    text = _remove_extra_punctuation(text)
+
+    # 5) Collapse excessive whitespace and empty lines
     lines = [" ".join(line.split()) for line in text.split("\n") if line.strip()]
     text = "\n".join(lines).strip()
 
-    # 5) Ensure terminal punctuation for smoother prosody
-    if text and not any(text.endswith(c) for c in [".", "!", "?", ",", ";", '"', "'", "</SE_e>", "</SE>"]):
+    # 6) Ensure terminal punctuation for smoother prosody
+    if text and not any(text.endswith(c) for c in [".", "!", "?", ",", "。", "！", "？", "，", "</SE_e>", "</SE>"]):
         text += "."
 
     return text
@@ -329,23 +369,6 @@ class HiggsTTSSession:
         except Exception as e:
             logger.error(f"Higgs voice clone failed: {e}")
             return None
-
-
-def split_turns_by_speaker(conversation_turns: List[Dict[str, str]]) -> List[Dict[str, str]]:
-    """
-    Normalize and filter conversation turns by speaker.
-    - Ensures each item has non-empty 'speaker' and 'content'.
-    - Trims whitespace.
-
-    This function establishes the top-level "speaker turn" segmentation.
-    """
-    normalized: List[Dict[str, str]] = []
-    for turn in conversation_turns:
-        speaker = (turn.get("speaker") or "").strip()
-        content = (turn.get("content") or "").strip()
-        if speaker and content:
-            normalized.append({"speaker": speaker, "content": content})
-    return normalized
 
 
 def _chunk_text_by_length(text: str, max_chars: int = 250) -> List[str]:
@@ -591,9 +614,6 @@ def generate_conversation_audio_optimized(
         Path to generated audio file or None if failed
     """
     try:
-        # Normalize turns by speaker/content
-        conversation_turns = split_turns_by_speaker(conversation_turns)
-
         # Track per-speaker seed (first segment) to support cloning later
         speaker_state: Dict[str, Dict[str, Any]] = {}
         # Initialize one Higgs client/model session for the whole job
@@ -729,4 +749,3 @@ def _simple_audio_concatenation(segments: List[Path], output_file: Path) -> bool
     except Exception as e:
         logger.error(f"Simple concatenation failed: {e}")
         return False
-

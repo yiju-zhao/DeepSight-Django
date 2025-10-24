@@ -13,7 +13,8 @@ from django.utils import timezone
 from .utils import (
     extract_selected_content,
     parse_conversation,
-    generate_conversation_audio_optimized
+    parse_bracket_turns,
+    generate_conversation_audio_optimized,
 )
 from .storage import PodcastStorageService
 
@@ -64,8 +65,10 @@ class PodcastService:
             logger.info(f"Starting panel crew discussion for topic: {topic}")
             result = panel_crew.crew().kickoff(inputs={'topic': topic, 'material_content': selected_content})
 
-            # Parse conversation directly from crew result (now returns title and turns)
-            title, conversation_turns = parse_conversation(str(result))
+            # Extract title only; keep conversation text unchanged
+            title, conversation_text = parse_conversation(str(result))
+            # Convert bracket-formatted conversation into turns for TTS
+            conversation_turns = parse_bracket_turns(conversation_text)
 
             if not conversation_turns:
                 raise Exception("No conversation turns extracted from panel discussion")
@@ -184,4 +187,3 @@ class PodcastService:
             logger.error(f"Audio storage with metadata failed: {e}")
             return None
     
-

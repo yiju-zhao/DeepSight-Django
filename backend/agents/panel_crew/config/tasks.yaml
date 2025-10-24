@@ -454,9 +454,7 @@ editing_task:
     在不改变技术含义的前提下，优化术语使用：
 
     1. **翻译原则**：
-       - 能翻译的英文专有名词、技术术语、机构/产品名称，优先使用常见中文译名
-       - 首次出现可在中文后括注英文，例：注意力机制（Attention）
-       - 第二次及以后出现，只使用中文译名
+       - 能翻译的英文专有名词、技术术语、机构/产品名称，优先使用中文译名
 
     2. **保留原则**：
        - 无公认译名或翻译会引起歧义时，保留英文原文
@@ -464,11 +462,11 @@ editing_task:
        - 专有名词的人名保留原文
 
     3. **常见术语翻译示例**：
-       - Transformer → 变换器（Transformer）
-       - Attention → 注意力机制（Attention）
-       - Residual Connection → 残差连接（Residual Connection）
-       - Google → 谷歌（Google）
-       - OpenAI → 开放人工智能（OpenAI）
+       - Transformer → 变换器
+       - Attention → 注意力机制
+       - Residual Connection → 残差连接
+       - Google → 谷歌
+       - OpenAI → 开放人工智能
 
     **编辑原则（绝对约束）**：
 
@@ -531,8 +529,8 @@ editing_task:
       * 使用吸引人的中文表达，技术术语可保留英文
       * 示例：#深入探讨Transformer的注意力机制
     - 所有技术事实准确无误，与研究笔记一致
-    - 语言自然流畅，适合TTS播放
-    - 术语中文化处理得当（首次出现括注英文）
+    - 语言自然流畅，适合TTS播放，所见即所听
+    - 术语中文化处理得当
     - 内容、观点、结构完全保持不变
     - TTS友好，无Markdown、列表、编号、表情
     - 每个发言独占一行
