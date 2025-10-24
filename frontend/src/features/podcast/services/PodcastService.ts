@@ -50,13 +50,15 @@ export class PodcastService implements IPodcastService {
       }
 
       const response = await this.api.get(endpoint);
-      
-      // Handle different response formats
-      if (response.podcasts) return response.podcasts;
-      if (response.jobs) return response.jobs;
-      if (response.results) return response.results;
-      if (Array.isArray(response)) return response;
-      
+
+      // Handle different response formats and filter out cancelled items from UI
+      const normalize = (items: Podcast[]) => items.filter((p) => p.status !== 'cancelled');
+
+      if (response.podcasts) return normalize(response.podcasts);
+      if (response.jobs) return normalize(response.jobs);
+      if (response.results) return normalize(response.results);
+      if (Array.isArray(response)) return normalize(response);
+
       return [];
     } catch (error) {
       console.error('Failed to fetch podcasts:', error);

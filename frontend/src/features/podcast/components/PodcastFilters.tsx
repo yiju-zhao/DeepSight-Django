@@ -55,7 +55,6 @@ const PodcastFilters: React.FC<PodcastFiltersProps> = ({
             <option value="failed">Failed</option>
             <option value="generating">Generating</option>
             <option value="pending">Pending</option>
-            <option value="cancelled">Cancelled</option>
           </select>
         </div>
 

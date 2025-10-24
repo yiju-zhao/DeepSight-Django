@@ -56,16 +56,6 @@ const PodcastStats: React.FC<PodcastStatsProps> = ({ stats }) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       )
-    },
-    {
-      name: 'Cancelled',
-      value: stats.cancelled,
-      color: 'bg-gray-400',
-      icon: (
-        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728" />
-        </svg>
-      )
     }
   ];
 

@@ -5,21 +5,14 @@ Simplified Celery tasks for podcast generation using Panel Discussion Framework.
 import logging
 import json
 import asyncio
-import redis
 from celery import shared_task
 from django.utils import timezone
-from django.conf import settings
 
 from .models import Podcast
 from .service import PodcastService
 from core.utils.sse import publish_notebook_event
 
 logger = logging.getLogger(__name__)
-
-
-def update_job_status(job, redis_client=None):
-    """Persist job status to database (no Redis/progress)."""
-    job.save()
 
 
 @shared_task(bind=True)
@@ -31,9 +24,8 @@ def process_podcast_generation(self, job_id: str):
         job_id: UUID of the Podcast to process
     """
     try:
-        # Get the job and Redis client
+        # Get the job
         job = Podcast.objects.get(id=job_id)
-        redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
         logger.info(f"Starting podcast generation for job {job_id}")
 
         # Check if job was cancelled before we start
@@ -49,10 +41,10 @@ def process_podcast_generation(self, job_id: str):
                 logger.info(f"Task {self.request.id} was revoked, aborting podcast generation")
                 return {"status": "revoked", "message": "Task was revoked"}
 
-        # Update job status to processing (status only)
+        # Update job status to processing
         job.status = "generating"
         job.processing_started_at = timezone.now()
-        update_job_status(job, redis_client)
+        job.save()
 
         # Publish STARTED event via SSE
         if job.notebook:
@@ -121,8 +113,8 @@ def process_podcast_generation(self, job_id: str):
             })
             
             # Conversation JSON formatting available via utils if needed in the future
-            
-            update_job_status(job, redis_client)
+
+            job.save()
 
             # Publish SUCCESS event via SSE
             if job.notebook:
@@ -149,7 +141,7 @@ def process_podcast_generation(self, job_id: str):
             # Handle failure
             job.status = "error"
             job.processing_completed_at = timezone.now()
-            update_job_status(job, redis_client)
+            job.save()
 
             # Publish FAILURE event via SSE
             if job.notebook:
@@ -175,10 +167,9 @@ def process_podcast_generation(self, job_id: str):
         logger.error(f"Unexpected error in podcast generation for job {job_id}: {e}")
         try:
             job = Podcast.objects.get(id=job_id)
-            redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
             job.status = "error"
             job.processing_completed_at = timezone.now()
-            update_job_status(job, redis_client)
+            job.save()
 
             # Publish FAILURE event via SSE
             if job.notebook:
@@ -216,11 +207,10 @@ def cancel_podcast_generation(self, job_id: str):
             except Exception as e:
                 logger.warning(f"Failed to revoke Celery task for job {job_id}: {e}")
         
-        # Update job status in database (no Redis/progress)
-        redis_client = redis.Redis.from_url(settings.CELERY_BROKER_URL)
+        # Update job status in database
         job.status = "cancelled"
         job.error_message = "Job cancelled by user"
-        update_job_status(job, redis_client)
+        job.save()
 
         # Publish CANCELLED event via SSE
         if job.notebook:

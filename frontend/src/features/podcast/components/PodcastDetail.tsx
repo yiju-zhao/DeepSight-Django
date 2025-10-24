@@ -46,11 +46,15 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
           const updatedPodcast = await podcastService.getPodcast(currentPodcast.id);
           setCurrentPodcast(updatedPodcast);
 
-          // If status changed to completed, clear the interval
+          // If status reached a terminal state, clear polling.
+          // If cancelled, navigate back since we don't display cancelled items.
           if (updatedPodcast.status === 'completed' || updatedPodcast.status === 'failed' || updatedPodcast.status === 'cancelled') {
             if (pollingIntervalRef.current) {
               clearInterval(pollingIntervalRef.current);
               pollingIntervalRef.current = null;
+            }
+            if (updatedPodcast.status === 'cancelled') {
+              onBack();
             }
           }
         } catch (error) {
