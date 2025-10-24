@@ -23,24 +23,24 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
 
   return (
     <header className="flex-shrink-0 relative z-10">
-      <div className="px-3 pt-4 pb-2 md:px-4 lg:px-5 flex justify-between items-center">
-        <div className="flex items-center space-x-4">
+      <div className="px-3 pt-2 pb-2 md:px-4 lg:px-5 flex justify-between items-center">
+        <div className="flex items-center space-x-3">
           {/* Back Button */}
           {showBackButton && (
             <button
               onClick={() => navigate(backPath)}
-              className="p-2.5 rounded-xl bg-gray-100/80 hover:bg-gray-200/80 transition-all duration-200 hover:scale-105"
+              className="p-2 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 transition-colors duration-200"
               title={`Back to ${backPath === "/deepdive" ? "DeepDive" : "Previous Page"}`}
             >
               <ArrowLeft className="h-5 w-5 text-gray-700" />
             </button>
           )}
 
-          {/* Title with elegant styling */}
+          {/* Title with simple styling */}
           {notebookTitle && (
-            <div className="ml-4 flex items-center space-x-3">
-              <div className="w-1 h-8 bg-gradient-to-b from-red-500 to-red-600 rounded-full"></div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-900 bg-clip-text text-transparent">
+            <div className="ml-2 flex items-center space-x-2">
+              <div className="w-0.5 h-6 bg-red-600 rounded-full"></div>
+              <h1 className="text-xl font-semibold text-gray-900">
                 {notebookTitle}
               </h1>
             </div>
@@ -48,10 +48,10 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
         </div>
 
         {/* Logout Button */}
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-3">
           <button
             onClick={handleLogout}
-            className="p-2.5 rounded-xl bg-red-50/80 hover:bg-red-100/80 text-red-600 hover:text-red-700 transition-all duration-200 hover:scale-105"
+            className="p-2 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 hover:text-gray-900 transition-colors duration-200"
             title="Logout"
           >
             <LogOut className="h-5 w-5" />

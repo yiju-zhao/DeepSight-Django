@@ -227,21 +227,27 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                   className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div className={`flex space-x-4 ${message.sender === 'user' ? 'max-w-[80%] flex-row-reverse space-x-reverse' : 'w-full'}`}>
-                    {/* Avatar - only for user messages */}
-                    {message.sender === 'user' && (
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-gray-700 to-gray-800 text-white shadow-sm">
+                    {/* Avatar */}
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      message.sender === 'user'
+                        ? 'bg-gradient-to-br from-gray-700 to-gray-800 text-white'
+                        : 'bg-white border-2 border-gray-200 text-gray-600'
+                    }`}>
+                      {message.sender === 'user' ? (
                         <User className="h-4 w-4" />
-                      </div>
-                    )}
+                      ) : (
+                        <Bot className="h-4 w-4" />
+                      )}
+                    </div>
 
                     {/* Message Content */}
                     <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
                       {message.sender === 'user' ? (
-                        <div className="px-5 py-3 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 text-gray-900 shadow-sm">
+                        <div className="px-5 py-3 rounded-2xl bg-gray-100 text-gray-900 border border-gray-200">
                           <p className="text-[15px] leading-6">{message.message}</p>
                         </div>
                       ) : (
-                        <div className="py-1">
+                        <div className="px-5 py-4 rounded-2xl bg-white border border-gray-200">
                           <MarkdownContent content={message.message} />
                         </div>
                       )}

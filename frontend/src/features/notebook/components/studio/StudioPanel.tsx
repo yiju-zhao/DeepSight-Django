@@ -554,7 +554,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   return (
     <div className="flex flex-col h-full relative">
       {/* ====== SINGLE RESPONSIBILITY: Header rendering ====== */}
-      <div className={`${PANEL_HEADERS.container} fixed top-0 left-0 right-0 z-50 bg-white border-b border-gray-200`}>
+      <div className={PANEL_HEADERS.container}>
         <div className={PANEL_HEADERS.layout}>
           <div className={PANEL_HEADERS.titleContainer}>
             <div className={PANEL_HEADERS.iconContainer}>

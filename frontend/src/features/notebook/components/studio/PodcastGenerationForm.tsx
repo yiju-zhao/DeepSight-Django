@@ -84,7 +84,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
       ? 'bg-violet-100/70'
       : canGenerate
         ? 'bg-violet-100/50 cursor-pointer hover:bg-violet-100/70'
-        : 'bg-violet-50/50 cursor-not-allowed' // Changed from opacity-60 and removed hover effect
+        : 'bg-violet-50/50' // Changed from opacity-60 and removed hover effect and cursor-not-allowed
   ].join(' ');
 
   const tooltipContent = !hasSelectedFiles ? "Select files to generate a podcast" : "";

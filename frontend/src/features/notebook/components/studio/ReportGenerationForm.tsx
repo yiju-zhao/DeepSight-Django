@@ -87,7 +87,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
       ? 'bg-emerald-100/70 ring-1 ring-emerald-300'
       : canGenerate
         ? 'bg-emerald-100/50 cursor-pointer hover:bg-emerald-100/70'
-        : 'bg-emerald-50/50 cursor-not-allowed' // Changed from opacity-60 and removed hover effect
+        : 'bg-emerald-50/50' // Changed from opacity-60 and removed hover effect and cursor-not-allowed
   ].join(' ');
 
   const tooltipContent = !hasSelectedFiles ? "Select files to generate a report" : "";

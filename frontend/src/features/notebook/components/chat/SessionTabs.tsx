@@ -55,7 +55,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
 
   return (
     <TooltipProvider>
-      <div className="flex items-end bg-gray-50 px-2 gap-0.5 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 border-b border-gray-200">
+      <div className="flex items-center bg-white px-4 gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 border-b border-gray-200">
         <AnimatePresence>
           {sessions.map((session) => {
             const isActive = session.id === activeSessionId;
@@ -67,11 +67,11 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.15 }}
-                className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-t-lg cursor-pointer transition-all ${
+                transition={{ duration: 0.3 }}
+                className={`group relative flex items-center gap-1.5 px-3 py-2.5 cursor-pointer transition-colors ${
                   isActive
-                    ? 'bg-white border-t border-x border-gray-200'
-                    : 'bg-gray-100 hover:bg-gray-200'
+                    ? 'text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900'
                 }`}
                 onClick={() => !isEditing && onSwitchSession(session.id)}
               >
@@ -88,9 +88,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                   />
                 ) : (
                   <span
-                    className={`text-sm font-medium truncate max-w-[200px] ${
-                      isActive ? 'text-gray-900' : 'text-gray-600'
-                    }`}
+                    className="text-sm font-medium truncate max-w-[200px]"
                     onDoubleClick={(e) => {
                       e.stopPropagation();
                       handleStartEdit(session.id, session.title);
@@ -105,7 +103,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-5 w-5 p-0 rounded hover:bg-gray-300 transition-opacity ${
+                    className={`h-5 w-5 p-0 rounded hover:bg-gray-100 transition-opacity ${
                       isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                     }`}
                     onClick={(e) => {
@@ -117,6 +115,15 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                     <X className="h-3 w-3" />
                   </Button>
                 )}
+
+                {/* Active Indicator - Underline */}
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600"
+                    transition={{ type: "spring", duration: 0.3 }}
+                  />
+                )}
               </motion.div>
             );
           })}
@@ -126,7 +133,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="flex-shrink-0 h-7 px-3 mb-0.5 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded-t-lg transition-colors"
+          className="flex-shrink-0 h-9 px-3 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
           onClick={onCreateSession}
           disabled={isLoading}
         >

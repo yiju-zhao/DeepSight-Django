@@ -152,12 +152,12 @@ export const COLORS = {
   components: {
     button: {
       primary: 'bg-red-600 hover:bg-red-700 text-white',
-      secondary: 'bg-gray-100 text-gray-700 hover:bg-gray-200',
-      outline: 'border border-red-600 text-red-600 hover:bg-red-50'
+      secondary: 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300',
+      outline: 'border border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
     },
     modal: {
       background: 'bg-white',
-      overlay: 'bg-black/50',
+      overlay: 'bg-black/60',
       header: 'bg-gray-50',
       border: 'border-gray-200'
     },
@@ -272,13 +272,13 @@ export const TYPOGRAPHY = {
 
 // Panel header configurations for consistency
 export const PANEL_HEADERS = {
-  container: 'flex-shrink-0 px-6 py-4 bg-gray-100/95 backdrop-blur-sm',
+  container: 'flex-shrink-0 px-6 py-3 bg-white border-b border-gray-200',
   separator: '',
   layout: 'flex items-center justify-between',
-  iconContainer: 'w-8 h-8 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl flex items-center justify-center shadow-sm',
+  iconContainer: 'w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-gray-200',
   icon: 'h-4 w-4 text-gray-600',
-  title: 'text-lg font-semibold text-gray-900',
-  titleContainer: 'flex items-center space-x-4',
+  title: 'text-base font-medium text-gray-900',
+  titleContainer: 'flex items-center space-x-3',
   actionsContainer: 'flex items-center space-x-2'
 };
 
@@ -296,11 +296,11 @@ export const SHADOWS = {
   normal: 'shadow-md',
   large: 'shadow-lg',
   xl: 'shadow-xl',
-  // Enhanced panel shadows
+  // Enhanced panel shadows - reduced for cleaner look
   panel: {
-    base: 'shadow-lg',
-    hover: 'hover:shadow-xl',
-    elevated: 'shadow-xl shadow-blue-100/20'
+    base: 'shadow-sm border border-gray-200',
+    hover: '',
+    elevated: 'shadow-md border border-gray-200'
   }
 };
 

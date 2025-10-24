@@ -100,7 +100,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-200 to-gray-300 flex flex-col relative overflow-hidden">
+    <div className="h-screen bg-gray-50 flex flex-col relative overflow-hidden">
       {/* Header */}
       <NotebookHeader
         notebookTitle={notebookTitle}
@@ -108,19 +108,19 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0">
-        <div 
-          className={`${RESPONSIVE_PANELS.mobile.gap} ${RESPONSIVE_PANELS.mobile.padding} md:${RESPONSIVE_PANELS.tablet.gap} md:${RESPONSIVE_PANELS.tablet.padding} lg:${RESPONSIVE_PANELS.desktop.gap} lg:${RESPONSIVE_PANELS.desktop.padding} flex-1 min-h-0 grid transition-all duration-300`}
+        <div
+          className={`${RESPONSIVE_PANELS.mobile.gap} ${RESPONSIVE_PANELS.mobile.padding} md:${RESPONSIVE_PANELS.tablet.gap} md:${RESPONSIVE_PANELS.tablet.padding} lg:${RESPONSIVE_PANELS.desktop.gap} lg:${RESPONSIVE_PANELS.desktop.padding} flex-1 min-h-0 grid transition-[grid-template-columns] duration-300 ease-out`}
           style={{
-            gridTemplateColumns: isStudioExpanded 
-              ? `40px 4fr 8fr` // Studio expanded: keep collapsed sources bar visible, smaller chat, larger studio
-              : isSourcesCollapsed 
-                ? `40px ${LAYOUT_RATIOS.chat}fr ${LAYOUT_RATIOS.studio}fr`
+            gridTemplateColumns: isStudioExpanded
+              ? `56px 5fr 7fr` // Studio expanded: wider collapsed bar, balanced chat and studio
+              : isSourcesCollapsed
+                ? `56px ${LAYOUT_RATIOS.chat}fr ${LAYOUT_RATIOS.studio}fr`
                 : `${LAYOUT_RATIOS.sources}fr ${LAYOUT_RATIOS.chat}fr ${LAYOUT_RATIOS.studio}fr`
           }}
         >
           {/* Sources Panel */}
           <div
-            className={`${COLORS.panels.sources.background} backdrop-blur-sm ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} ${SHADOWS.panel.hover} transition-all duration-300 overflow-hidden min-h-0 relative`}
+            className={`${COLORS.panels.sources.background} ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} transition-all duration-300 overflow-hidden min-h-0 relative`}
           >
             {!isSourcesCollapsed && !isStudioExpanded ? (
               <div>
@@ -134,9 +134,9 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
               </div>
             ) : (
               <div className="h-full flex flex-col">
-                {/* Collapsed Header - Entire bar clickable with red highlight */}
-                <div 
-                  className="flex-shrink-0 py-4 bg-gray-100/95 backdrop-blur-sm flex items-center justify-center h-full w-full cursor-pointer hover:bg-red-50 transition-all duration-200 group"
+                {/* Collapsed Header - Entire bar clickable with subtle highlight */}
+                <div
+                  className="flex-shrink-0 py-4 bg-white border-b border-gray-200 flex items-center justify-center h-full w-full cursor-pointer hover:bg-gray-50 transition-all duration-200 group"
                   onClick={() => {
                     if (isStudioExpanded) {
                       setIsStudioExpanded(false);
@@ -145,7 +145,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
                   }}
                   title={isStudioExpanded ? "Minimize Studio & Expand Sources Panel" : "Expand Sources Panel"}
                 >
-                  <Database className="h-4 w-4 text-gray-400 group-hover:text-red-600 transition-all duration-200" />
+                  <Database className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-all duration-200" />
                 </div>
               </div>
             )}
@@ -153,14 +153,14 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
           {/* Chat Panel */}
           <div
-            className={`${COLORS.panels.chat.background} backdrop-blur-sm ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} ${SHADOWS.panel.hover} transition-all duration-300 overflow-hidden min-h-0`}
+            className={`${COLORS.panels.chat.background} ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} transition-all duration-300 overflow-hidden min-h-0`}
           >
             {React.cloneElement(chatPanel, panelProps)}
           </div>
 
           {/* Studio Panel */}
           <div
-            className={`${COLORS.panels.studio.background} backdrop-blur-sm ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} ${SHADOWS.panel.hover} transition-all duration-300 overflow-auto min-h-0`}
+            className={`${COLORS.panels.studio.background} ${RESPONSIVE_PANELS.mobile.radius} lg:${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} transition-all duration-300 overflow-auto min-h-0`}
           >
             {React.cloneElement(studioPanel, {
               ...panelProps,
@@ -171,7 +171,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         </div>
       </main>
 
-      {/* Global Modals - Rendered at top level with high z-index */}
+      {/* Global Modals - Rendered at top level with consistent styling */}
       <AnimatePresence>
         {/* File Preview Modal */}
         {modals.filePreview.isOpen && modals.filePreview.data && (
@@ -179,7 +179,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4"
             onClick={() => closeModal('filePreview')}
           >
             <motion.div
@@ -201,14 +201,14 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-80 flex items-center justify-center z-[9999] p-4"
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4"
             onClick={() => closeModal('uploadModal')}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ type: "spring", duration: 0.5 }}
+              transition={{ type: "spring", duration: 0.3 }}
               className="bg-gray-900 rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
@@ -223,15 +223,15 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4"
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100] p-4"
             onClick={() => closeModal('addSourceModal')}
           >
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              transition={{ duration: 0.15 }}
+              transition={{ duration: 0.3 }}
               className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto scrollbar-hide shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
@@ -246,7 +246,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
             onClick={() => closeModal('advancedSettings')}
           >
             <motion.div
@@ -268,7 +268,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] bg-black/40 flex items-center justify-center"
+            className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center"
             onClick={() => closeModal('gallerySettings')}
           >
             <motion.div
@@ -290,7 +290,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
             onClick={() => closeModal('customizeReport')}
           >
             <motion.div
@@ -312,7 +312,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
             onClick={() => closeModal('customizePodcast')}
           >
             <motion.div
