@@ -12,13 +12,12 @@ interface QueryProviderProps {
 }
 
 export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
+  const showDevtools = import.meta.env.DEV && import.meta.env.VITE_SHOW_RQ_DEVTOOLS === 'true';
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      {import.meta.env.DEV && (
-        <ReactQueryDevtools 
-          initialIsOpen={false}
-        />
+      {showDevtools && (
+        <ReactQueryDevtools initialIsOpen={false} />
       )}
     </QueryClientProvider>
   );
