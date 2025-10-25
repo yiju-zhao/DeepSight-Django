@@ -68,6 +68,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const [isPreviewingEdits, setIsPreviewingEdits] = useState<boolean>(false);
   const [expandedPodcasts, setExpandedPodcasts] = useState<Set<string>>(new Set());
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastItem | null>(null);
+  const [expandedByReport, setExpandedByReport] = useState<boolean>(false);
 
   // Prevent body scroll when a file/report is open
   useEffect(() => {
@@ -302,6 +303,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       setSelectedFileContent(content.content || content.markdown_content || '');
       setViewMode('preview');
       setIsReportPreview(true);
+
+      // Expand studio when opening report preview
+      if (!isStudioExpanded && onToggleExpand) {
+        onToggleExpand();
+        setExpandedByReport(true);
+      }
     } catch (error) {
       console.error('Failed to load report content:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
@@ -311,7 +318,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [studioService, notebookId, toast]);
+  }, [studioService, notebookId, toast, isStudioExpanded, onToggleExpand]);
 
   const handlePodcastClick = useCallback((podcast: PodcastItem) => {
     // Set selected podcast for bottom player
@@ -535,7 +542,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     setViewMode('preview');
     setIsReportPreview(false);
     setIsPreviewingEdits(false);
-  }, []);
+    if (expandedByReport && onToggleExpand) {
+      onToggleExpand();
+      setExpandedByReport(false);
+    }
+  }, [expandedByReport, onToggleExpand]);
 
   const handlePreviewEdits = useCallback(() => {
     setIsPreviewingEdits(true);
@@ -769,38 +780,32 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
           )}
         </div>
       ) : (
-        <div className="flex-1 pt-16 overflow-hidden">
-          {/* Report preview content when viewing a specific report */}
+        <div className="flex-1 overflow-hidden">
+          {selectedFile && (
+            <FileViewer
+              file={selectedFile}
+              content={selectedFileContent}
+              isExpanded={isStudioExpanded || false}
+              viewMode={viewMode}
+              onClose={handleCloseFile}
+              onEdit={() => {
+                setViewMode('edit');
+                setIsPreviewingEdits(false);
+              }}
+              onSave={handleSaveFile}
+              onDownload={() => handleDownloadReport(selectedFile)}
+              onToggleExpand={toggleExpanded}
+              onToggleViewMode={toggleViewMode}
+              onContentChange={setSelectedFileContent}
+              notebookId={notebookId}
+              hideHeader={true}
+              isPreviewingEdits={isPreviewingEdits}
+            />
+          )}
         </div>
       )}
 
-      {/* ====== SINGLE RESPONSIBILITY: File viewer overlay ====== */}
-      {selectedFile && (
-        <div className="fixed inset-0 z-40 pt-16 overflow-hidden">
-          <FileViewer
-            file={selectedFile}
-            content={selectedFileContent}
-            isExpanded={isStudioExpanded || false}
-            viewMode={viewMode}
-            onClose={handleCloseFile}
-            onEdit={() => {
-              setViewMode('edit');
-              setIsPreviewingEdits(false);
-            }}
-            onSave={handleSaveFile}
-            onDownload={selectedFile.audio_file ?
-              () => handleDownloadPodcast(selectedFile) :
-              () => handleDownloadReport(selectedFile)
-            }
-            onToggleExpand={toggleExpanded}
-            onToggleViewMode={toggleViewMode}
-            onContentChange={setSelectedFileContent}
-            notebookId={notebookId}
-            hideHeader={isReportPreview}
-            isPreviewingEdits={isPreviewingEdits}
-          />
-        </div>
-      )}
+      {/* File viewer is rendered inline when report preview is active */}
 
     </div>
   );
