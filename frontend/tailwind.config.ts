@@ -24,10 +24,44 @@ const config: Config = {
     },
     
     extend: {
-      // Font family configuration
+      // Font family configuration (Geist + Noto Sans SC)
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif'],
-        heading: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif'],
+        sans: [
+          'Geist Variable',
+          'Geist',
+          'Geist Sans',
+          'Noto Sans SC',
+          'PingFang SC',
+          'Microsoft YaHei',
+          'ui-sans-serif',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'Noto Sans',
+          'sans-serif',
+        ],
+        heading: [
+          'Geist Variable',
+          'Geist',
+          'Geist Sans',
+          'Noto Sans SC',
+          'PingFang SC',
+          'Microsoft YaHei',
+          'ui-sans-serif',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'Noto Sans',
+          'sans-serif',
+        ],
       },
       
       // Color system using CSS custom properties
