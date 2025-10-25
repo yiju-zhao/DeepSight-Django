@@ -57,7 +57,7 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
     <div className="relative">
       {/* Header */}
       <div
-        className="relative overflow-hidden cursor-pointer group bg-purple-50 rounded-lg px-3 transition-colors duration-150 hover:bg-purple-100"
+        className="relative overflow-hidden cursor-pointer group bg-violet-50/50 rounded-lg px-3 transition-colors duration-150 hover:bg-violet-50/70"
         onClick={() => onToggleExpand(item)}
       >
         <div className="flex items-center justify-between py-3 h-14">
@@ -86,7 +86,7 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-purple-100 rounded-md"
+              className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-violet-50/70 rounded-md"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(item);
