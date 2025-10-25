@@ -103,7 +103,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-5 w-5 p-0 rounded hover:bg-gray-100 transition-opacity ${
+                    className={`h-5 w-5 p-0 rounded hover:bg-white transition-opacity ${
                       isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                     }`}
                     onClick={(e) => {
@@ -133,7 +133,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="flex-shrink-0 h-9 px-3 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+          className="flex-shrink-0 h-9 px-3 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-white transition-colors"
           onClick={onCreateSession}
           disabled={isLoading}
         >

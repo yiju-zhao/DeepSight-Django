@@ -136,7 +136,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
               <div className="h-full flex flex-col">
                 {/* Collapsed Header - Entire bar clickable with subtle highlight */}
                 <div
-                  className="flex-shrink-0 py-4 bg-white flex items-center justify-center h-full w-full cursor-pointer hover:bg-gray-50 transition-all duration-200 group rounded-2xl"
+                  className="flex-shrink-0 py-4 bg-white flex items-center justify-center h-full w-full cursor-pointer transition-all duration-200 group rounded-2xl hover:shadow-sm"
                   onClick={() => {
                     if (isStudioExpanded) {
                       setIsStudioExpanded(false);

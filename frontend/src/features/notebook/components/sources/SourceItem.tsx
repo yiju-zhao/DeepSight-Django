@@ -46,9 +46,9 @@ export const SourceItem = React.memo<SourceItemProps>(({
 
   return (
     <div
-      className={`relative px-3 py-2.5 overflow-hidden rounded-lg transition-colors ${
-        supportsPreviewCheck ? 'cursor-pointer hover:bg-gray-50' : ''
-      } ${source.selected ? 'bg-gray-50' : ''}`}
+      className={`relative px-3 py-2.5 overflow-hidden rounded-lg bg-white transition-shadow ${
+        supportsPreviewCheck ? 'cursor-pointer hover:shadow-sm' : ''
+      } ${source.selected ? 'shadow-sm' : ''}`}
       onClick={supportsPreviewCheck ? handleItemClick : undefined}
       title={supportsPreviewCheck ? getSourceTooltip(source) : undefined}
     >

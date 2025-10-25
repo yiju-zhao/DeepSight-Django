@@ -30,8 +30,8 @@ const MarkdownContent = React.memo(({ content }: { content: string }) => (
         ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
         ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
         li: ({ children }) => <li className="text-gray-800 text-xs leading-5">{children}</li>,
-        blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 italic text-gray-700 bg-gray-50 rounded-r">{children}</blockquote>,
-        code: ({ children }) => <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-900">{children}</code>,
+        blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 italic text-gray-700 bg-white rounded-r">{children}</blockquote>,
+        code: ({ children }) => <code className="bg-white px-1.5 py-0.5 rounded text-sm font-mono text-gray-900">{children}</code>,
         pre: ({ children }) => <pre className="bg-gray-950 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 text-sm shadow-sm">{children}</pre>,
         a: ({ href, children }) => (
           <a
@@ -48,7 +48,7 @@ const MarkdownContent = React.memo(({ content }: { content: string }) => (
             <table className="min-w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">{children}</table>
           </div>
         ),
-        th: ({ children }) => <th className="border border-gray-200 px-4 py-2 bg-gray-50 text-sm font-semibold text-left">{children}</th>,
+        th: ({ children }) => <th className="border border-gray-200 px-4 py-2 bg-white text-sm font-semibold text-left">{children}</th>,
         td: ({ children }) => <td className="border border-gray-200 px-4 py-2 text-sm">{children}</td>,
       }}
     >
@@ -162,7 +162,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
 
   if (!session) {
     return (
-      <div className="h-full flex items-center justify-center bg-gray-50">
+      <div className="h-full flex items-center justify-center bg-white">
         <div className="text-center text-gray-500">
           <Bot className="h-12 w-12 mx-auto mb-4 text-gray-400" />
           <p>No session selected</p>
@@ -180,7 +180,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex-shrink-0 px-6 py-3 border-b border-gray-200"
+            className="flex-shrink-0 px-6 py-3 bg-white"
           >
             <Alert variant="destructive" className="border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4" />
@@ -243,11 +243,11 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                     {/* Message Content */}
                     <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
                       {message.sender === 'user' ? (
-                        <div className="px-4 py-2.5 rounded-2xl bg-gray-100 text-gray-900">
+                        <div className="px-4 py-2.5 rounded-2xl bg-white text-gray-900">
                           <p className="text-xs leading-5">{message.message}</p>
                         </div>
                       ) : (
-                        <div className="px-4 py-3 rounded-2xl bg-gray-50/50">
+                        <div className="px-4 py-3 rounded-2xl bg-white">
                           <MarkdownContent content={message.message} />
                         </div>
                       )}
@@ -264,7 +264,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
       </div>
 
       {/* Input Area */}
-      <div className="flex-shrink-0 p-6 bg-gray-50/30">
+      <div className="flex-shrink-0 p-6 bg-white">
         <div className="flex items-end space-x-3 bg-white rounded-2xl p-4 shadow-sm focus-within:ring-2 focus-within:ring-red-300">
           <div className="flex-1 min-h-[40px]">
             <Textarea

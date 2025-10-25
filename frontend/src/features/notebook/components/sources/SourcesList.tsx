@@ -515,7 +515,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       </div>
 
       {/* Add Source Button */}
-      <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-gray-200 flex justify-center">
+      <div className="flex-shrink-0 px-4 py-3 bg-white flex justify-center">
         <Button
           variant="default"
           size="sm"
@@ -539,7 +539,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex-shrink-0 p-4 border-b border-gray-200"
+            className="flex-shrink-0 p-4 bg-white"
           >
             <Alert variant="destructive" className="border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4" />
@@ -561,7 +561,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       {/* Simple Selection Bar */}
       {sources.length > 0 && (
-        <div className="flex-shrink-0 px-4 py-3 bg-gray-50 border-b border-gray-200">
+        <div className="flex-shrink-0 px-4 py-3 bg-white">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Button
@@ -616,7 +616,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           <div>
             {Object.entries(processedSources as Record<string, Source[]>).map(([type, groupSources]: [string, Source[]]) => (
               <div key={type}>
-                <div className="px-4 py-2 bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200 sticky top-0">
+                <div className="px-4 py-2 bg-white sticky top-0">
                   <div className="flex items-center space-x-2">
                     <div className="w-5 h-5 bg-gray-200 rounded-md flex items-center justify-center">
                       {React.createElement(fileIcons[type] || FileIcon, {

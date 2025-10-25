@@ -678,7 +678,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       {!isReportPreview ? (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* ====== FIXED SECTIONS: Generation Forms ====== */}
-          <div className="flex-shrink-0 p-4 bg-gray-50/50 border-b border-gray-200/60">
+          <div className="flex-shrink-0 p-4 bg-white">
             {/* ====== LISKOV SUBSTITUTION PRINCIPLE (LSP) ====== */}
             {/* Both forms follow the same interface contract */}
             <div className="grid grid-cols-2 gap-4">
@@ -749,7 +749,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
           {/* ====== FIXED BOTTOM: Podcast Player ====== */}
           {selectedPodcast && selectedPodcast.status === 'completed' && (
-            <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+            <div className="flex-shrink-0 bg-white">
               <PodcastAudioPlayer
                 podcast={{
                   id: selectedPodcast.id,

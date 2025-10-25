@@ -27,7 +27,7 @@ interface MarkdownContentProps {
 
 // ====== SINGLE RESPONSIBILITY: Markdown content renderer ======
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId }) => (
-  <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 prose-code:text-red-600 prose-pre:bg-gray-50">
+  <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-strong:text-gray-900 prose-code:text-red-600 prose-pre:bg-white">
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
       rehypePlugins={[
@@ -137,7 +137,7 @@ const FileViewer: React.FC<FileViewerProps> = ({
     <div className="flex flex-col h-full bg-white">
       {/* ====== SINGLE RESPONSIBILITY: Toolbar rendering ====== */}
       {!hideHeader && (
-        <div className="flex-shrink-0 bg-gray-50 border-b border-gray-200">
+        <div className="flex-shrink-0 bg-white">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center space-x-3">
               <h3 className="text-lg font-semibold text-gray-900 truncate">
