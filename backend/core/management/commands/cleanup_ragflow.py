@@ -69,7 +69,7 @@ class Command(BaseCommand):
         # Collect all RagFlow resources
         self.stdout.write(self.style.NOTICE("Collecting RagFlow resources...\n"))
 
-        datasets, chat_assistants, chat_sessions = self._collect_resources()
+        datasets, chat_assistants, chat_sessions = self._collect_resources(ragflow_client)
 
         # Display summary
         self._display_summary(datasets, chat_assistants, chat_sessions)
@@ -136,55 +136,44 @@ class Command(BaseCommand):
         self.stdout.write("=" * 70 + "\n")
 
     def _collect_resources(
-        self,
-    ) -> Tuple[List[Tuple[str, str]], List[Tuple[str, str]], List[Tuple[str, str, str]]]:
+        self, client: RagFlowClient
+    ) -> Tuple[List[dict], List[dict], List[dict]]:
         """
-        Collect all RagFlow resources from database.
+        Collect all RagFlow resources directly from RagFlow API.
+
+        Args:
+            client: RagFlow client instance
 
         Returns:
             Tuple of (datasets, chat_assistants, chat_sessions)
+            Each is a list of dictionaries with 'id' and 'name' keys
         """
-        # Collect datasets
-        datasets = list(
-            Notebook.objects.filter(ragflow_dataset_id__isnull=False)
-            .exclude(ragflow_dataset_id="")
-            .values_list("id", "ragflow_dataset_id", "name")
-        )
+        self.stdout.write("  Listing datasets from RagFlow...")
+        datasets = client.list_all_datasets()
+        self.stdout.write(f"    Found {len(datasets)} datasets")
 
-        # Collect chat assistants
-        chat_assistants = list(
-            Notebook.objects.filter(ragflow_chat_id__isnull=False)
-            .exclude(ragflow_chat_id="")
-            .values_list("id", "ragflow_chat_id", "name")
-        )
+        self.stdout.write("  Listing chat assistants from RagFlow...")
+        chat_assistants = client.list_all_chats()
+        self.stdout.write(f"    Found {len(chat_assistants)} chat assistants")
 
-        # Collect chat sessions (grouped by chat_id)
-        chat_sessions_raw = list(
-            ChatSession.objects.filter(ragflow_session_id__isnull=False)
-            .exclude(ragflow_session_id="")
-            .select_related("notebook")
-            .values_list(
-                "id",
-                "ragflow_session_id",
-                "notebook__ragflow_chat_id",
-                "notebook__name",
-            )
-        )
+        self.stdout.write("  Listing sessions from all chat assistants...")
+        all_sessions = []
+        for chat in chat_assistants:
+            sessions = client.list_all_sessions_for_chat(chat["id"])
+            for session in sessions:
+                # Add chat info to session for display
+                session["chat_id"] = chat["id"]
+                session["chat_name"] = chat["name"]
+                all_sessions.append(session)
+        self.stdout.write(f"    Found {len(all_sessions)} total sessions")
 
-        # Group sessions by chat_id
-        chat_sessions = [
-            (session_id, ragflow_session_id, chat_id, notebook_name)
-            for session_id, ragflow_session_id, chat_id, notebook_name in chat_sessions_raw
-            if chat_id  # Only include sessions with valid chat_id
-        ]
-
-        return datasets, chat_assistants, chat_sessions
+        return datasets, chat_assistants, all_sessions
 
     def _display_summary(
         self,
-        datasets: List[Tuple[str, str]],
-        chat_assistants: List[Tuple[str, str]],
-        chat_sessions: List[Tuple[str, str, str]],
+        datasets: List[dict],
+        chat_assistants: List[dict],
+        chat_sessions: List[dict],
     ):
         """Display summary of resources to be deleted."""
         self.stdout.write(self.style.NOTICE("Summary of resources to cleanup:\n"))
@@ -192,47 +181,47 @@ class Command(BaseCommand):
         # Datasets
         self.stdout.write(f"  Datasets: {len(datasets)}")
         if datasets and len(datasets) <= 10:
-            for _, dataset_id, name in datasets:
-                self.stdout.write(f"    - {name} (ID: {dataset_id})")
+            for dataset in datasets:
+                self.stdout.write(f"    - {dataset['name']} (ID: {dataset['id'][:8]}...)")
         elif datasets:
             self.stdout.write(
                 f"    (showing first 5 of {len(datasets)})"
             )
-            for _, dataset_id, name in datasets[:5]:
-                self.stdout.write(f"    - {name} (ID: {dataset_id})")
+            for dataset in datasets[:5]:
+                self.stdout.write(f"    - {dataset['name']} (ID: {dataset['id'][:8]}...)")
 
         # Chat Assistants
         self.stdout.write(f"\n  Chat Assistants: {len(chat_assistants)}")
         if chat_assistants and len(chat_assistants) <= 10:
-            for _, chat_id, name in chat_assistants:
-                self.stdout.write(f"    - {name} (ID: {chat_id})")
+            for chat in chat_assistants:
+                self.stdout.write(f"    - {chat['name']} (ID: {chat['id'][:8]}...)")
         elif chat_assistants:
             self.stdout.write(
                 f"    (showing first 5 of {len(chat_assistants)})"
             )
-            for _, chat_id, name in chat_assistants[:5]:
-                self.stdout.write(f"    - {name} (ID: {chat_id})")
+            for chat in chat_assistants[:5]:
+                self.stdout.write(f"    - {chat['name']} (ID: {chat['id'][:8]}...)")
 
         # Chat Sessions
         self.stdout.write(f"\n  Chat Sessions: {len(chat_sessions)}")
         if chat_sessions and len(chat_sessions) <= 10:
-            for _, session_id, chat_id, notebook_name in chat_sessions:
+            for session in chat_sessions:
                 self.stdout.write(
-                    f"    - Session {session_id[:8]}... in {notebook_name}"
+                    f"    - {session.get('name', session['id'][:8])}... ({session['chat_name']})"
                 )
         elif chat_sessions:
             self.stdout.write(
                 f"    (showing first 5 of {len(chat_sessions)})"
             )
-            for _, session_id, chat_id, notebook_name in chat_sessions[:5]:
+            for session in chat_sessions[:5]:
                 self.stdout.write(
-                    f"    - Session {session_id[:8]}... in {notebook_name}"
+                    f"    - {session.get('name', session['id'][:8])}... ({session['chat_name']})"
                 )
 
     def _cleanup_chat_sessions(
         self,
         client: RagFlowClient,
-        chat_sessions: List[Tuple[str, str, str, str]],
+        chat_sessions: List[dict],
         dry_run: bool,
     ) -> bool:
         """Delete all chat sessions from RagFlow."""
@@ -242,26 +231,28 @@ class Command(BaseCommand):
 
         # Group sessions by chat_id for batch deletion
         sessions_by_chat = {}
-        for session_id, ragflow_session_id, chat_id, notebook_name in chat_sessions:
+        for session in chat_sessions:
+            chat_id = session["chat_id"]
             if chat_id not in sessions_by_chat:
-                sessions_by_chat[chat_id] = []
-            sessions_by_chat[chat_id].append(
-                (session_id, ragflow_session_id, notebook_name)
-            )
+                sessions_by_chat[chat_id] = {
+                    "chat_name": session["chat_name"],
+                    "sessions": []
+                }
+            sessions_by_chat[chat_id]["sessions"].append(session["id"])
 
         success = True
         deleted_count = 0
 
-        for chat_id, sessions in sessions_by_chat.items():
-            session_ids = [s[1] for s in sessions]
-            notebook_name = sessions[0][2]
+        for chat_id, info in sessions_by_chat.items():
+            session_ids = info["sessions"]
+            chat_name = info["chat_name"]
 
             try:
                 if not dry_run:
                     client.delete_chat_sessions(chat_id, session_ids)
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"  ✓ Deleted {len(session_ids)} sessions from chat {chat_id[:8]}... ({notebook_name})"
+                        f"  ✓ Deleted {len(session_ids)} sessions from chat {chat_id[:8]}... ({chat_name})"
                     )
                 )
                 deleted_count += len(session_ids)
@@ -283,7 +274,7 @@ class Command(BaseCommand):
     def _cleanup_chat_assistants(
         self,
         client: RagFlowClient,
-        chat_assistants: List[Tuple[str, str]],
+        chat_assistants: List[dict],
         dry_run: bool,
     ) -> bool:
         """Delete all chat assistants from RagFlow."""
@@ -296,18 +287,18 @@ class Command(BaseCommand):
         success = True
         deleted_count = 0
 
-        for notebook_id, chat_id, name in chat_assistants:
+        for chat in chat_assistants:
             try:
                 if not dry_run:
-                    client.delete_chat_assistant(chat_id)
+                    client.delete_chat_assistant(chat["id"])
                 self.stdout.write(
-                    self.style.SUCCESS(f"  ✓ Deleted chat assistant: {name}")
+                    self.style.SUCCESS(f"  ✓ Deleted chat assistant: {chat['name']}")
                 )
                 deleted_count += 1
             except Exception as e:
                 self.stdout.write(
                     self.style.ERROR(
-                        f"  ✗ Failed to delete chat assistant {name}: {e}"
+                        f"  ✗ Failed to delete chat assistant {chat['name']}: {e}"
                     )
                 )
                 success = False
@@ -320,7 +311,7 @@ class Command(BaseCommand):
         return success
 
     def _cleanup_datasets(
-        self, client: RagFlowClient, datasets: List[Tuple[str, str]], dry_run: bool
+        self, client: RagFlowClient, datasets: List[dict], dry_run: bool
     ) -> bool:
         """Delete all datasets from RagFlow."""
         self.stdout.write(
@@ -330,15 +321,15 @@ class Command(BaseCommand):
         success = True
         deleted_count = 0
 
-        for notebook_id, dataset_id, name in datasets:
+        for dataset in datasets:
             try:
                 if not dry_run:
-                    client.delete_dataset(dataset_id)
-                self.stdout.write(self.style.SUCCESS(f"  ✓ Deleted dataset: {name}"))
+                    client.delete_dataset(dataset["id"])
+                self.stdout.write(self.style.SUCCESS(f"  ✓ Deleted dataset: {dataset['name']}"))
                 deleted_count += 1
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f"  ✗ Failed to delete dataset {name}: {e}")
+                    self.style.ERROR(f"  ✗ Failed to delete dataset {dataset['name']}: {e}")
                 )
                 success = False
 

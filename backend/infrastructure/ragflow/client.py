@@ -949,6 +949,88 @@ class RagFlowClient:
                 f"Failed to generate related questions: {e}"
             ) from e
 
+    # Listing Methods
+    def list_all_datasets(self) -> list[dict]:
+        """
+        List all datasets in RagFlow.
+
+        Returns:
+            List of dataset dictionaries with id and name
+        """
+        try:
+            datasets = self.client.list_datasets()
+            dataset_list = []
+
+            for dataset in datasets:
+                dataset_list.append({
+                    "id": dataset.id,
+                    "name": dataset.name,
+                })
+
+            logger.info(f"Listed {len(dataset_list)} datasets")
+            return dataset_list
+
+        except Exception as e:
+            logger.error(f"Failed to list datasets: {e}")
+            return []
+
+    def list_all_chats(self) -> list[dict]:
+        """
+        List all chat assistants in RagFlow.
+
+        Returns:
+            List of chat dictionaries with id and name
+        """
+        try:
+            chats = self.client.list_chats()
+            chat_list = []
+
+            for chat in chats:
+                chat_list.append({
+                    "id": chat.id,
+                    "name": chat.name,
+                })
+
+            logger.info(f"Listed {len(chat_list)} chat assistants")
+            return chat_list
+
+        except Exception as e:
+            logger.error(f"Failed to list chats: {e}")
+            return []
+
+    def list_all_sessions_for_chat(self, chat_id: str) -> list[dict]:
+        """
+        List all sessions for a specific chat assistant.
+
+        Args:
+            chat_id: Chat assistant ID
+
+        Returns:
+            List of session dictionaries with id and name
+        """
+        try:
+            # Get the chat first
+            chats = self.client.list_chats(id=chat_id)
+            if not chats:
+                return []
+
+            chat = chats[0]
+            sessions = chat.list_sessions()
+            session_list = []
+
+            for session in sessions:
+                session_list.append({
+                    "id": session.id,
+                    "name": getattr(session, "name", ""),
+                })
+
+            logger.info(f"Listed {len(session_list)} sessions for chat {chat_id}")
+            return session_list
+
+        except Exception as e:
+            logger.error(f"Failed to list sessions for chat {chat_id}: {e}")
+            return []
+
     # Health Check
     def health_check(self) -> bool:
         """
