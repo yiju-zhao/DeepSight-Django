@@ -43,7 +43,7 @@ class FileValidator:
         self.max_file_size = MAX_FILE_SIZE
         self.allowed_extensions = ALLOWED_FILE_EXTENSIONS
 
-    def validate_file(self, file: UploadedFile | any) -> dict[str, any]:
+    def validate_file(self, file: UploadedFile | object) -> dict[str, object]:
         """Validate uploaded file with comprehensive checks."""
         errors = []
         warnings = []
@@ -109,7 +109,7 @@ class FileValidator:
             "content_type": expected_content_type,
         }
 
-    def validate_file_content(self, file_path: str) -> dict[str, any]:
+    def validate_file_content(self, file_path: str) -> dict[str, object]:
         """Validate file content using magic number detection."""
         errors = []
         warnings = []
@@ -158,7 +158,7 @@ class URLValidator:
     def __init__(self):
         self.django_validator = DjangoURLValidator()
 
-    def validate_url(self, url: str) -> dict[str, any]:
+    def validate_url(self, url: str) -> dict[str, object]:
         """Validate URL format and security."""
         errors = []
         warnings = []
