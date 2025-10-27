@@ -82,7 +82,7 @@ def _get_or_create_knowledge_item(
         parsing_status="queueing",
         notes=f"Processing {title}",
         tags=[],
-        file_metadata={},
+        metadata={},
     )
 
 

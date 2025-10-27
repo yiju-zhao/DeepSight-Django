@@ -110,9 +110,7 @@ class KnowledgeBaseItem(BaseModel):
         db_index=True,
         help_text="MinIO object key for original file",
     )
-    file_metadata = models.JSONField(
-        default=dict, blank=True, help_text="File metadata stored in database"
-    )
+
 
     # RagFlow integration fields
     ragflow_document_id = models.CharField(
@@ -177,9 +175,7 @@ class KnowledgeBaseItem(BaseModel):
         if self.metadata is not None and not isinstance(self.metadata, dict):
             raise ValidationError("Metadata must be a dictionary")
 
-        # Validate file_metadata is a dict
-        if self.file_metadata is not None and not isinstance(self.file_metadata, dict):
-            raise ValidationError("File metadata must be a dictionary")
+
 
     def save(self, *args, **kwargs):
         """Override save to ensure validation."""
@@ -219,7 +215,7 @@ class KnowledgeBaseItem(BaseModel):
         return {
             "has_processed_file": bool(self.file_object_key),
             "has_original_file": bool(self.original_file_object_key),
-            "file_metadata": self.file_metadata,
+            "metadata": self.metadata,
         }
 
     def mark_parsing_complete(self):

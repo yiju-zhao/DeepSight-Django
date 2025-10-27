@@ -51,16 +51,11 @@ class FileService(NotebookBaseService):
                     parsing_status="queueing",
                     notes=f"Processing {file_obj.name}",
                     tags=[],  # Explicitly set empty list
-                    file_metadata={},  # Explicitly set empty dict
+                    metadata={},
                 )
                 # Set defaults explicitly to avoid validation issues
                 if not hasattr(kb_item, "tags") or kb_item.tags is None:
                     kb_item.tags = []
-                if (
-                    not hasattr(kb_item, "file_metadata")
-                    or kb_item.file_metadata is None
-                ):
-                    kb_item.file_metadata = {}
                 kb_item.save()
 
             # Step 2: Queue file processing to Celery (async)
@@ -149,7 +144,7 @@ class FileService(NotebookBaseService):
                     content_type="document",
                     parsing_status="parsing",
                     tags=[],  # Explicitly set empty list
-                    file_metadata={},  # Explicitly set empty dict
+                    metadata={},
                 )
 
                 batch_item = BatchJobItem.objects.create(
