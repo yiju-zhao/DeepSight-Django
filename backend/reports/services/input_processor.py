@@ -61,7 +61,7 @@ class KnowledgeBaseInputProcessor:
                         raw_mime = None
                         if kb_item.original_file_object_key:
                             original_filename = (
-                                kb_item.file_metadata.get("original_filename")
+                                (kb_item.metadata or {}).get("original_filename")
                                 or kb_item.title
                             )
                             raw_extension = os.path.splitext(original_filename)[

@@ -550,14 +550,8 @@ class FileStorageService:
                             "original_filename", "Untitled"
                         ),
                         "source_hash_used": source_hash,  # Track source hash used for deduplication
+                        "processing_result": processing_result,  # Merged from file_metadata
                         **metadata,  # Include all other metadata
-                    }
-                    knowledge_item.file_metadata = {
-                        "file_size": metadata.get(
-                            "file_size", len(content.encode("utf-8"))
-                        ),
-                        "content_type": metadata.get("content_type", ""),
-                        "processing_result": processing_result,
                     }
                     # Don't change processing_status here - let the task handle it
                     knowledge_item.save()
@@ -855,7 +849,6 @@ class FileStorageService:
                         "source_hash": item.source_hash,
                         "parsing_status": item.parsing_status,  # Add processing status
                         "metadata": item.metadata or {},
-                        "file_metadata": item.file_metadata or {},
                         "created_at": item.created_at.isoformat(),
                         "updated_at": item.updated_at.isoformat(),
                     }
@@ -961,7 +954,6 @@ class FileStorageService:
                         "source_hash": item.source_hash,
                         "parsing_status": item.parsing_status,
                         "metadata": item.metadata or {},
-                        "file_metadata": item.file_metadata or {},
                         "notes": item.notes,
                         "created_at": item.created_at.isoformat(),
                         "updated_at": item.updated_at.isoformat(),

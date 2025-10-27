@@ -150,10 +150,8 @@ class FileListResponseMixin(FileMetadataExtractorMixin):
     def build_file_response_data(self, kb_item: KnowledgeBaseItem) -> dict[str, Any]:
         """Build standardized file response data from KnowledgeBaseItem."""
 
-        # Combine metadata and file_metadata for frontend compatibility
+        # Use metadata directly (file_metadata has been merged into metadata)
         combined_metadata = {**(kb_item.metadata or {})}
-        if kb_item.file_metadata:
-            combined_metadata["file_metadata"] = kb_item.file_metadata
 
         file_data = {
             "file_id": str(kb_item.id),

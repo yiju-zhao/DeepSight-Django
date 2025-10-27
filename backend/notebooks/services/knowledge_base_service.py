@@ -221,7 +221,6 @@ class KnowledgeBaseService(NotebookBaseService):
                     "content_type": kb_item.content_type,
                     "parsing_status": kb_item.parsing_status,
                     "metadata": kb_item.metadata or {},
-                    "file_metadata": kb_item.file_metadata or {},
                     "created_at": kb_item.created_at.isoformat(),
                     "updated_at": kb_item.updated_at.isoformat(),
                     "linked_to_notebook": True,  # All items are now linked to the notebook
@@ -941,22 +940,22 @@ class KnowledgeBaseService(NotebookBaseService):
 
                 # Get filename from metadata or generate from title
                 filename = kb_item.title
-                if kb_item.file_metadata and isinstance(kb_item.file_metadata, dict):
-                    filename = kb_item.file_metadata.get(
+                if kb_item.metadata and isinstance(kb_item.metadata, dict):
+                    filename = kb_item.metadata.get(
                         "original_filename", kb_item.title
                     )
 
                 # Ensure filename has proper extension
-                if "." not in filename and kb_item.file_metadata:
-                    file_ext = kb_item.file_metadata.get("file_extension", "")
+                if "." not in filename and kb_item.metadata:
+                    file_ext = kb_item.metadata.get("file_extension", "")
                     if file_ext and not file_ext.startswith("."):
                         file_ext = f".{file_ext}"
                     filename = f"{filename}{file_ext}"
 
                 # Determine content type
                 content_type = "application/octet-stream"  # Default fallback
-                if kb_item.file_metadata and isinstance(kb_item.file_metadata, dict):
-                    content_type = kb_item.file_metadata.get(
+                if kb_item.metadata and isinstance(kb_item.metadata, dict):
+                    content_type = kb_item.metadata.get(
                         "content_type", content_type
                     )
 

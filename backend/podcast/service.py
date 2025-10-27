@@ -74,10 +74,10 @@ class PodcastService:
             logger.info(
                 f"Starting panel crew discussion for topic: {topic} in {language_instruction}"
             )
+            # Knowledge-base only: only pass topic and language; materials are in knowledge_sources
             result = panel_crew.crew().kickoff(
                 inputs={
                     "topic": topic,
-                    "material_content": selected_content,
                     "language": language_instruction,
                 }
             )

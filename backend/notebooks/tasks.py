@@ -843,7 +843,7 @@ def process_url_media_task(
             parsing_status="queueing",
             notes=f"Processing URL with media: {url}",
             tags=[],
-            file_metadata={},
+            metadata={},
         )
         kb_item.save()
 
@@ -908,7 +908,7 @@ def process_url_document_task(
             parsing_status="queueing",
             notes=f"Processing document URL: {url}",
             tags=[],
-            file_metadata={},
+            metadata={},
         )
         kb_item.save()
 

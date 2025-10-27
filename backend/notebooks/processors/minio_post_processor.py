@@ -318,10 +318,10 @@ class MinIOPostProcessor:
 
     def _update_kb_item_metadata(self, kb_item, content_files: list, image_files: list):
         """Update knowledge base item metadata with extraction results."""
-        if not kb_item.file_metadata:
-            kb_item.file_metadata = {}
+        if not kb_item.metadata:
+            kb_item.metadata = {}
 
-        kb_item.file_metadata["mineru_extraction"] = {
+        kb_item.metadata["mineru_extraction"] = {
             "success": True,
             "content_files": content_files,
             "image_files": image_files,

@@ -72,7 +72,7 @@ def delete_kb_files_on_pre_delete(sender, instance: KnowledgeBaseItem, using, **
       - RagFlow document deletion if ragflow_document_id exists
       - processed content file (file_object_key)
       - original uploaded file (original_file_object_key)
-      - any additional content files recorded in file_metadata (mineru_extraction)
+      - any additional content files recorded in metadata (mineru_extraction)
       - image files are handled by KnowledgeBaseImage signal; we also sweep any
         image keys present in metadata as a safety net
     """
@@ -128,7 +128,7 @@ def delete_kb_files_on_pre_delete(sender, instance: KnowledgeBaseItem, using, **
             keys.append(instance.original_file_object_key)
 
         # Sweep metadata for any stored object keys
-        fm = instance.file_metadata if isinstance(instance.file_metadata, dict) else {}
+        fm = instance.metadata if isinstance(instance.metadata, dict) else {}
         if fm:
             # Known list of image keys
             image_keys = fm.get("image_object_keys") or []

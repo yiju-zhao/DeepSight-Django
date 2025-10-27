@@ -50,7 +50,6 @@ class Migration(migrations.Migration):
                 ('notes', models.TextField(blank=True, help_text='User notes about this knowledge item')),
                 ('file_object_key', models.CharField(blank=True, db_index=True, help_text='MinIO object key for processed content file', max_length=255, null=True)),
                 ('original_file_object_key', models.CharField(blank=True, db_index=True, help_text='MinIO object key for original file', max_length=255, null=True)),
-                ('file_metadata', models.JSONField(blank=True, default=dict, help_text='File metadata stored in database')),
                 ('ragflow_document_id', models.CharField(blank=True, db_index=True, help_text='RagFlow document ID linking to uploaded document in RagFlow dataset', max_length=255)),
                 ('ragflow_processing_status', models.CharField(choices=[('pending', 'Pending'), ('uploading', 'Uploading'), ('parsing', 'Parsing'), ('completed', 'Completed'), ('failed', 'Failed')], db_index=True, default='pending', help_text='RagFlow document processing status', max_length=20)),
                 ('notebook', models.ForeignKey(help_text='Notebook this knowledge item belongs to', on_delete=django.db.models.deletion.CASCADE, related_name='knowledge_base_items', to='notebooks.notebook')),
