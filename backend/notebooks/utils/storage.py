@@ -36,7 +36,7 @@ class MinIOBackend:
         # Initialize MinIO client
         self.client = self._initialize_client()
         self.bucket_name = getattr(settings, "MINIO_BUCKET_NAME", "deepsight-users")
-        self.endpoint = getattr(settings, "MINIO_ENDPOINT", "localhost:9000")
+        self.endpoint = getattr(settings, "MINIO_ENDPOINT", "http://localhost:9000")
         self.public_endpoint = getattr(settings, "MINIO_PUBLIC_ENDPOINT", self.endpoint)
         self.use_ssl = getattr(settings, "MINIO_USE_SSL", False)
 
@@ -47,10 +47,20 @@ class MinIOBackend:
 
     def _initialize_client(self) -> Minio:
         """Initialize MinIO client with settings."""
-        endpoint = getattr(settings, "MINIO_ENDPOINT", "localhost:9000")
+        from urllib.parse import urlparse
+
+        # Get endpoint and parse it to extract hostname:port
+        endpoint_url = getattr(settings, "MINIO_ENDPOINT", "http://localhost:9000")
+        parsed = urlparse(endpoint_url)
+
+        # Extract hostname and port (Minio client expects just "host:port", not full URL)
+        endpoint = parsed.netloc if parsed.netloc else endpoint_url
+
+        # Determine if secure based on scheme or MINIO_USE_SSL setting
+        secure = parsed.scheme == "https" if parsed.scheme else getattr(settings, "MINIO_USE_SSL", False)
+
         access_key = getattr(settings, "MINIO_ACCESS_KEY", "minioadmin")
         secret_key = getattr(settings, "MINIO_SECRET_KEY", "minioadmin")
-        secure = getattr(settings, "MINIO_USE_SSL", False)
 
         return Minio(
             endpoint=endpoint,

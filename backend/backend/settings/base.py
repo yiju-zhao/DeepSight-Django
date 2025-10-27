@@ -40,15 +40,24 @@ def get_env_bool(env_variable, default=False):
     return value in ("true", "1", "yes", "on")
 
 
-# SECURITY WARNING: keep the secret key used in production secret!
+# ==============================================================================
+# SECURITY SETTINGS
+# ==============================================================================
+
 SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key-change-in-production")
 
-# Host Configuration
+# ==============================================================================
+# HOST CONFIGURATION
+# ==============================================================================
+
 HOST_IP = os.getenv("HOST_IP", "localhost")
 BACKEND_PORT = os.getenv("BACKEND_PORT", "8000")
 FRONTEND_PORT = os.getenv("FRONTEND_PORT", "5173")
 
-# Application definition
+# ==============================================================================
+# APPLICATION DEFINITION
+# ==============================================================================
+
 DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -113,7 +122,10 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "backend.wsgi.application"
 
-# Password validation
+# ==============================================================================
+# PASSWORD VALIDATION
+# ==============================================================================
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -129,20 +141,32 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
+# ==============================================================================
+# INTERNATIONALIZATION
+# ==============================================================================
+
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
 USE_I18N = True
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
+# ==============================================================================
+# STATIC FILES
+# ==============================================================================
+
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
-# Default primary key field type
+# ==============================================================================
+# DEFAULT FIELD TYPES
+# ==============================================================================
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Django REST Framework configuration
+# ==============================================================================
+# DJANGO REST FRAMEWORK
+# ==============================================================================
+
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
@@ -159,7 +183,10 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "core.exceptions.custom_exception_handler",
 }
 
-# CORS configuration
+# ==============================================================================
+# CORS CONFIGURATION
+# ==============================================================================
+
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     f"http://{HOST_IP}:{FRONTEND_PORT}",
@@ -167,7 +194,6 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
 
-# Additional CORS settings
 CORS_ALLOW_HEADERS = [
     "accept",
     "accept-encoding",
@@ -181,52 +207,47 @@ CORS_ALLOW_HEADERS = [
     "cache-control",
 ]
 
-# Storage configuration
+# ==============================================================================
+# STORAGE CONFIGURATION
+# ==============================================================================
+
 DEFAULT_STORAGE_BACKEND = "minio"
 DEFAULT_FILE_STORAGE = "infrastructure.storage.backends.MinIOStorage"
 
 # MinIO Configuration
-MINIO_SETTINGS = {
-    "ENDPOINT": os.getenv("MINIO_ENDPOINT", "localhost:9000"),
-    "PUBLIC_ENDPOINT": os.getenv(
-        "MINIO_PUBLIC_ENDPOINT", os.getenv("MINIO_ENDPOINT", "localhost:9000")
-    ),  # Public URL for browser access
-    "ACCESS_KEY": os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
-    "SECRET_KEY": os.getenv("MINIO_SECRET_KEY", "minioadmin"),
-    "BUCKET_NAME": os.getenv("MINIO_BUCKET_NAME", "deepsight-users"),
-    "SECURE": get_env_bool("MINIO_SECURE", False),
-    "REGION": os.getenv("MINIO_REGION", "us-east-1"),
-}
-
-# Expose individual settings for easier access
-MINIO_ENDPOINT = MINIO_SETTINGS["ENDPOINT"]
-MINIO_PUBLIC_ENDPOINT = MINIO_SETTINGS["PUBLIC_ENDPOINT"]
-MINIO_ACCESS_KEY = MINIO_SETTINGS["ACCESS_KEY"]
-MINIO_SECRET_KEY = MINIO_SETTINGS["SECRET_KEY"]
-MINIO_BUCKET_NAME = MINIO_SETTINGS["BUCKET_NAME"]
-MINIO_USE_SSL = MINIO_SETTINGS["SECURE"]
-MINIO_REGION = MINIO_SETTINGS["REGION"]
-
-# AWS S3 settings configured for MinIO compatibility
-AWS_ACCESS_KEY_ID = MINIO_SETTINGS["ACCESS_KEY"]
-AWS_SECRET_ACCESS_KEY = MINIO_SETTINGS["SECRET_KEY"]
-AWS_STORAGE_BUCKET_NAME = MINIO_SETTINGS["BUCKET_NAME"]
-AWS_S3_ENDPOINT_URL = (
-    f"{'https' if MINIO_SETTINGS['SECURE'] else 'http'}://{MINIO_SETTINGS['ENDPOINT']}"
+MINIO_USE_SSL = get_env_bool("MINIO_SECURE", False)
+MINIO_ENDPOINT = os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
+MINIO_PUBLIC_ENDPOINT = os.getenv(
+    "MINIO_PUBLIC_ENDPOINT", os.getenv("MINIO_ENDPOINT", "http://localhost:9000")
 )
-AWS_S3_REGION_NAME = MINIO_SETTINGS["REGION"]
-AWS_S3_USE_SSL = MINIO_SETTINGS["SECURE"]
-AWS_S3_VERIFY = MINIO_SETTINGS["SECURE"]
+MINIO_ACCESS_KEY = os.getenv("MINIO_ACCESS_KEY", "minioadmin")
+MINIO_SECRET_KEY = os.getenv("MINIO_SECRET_KEY", "minioadmin")
+MINIO_BUCKET_NAME = os.getenv("MINIO_BUCKET_NAME", "deepsight-users")
+MINIO_REGION = os.getenv("MINIO_REGION", "us-east-1")
 
-# Search configuration (Milvus)
-MILVUS_SETTINGS = {
-    "HOST": os.getenv("MILVUS_HOST", "localhost"),
-    "PORT": os.getenv("MILVUS_PORT", "19530"),
-    "COLLECTION": os.getenv("MILVUS_COLLECTION", "user_vectors"),
-}
+# AWS S3 settings configured for MinIO compatibility (used by boto3/django-storages)
+AWS_ACCESS_KEY_ID = MINIO_ACCESS_KEY
+AWS_SECRET_ACCESS_KEY = MINIO_SECRET_KEY
+AWS_STORAGE_BUCKET_NAME = MINIO_BUCKET_NAME
+AWS_S3_ENDPOINT_URL = MINIO_ENDPOINT
+AWS_S3_REGION_NAME = MINIO_REGION
+AWS_S3_USE_SSL = MINIO_USE_SSL
+AWS_S3_VERIFY = MINIO_USE_SSL
 
-# RagFlow Configuration
+# ==============================================================================
+# VECTOR DATABASE CONFIGURATION (MILVUS)
+# ==============================================================================
+
+MILVUS_HOST = os.getenv("MILVUS_HOST", "localhost")
+MILVUS_PORT = os.getenv("MILVUS_PORT", "19530")
+MILVUS_COLLECTION = os.getenv("MILVUS_COLLECTION", "user_vectors")
+
+# ==============================================================================
+# RAGFLOW CONFIGURATION
+# ==============================================================================
+
 RAGFLOW_API_KEY = os.getenv("RAGFLOW_API_KEY")
+RAGFLOW_LOGIN_TOKEN = os.getenv("RAGFLOW_LOGIN_TOKEN")
 RAGFLOW_BASE_URL = os.getenv("RAGFLOW_BASE_URL", "https://demo.ragflow.io:9380")
 RAGFLOW_DEFAULT_CHUNK_METHOD = os.getenv("RAGFLOW_CHUNK_METHOD", "naive")
 RAGFLOW_DEFAULT_EMBEDDING_MODEL = os.getenv(
@@ -234,7 +255,10 @@ RAGFLOW_DEFAULT_EMBEDDING_MODEL = os.getenv(
 )
 RAGFLOW_CHAT_MODEL = os.getenv("RAGFLOW_CHAT_MODEL", "deepseek-chat@DeepSeek")
 
-# Celery Configuration
+# ==============================================================================
+# CELERY CONFIGURATION
+# ==============================================================================
+
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
@@ -242,10 +266,16 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
 
-# AI Service Configuration
+# ==============================================================================
+# AI SERVICE CONFIGURATION
+# ==============================================================================
+
+# OpenAI Configuration
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_ORG = os.getenv("OPENAI_ORG")
 OPENAI_PROJECT = os.getenv("OPENAI_PROJECT")
+
+# Azure OpenAI Configuration
 AZURE_API_KEY = os.getenv("AZURE_API_KEY")
 
 # Google AI Configuration
@@ -255,7 +285,10 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 XINFERENCE_API_BASE = os.getenv("XINFERENCE_API_BASE")
 XINFERENCE_API_KEY = os.getenv("XINFERENCE_API_KEY", "dummy")
 
-# Search API Configuration
+# ==============================================================================
+# SEARCH API CONFIGURATION
+# ==============================================================================
+
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 BRAVE_API_KEY = os.getenv("BRAVE_API_KEY")
 SERPER_API_KEY = os.getenv("SERPER_API_KEY")
@@ -263,24 +296,29 @@ YOU_API_KEY = os.getenv("YOU_API_KEY")
 BING_API_KEY = os.getenv("BING_API_KEY")
 SEARXNG_URL = os.getenv("SEARXNG_URL")
 SEARXNG_API_KEY = os.getenv("SEARXNG_API_KEY")
+
+# Azure AI Search Configuration
 AZURE_AI_SEARCH_API_KEY = os.getenv("AZURE_AI_SEARCH_API_KEY")
 AZURE_AI_SEARCH_ENDPOINT = os.getenv("AZURE_AI_SEARCH_ENDPOINT")
 AZURE_AI_SEARCH_INDEX = os.getenv("AZURE_AI_SEARCH_INDEX")
 
-# MiniMax TTS Configuration
-# Deprecated: Minimax removed from podcast TTS pipeline
-MINIMAX_GROUP_ID = None
-MINIMAX_API_KEY = None
+# ==============================================================================
+# TTS CONFIGURATION
+# ==============================================================================
 
 # Higgs TTS (OpenAI-compatible) Configuration
 HIGGS_API_BASE = os.getenv("HIGGS_API_BASE", "http://localhost:8000/v1")
-HIGGS_TTS_MODEL = os.getenv(
-    "HIGGS_TTS_MODEL"
-)  # optional; if not set, first available model is used
+HIGGS_TTS_MODEL = os.getenv("HIGGS_TTS_MODEL")
 
-# Document Processing
+# ==============================================================================
+# DOCUMENT PROCESSING
+# ==============================================================================
+
 MINERU_BASE_URL = os.getenv("MINERU_BASE_URL")
 
+# ==============================================================================
+# LOGGING CONFIGURATION
+# ==============================================================================
 
 # Create logs directory if it doesn't exist
 LOGS_DIR = BASE_DIR / "logs"

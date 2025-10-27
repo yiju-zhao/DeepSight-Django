@@ -28,16 +28,26 @@ class MinIOStorage(StorageInterface):
     def _initialize_client(self):
         """Initialize MinIO client with settings from Django configuration."""
         try:
-            minio_settings = getattr(settings, "MINIO_SETTINGS", {})
+            from urllib.parse import urlparse
+
+            # Get endpoint and parse it to extract hostname:port
+            endpoint_url = getattr(settings, "MINIO_ENDPOINT", "http://localhost:9000")
+            parsed = urlparse(endpoint_url)
+
+            # Extract hostname and port
+            endpoint = parsed.netloc if parsed.netloc else endpoint_url
+
+            # Determine if secure based on scheme or MINIO_USE_SSL setting
+            secure = parsed.scheme == "https" if parsed.scheme else getattr(settings, "MINIO_USE_SSL", False)
 
             self._client = Minio(
-                endpoint=minio_settings.get("ENDPOINT", "localhost:9000"),
-                access_key=minio_settings.get("ACCESS_KEY", "minioadmin"),
-                secret_key=minio_settings.get("SECRET_KEY", "minioadmin"),
-                secure=minio_settings.get("SECURE", False),
+                endpoint=endpoint,
+                access_key=getattr(settings, "MINIO_ACCESS_KEY", "minioadmin"),
+                secret_key=getattr(settings, "MINIO_SECRET_KEY", "minioadmin"),
+                secure=secure,
             )
 
-            self._bucket_name = minio_settings.get("BUCKET_NAME", "deepsight-users")
+            self._bucket_name = getattr(settings, "MINIO_BUCKET_NAME", "deepsight-users")
 
             # Ensure bucket exists
             self._ensure_bucket_exists()

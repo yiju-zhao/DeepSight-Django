@@ -67,11 +67,7 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 # Test storage settings - use in-memory storage when possible
 # For MinIO tests, use a test bucket
-MINIO_SETTINGS.update(
-    {
-        "BUCKET_NAME": "test-bucket",
-    }
-)
+MINIO_BUCKET_NAME = "test-bucket"
 
 # Disable some middleware for faster tests
 MIDDLEWARE = [

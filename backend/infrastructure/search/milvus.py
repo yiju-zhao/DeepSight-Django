@@ -27,10 +27,8 @@ class MilvusSearch(SearchInterface):
     def _initialize_connection(self):
         """Initialize connection to Milvus server."""
         try:
-            milvus_settings = getattr(settings, "MILVUS_SETTINGS", {})
-
-            host = milvus_settings.get("HOST", "localhost")
-            port = milvus_settings.get("PORT", "19530")
+            host = getattr(settings, "MILVUS_HOST", "localhost")
+            port = getattr(settings, "MILVUS_PORT", "19530")
 
             connections.connect(alias="default", host=host, port=port)
 
