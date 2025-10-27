@@ -6,14 +6,14 @@
 # It calls the Django management command to perform the cleanup.
 #
 # Usage:
-#   ./cleanup_ragflow.sh              # Interactive cleanup with confirmation
-#   ./cleanup_ragflow.sh --dry-run    # Preview what would be deleted
-#   ./cleanup_ragflow.sh --force      # Skip confirmation prompt
+#   ./scripts/cleanup_ragflow.sh              # Interactive cleanup with confirmation
+#   ./scripts/cleanup_ragflow.sh --dry-run    # Preview what would be deleted
+#   ./scripts/cleanup_ragflow.sh --force      # Skip confirmation prompt
 #
 # Requirements:
 #   - Django environment must be configured
 #   - RagFlow API credentials must be set in .env
-#   - Must be run from the backend directory
+#   - Script is located in backend/scripts/ directory
 
 set -e  # Exit on error
 
@@ -24,9 +24,10 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Script directory
+# Get script directory and navigate to backend directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+BACKEND_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+cd "$BACKEND_DIR"
 
 # Print colored output
 print_info() {
@@ -54,14 +55,15 @@ print_header() {
     echo ""
 }
 
-# Check if we're in the backend directory
+# Check if we can find the backend directory with manage.py
 check_directory() {
     if [ ! -f "manage.py" ]; then
         print_error "Error: manage.py not found!"
-        print_error "Please run this script from the backend directory."
+        print_error "Cannot locate backend directory from: $SCRIPT_DIR"
+        print_error "Please ensure this script is in backend/scripts/"
         exit 1
     fi
-    print_success "Running from backend directory"
+    print_success "Found backend directory: $BACKEND_DIR"
 }
 
 # Check if virtual environment is activated
