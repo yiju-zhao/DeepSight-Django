@@ -3,15 +3,14 @@ Common view mixins and utilities for notebooks app.
 """
 
 import logging
-from typing import Dict, Any, Optional
-from django.http import Http404
+from typing import Any
+
 from django.shortcuts import get_object_or_404
-from rest_framework import status
+from rest_framework import authentication, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework import permissions, authentication
 
-from ..models import Notebook, KnowledgeBaseItem
+from ..models import KnowledgeBaseItem, Notebook
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +36,18 @@ class KnowledgeBasePermissionMixin:
 
     def verify_kb_item_access(self, kb_item_id: str, notebook) -> bool:
         """Verify knowledge base item exists in the specified notebook."""
-        return KnowledgeBaseItem.objects.filter(id=kb_item_id, notebook=notebook).exists()
+        return KnowledgeBaseItem.objects.filter(
+            id=kb_item_id, notebook=notebook
+        ).exists()
 
     # Legacy method for backward compatibility
     def get_user_kb_item(self, kb_item_id: str, user):
         """Legacy method - knowledge base items are now notebook-specific."""
         # This method is deprecated since knowledge base items are now notebook-specific
         # Kept for backward compatibility but will require notebook context
-        raise NotImplementedError("Use get_notebook_kb_item with notebook parameter instead")
+        raise NotImplementedError(
+            "Use get_notebook_kb_item with notebook parameter instead"
+        )
 
 
 class StandardAPIView(APIView):
@@ -70,7 +73,7 @@ class StandardAPIView(APIView):
         self,
         message: str,
         status_code: int = status.HTTP_400_BAD_REQUEST,
-        details: Optional[Dict] = None,
+        details: dict | None = None,
     ) -> Response:
         """Standardized error response."""
         response_data = {"success": False, "error": message}
@@ -116,7 +119,7 @@ class PaginationMixin:
 class FileMetadataExtractorMixin:
     """Mixin for extracting metadata from file objects."""
 
-    def extract_original_filename(self, metadata: Dict, fallback_title: str) -> str:
+    def extract_original_filename(self, metadata: dict, fallback_title: str) -> str:
         """Extract original filename from metadata."""
         if metadata:
             # Try different metadata keys
@@ -125,13 +128,13 @@ class FileMetadataExtractorMixin:
                     return metadata[key]
         return fallback_title
 
-    def extract_file_extension(self, metadata: Dict) -> Optional[str]:
+    def extract_file_extension(self, metadata: dict) -> str | None:
         """Extract file extension from metadata."""
         if metadata and "file_extension" in metadata:
             return metadata["file_extension"]
         return None
 
-    def extract_file_size(self, metadata: Dict) -> Optional[int]:
+    def extract_file_size(self, metadata: dict) -> int | None:
         """Extract file size from metadata."""
         if metadata and "file_size" in metadata:
             try:
@@ -144,14 +147,14 @@ class FileMetadataExtractorMixin:
 class FileListResponseMixin(FileMetadataExtractorMixin):
     """Mixin for generating standardized file list responses."""
 
-    def build_file_response_data(self, kb_item: KnowledgeBaseItem) -> Dict[str, Any]:
+    def build_file_response_data(self, kb_item: KnowledgeBaseItem) -> dict[str, Any]:
         """Build standardized file response data from KnowledgeBaseItem."""
 
         # Combine metadata and file_metadata for frontend compatibility
         combined_metadata = {**(kb_item.metadata or {})}
         if kb_item.file_metadata:
-            combined_metadata['file_metadata'] = kb_item.file_metadata
-            
+            combined_metadata["file_metadata"] = kb_item.file_metadata
+
         file_data = {
             "file_id": str(kb_item.id),
             "title": kb_item.title,

@@ -1,4 +1,5 @@
 from django.contrib import admin
+
 from .models import Report, ReportImage
 
 
@@ -156,18 +157,19 @@ class ReportAdmin(admin.ModelAdmin):
 
 class ReportImageInline(admin.TabularInline):
     """Inline admin for ReportImage to show images within Report admin."""
+
     model = ReportImage
     extra = 0
     readonly_fields = (
-        'figure_id', 
-        'image_caption', 
-        'report_figure_minio_object_key',
-        'content_type',
-        'file_size',
-        'created_at'
+        "figure_id",
+        "image_caption",
+        "report_figure_minio_object_key",
+        "content_type",
+        "file_size",
+        "created_at",
     )
     can_delete = False
-    
+
     def has_add_permission(self, request, obj=None):
         return False
 
@@ -179,56 +181,58 @@ ReportAdmin.inlines = [ReportImageInline]
 @admin.register(ReportImage)
 class ReportImageAdmin(admin.ModelAdmin):
     list_display = (
-        'figure_id',
-        'report',
-        'image_caption_truncated',
-        'content_type',
-        'file_size',
-        'created_at'
+        "figure_id",
+        "report",
+        "image_caption_truncated",
+        "content_type",
+        "file_size",
+        "created_at",
     )
-    list_filter = (
-        'content_type',
-        'created_at',
-        'report__user'
-    )
+    list_filter = ("content_type", "created_at", "report__user")
     search_fields = (
-        'figure_id',
-        'image_caption',
-        'report__article_title',
-        'report_figure_minio_object_key'
+        "figure_id",
+        "image_caption",
+        "report__article_title",
+        "report_figure_minio_object_key",
     )
     readonly_fields = (
-        'figure_id',
-        'report_figure_minio_object_key',
-        'image_metadata',
-        'created_at',
-        'updated_at',
-        'get_image_preview'
+        "figure_id",
+        "report_figure_minio_object_key",
+        "image_metadata",
+        "created_at",
+        "updated_at",
+        "get_image_preview",
     )
-    raw_id_fields = ('report',)
-    
+    raw_id_fields = ("report",)
+
     def image_caption_truncated(self, obj):
         """Truncate long captions for list display."""
-        return obj.image_caption[:50] + '...' if len(obj.image_caption) > 50 else obj.image_caption
-    image_caption_truncated.short_description = 'Caption'
-    
+        return (
+            obj.image_caption[:50] + "..."
+            if len(obj.image_caption) > 50
+            else obj.image_caption
+        )
+
+    image_caption_truncated.short_description = "Caption"
+
     def get_image_preview(self, obj):
         """Display image preview in admin."""
         if obj.report_figure_minio_object_key:
             url = obj.get_image_url(expires=3600)
             if url:
                 from django.utils.html import format_html
+
                 return format_html(
-                    '<img src="{}" style="max-width: 300px; max-height: 300px;" />',
-                    url
+                    '<img src="{}" style="max-width: 300px; max-height: 300px;" />', url
                 )
         return "No image available"
-    get_image_preview.short_description = 'Image Preview'
-    
+
+    get_image_preview.short_description = "Image Preview"
+
     def has_add_permission(self, request):
         """Prevent manual addition of report images."""
         return False
-    
+
     def has_change_permission(self, request, obj=None):
         """Prevent editing of report images."""
         return False

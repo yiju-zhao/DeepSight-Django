@@ -2,16 +2,15 @@ import concurrent.futures
 import logging
 import os
 from concurrent.futures import as_completed
-from typing import Union, List, Tuple, Optional, Dict
 
 import dspy
+from prompts import import_prompts
 
+from ...interface import Information, KnowledgeCurationModule, Retriever
+from ...utils import ArticleTextProcessing
 from .callback import BaseCallbackHandler
 from .persona_generator import StormPersonaGenerator
 from .storm_dataclass import DialogueTurn, StormInformationTable
-from ...interface import KnowledgeCurationModule, Retriever, Information
-from ...utils import ArticleTextProcessing
-from prompts import import_prompts
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,8 +18,8 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 class ConvSimulator(dspy.Module):
     def __init__(
         self,
-        topic_expert_engine: Union[dspy.dsp.LM, dspy.dsp.HFModel],
-        question_asker_engine: Union[dspy.dsp.LM, dspy.dsp.HFModel],
+        topic_expert_engine: dspy.dsp.LM | dspy.dsp.HFModel,
+        question_asker_engine: dspy.dsp.LM | dspy.dsp.HFModel,
         retriever: Retriever,
         max_search_queries_per_turn: int,
         search_top_k: int,
@@ -42,10 +41,10 @@ class ConvSimulator(dspy.Module):
         persona: str,
         ground_truth_url: str,
         callback_handler: BaseCallbackHandler,
-        topic: Optional[str] = None,
-        old_outline: Optional[str] = None,
+        topic: str | None = None,
+        old_outline: str | None = None,
     ):
-        dlg_history: List[DialogueTurn] = []
+        dlg_history: list[DialogueTurn] = []
 
         # Add an initial turn to gather data and figures related to the topic
         initial_question = (
@@ -97,7 +96,7 @@ class ConvSimulator(dspy.Module):
 
 
 class WikiWriter(dspy.Module):
-    def __init__(self, engine: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def __init__(self, engine: dspy.dsp.LM | dspy.dsp.HFModel):
         super().__init__()
         self.ask_question_with_persona = dspy.ChainOfThought(AskQuestionWithPersona)
         self.ask_question = dspy.ChainOfThought(AskQuestion)
@@ -107,10 +106,10 @@ class WikiWriter(dspy.Module):
         self,
         text_input: str,
         persona: str,
-        dialogue_turns: List[DialogueTurn],
+        dialogue_turns: list[DialogueTurn],
         draft_page=None,
-        topic: Optional[str] = None,
-        old_outline: Optional[str] = None,
+        topic: str | None = None,
+        old_outline: str | None = None,
     ):
         conv = []
         for turn in dialogue_turns[:-4]:
@@ -196,7 +195,7 @@ class AnswerQuestion(dspy.Signature):
 class TopicExpert(dspy.Module):
     def __init__(
         self,
-        engine: Union[dspy.dsp.LM, dspy.dsp.HFModel],
+        engine: dspy.dsp.LM | dspy.dsp.HFModel,
         max_search_queries: int,
         search_top_k: int,
         retriever: Retriever,
@@ -214,7 +213,7 @@ class TopicExpert(dspy.Module):
         text_input: str,
         question: str,
         ground_truth_url: str,
-        old_outline: Optional[str] = None,
+        old_outline: str | None = None,
     ):
         with dspy.settings.context(lm=self.engine, show_guidelines=False):
             queries = self.generate_queries(
@@ -225,7 +224,7 @@ class TopicExpert(dspy.Module):
                 for q in queries.split("\n")
             ]
             queries = queries[: self.max_search_queries]
-            searched_results: List[Information] = self.retriever.retrieve(
+            searched_results: list[Information] = self.retriever.retrieve(
                 list(set(queries)), exclude_urls=[ground_truth_url]
             )
             if len(searched_results) > 0:
@@ -260,9 +259,9 @@ class StormKnowledgeCurationModule(KnowledgeCurationModule):
     def __init__(
         self,
         retriever: Retriever,
-        persona_generator: Optional[StormPersonaGenerator],
-        conv_simulator_lm: Union[dspy.dsp.LM, dspy.dsp.HFModel],
-        question_asker_lm: Union[dspy.dsp.LM, dspy.dsp.HFModel],
+        persona_generator: StormPersonaGenerator | None,
+        conv_simulator_lm: dspy.dsp.LM | dspy.dsp.HFModel,
+        question_asker_lm: dspy.dsp.LM | dspy.dsp.HFModel,
         max_search_queries_per_turn: int,
         search_top_k: int,
         max_conv_turn: int,
@@ -287,9 +286,9 @@ class StormKnowledgeCurationModule(KnowledgeCurationModule):
         self,
         text_input: str,
         max_num_persona,
-        topic: Optional[str] = None,
-        old_outline: Optional[str] = None,
-    ) -> List[str]:
+        topic: str | None = None,
+        old_outline: str | None = None,
+    ) -> list[str]:
         return self.persona_generator.generate_persona(
             text_input=text_input,
             max_num_persona=max_num_persona,
@@ -304,9 +303,9 @@ class StormKnowledgeCurationModule(KnowledgeCurationModule):
         ground_truth_url,
         considered_personas,
         callback_handler: BaseCallbackHandler,
-        topic: Optional[str] = None,
-        old_outline: Optional[str] = None,
-    ) -> List[Tuple[str, List[DialogueTurn]]]:
+        topic: str | None = None,
+        old_outline: str | None = None,
+    ) -> list[tuple[str, list[DialogueTurn]]]:
         conversations = []
 
         def run_conv(persona):
@@ -341,9 +340,9 @@ class StormKnowledgeCurationModule(KnowledgeCurationModule):
         max_perspective: int = 0,
         disable_perspective: bool = True,
         return_conversation_log=False,
-        topic: Optional[str] = None,
-        old_outline: Optional[str] = None,
-    ) -> Union[StormInformationTable, Tuple[StormInformationTable, Dict]]:
+        topic: str | None = None,
+        old_outline: str | None = None,
+    ) -> StormInformationTable | tuple[StormInformationTable, dict]:
         callback_handler.on_identify_perspective_start()
         considered_personas = []
         if disable_perspective:

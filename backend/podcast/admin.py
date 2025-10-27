@@ -1,4 +1,5 @@
 from django.contrib import admin
+
 from .models import Podcast
 
 
@@ -12,7 +13,10 @@ class PodcastAdmin(admin.ModelAdmin):
     fieldsets = (
         ("Basic Information", {"fields": ("id", "user", "title", "description")}),
         ("Status", {"fields": ("status", "progress", "error_message")}),
-        ("Files", {"fields": ("source_file_ids", "audio_object_key", "conversation_text")}),
+        (
+            "Files",
+            {"fields": ("source_file_ids", "audio_object_key", "conversation_text")},
+        ),
         ("Metadata", {"fields": ("source_metadata", "file_metadata")}),
         ("Timestamps", {"fields": ("created_at", "updated_at")}),
     )

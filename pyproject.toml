@@ -17,6 +17,17 @@ exclude = '''
 [tool.ruff]
 target-version = "py311"
 line-length = 88
+exclude = [
+    ".git",
+    ".venv",
+    ".env",
+    "__pycache__",
+    "build",
+    "dist",
+    "migrations",
+]
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle errors
     "W",  # pycodestyle warnings
@@ -31,19 +42,15 @@ ignore = [
     "B008",  # do not perform function calls in argument defaults
     "C901",  # too complex
 ]
-exclude = [
-    ".git",
-    ".venv",
-    ".env",
-    "__pycache__",
-    "build",
-    "dist",
-    "migrations",
-]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "backend/*/migrations/*.py" = ["E501"]
+"**/knowledge_storm/**/*.py" = ["F403", "F405", "B027", "B024", "F811", "E721", "B904", "E722", "F401"]
+"**/report_agent/__init__.py" = ["E402"]
+"**/users/views.py" = ["E402"]
+"**/settings/**/*.py" = ["F403", "F405"]
+"**/settings/__init__.py" = ["F403", "F405"]
 
 [tool.mypy]
 python_version = "3.11"

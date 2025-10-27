@@ -5,8 +5,8 @@ This package provides comprehensive research report generation capabilities
 using state-of-the-art language models and retrieval systems.
 """
 
-import sys
 import os
+import sys
 from pathlib import Path
 
 # CRITICAL: Setup path to prioritize local knowledge_storm BEFORE any imports
@@ -17,9 +17,9 @@ if str(_PACKAGE_DIR) not in sys.path:
 # Now import from deep_report_generator (this will now find local knowledge_storm)
 from .deep_report_generator import (
     DeepReportGenerator,
+    ModelProvider,
     ReportGenerationConfig,
     ReportGenerationResult,
-    ModelProvider,
     RetrieverType,
     TimeRange,
     generate_report_from_config,

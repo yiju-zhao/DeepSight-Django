@@ -5,20 +5,21 @@ This module handles all file I/O operations including content loading,
 file processing, and output collection.
 """
 
-import os
 import glob
-import tempfile
 import logging
-from typing import List, Optional, Union, Tuple
+import os
+import tempfile
+
 import pandas as pd
-from pathlib import Path
 
 # Preserve lazy import pattern
 FileIOHelper = truncate_filename = None
 
+
 def _ensure_storm_imported():
     """Ensure STORM modules are imported (delegated to main module)."""
     from . import deep_report_generator as drg
+
     drg._lazy_import_knowledge_storm()
 
     global FileIOHelper, truncate_filename
@@ -32,14 +33,14 @@ class IOManager:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def load_content_from_file(self, file_path: str) -> Optional[str]:
+    def load_content_from_file(self, file_path: str) -> str | None:
         """Load content from a .txt or .md file and clean it."""
         if not os.path.exists(file_path):
             self.logger.warning(f"File not found: {file_path}")
             return None
 
         try:
-            with open(file_path, "r", encoding="utf-8") as file:
+            with open(file_path, encoding="utf-8") as file:
                 content = file.read().strip()
                 if not content:
                     self.logger.warning(f"File is empty: {file_path}")
@@ -53,7 +54,7 @@ class IOManager:
             self.logger.error(f"Error reading file {file_path}: {e}")
             return None
 
-    def load_structured_data(self, path: str) -> Union[str, List[str], None]:
+    def load_structured_data(self, path: str) -> str | list[str] | None:
         """Load structured data from a given path and clean paper content."""
         if os.path.isdir(path):
             all_content = []
@@ -67,7 +68,9 @@ class IOManager:
         else:
             return self.load_content_from_file(path)
 
-    def process_csv_metadata(self, config) -> Tuple[str, Optional[str], Optional[Union[str, List[str]]]]:
+    def process_csv_metadata(
+        self, config
+    ) -> tuple[str, str | None, str | list[str] | None]:
         """Process CSV metadata and return consolidated information."""
         _ensure_storm_imported()
 
@@ -91,7 +94,7 @@ class IOManager:
                         speakers = ", ".join(unique_speakers)
 
                 # Use CSV-derived title if available
-                if hasattr(config, 'csv_derived_title') and config.csv_derived_title:
+                if hasattr(config, "csv_derived_title") and config.csv_derived_title:
                     article_title = config.csv_derived_title
 
             except Exception as e:
@@ -99,7 +102,7 @@ class IOManager:
 
         return article_title, speakers, csv_text_input
 
-    def _process_csv_content(self, df: pd.DataFrame, config) -> Optional[str]:
+    def _process_csv_content(self, df: pd.DataFrame, config) -> str | None:
         """Process CSV content based on configuration."""
         try:
             # Define date conversion function
@@ -145,7 +148,7 @@ class IOManager:
             self.logger.error(f"Error processing CSV content: {e}")
             return None
 
-    def collect_generated_files(self, output_dir: str) -> List[str]:
+    def collect_generated_files(self, output_dir: str) -> list[str]:
         """Collect all generated files from the output directory."""
         generated_files = []
 
@@ -155,9 +158,18 @@ class IOManager:
 
             # Filter to only include files (not directories) and common report file types
             for file_path in all_files:
-                if (os.path.isfile(file_path) and
-                    any(file_path.endswith(ext) for ext in
-                        ['.md', '.txt', '.json', '.jsonl', '.html', '.pdf', '.csv'])):
+                if os.path.isfile(file_path) and any(
+                    file_path.endswith(ext)
+                    for ext in [
+                        ".md",
+                        ".txt",
+                        ".json",
+                        ".jsonl",
+                        ".html",
+                        ".pdf",
+                        ".csv",
+                    ]
+                ):
                     generated_files.append(file_path)
 
             self.logger.info(
@@ -188,11 +200,15 @@ class IOManager:
         _ensure_storm_imported()
 
         if truncate_filename is None:
-            self.logger.error("truncate_filename function is not available after import")
-            raise RuntimeError("Failed to import truncate_filename function from knowledge_storm")
+            self.logger.error(
+                "truncate_filename function is not available after import"
+            )
+            raise RuntimeError(
+                "Failed to import truncate_filename function from knowledge_storm"
+            )
 
         # Set article directory name (but don't create subfolder - use output_dir directly)
-        folder_name = truncate_filename(
+        truncate_filename(
             article_title.replace(" ", "_").replace("/", "_")
         )
 
@@ -202,25 +218,27 @@ class IOManager:
 
         return article_output_dir
 
-    def process_final_report_content(self, config, output_dir: str) -> Optional[str]:
+    def process_final_report_content(self, config, output_dir: str) -> str | None:
         """Process and return the final report content."""
         if not config.post_processing:
             return None
 
-        polished_article_path = os.path.join(output_dir, "storm_gen_article_polished.md")
+        polished_article_path = os.path.join(
+            output_dir, "storm_gen_article_polished.md"
+        )
         if not os.path.exists(polished_article_path):
             return None
 
         try:
             if config.source_ids:
                 # Apply full post-processing with image path fixing
-                with open(polished_article_path, "r", encoding="utf-8") as f:
+                with open(polished_article_path, encoding="utf-8") as f:
                     content = f.read()
 
                 # Apply other post-processing
                 from agents.report_agent.utils.post_processing import (
-                    remove_citations,
                     remove_captions,
+                    remove_citations,
                     remove_figure_placeholders,
                 )
 
@@ -231,11 +249,16 @@ class IOManager:
                 return content
             else:
                 # No image path fixing needed, just apply traditional post-processing
-                with tempfile.NamedTemporaryFile(mode='w+', suffix='.md', delete=False) as temp_file:
+                with tempfile.NamedTemporaryFile(
+                    mode="w+", suffix=".md", delete=False
+                ) as temp_file:
                     from agents.report_agent.utils.post_processing import process_file
-                    process_file(polished_article_path, temp_file.name, config.post_processing)
 
-                    with open(temp_file.name, 'r', encoding='utf-8') as f:
+                    process_file(
+                        polished_article_path, temp_file.name, config.post_processing
+                    )
+
+                    with open(temp_file.name, encoding="utf-8") as f:
                         content = f.read()
 
                     os.unlink(temp_file.name)
@@ -245,17 +268,21 @@ class IOManager:
             self.logger.error(f"Error processing final report content: {e}")
             return None
 
-    def create_report_file(self, config, output_dir: str, content: str) -> Optional[str]:
+    def create_report_file(
+        self, config, output_dir: str, content: str
+    ) -> str | None:
         """Create the final report file and return its path."""
         if not content or not config.report_id:
             return None
 
         report_file_path = os.path.join(output_dir, f"report_{config.report_id}.md")
         try:
-            with open(report_file_path, 'w', encoding='utf-8') as f:
+            with open(report_file_path, "w", encoding="utf-8") as f:
                 f.write(content)
             self.logger.info(f"Created report_{config.report_id}.md file")
             return report_file_path
         except Exception as e:
-            self.logger.warning(f"Failed to create report_{config.report_id}.md file: {e}")
+            self.logger.warning(
+                f"Failed to create report_{config.report_id}.md file: {e}"
+            )
             return None

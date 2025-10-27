@@ -2,14 +2,14 @@ import copy
 import re
 import threading
 from collections import OrderedDict
-from typing import Union, Optional, Any, List, Tuple, Dict
+from typing import Any
 
 import numpy as np
+import torch
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-import torch
 
-from ...interface import Information, InformationTable, Article, ArticleSectionNode
+from ...interface import Article, ArticleSectionNode, Information, InformationTable
 from ...utils import ArticleTextProcessing, FileIOHelper
 
 
@@ -27,8 +27,8 @@ class DialogueTurn:
         self,
         agent_utterance: str = None,
         user_utterance: str = None,
-        search_queries: Optional[List[str]] = None,
-        search_results: Optional[List[Union[Information, Dict]]] = None,
+        search_queries: list[str] | None = None,
+        search_results: list[Information | dict] | None = None,
     ):
         self.agent_utterance = agent_utterance
         self.user_utterance = user_utterance
@@ -100,11 +100,11 @@ class StormInformationTable(InformationTable):
 
     @staticmethod
     def construct_url_to_info(
-        conversations: List[Tuple[str, List[DialogueTurn]]],
-    ) -> Dict[str, Information]:
+        conversations: list[tuple[str, list[DialogueTurn]]],
+    ) -> dict[str, Information]:
         url_to_info = {}
 
-        for persona, conv in conversations:
+        for _persona, conv in conversations:
             for turn in conv:
                 # Skip if search_results is None
                 if turn.search_results is None:
@@ -121,8 +121,8 @@ class StormInformationTable(InformationTable):
 
     @staticmethod
     def construct_log_dict(
-        conversations: List[Tuple[str, List[DialogueTurn]]],
-    ) -> List[Dict[str, Union[str, Any]]]:
+        conversations: list[tuple[str, list[DialogueTurn]]],
+    ) -> list[dict[str, str | Any]]:
         conversation_log = []
         for persona, conv in conversations:
             conversation_log.append(
@@ -169,8 +169,8 @@ class StormInformationTable(InformationTable):
             )
 
     def retrieve_information(
-        self, queries: Union[List[str], str], search_top_k: int
-    ) -> List[Information]:
+        self, queries: list[str] | str, search_top_k: int
+    ) -> list[Information]:
         """
         Basic retrieval using cosine similarity with encoded snippets.
         """
@@ -200,7 +200,7 @@ class StormInformationTable(InformationTable):
                 selected_snippets.append(self.collected_snippets[i])
 
         url_to_snippets = {}
-        for url, snippet in zip(selected_urls, selected_snippets):
+        for url, snippet in zip(selected_urls, selected_snippets, strict=False):
             if url not in url_to_snippets:
                 url_to_snippets[url] = set()
             url_to_snippets[url].add(snippet)
@@ -220,7 +220,7 @@ class StormArticle(Article):
 
     def find_section(
         self, node: ArticleSectionNode, name: str
-    ) -> Optional[ArticleSectionNode]:
+    ) -> ArticleSectionNode | None:
         """
         Return the node of the section given the section name.
 
@@ -240,8 +240,8 @@ class StormArticle(Article):
         return None
 
     def _merge_new_info_to_references(
-        self, new_info_list: List[Information], index_to_keep=None
-    ) -> Dict[int, int]:
+        self, new_info_list: list[Information], index_to_keep=None
+    ) -> dict[int, int]:
         """
         Merges new storm information into existing references and updates the citation index mapping.
 
@@ -276,7 +276,7 @@ class StormArticle(Article):
 
     def insert_or_create_section(
         self,
-        article_dict: Dict[str, Dict],
+        article_dict: dict[str, dict],
         parent_section_name: str = None,
         trim_children=False,
     ):
@@ -317,9 +317,9 @@ class StormArticle(Article):
     def update_section(
         self,
         current_section_content: str,
-        current_section_info_list: List[Information],
-        parent_section_name: Optional[str] = None,
-    ) -> Optional[ArticleSectionNode]:
+        current_section_info_list: list[Information],
+        parent_section_name: str | None = None,
+    ) -> ArticleSectionNode | None:
         """
         Add new section to the article.
 
@@ -333,9 +333,9 @@ class StormArticle(Article):
         """
 
         if current_section_info_list is not None:
-            references = set(
-                [int(x) for x in re.findall(r"\[(\d+)\]", current_section_content)]
-            )
+            references = {
+                int(x) for x in re.findall(r"\[(\d+)\]", current_section_content)
+            }
             # for any reference number greater than max number of references, delete the reference
             if len(references) > 0:
                 max_ref_num = max(references)
@@ -368,10 +368,10 @@ class StormArticle(Article):
 
     def get_outline_as_list(
         self,
-        root_section_name: Optional[str] = None,
+        root_section_name: str | None = None,
         add_hashtags: bool = False,
         include_root: bool = True,
-    ) -> List[str]:
+    ) -> list[str]:
         """
         Get outline of the article as a list.
 
@@ -480,7 +480,7 @@ class StormArticle(Article):
                 self.reference["url_to_unified_index"][url] = new_index
 
     def get_outline_tree(self):
-        def build_tree(node) -> Dict[str, Dict]:
+        def build_tree(node) -> dict[str, dict]:
             tree = {}
             for child in node.children:
                 tree[child.section_name] = build_tree(child)
@@ -488,13 +488,13 @@ class StormArticle(Article):
 
         return build_tree(self.root)
 
-    def get_first_level_section_names(self) -> List[str]:
+    def get_first_level_section_names(self) -> list[str]:
         """
         Get first level section names
         """
         return [i.section_name for i in self.root.children]
 
-    def get_all_section_levels(self) -> List[str]:
+    def get_all_section_levels(self) -> list[str]:
         """
         Get all section names that should have content generated,
         according to the hierarchical structure.
@@ -556,8 +556,8 @@ class StormArticle(Article):
         instance = cls(topic)
         if lines:
             # Check if the first line has hashtags and matches the topic name (case-insensitive)
-            a = lines[0].startswith("#") and lines[0].replace("#", "").strip().lower()
-            b = topic.lower().replace("_", " ")
+            lines[0].startswith("#") and lines[0].replace("#", "").strip().lower()
+            topic.lower().replace("_", " ")
             adjust_level = lines[0].startswith("#") and lines[0].replace(
                 "#", ""
             ).strip().lower() == topic.lower().replace("_", " ")

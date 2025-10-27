@@ -6,8 +6,9 @@ and common query patterns.
 """
 
 import logging
+
 from django.db import models
-from django.db.models import Q, Count
+from django.db.models import Count, Q
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
@@ -30,37 +31,37 @@ class ReportQuerySet(models.QuerySet):
 
     def pending(self):
         """Filter pending reports."""
-        return self.filter(status='pending')
+        return self.filter(status="pending")
 
     def running(self):
         """Filter running reports."""
-        return self.filter(status='running')
+        return self.filter(status="running")
 
     def completed(self):
         """Filter completed reports."""
-        return self.filter(status='completed')
+        return self.filter(status="completed")
 
     def failed(self):
         """Filter failed reports."""
-        return self.filter(status='failed')
+        return self.filter(status="failed")
 
     def cancelled(self):
         """Filter cancelled reports."""
-        return self.filter(status='cancelled')
+        return self.filter(status="cancelled")
 
     def active(self):
         """Filter active (pending or running) reports."""
-        return self.filter(status__in=['pending', 'running'])
+        return self.filter(status__in=["pending", "running"])
 
     def finished(self):
         """Filter finished reports (completed, failed, or cancelled)."""
-        return self.filter(status__in=['completed', 'failed', 'cancelled'])
+        return self.filter(status__in=["completed", "failed", "cancelled"])
 
     def with_content(self):
         """Filter reports that have generated content."""
         return self.filter(
-            Q(result_content__isnull=False, result_content__gt='') |
-            Q(main_report_object_key__isnull=False, main_report_object_key__gt='')
+            Q(result_content__isnull=False, result_content__gt="")
+            | Q(main_report_object_key__isnull=False, main_report_object_key__gt="")
         )
 
     def by_provider(self, provider):
@@ -83,9 +84,9 @@ class ReportQuerySet(models.QuerySet):
     def search_content(self, query):
         """Simple text search in topic, title, and content."""
         return self.filter(
-            Q(topic__icontains=query) |
-            Q(article_title__icontains=query) |
-            Q(result_content__icontains=query)
+            Q(topic__icontains=query)
+            | Q(article_title__icontains=query)
+            | Q(result_content__icontains=query)
         )
 
     def with_images(self):
@@ -95,20 +96,21 @@ class ReportQuerySet(models.QuerySet):
     def with_files(self):
         """Filter reports that have generated files."""
         return self.exclude(
-            Q(main_report_object_key__isnull=True) | Q(main_report_object_key='')
+            Q(main_report_object_key__isnull=True) | Q(main_report_object_key="")
         )
 
     def with_metadata(self):
         """Annotate reports with useful metadata counts."""
         return self.annotate(
-            image_count=Count('images', distinct=True),
+            image_count=Count("images", distinct=True),
             generated_file_count=models.Case(
-                models.When(generated_files__isnull=False, then=models.Func(
-                    'generated_files', function='jsonb_array_length'
-                )),
+                models.When(
+                    generated_files__isnull=False,
+                    then=models.Func("generated_files", function="jsonb_array_length"),
+                ),
                 default=0,
-                output_field=models.IntegerField()
-            )
+                output_field=models.IntegerField(),
+            ),
         )
 
 
@@ -177,21 +179,18 @@ class ReportManager(models.Manager):
 
     def bulk_update_status(self, report_ids, status, progress=None, error=None):
         """Bulk update status for multiple reports."""
-        update_fields = {'status': status, 'updated_at': timezone.now()}
+        update_fields = {"status": status, "updated_at": timezone.now()}
         if progress is not None:
-            update_fields['progress'] = progress
+            update_fields["progress"] = progress
         if error is not None:
-            update_fields['error_message'] = error
+            update_fields["error_message"] = error
 
         return self.filter(id__in=report_ids).update(**update_fields)
 
     def cleanup_old_failed_reports(self, days=30):
         """Remove old failed reports."""
         cutoff_date = timezone.now() - timezone.timedelta(days=days)
-        old_failed = self.filter(
-            status='failed',
-            created_at__lt=cutoff_date
-        )
+        old_failed = self.filter(status="failed", created_at__lt=cutoff_date)
         count = old_failed.count()
         old_failed.delete()
         return count
@@ -210,7 +209,7 @@ class ReportImageQuerySet(models.QuerySet):
 
     def with_caption(self):
         """Filter images that have captions."""
-        return self.exclude(Q(image_caption='') | Q(image_caption__isnull=True))
+        return self.exclude(Q(image_caption="") | Q(image_caption__isnull=True))
 
     def recent(self, days=7):
         """Filter images created in the last N days."""

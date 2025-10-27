@@ -5,54 +5,64 @@ This file merges all notebook-related views and viewsets, replacing the
 previous notebooks/views/* modules.
 """
 
+import hashlib
 import json
 import logging
 import time
-import redis
-from typing import Any, Generator, Dict
+from collections.abc import Generator
+from typing import Any
 
+import redis
+from core.pagination import LargePageNumberPagination, NotebookPagination
+from core.permissions import IsNotebookOwner, IsOwnerPermission
 from django.conf import settings
+from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.http import HttpResponse, StreamingHttpResponse
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.http import http_date
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from django.contrib.auth.decorators import login_required
-from django.db import transaction
-from django.core.exceptions import ValidationError
-from django.utils.http import http_date
-import hashlib
-
-from rest_framework import viewsets, permissions, status, filters, authentication, serializers
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import (
+    authentication,
+    filters,
+    permissions,
+    serializers,
+    status,
+    viewsets,
+)
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.views import APIView
-from django_filters.rest_framework import DjangoFilterBackend
 
 from .models import (
-    Notebook,
-    KnowledgeBaseItem,
     BatchJob,
     ChatSession,
+    KnowledgeBaseItem,
+    Notebook,
 )
 from .serializers import (
-    NotebookSerializer,
-    NotebookListSerializer,
-    NotebookCreateSerializer,
-    NotebookUpdateSerializer,
-    FileUploadSerializer,
     BatchFileUploadSerializer,
-    KnowledgeBaseItemSerializer,
     BatchJobSerializer,
+    KnowledgeBaseItemSerializer,
+    NotebookCreateSerializer,
+    NotebookListSerializer,
+    NotebookSerializer,
+    NotebookUpdateSerializer,
+    URLParseDocumentSerializer,
     URLParseSerializer,
     URLParseWithMediaSerializer,
-    URLParseDocumentSerializer,
     VideoImageExtractionSerializer,
 )
-from .services import NotebookService, FileService, KnowledgeBaseService, ChatService, URLService
-from core.permissions import IsOwnerPermission, IsNotebookOwner
-from core.pagination import NotebookPagination, LargePageNumberPagination
+from .services import (
+    ChatService,
+    FileService,
+    KnowledgeBaseService,
+    NotebookService,
+    URLService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +77,11 @@ class NotebookViewSet(viewsets.ModelViewSet):
         authentication.TokenAuthentication,
     ]
     pagination_class = NotebookPagination
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
     filterset_fields = ["created_at"]
     search_fields = ["name", "description"]
     ordering_fields = ["name", "created_at", "updated_at"]
@@ -104,8 +118,8 @@ class NotebookViewSet(viewsets.ModelViewSet):
             validated_data = serializer.validated_data
             notebook = self.notebook_service.create_notebook(
                 user=self.request.user,
-                name=validated_data['name'],
-                description=validated_data.get('description', '')
+                name=validated_data["name"],
+                description=validated_data.get("description", ""),
             )
 
             # Update the serializer's instance with the created notebook
@@ -122,10 +136,11 @@ class NotebookViewSet(viewsets.ModelViewSet):
         try:
             # Use service layer for proper RAGFlow cleanup
             stats = self.notebook_service.delete_notebook(
-                notebook_id=str(instance.id),
-                user=self.request.user
+                notebook_id=str(instance.id), user=self.request.user
             )
-            logger.info(f"Notebook {instance.id} deleted successfully with stats: {stats}")
+            logger.info(
+                f"Notebook {instance.id} deleted successfully with stats: {stats}"
+            )
         except Exception as e:
             logger.exception(f"Failed to delete notebook {instance.id}: {e}")
             raise
@@ -138,7 +153,9 @@ class NotebookViewSet(viewsets.ModelViewSet):
             return Response(stats)
         except Exception as e:
             logger.exception(f"Failed to get notebook stats for {pk}: {e}")
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     @action(detail=True, methods=["post"], url_path="duplicate")
     def duplicate(self, request, pk=None):
@@ -151,7 +168,9 @@ class NotebookViewSet(viewsets.ModelViewSet):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         except Exception as e:
             logger.exception(f"Failed to duplicate notebook {pk}: {e}")
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # ----------------------------
@@ -161,7 +180,11 @@ class FileViewSet(viewsets.ModelViewSet):
     serializer_class = KnowledgeBaseItemSerializer
     permission_classes = [permissions.IsAuthenticated, IsNotebookOwner]
     pagination_class = LargePageNumberPagination
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
     filterset_fields = ["parsing_status", "content_type"]
     search_fields = ["title", "notes"]
     ordering_fields = ["created_at", "updated_at", "title"]
@@ -179,28 +202,36 @@ class FileViewSet(viewsets.ModelViewSet):
             return KnowledgeBaseItem.objects.none()
 
         notebook_id = self.kwargs.get("notebook_pk") or self.kwargs.get("notebook_id")
-        notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
-        return KnowledgeBaseItem.objects.filter(notebook=notebook).order_by("-created_at")
+        notebook = get_object_or_404(
+            Notebook.objects.filter(user=self.request.user), pk=notebook_id
+        )
+        return KnowledgeBaseItem.objects.filter(notebook=notebook).order_by(
+            "-created_at"
+        )
 
     def list(self, request, notebook_pk=None, *args, **kwargs):
         return super().list(request, *args, **kwargs)
 
     def create(self, request, notebook_pk=None, *args, **kwargs):
-        serializer = BatchFileUploadSerializer(data=request.data, context={'request': request, 'notebook_id': notebook_pk})
+        serializer = BatchFileUploadSerializer(
+            data=request.data, context={"request": request, "notebook_id": notebook_pk}
+        )
         serializer.is_valid(raise_exception=True)
         try:
             with transaction.atomic():
-                notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
-                
+                notebook = get_object_or_404(
+                    Notebook.objects.filter(user=request.user), pk=notebook_pk
+                )
+
                 # Handle single file upload - check both 'file' and 'files' fields
                 file_obj = serializer.validated_data.get("file")
                 if not file_obj and serializer.validated_data.get("files"):
                     file_obj = serializer.validated_data["files"][0]
-                    
+
                 if not file_obj:
                     raise ValidationError("No file provided")
-                
-                upload_id = serializer.validated_data.get('upload_file_id', '')
+
+                upload_id = serializer.validated_data.get("upload_file_id", "")
                 result = self.file_service.handle_single_file_upload(
                     file_obj=file_obj,
                     upload_id=upload_id,
@@ -208,7 +239,9 @@ class FileViewSet(viewsets.ModelViewSet):
                     user=request.user,
                 )
 
-                return Response(result, status=result.get('status_code', status.HTTP_201_CREATED))
+                return Response(
+                    result, status=result.get("status_code", status.HTTP_201_CREATED)
+                )
         except Exception as e:
             logger.exception(f"Failed to upload files: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -219,7 +252,9 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         try:
             with transaction.atomic():
-                notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
+                notebook = get_object_or_404(
+                    Notebook.objects.filter(user=request.user), pk=notebook_pk
+                )
                 files = self.file_service.handle_batch_upload(
                     user=request.user,
                     notebook=notebook,
@@ -237,7 +272,7 @@ class FileViewSet(viewsets.ModelViewSet):
         try:
             # Optional presigned URL expiry from querystring (seconds)
             try:
-                expires = int(request.GET.get('expires', '0'))
+                expires = int(request.GET.get("expires", "0"))
                 if expires <= 0:
                     expires = 3600
             except Exception:
@@ -253,8 +288,12 @@ class FileViewSet(viewsets.ModelViewSet):
         item = self.get_object()
         try:
             file_obj = self.kb_service.get_raw_file(item, request.user.id)
-            response = HttpResponse(file_obj["data"], content_type=file_obj["content_type"])
-            response["Content-Disposition"] = f"attachment; filename=\"{file_obj['filename']}\""
+            response = HttpResponse(
+                file_obj["data"], content_type=file_obj["content_type"]
+            )
+            response["Content-Disposition"] = (
+                f'attachment; filename="{file_obj["filename"]}"'
+            )
             return response
         except Exception as e:
             logger.exception(f"Failed to get raw file for {pk}: {e}")
@@ -265,8 +304,12 @@ class FileViewSet(viewsets.ModelViewSet):
         item = self.get_object()
         try:
             file_obj = self.kb_service.get_raw_file(item, request.user.id)
-            response = HttpResponse(file_obj["data"], content_type=file_obj["content_type"])
-            response["Content-Disposition"] = f"inline; filename=\"{file_obj['filename']}\""
+            response = HttpResponse(
+                file_obj["data"], content_type=file_obj["content_type"]
+            )
+            response["Content-Disposition"] = (
+                f'inline; filename="{file_obj["filename"]}"'
+            )
             response["X-Content-Type-Options"] = "nosniff"
             return response
         except Exception as e:
@@ -288,35 +331,48 @@ class FileViewSet(viewsets.ModelViewSet):
         """Serve an image via API as an inline response (MinIO proxy)."""
         item = self.get_object()
         try:
-            from .models import KnowledgeBaseImage
             from infrastructure.storage.adapters import get_storage_backend
-            image = get_object_or_404(KnowledgeBaseImage, id=image_id, knowledge_base_item=item)
+
+            from .models import KnowledgeBaseImage
+
+            image = get_object_or_404(
+                KnowledgeBaseImage, id=image_id, knowledge_base_item=item
+            )
             # Compute ETag from storage metadata or fallback to a hash of identifiers
             storage = get_storage_backend()
             etag_value = None
             try:
                 meta = storage.get_file_metadata(image.minio_object_key)
                 if meta and isinstance(meta, dict):
-                    etag_value = meta.get('etag')
+                    etag_value = meta.get("etag")
             except Exception:
                 etag_value = None
             if not etag_value:
                 base = f"{image.id}-{getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)}"
-                etag_value = hashlib.sha1(base.encode('utf-8')).hexdigest()
+                etag_value = hashlib.sha1(base.encode("utf-8")).hexdigest()
             # Normalize ETag header value (quoted strong ETag)
-            etag_header = etag_value if etag_value.startswith('W/"') or etag_value.startswith('"') else f'"{etag_value}"'
+            etag_header = (
+                etag_value
+                if etag_value.startswith('W/"') or etag_value.startswith('"')
+                else f'"{etag_value}"'
+            )
 
             # Handle If-None-Match for conditional GET
-            inm = request.headers.get('If-None-Match') or request.META.get('HTTP_IF_NONE_MATCH')
+            inm = request.headers.get("If-None-Match") or request.META.get(
+                "HTTP_IF_NONE_MATCH"
+            )
             if inm:
                 # Normalize comparison by stripping quotes and weak validators
                 def norm(v: str) -> str:
-                    return v.strip().lstrip('W/').strip('"')
+                    return v.strip().lstrip("W/").strip('"')
+
                 if norm(inm) == norm(etag_header):
                     resp = HttpResponse(status=304)
                     resp["ETag"] = etag_header
                     resp["Cache-Control"] = "private, max-age=300"
-                    dt = getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)
+                    dt = getattr(image, "updated_at", None) or getattr(
+                        image, "created_at", None
+                    )
                     if dt:
                         try:
                             resp["Last-Modified"] = http_date(dt.timestamp())
@@ -325,14 +381,24 @@ class FileViewSet(viewsets.ModelViewSet):
                     return resp
             content = image.get_image_content()
             if content is None:
-                return Response({"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND)
-            resp = HttpResponse(content, content_type=image.content_type or 'application/octet-stream')
-            resp["Content-Disposition"] = f"inline; filename=\"{image.image_metadata.get('original_filename', 'image')}\"" if isinstance(image.image_metadata, dict) else "inline"
+                return Response(
+                    {"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND
+                )
+            resp = HttpResponse(
+                content, content_type=image.content_type or "application/octet-stream"
+            )
+            resp["Content-Disposition"] = (
+                f'inline; filename="{image.image_metadata.get("original_filename", "image")}"'
+                if isinstance(image.image_metadata, dict)
+                else "inline"
+            )
             resp["X-Content-Type-Options"] = "nosniff"
             # Add short-lived caching to reduce repeated loads
             resp["Cache-Control"] = "private, max-age=300"
             # Use updated_at or created_at for Last-Modified
-            dt = getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)
+            dt = getattr(image, "updated_at", None) or getattr(
+                image, "created_at", None
+            )
             if dt:
                 try:
                     resp["Last-Modified"] = http_date(dt.timestamp())
@@ -341,7 +407,9 @@ class FileViewSet(viewsets.ModelViewSet):
             resp["ETag"] = etag_header
             return resp
         except Exception as e:
-            logger.exception(f"Failed to serve inline image {image_id} for KB item {pk}: {e}")
+            logger.exception(
+                f"Failed to serve inline image {image_id} for KB item {pk}: {e}"
+            )
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["post"], url_path="parse_url")
@@ -350,9 +418,14 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         try:
             from uuid import uuid4
-            notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
+
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_pk
+            )
             url = serializer.validated_data["url"]
-            upload_url_id = serializer.validated_data.get("upload_url_id") or uuid4().hex
+            upload_url_id = (
+                serializer.validated_data.get("upload_url_id") or uuid4().hex
+            )
 
             result = self.url_service.handle_single_url_parse(
                 url=url,
@@ -360,7 +433,9 @@ class FileViewSet(viewsets.ModelViewSet):
                 notebook=notebook,
                 user=request.user,
             )
-            return Response(result, status=result.get('status_code', status.HTTP_201_CREATED))
+            return Response(
+                result, status=result.get("status_code", status.HTTP_201_CREATED)
+            )
         except Exception as e:
             logger.exception(f"Failed to parse URL: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -371,9 +446,14 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         try:
             from uuid import uuid4
-            notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
+
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_pk
+            )
             url = serializer.validated_data["url"]
-            upload_url_id = serializer.validated_data.get("upload_url_id") or uuid4().hex
+            upload_url_id = (
+                serializer.validated_data.get("upload_url_id") or uuid4().hex
+            )
 
             result = self.url_service.handle_url_with_media(
                 url=url,
@@ -381,7 +461,9 @@ class FileViewSet(viewsets.ModelViewSet):
                 notebook=notebook,
                 user=request.user,
             )
-            return Response(result, status=result.get('status_code', status.HTTP_201_CREATED))
+            return Response(
+                result, status=result.get("status_code", status.HTTP_201_CREATED)
+            )
         except Exception as e:
             logger.exception(f"Failed to parse URL with media: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -392,9 +474,14 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         try:
             from uuid import uuid4
-            notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
+
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_pk
+            )
             url = serializer.validated_data["url"]
-            upload_url_id = serializer.validated_data.get("upload_url_id") or uuid4().hex
+            upload_url_id = (
+                serializer.validated_data.get("upload_url_id") or uuid4().hex
+            )
 
             result = self.url_service.handle_document_url(
                 url=url,
@@ -402,7 +489,9 @@ class FileViewSet(viewsets.ModelViewSet):
                 notebook=notebook,
                 user=request.user,
             )
-            return Response(result, status=result.get('status_code', status.HTTP_201_CREATED))
+            return Response(
+                result, status=result.get("status_code", status.HTTP_201_CREATED)
+            )
         except Exception as e:
             logger.exception(f"Failed to parse document URL: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -412,7 +501,9 @@ class FileViewSet(viewsets.ModelViewSet):
         serializer = VideoImageExtractionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_pk
+            )
             images = self.kb_service.extract_video_images(
                 user=request.user,
                 notebook=notebook,
@@ -436,14 +527,18 @@ class FileViewSet(viewsets.ModelViewSet):
         The actual cleanup is handled by Django signals (delete_kb_files_on_pre_delete).
         """
         try:
-            logger.info(f"Deleting file '{instance.title}' (ID: {instance.id}) from notebook {instance.notebook.id}")
+            logger.info(
+                f"Deleting file '{instance.title}' (ID: {instance.id}) from notebook {instance.notebook.id}"
+            )
 
             # Log the deletion for audit purposes
             ragflow_doc_info = ""
             if instance.ragflow_document_id and instance.notebook.ragflow_dataset_id:
                 ragflow_doc_info = f" and RagFlow document {instance.ragflow_document_id} from dataset {instance.notebook.ragflow_dataset_id}"
 
-            logger.info(f"File deletion will clean up RagFlow document first, then MinIO storage{ragflow_doc_info}")
+            logger.info(
+                f"File deletion will clean up RagFlow document first, then MinIO storage{ragflow_doc_info}"
+            )
 
             # Delete the instance - signals will handle RAGFlow deletion first, then MinIO cleanup
             instance.delete()
@@ -494,7 +589,7 @@ class BatchJobViewSet(viewsets.ReadOnlyModelViewSet):
 class SessionChatViewSet(viewsets.ModelViewSet):
     class ChatSessionSerializer(serializers.ModelSerializer):
         message_count = serializers.SerializerMethodField()
-        created_at = serializers.DateTimeField(source='started_at', read_only=True)
+        created_at = serializers.DateTimeField(source="started_at", read_only=True)
 
         class Meta:
             model = ChatSession
@@ -508,7 +603,7 @@ class SessionChatViewSet(viewsets.ModelViewSet):
             ]
 
         def get_message_count(self, obj):
-            return obj.messages.count() if hasattr(obj, 'messages') else 0
+            return obj.messages.count() if hasattr(obj, "messages") else 0
 
     serializer_class = ChatSessionSerializer
     permission_classes = [permissions.IsAuthenticated, IsNotebookOwner]
@@ -523,16 +618,22 @@ class SessionChatViewSet(viewsets.ModelViewSet):
             return ChatSession.objects.none()
 
         notebook_id = self.kwargs.get("notebook_pk")
-        notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
+        notebook = get_object_or_404(
+            Notebook.objects.filter(user=self.request.user), pk=notebook_id
+        )
 
         # Filter by include_closed parameter
         queryset = ChatSession.objects.filter(notebook=notebook)
-        include_closed = self.request.query_params.get('include_closed', 'false').lower() == 'true'
+        include_closed = (
+            self.request.query_params.get("include_closed", "false").lower() == "true"
+        )
         if not include_closed:
-            queryset = queryset.filter(status='active')
+            queryset = queryset.filter(status="active")
 
         queryset = queryset.order_by("-last_activity")
-        logger.info(f"[SessionChatViewSet] Returning {queryset.count()} sessions for notebook {notebook_id}")
+        logger.info(
+            f"[SessionChatViewSet] Returning {queryset.count()} sessions for notebook {notebook_id}"
+        )
         return queryset
 
     def retrieve(self, request, *args, **kwargs):
@@ -541,45 +642,44 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(instance)
 
         # Get messages for this session
-        messages = instance.messages.all().order_by('message_order', 'timestamp')
-        messages_data = [{
-            'id': msg.id,
-            'sender': msg.sender,
-            'message': msg.message,
-            'timestamp': msg.timestamp.isoformat(),
-            'metadata': msg.metadata
-        } for msg in messages]
-
-        return Response({
-            'success': True,
-            'session': {
-                **serializer.data,
-                'messages': messages_data
+        messages = instance.messages.all().order_by("message_order", "timestamp")
+        messages_data = [
+            {
+                "id": msg.id,
+                "sender": msg.sender,
+                "message": msg.message,
+                "timestamp": msg.timestamp.isoformat(),
+                "metadata": msg.metadata,
             }
-        })
+            for msg in messages
+        ]
+
+        return Response(
+            {"success": True, "session": {**serializer.data, "messages": messages_data}}
+        )
 
     def perform_create(self, serializer):
         """Create a chat session with proper RagFlow integration."""
         notebook_id = self.kwargs.get("notebook_pk")
-        notebook = get_object_or_404(Notebook.objects.filter(user=self.request.user), pk=notebook_id)
+        notebook = get_object_or_404(
+            Notebook.objects.filter(user=self.request.user), pk=notebook_id
+        )
 
         # Get title from validated data
-        title = serializer.validated_data.get('title', 'New Chat')
+        title = serializer.validated_data.get("title", "New Chat")
 
         # Use ChatService to create session with RagFlow integration
         result = self.chat_service.create_chat_session(
-            notebook=notebook,
-            user_id=self.request.user.id,
-            title=title
+            notebook=notebook, user_id=self.request.user.id, title=title
         )
 
-        if not result.get('success'):
-            error_msg = result.get('error', 'Failed to create chat session')
+        if not result.get("success"):
+            error_msg = result.get("error", "Failed to create chat session")
             raise ValidationError(error_msg)
 
         # Get the created session from database
-        session_data = result.get('session', {})
-        session_id = session_data.get('id')
+        session_data = result.get("session", {})
+        session_id = session_data.get("id")
 
         if session_id:
             # Get the actual ChatSession instance
@@ -592,23 +692,28 @@ class SessionChatViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=["post"], url_path="messages")
     def send_message(self, request, notebook_pk=None, pk=None):
         session = self.get_object()
+
         class ChatMessageSerializer(serializers.Serializer):
             message = serializers.CharField()
 
         serializer = ChatMessageSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:
-            notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_pk
+            )
 
             message = serializer.validated_data["message"]
-            logger.info(f"Received chat message for session {session.session_id}: {message[:100]}")
+            logger.info(
+                f"Received chat message for session {session.session_id}: {message[:100]}"
+            )
 
             # Create streaming response using ChatService
             stream = self.chat_service.create_session_chat_stream(
                 session_id=str(session.session_id),
                 notebook=notebook,
                 user_id=request.user.id,
-                question=message
+                question=message,
             )
 
             response = StreamingHttpResponse(stream, content_type="text/event-stream")
@@ -618,15 +723,6 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.exception(f"Failed to send message: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-
-class SessionAgentInfoView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsNotebookOwner]
-
-    def get(self, request, notebook_pk=None):
-        notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_pk)
-        info = ChatService().get_agent_info(notebook)
-        return Response(info)
 
 
 # ----------------------------
@@ -647,19 +743,30 @@ class FileStatusSSEView(View):
 
     def get(self, request, notebook_id: str, file_id: str):
         try:
-            notebook = get_object_or_404(Notebook.objects.filter(user=request.user), pk=notebook_id)
-            
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_id
+            )
+
             # Handle both upload IDs and UUID file IDs
             import re
-            is_uuid = re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', file_id, re.IGNORECASE)
-            
+
+            is_uuid = re.match(
+                r"^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+                file_id,
+                re.IGNORECASE,
+            )
+
             if is_uuid:
                 # It's a UUID, look up by primary key
-                file_item = get_object_or_404(KnowledgeBaseItem.objects.filter(notebook=notebook), pk=file_id)
+                file_item = get_object_or_404(
+                    KnowledgeBaseItem.objects.filter(notebook=notebook), pk=file_id
+                )
             else:
                 # It's an upload ID, look up by title or create a placeholder response
                 try:
-                    file_item = KnowledgeBaseItem.objects.filter(notebook=notebook, title__icontains=file_id).first()
+                    file_item = KnowledgeBaseItem.objects.filter(
+                        notebook=notebook, title__icontains=file_id
+                    ).first()
                     if not file_item:
                         # Return a "not found yet" SSE stream for upload IDs that haven't been processed
                         return self._generate_upload_pending_stream(file_id)
@@ -667,19 +774,26 @@ class FileStatusSSEView(View):
                     return self._generate_upload_pending_stream(file_id)
 
             response = StreamingHttpResponse(
-                self.generate_file_status_stream(file_item), content_type="text/event-stream"
+                self.generate_file_status_stream(file_item),
+                content_type="text/event-stream",
             )
             response["Cache-Control"] = "no-cache"
             response["Access-Control-Allow-Origin"] = "*"
-            response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
+            response["Access-Control-Allow-Headers"] = (
+                "Accept, Authorization, Content-Type"
+            )
             response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
             return response
 
         except Exception as e:
             logger.exception(f"Failed to create file status SSE stream: {e}")
-            return HttpResponse(f"Error: {str(e)}", status=500, content_type="text/plain")
+            return HttpResponse(
+                f"Error: {str(e)}", status=500, content_type="text/plain"
+            )
 
-    def generate_file_status_stream(self, file_item: KnowledgeBaseItem) -> Generator[str, None, None]:
+    def generate_file_status_stream(
+        self, file_item: KnowledgeBaseItem
+    ) -> Generator[str, None, None]:
         try:
             max_iterations = 60
             iteration = 0
@@ -691,8 +805,16 @@ class FileStatusSSEView(View):
                 yield f"data: {json.dumps(sse_message)}\n\n"
 
                 parsing_done = file_item.parsing_status in ["done", "failed"]
-                caption_done = status_data.get('caption_status') in ["completed", "failed", None]
-                ragflow_done = status_data.get('ragflow_processing_status') in ["completed", "failed", None]
+                caption_done = status_data.get("caption_status") in [
+                    "completed",
+                    "failed",
+                    None,
+                ]
+                ragflow_done = status_data.get("ragflow_processing_status") in [
+                    "completed",
+                    "failed",
+                    None,
+                ]
 
                 # Only close when parsing is done AND (no caption processing OR caption is done) AND (no ragflow OR ragflow is done)
                 if parsing_done and caption_done and ragflow_done:
@@ -706,15 +828,22 @@ class FileStatusSSEView(View):
                 iteration += 1
                 time.sleep(5)
             if iteration >= max_iterations:
-                logger.warning(f"SSE stream for file {file_item.id} reached max iterations")
-                timeout_message = {"type": "timeout", "message": "Status monitoring timed out"}
+                logger.warning(
+                    f"SSE stream for file {file_item.id} reached max iterations"
+                )
+                timeout_message = {
+                    "type": "timeout",
+                    "message": "Status monitoring timed out",
+                }
                 yield f"data: {json.dumps(timeout_message)}\n\n"
         except Exception as e:
-            logger.exception(f"Error in SSE stream generation for file {file_item.id}: {e}")
+            logger.exception(
+                f"Error in SSE stream generation for file {file_item.id}: {e}"
+            )
             error_message = {"type": "error", "message": f"Stream error: {str(e)}"}
             yield f"data: {json.dumps(error_message)}\n\n"
 
-    def build_status_data(self, file_item: KnowledgeBaseItem) -> Dict[str, Any]:
+    def build_status_data(self, file_item: KnowledgeBaseItem) -> dict[str, Any]:
         # Use the raw parsing_status for frontend consistency
         # Frontend expects: "queueing", "parsing", "captioning", "done", "failed"
         raw_status = file_item.parsing_status or "queueing"
@@ -724,8 +853,12 @@ class FileStatusSSEView(View):
             "status": raw_status,  # Send raw status for frontend consistency
             "title": file_item.title,
             "content_type": file_item.content_type,
-            "created_at": file_item.created_at.isoformat() if file_item.created_at else None,
-            "updated_at": file_item.updated_at.isoformat() if file_item.updated_at else None,
+            "created_at": file_item.created_at.isoformat()
+            if file_item.created_at
+            else None,
+            "updated_at": file_item.updated_at.isoformat()
+            if file_item.updated_at
+            else None,
             "has_content": bool(file_item.content),
             "processing_status": raw_status,  # Also include in processing_status for compatibility
             "metadata": file_item.metadata or {},
@@ -735,15 +868,18 @@ class FileStatusSSEView(View):
 
     def _generate_upload_pending_stream(self, upload_id: str):
         """Generate SSE stream for upload IDs that haven't been processed yet"""
+
         def generate_pending_stream():
             # Send a few "processing" messages then close
-            for i in range(3):
+            for _i in range(3):
                 yield f"data: {json.dumps({'type': 'file_status', 'data': {'file_id': upload_id, 'status': 'processing', 'title': f'Upload {upload_id}', 'updated_at': None}})}\n\n"
                 time.sleep(1)
             # Send close message
             yield f"data: {json.dumps({'type': 'close', 'message': 'Upload not found'})}\n\n"
-        
-        response = StreamingHttpResponse(generate_pending_stream(), content_type="text/event-stream")
+
+        response = StreamingHttpResponse(
+            generate_pending_stream(), content_type="text/event-stream"
+        )
         response["Cache-Control"] = "no-cache"
         response["Access-Control-Allow-Origin"] = "*"
         response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
@@ -778,30 +914,30 @@ class NotebookJobsSSEView(View):
         """Stream job events for a specific notebook."""
         try:
             # Verify notebook ownership
-            notebook = get_object_or_404(
-                Notebook.objects.filter(user=request.user),
-                pk=notebook_id
+            get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_id
             )
 
-            logger.info(f"Starting job stream for notebook {notebook_id}, user {request.user.id}")
+            logger.info(
+                f"Starting job stream for notebook {notebook_id}, user {request.user.id}"
+            )
 
             response = StreamingHttpResponse(
-                self.generate_job_stream(notebook_id),
-                content_type="text/event-stream"
+                self.generate_job_stream(notebook_id), content_type="text/event-stream"
             )
             response["Cache-Control"] = "no-cache"
             response["X-Accel-Buffering"] = "no"  # Disable nginx buffering
             response["Access-Control-Allow-Origin"] = "*"
-            response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
+            response["Access-Control-Allow-Headers"] = (
+                "Accept, Authorization, Content-Type"
+            )
             response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
             return response
 
         except Exception as e:
             logger.exception(f"Failed to create job SSE stream: {e}")
             return HttpResponse(
-                f"Error: {str(e)}",
-                status=500,
-                content_type="text/plain"
+                f"Error: {str(e)}", status=500, content_type="text/plain"
             )
 
     def generate_job_stream(self, notebook_id: str) -> Generator[str, None, None]:
@@ -817,8 +953,7 @@ class NotebookJobsSSEView(View):
         try:
             # Connect to Redis
             redis_client = redis.Redis.from_url(
-                settings.CELERY_BROKER_URL,
-                decode_responses=True
+                settings.CELERY_BROKER_URL, decode_responses=True
             )
             pubsub = redis_client.pubsub()
 
@@ -839,27 +974,31 @@ class NotebookJobsSSEView(View):
                 # Check max duration
                 elapsed = time.time() - start_time
                 if elapsed > self.MAX_DURATION_SECONDS:
-                    logger.info(f"Job stream for notebook {notebook_id} reached max duration")
+                    logger.info(
+                        f"Job stream for notebook {notebook_id} reached max duration"
+                    )
                     yield f"data: {json.dumps({'type': 'timeout', 'message': 'Stream timeout'})}\n\n"
                     break
 
                 # Get message with timeout
                 message = pubsub.get_message(timeout=1.0)
 
-                if message and message['type'] == 'message':
+                if message and message["type"] == "message":
                     # Forward the event to client
-                    event_data = message['data']
+                    event_data = message["data"]
                     yield f"data: {event_data}\n\n"
                     logger.debug(f"Forwarded event: {event_data}")
                     last_heartbeat = time.time()
 
                 # Send heartbeat if idle
                 elif time.time() - last_heartbeat > self.HEARTBEAT_INTERVAL:
-                    yield f": heartbeat\n\n"
+                    yield ": heartbeat\n\n"
                     last_heartbeat = time.time()
 
         except GeneratorExit:
-            logger.info(f"Client disconnected from job stream for notebook {notebook_id}")
+            logger.info(
+                f"Client disconnected from job stream for notebook {notebook_id}"
+            )
 
         except Exception as e:
             logger.exception(f"Error in job stream for notebook {notebook_id}: {e}")

@@ -1,9 +1,8 @@
-
 import logging
-
-from typing import Type, Any, Optional
+from typing import Any
 
 from pydantic import BaseModel, Field
+
 try:
     # pydantic v2
     from pydantic import ConfigDict
@@ -17,22 +16,30 @@ logger = logging.getLogger(__name__)
 # Constants
 MAX_QUERY_LENGTH = 200
 
+
 class SafeSearchToolInput(BaseModel):
     """Input schema for SafeSearchTool.
-    
+
     Accepts flexible inputs. Prefer `query`, but also tolerates `description`,
     `content`, or a generic payload that will be normalized into a string.
     """
-    query: Optional[Any] = Field(None, description="The search query string.")
-    description: Optional[Any] = Field(None, description="Alternative field sometimes used by LLMs for the query.")
-    content: Optional[Any] = Field(None, description="Alternative field name that may contain the query text.")
+
+    query: Any | None = Field(None, description="The search query string.")
+    description: Any | None = Field(
+        None, description="Alternative field sometimes used by LLMs for the query."
+    )
+    content: Any | None = Field(
+        None, description="Alternative field name that may contain the query text."
+    )
+
 
 class SafeSearchTool(BaseTool):
     """Safe wrapper for TavilySearchTool that handles parameter validation.
-    
+
     This tool provides a robust wrapper around the Tavily Search API with
     comprehensive error handling and input validation.
     """
+
     name: str = "Safe Tavily Search"
     description: str = (
         "Perform comprehensive web searches using the Tavily Search API. "
@@ -41,9 +48,13 @@ class SafeSearchTool(BaseTool):
         "Use this to find recent information, research papers, news, or technical "
         "details not in your training data."
     )
-    args_schema: Type[BaseModel] = SafeSearchToolInput
+    args_schema: type[BaseModel] = SafeSearchToolInput
     # Pydantic v2 config to allow arbitrary types (for _tavily_tool)
-    model_config = ConfigDict(arbitrary_types_allowed=True) if isinstance(ConfigDict, type) else None
+    model_config = (
+        ConfigDict(arbitrary_types_allowed=True)
+        if isinstance(ConfigDict, type)
+        else None
+    )
 
     # Configurable fields (validated by Pydantic); do not override __init__
     search_depth: str = "advanced"
@@ -66,7 +77,13 @@ class SafeSearchTool(BaseTool):
             logger.warning(f"Could not initialize TavilySearchTool: {e}")
             self._tavily_tool = None
 
-    def _run(self, query: Any = None, description: Any = None, content: Any = None, **kwargs: Any) -> str:
+    def _run(
+        self,
+        query: Any = None,
+        description: Any = None,
+        content: Any = None,
+        **kwargs: Any,
+    ) -> str:
         """Execute the search with proper parameter handling.
 
         Args:
@@ -80,11 +97,17 @@ class SafeSearchTool(BaseTool):
         try:
             # Handle case where Tavily tool is not available
             if self._tavily_tool is None:
-                logger.warning("Tavily search tool not available, falling back to default message")
+                logger.warning(
+                    "Tavily search tool not available, falling back to default message"
+                )
                 return "Search tool is not available. Please proceed with your existing knowledge."
 
             # Select among possible fields, then normalize
-            selected = query if query is not None else (description if description is not None else content)
+            selected = (
+                query
+                if query is not None
+                else (description if description is not None else content)
+            )
             if selected is None and kwargs:
                 # Try common keys in kwargs
                 for k in ("query", "description", "content", "text", "prompt", "input"):
@@ -100,8 +123,12 @@ class SafeSearchTool(BaseTool):
 
             # Validate query length to prevent abuse
             if len(normalized_query) > MAX_QUERY_LENGTH:
-                logger.warning(f"Query too long ({len(normalized_query)} chars), truncating")
-                normalized_query = normalized_query[:MAX_QUERY_LENGTH].rsplit(' ', 1)[0] + "..."
+                logger.warning(
+                    f"Query too long ({len(normalized_query)} chars), truncating"
+                )
+                normalized_query = (
+                    normalized_query[:MAX_QUERY_LENGTH].rsplit(" ", 1)[0] + "..."
+                )
 
             # Execute search with comprehensive error handling
             try:
@@ -136,29 +163,29 @@ class SafeSearchTool(BaseTool):
 
         except Exception as e:
             logger.exception(f"Unexpected error in search tool: {e}")
-            return f"Search tool encountered an unexpected error. Please continue with your existing knowledge."
-    
+            return "Search tool encountered an unexpected error. Please continue with your existing knowledge."
+
     def _normalize_query(self, query) -> str:
         """Normalize and validate query input.
-        
+
         Args:
             query: The input query (may be string or other type)
-            
+
         Returns:
             Normalized query string
         """
         # Ensure query is a string
         if not isinstance(query, str):
             # Support dict-like payloads sometimes produced by tool-calling LLMs
-            if hasattr(query, 'get'):
+            if hasattr(query, "get"):
                 possible_fields = [
-                    'query',
-                    'q',
-                    'text',
-                    'content',
-                    'prompt',
-                    'description',
-                    'input',
+                    "query",
+                    "q",
+                    "text",
+                    "content",
+                    "prompt",
+                    "description",
+                    "input",
                 ]
                 for field in possible_fields:
                     value = query.get(field)
@@ -170,10 +197,10 @@ class SafeSearchTool(BaseTool):
                     query = str(query)
             else:
                 query = str(query)
-        
+
         # Clean and validate the query string
         query = query.strip()
         if not query:
             return ""
-        
+
         return query

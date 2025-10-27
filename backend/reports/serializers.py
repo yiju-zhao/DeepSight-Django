@@ -1,4 +1,5 @@
 from rest_framework import serializers
+
 from .models import Report
 
 
@@ -182,8 +183,12 @@ class ReportGenerationRequestSerializer(serializers.Serializer):
     notebook = serializers.UUIDField(required=False, allow_null=True)
 
     # Basic settings
-    topic = serializers.CharField(required=False, allow_blank=True, allow_null=True, max_length=500)
-    article_title = serializers.CharField(required=False, allow_blank=True, max_length=255, default="Research Report")
+    topic = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, max_length=500
+    )
+    article_title = serializers.CharField(
+        required=False, allow_blank=True, max_length=255, default="Research Report"
+    )
     old_outline = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -198,7 +203,7 @@ class ReportGenerationRequestSerializer(serializers.Serializer):
         allow_blank=True,
         allow_null=True,
         max_length=200,
-        help_text="Model UID for Xinference provider"
+        help_text="Model UID for Xinference provider",
     )
     retriever = serializers.ChoiceField(
         choices=Report.RETRIEVER_CHOICES, default=Report.RETRIEVER_TAVILY
@@ -255,14 +260,18 @@ class ReportGenerationRequestSerializer(serializers.Serializer):
     )
 
     # CSV processing options
-    csv_session_code = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    csv_date_filter = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-    
+    csv_session_code = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True
+    )
+    csv_date_filter = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True
+    )
+
     # Figure data input
     figure_data = serializers.JSONField(
-        required=False, 
+        required=False,
         allow_null=True,
-        help_text="List of figure data dictionaries with image_path and caption"
+        help_text="List of figure data dictionaries with image_path and caption",
     )
 
     def validate(self, data):
@@ -276,26 +285,26 @@ class ReportGenerationRequestSerializer(serializers.Serializer):
             )
 
         return data
-    
+
     def validate_figure_data(self, value):
         """Validate figure_data structure"""
         if not value:
             return value
-            
+
         if not isinstance(value, list):
             raise serializers.ValidationError("figure_data must be a list")
-        
+
         for i, figure in enumerate(value):
             if not isinstance(figure, dict):
                 raise serializers.ValidationError(f"Figure {i} must be a dictionary")
-                
-            required_fields = ['image_path', 'caption']
+
+            required_fields = ["image_path", "caption"]
             missing_fields = [field for field in required_fields if field not in figure]
             if missing_fields:
                 raise serializers.ValidationError(
                     f"Figure {i} missing required fields: {missing_fields}"
                 )
-        
+
         return value
 
     def validate_time_range(self, value):

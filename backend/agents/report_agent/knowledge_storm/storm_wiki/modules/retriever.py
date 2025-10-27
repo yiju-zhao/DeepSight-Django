@@ -1,11 +1,4 @@
-from typing import Union, List
 from urllib.parse import urlparse
-
-import dspy
-
-from ...interface import Retriever, Information
-from ...utils import ArticleTextProcessing
-
 
 # Internet source restrictions according to Wikipedia standard:
 # https://en.wikipedia.org/wiki/Wikipedia:Reliable_sources/Perennial_sources
@@ -66,7 +59,7 @@ SOURCE_CONFIGS = [
     {
         "Source": "Anadolu_Agency_(controversial_topics)",
         "Status": "Generally unreliable",
-        "Use": ["*.aa.com.tr", "*.aa.com.tr\/en"],
+        "Use": ["*.aa.com.tr", r"*.aa.com.tr\/en"],
     },
     {
         "Source": "Ancestry.com",
@@ -80,7 +73,7 @@ SOURCE_CONFIGS = [
         "Use": ["*.answers.com"],
     },
     {
-        "Source": "Anti-Defamation_League_(Israel\/Palestine_conflict)",
+        "Source": r"Anti-Defamation_League_(Israel\/Palestine_conflict)",
         "Status": "Generally unreliable",
         "Use": ["*.adl.org"],
     },
@@ -97,7 +90,7 @@ SOURCE_CONFIGS = [
     {
         "Source": "Atlas_Obscura_places",
         "Status": "Generally unreliable",
-        "Use": ["*.atlasobscura.com\/places"],
+        "Use": [r"*.atlasobscura.com\/places"],
     },
     {
         "Source": "Baidu_Baike",
@@ -130,7 +123,7 @@ SOURCE_CONFIGS = [
     {
         "Source": "The_California_Globe",
         "Status": "Generally unreliable",
-        "Use": ["*.californiaglobe.com\/"],
+        "Use": [r"*.californiaglobe.com\/"],
     },
     {
         "Source": "The_Canary",
@@ -204,7 +197,7 @@ SOURCE_CONFIGS = [
     {
         "Source": "Daily_Express",
         "Status": "Generally unreliable",
-        "Use": ["*.express.co.uk", "*.pressreader.com\/uk\/daily-express"],
+        "Use": ["*.express.co.uk", r"*.pressreader.com\/uk\/daily-express"],
     },
     {
         "Source": "Daily_Kos",
@@ -216,18 +209,18 @@ SOURCE_CONFIGS = [
         "Status": "Deprecated",
         "Use": [
             "*.mailpictures.newsprints.co.uk",
-            "*.pressreader.com\/ireland\/irish-daily-mail",
+            r"*.pressreader.com\/ireland\/irish-daily-mail",
             "*.dailymail.com.au",
             "*.dailymail.com",
-            "*.findarticles.com\/p\/news-articles\/daily-mail-london-england-the\/",
-            "*.pressreader.com\/uk\/daily-mail",
+            r"*.findarticles.com\/p\/news-articles\/daily-mail-london-england-the\/",
+            r"*.pressreader.com\/uk\/daily-mail",
             "*.dailymail.co.uk",
             "*.dailym.ai",
             "*.mailonline.pressreader.com",
             "*.mailplus.co.uk",
             "*.thisismoney.co.uk",
             "*.travelmail.co.uk",
-            "*.pressreader.com\/uk\/scottish-daily-mail",
+            r"*.pressreader.com\/uk\/scottish-daily-mail",
         ],
     },
     {
@@ -348,7 +341,7 @@ SOURCE_CONFIGS = [
     {
         "Source": "Flags_of_the_World",
         "Status": "Generally unreliable",
-        "Use": ["*.fotw.info", "*.crwflags.com\/fotw"],
+        "Use": ["*.fotw.info", r"*.crwflags.com\/fotw"],
     },
     {"Source": "Flickr", "Status": "Generally unreliable", "Use": ["*.flickr.com"]},
     {
@@ -359,7 +352,7 @@ SOURCE_CONFIGS = [
     {
         "Source": "Forbes_Advisor",
         "Status": "Generally unreliable",
-        "Use": ["*.forbes.com\/advisor"],
+        "Use": [r"*.forbes.com\/advisor"],
     },
     {
         "Source": "Fox_News_(politics_and_science)",
@@ -524,7 +517,7 @@ SOURCE_CONFIGS = [
     {
         "Source": "Joshua_Project",
         "Status": "Generally unreliable",
-        "Use": ["*.religjournal.com\/pdf\/ijrr11010.pdf", "*.joshuaproject.net"],
+        "Use": [r"*.religjournal.com\/pdf\/ijrr11010.pdf", "*.joshuaproject.net"],
     },
     {"Source": "Kickstarter", "Status": "Blacklisted", "Use": ["*.kickstarter.com"]},
     {
@@ -566,10 +559,10 @@ SOURCE_CONFIGS = [
         "Source": "The_Mail_on_Sunday",
         "Status": "Deprecated",
         "Use": [
-            "*.dailymail.co.uk\/mailonsunday",
-            "*.pressreader.com\/uk\/the-scottish-mail-on-sunday\/",
+            r"*.dailymail.co.uk\/mailonsunday",
+            r"*.pressreader.com\/uk\/the-scottish-mail-on-sunday\/",
             "*.mailonsunday.co.uk",
-            "*.pressreader.com\/uk\/the-mail-on-sunday\/",
+            r"*.pressreader.com\/uk\/the-mail-on-sunday\/",
         ],
     },
     {
@@ -584,7 +577,7 @@ SOURCE_CONFIGS = [
     },
     {"Source": "MEAWW", "Status": "Generally unreliable", "Use": ["*.meaww.com"]},
     {
-        "Source": "Media_Bias\/Fact_Check",
+        "Source": r"Media_Bias\/Fact_Check",
         "Status": "Generally unreliable",
         "Use": ["*.mediabiasfactcheck.com"],
     },
@@ -629,7 +622,7 @@ SOURCE_CONFIGS = [
         "Status": "Blacklisted",
         "Use": [
             "*.naturalnews.com",
-            "www.isdglobal.org\/isd-publications\/investigating-natural-news\/",
+            r"www.isdglobal.org\/isd-publications\/investigating-natural-news\/",
             "*.newstarget.com",
         ],
     },
@@ -730,7 +723,7 @@ SOURCE_CONFIGS = [
     {
         "Source": "The_Points_Guy",
         "Status": "Blacklisted",
-        "Use": ["*.thepointsguy.com\/reviews", "*.thepointsguy.com\/news"],
+        "Use": [r"*.thepointsguy.com\/reviews", r"*.thepointsguy.com\/news"],
     },
     {
         "Source": "The_Points_Guy_(sponsored_content)",
@@ -793,12 +786,12 @@ SOURCE_CONFIGS = [
     {
         "Source": "Rolling_Stone_(politics_and_society,_2011\u2013present)",
         "Status": "Generally unreliable",
-        "Use": ["*.rollingstone.com\/politics"],
+        "Use": [r"*.rollingstone.com\/politics"],
     },
     {
         "Source": "Rolling_Stone_(Culture_Council)",
         "Status": "Generally unreliable",
-        "Use": ["*.council.rollingstone.com", "*.rollingstone.com\/culture-council"],
+        "Use": ["*.council.rollingstone.com", r"*.rollingstone.com\/culture-council"],
     },
     {
         "Source": "Royal_Central",
@@ -821,7 +814,7 @@ SOURCE_CONFIGS = [
     {
         "Source": "ScienceDirect_topic",
         "Status": "Generally unreliable",
-        "Use": ["*.sciencedirect.com\/topics\/"],
+        "Use": [r"*.sciencedirect.com\/topics\/"],
     },
     {"Source": "Scribd", "Status": "Generally unreliable", "Use": ["*.scribd.com"]},
     {"Source": "Scriptural_texts", "Status": "Generally unreliable", "Use": []},
@@ -1250,14 +1243,14 @@ def is_valid_source(url):
     return True
 
 
-def filter_search_results(urls: List[str]) -> List[str]:
+def filter_search_results(urls: list[str]) -> list[str]:
     """
     Filter a list of URLs, returning only valid sources.
     """
     return [url for url in urls if is_valid_source(url)]
 
 
-def get_whitelisted_domains() -> List[str]:
+def get_whitelisted_domains() -> list[str]:
     """
     Return the list of whitelisted domains for use with include_domains parameter.
     """

@@ -2,43 +2,42 @@
 Job management service following SOLID principles.
 """
 
-import uuid
-import json
 import logging
-import os
 import re
-from typing import Dict, List, Optional, Any
-from datetime import datetime, timezone, timedelta
-from django.core.cache import cache
-from django.conf import settings
-from ..models import Report
-from django.core.files.base import ContentFile
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
 from celery.result import AsyncResult
+from django.conf import settings
+from django.core.cache import cache
+
+from ..models import Report
 
 logger = logging.getLogger(__name__)
 
 
 class CriticalErrorDetector:
     """Detects critical error patterns that should cause task failure"""
-    
+
     # Pattern to detect Celery ERROR messages from MainProcess only - these are critical
     # Format: [yyyy-mm-dd hh:mm:ss,xxx: ERROR/MainProcess] ...
     MAIN_PROCESS_ERROR_PATTERN = re.compile(
-        r'\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}: ERROR/MainProcess\]',
-        re.IGNORECASE
+        r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}: ERROR/MainProcess\]",
+        re.IGNORECASE,
     )
-    
+
     # Pattern to detect any Celery ERROR message (for display purposes)
     # Format: [yyyy-mm-dd hh:mm:ss,xxx: ERROR/ProcessName] ...
     ANY_ERROR_PATTERN = re.compile(
-        r'\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}: ERROR/[^\]]+\]',
-        re.IGNORECASE
+        r"\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}: ERROR/[^\]]+\]", re.IGNORECASE
     )
-    
-    def __init__(self, max_main_process_errors: int = 1):  # Only 1 MainProcess error should fail the task
+
+    def __init__(
+        self, max_main_process_errors: int = 1
+    ):  # Only 1 MainProcess error should fail the task
         self.max_main_process_errors = max_main_process_errors
         self.main_process_error_counts = {}
-    
+
     def should_fail_task(self, report_id: str, log_message: str) -> bool:
         """Check if log message contains MainProcess critical errors and if task should fail"""
 
@@ -51,19 +50,26 @@ class CriticalErrorDetector:
             # Increment error count
             self.main_process_error_counts[report_id] += 1
 
-            logger.error(f"MainProcess ERROR detected for report {report_id} (count: {self.main_process_error_counts[report_id]}): {log_message[:200]}")
+            logger.error(
+                f"MainProcess ERROR detected for report {report_id} (count: {self.main_process_error_counts[report_id]}): {log_message[:200]}"
+            )
 
             # Check if we've exceeded the threshold
-            if self.main_process_error_counts[report_id] >= self.max_main_process_errors:
-                logger.error(f"Report {report_id} exceeded maximum MainProcess errors ({self.max_main_process_errors}), failing task")
+            if (
+                self.main_process_error_counts[report_id]
+                >= self.max_main_process_errors
+            ):
+                logger.error(
+                    f"Report {report_id} exceeded maximum MainProcess errors ({self.max_main_process_errors}), failing task"
+                )
                 return True
 
         return False
-    
+
     def is_error_message(self, log_message: str) -> bool:
         """Check if message is any Celery ERROR (for display in SSE without failing task)"""
         return bool(self.ANY_ERROR_PATTERN.search(log_message))
-    
+
     def reset_job_errors(self, report_id: str):
         """Reset error count for a report"""
         self.main_process_error_counts.pop(report_id, None)
@@ -71,17 +77,21 @@ class CriticalErrorDetector:
 
 class JobService:
     """Service responsible for managing report generation jobs"""
-    
+
     def __init__(self):
         self.cache_timeout = getattr(settings, "REPORT_CACHE_TIMEOUT", 3600)  # 1 hour
-        self.error_detector = CriticalErrorDetector(max_main_process_errors=1)  # Only 1 MainProcess error should fail the task
-    
-    def create_job(self, report_data: Dict[str, Any], user=None, notebook=None) -> Report:
+        self.error_detector = CriticalErrorDetector(
+            max_main_process_errors=1
+        )  # Only 1 MainProcess error should fail the task
+
+    def create_job(
+        self, report_data: dict[str, Any], user=None, notebook=None
+    ) -> Report:
         """Create a new report generation job"""
         try:
             # Handle figure_data parameter separately
-            figure_data = report_data.pop('figure_data', None)
-            
+            figure_data = report_data.pop("figure_data", None)
+
             # Ensure CharField fields with blank=True are empty strings, not None
             # since these fields are CharField(blank=True) but not null=True
             string_fields = ["topic", "csv_session_code", "csv_date_filter"]
@@ -95,7 +105,7 @@ class JobService:
                 "progress": "Report generation job has been queued",
                 **report_data,
             }
-            
+
             if notebook:
                 job_data["notebooks"] = notebook
 
@@ -106,6 +116,7 @@ class JobService:
             if figure_data:
                 # Import will be updated when figure_service is merged into image service
                 from .image import ImageService
+
                 image_service = ImageService()
                 # Create knowledge base figure data for direct upload
                 # This will store the figure data in the report's cached data
@@ -115,8 +126,12 @@ class JobService:
 
             # Create job metadata for caching
             job_metadata = {
-                "report_id": str(report.id),  # Convert UUID to string for JSON serialization
-                "user_id": str(report.user.pk),  # Convert UUID to string for JSON serialization
+                "report_id": str(
+                    report.id
+                ),  # Convert UUID to string for JSON serialization
+                "user_id": str(
+                    report.user.pk
+                ),  # Convert UUID to string for JSON serialization
                 "status": report.status,
                 "progress": report.progress,
                 "created_at": report.created_at.isoformat(),
@@ -130,39 +145,45 @@ class JobService:
 
             logger.info(f"Created report job for report {report.id}")
             return report
-            
+
         except Exception as e:
             logger.error(f"Error creating report job: {e}")
             raise
-    
-    def get_job_status(self, report_id: str) -> Optional[Dict[str, Any]]:
+
+    def get_job_status(self, report_id: str) -> dict[str, Any] | None:
         """Get the status of a report generation job"""
         try:
             # First try to get from Django model
             try:
                 report = Report.objects.get(id=report_id)
-                
+
                 # Always try to synchronise the database status with the underlying Celery task
                 # so that errors such as `FAILURE`, `REVOKED`, or worker crashes are surfaced to
                 # API consumers immediately instead of waiting for the periodic 30-minute
                 # stale-check in `_check_worker_crash`.
                 self._sync_report_status_with_celery_state(report)
-                
+
                 # Check for worker crashes if job is running
                 if report.status == Report.STATUS_RUNNING:
                     crash_info = self._check_worker_crash(report)
-                    if crash_info['crashed']:
+                    if crash_info["crashed"]:
                         # Update report status to failed with actual error message
-                        error_msg = crash_info.get('error_message', 'Celery worker crashed (SIGSEGV or similar fatal error)')
-                        report.update_status(
-                            Report.STATUS_FAILED,
-                            error=error_msg
+                        error_msg = crash_info.get(
+                            "error_message",
+                            "Celery worker crashed (SIGSEGV or similar fatal error)",
                         )
-                        logger.error(f"Detected worker crash for report {report_id}: {error_msg}")
+                        report.update_status(Report.STATUS_FAILED, error=error_msg)
+                        logger.error(
+                            f"Detected worker crash for report {report_id}: {error_msg}"
+                        )
 
                 job_data = {
-                    "report_id": str(report.id),  # Convert UUID to string for JSON serialization
-                    "user_id": str(report.user.pk),  # Convert UUID to string for JSON serialization
+                    "report_id": str(
+                        report.id
+                    ),  # Convert UUID to string for JSON serialization
+                    "user_id": str(
+                        report.user.pk
+                    ),  # Convert UUID to string for JSON serialization
                     "status": report.status,
                     "created_at": report.created_at.isoformat(),
                     "updated_at": report.updated_at.isoformat(),
@@ -183,19 +204,26 @@ class JobService:
         except Exception as e:
             logger.error(f"Error getting job status for {report_id}: {e}")
             return None
-    
-    def update_job_progress(self, report_id: str, progress: str, status: Optional[str] = None):
+
+    def update_job_progress(
+        self, report_id: str, progress: str, status: str | None = None
+    ):
         """Update job status (progress messages ignored/unsupported)."""
         try:
             # Check if the progress message contains MainProcess critical errors that should fail the task
             if self.error_detector.should_fail_task(report_id, progress):
                 # Force fail the task due to MainProcess critical errors
-                self.update_job_error(report_id, f"Task failed due to MainProcess critical error: {progress[:200]}")
+                self.update_job_error(
+                    report_id,
+                    f"Task failed due to MainProcess critical error: {progress[:200]}",
+                )
                 return
 
             # For non-MainProcess ERROR messages, just log them but continue processing
             if self.error_detector.is_error_message(progress):
-                logger.warning(f"Non-critical ERROR message for report {report_id}: {progress[:200]}")
+                logger.warning(
+                    f"Non-critical ERROR message for report {report_id}: {progress[:200]}"
+                )
 
             # Update in database (do not persist textual progress)
             try:
@@ -209,286 +237,370 @@ class JobService:
                 # Update cache
                 cache_key = f"report_job:{report_id}"
                 job_data = cache.get(cache_key, {})
-                job_data.update({
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                })
+                job_data.update(
+                    {
+                        "updated_at": datetime.now(UTC).isoformat(),
+                    }
+                )
                 if status:
                     job_data["status"] = status
                 cache.set(cache_key, job_data, timeout=self.cache_timeout)
 
             except Report.DoesNotExist:
-                logger.warning(f"Report with id {report_id} not found for progress update")
+                logger.warning(
+                    f"Report with id {report_id} not found for progress update"
+                )
 
         except Exception as e:
             logger.error(f"Error updating job progress for {report_id}: {e}")
-    
 
-    def update_job_result(self, report_id: str, result: Dict[str, Any], status: str = Report.STATUS_COMPLETED):
+    def update_job_result(
+        self,
+        report_id: str,
+        result: dict[str, Any],
+        status: str = Report.STATUS_COMPLETED,
+    ):
         """Update job with final result"""
         try:
             # Clean up error detector for this job since it's completing
             self.error_detector.reset_job_errors(report_id)
-            
+
             report = Report.objects.get(id=report_id)
-            
+
             # Store the main content (prefer processed content from result data)
             if "report_content" in result and result["report_content"]:
                 # Use the processed content from the report generator
                 content = result["report_content"]
-                
+
                 # Update image URLs in content if include_image is enabled
                 # Note: ReportImage records should already exist from prepare_report_images
                 if report.include_image:
                     try:
                         from ..services.image import ImageService
+
                         image_service = ImageService()
-                        
+
                         # Get existing ReportImage records and update content with proper URLs
                         from ..models import ReportImage
+
                         report_images = list(ReportImage.objects.filter(report=report))
-                        
+
                         if report_images:
                             # Update content with proper image tags using existing ReportImage records
-                            content = image_service.insert_figure_images(content, report_images, report.id)
-                            logger.info(f"Updated content with {len(report_images)} existing images for report {report.id}")
+                            content = image_service.insert_figure_images(
+                                content, report_images, report.id
+                            )
+                            logger.info(
+                                f"Updated content with {len(report_images)} existing images for report {report.id}"
+                            )
                         else:
-                            logger.info(f"No existing ReportImage records found for report {report.id}")
-                            
+                            logger.info(
+                                f"No existing ReportImage records found for report {report.id}"
+                            )
+
                     except Exception as e:
                         logger.error(f"Error updating image URLs in content: {e}")
                         # Continue without failing the report generation
-                
+
                 report.result_content = content
 
             # Handle file storage - upload generated files to MinIO if using MinIO storage
             generated_files = result.get("generated_files", [])
-            
+
             # Upload files to MinIO if there are generated files
             if generated_files:
                 try:
                     from ..storage import StorageFactory
-                    storage = StorageFactory.create_storage('minio')
-                    
+
+                    storage = StorageFactory.create_storage("minio")
+
                     # Upload files to MinIO and get MinIO keys
                     minio_keys = storage.store_generated_files(
-                        generated_files, 
-                        report.user.id, 
-                        str(report.id), 
-                        report.notebooks.id if report.notebooks else None
+                        generated_files,
+                        report.user.id,
+                        str(report.id),
+                        report.notebooks.id if report.notebooks else None,
                     )
-                    
+
                     # Update generated_files with MinIO keys
                     generated_files = minio_keys
-                    
+
                     # Clean up the temporary directory
-                    import shutil
                     import os
+                    import shutil
+
                     if result.get("generated_files"):
                         # Get temp directory from the first generated file
                         first_file = result["generated_files"][0]
                         temp_dir = os.path.dirname(first_file)
-                        
+
                         # Only clean up if it's a temp directory (contains report_ prefix)
-                        if temp_dir and os.path.exists(temp_dir) and 'report_' in os.path.basename(temp_dir):
+                        if (
+                            temp_dir
+                            and os.path.exists(temp_dir)
+                            and "report_" in os.path.basename(temp_dir)
+                        ):
                             shutil.rmtree(temp_dir)
                             logger.info(f"Cleaned up temporary directory: {temp_dir}")
                         else:
-                            logger.info(f"Skipped cleanup of non-temp directory: {temp_dir}")
+                            logger.info(
+                                f"Skipped cleanup of non-temp directory: {temp_dir}"
+                            )
                     else:
-                        logger.info("No generated files to determine temp directory for cleanup")
-                        
+                        logger.info(
+                            "No generated files to determine temp directory for cleanup"
+                        )
+
                 except Exception as e:
                     logger.error(f"Failed to upload files to MinIO: {e}")
                     # Continue without failing the job
-            
+
             # Set main report object key from generated files (now MinIO keys)
             if generated_files:
                 # Use storage factory to identify main report file
                 try:
                     from ..storage import StorageFactory
-                    storage = StorageFactory.create_storage('minio')
+
+                    storage = StorageFactory.create_storage("minio")
                     main_report_key = storage.get_main_report_file(generated_files)
                 except Exception as e:
-                    logger.warning(f"Failed to identify main report file using storage factory: {e}")
+                    logger.warning(
+                        f"Failed to identify main report file using storage factory: {e}"
+                    )
                     # Fallback to manual identification
                     main_report_key = None
                     for file_path in generated_files:
                         filename = os.path.basename(file_path)
-                        if filename.startswith(f"report_{report.id}") and filename.endswith(".md"):
+                        if filename.startswith(
+                            f"report_{report.id}"
+                        ) and filename.endswith(".md"):
                             main_report_key = file_path
                             break
-                        elif "polished" in filename.lower() and filename.endswith(".md"):
+                        elif "polished" in filename.lower() and filename.endswith(
+                            ".md"
+                        ):
                             main_report_key = file_path
                             break
                         elif filename.endswith(".md"):
                             main_report_key = file_path  # Fallback to any .md file
-                
+
                 if main_report_key:
                     # For MinIO storage, this is already a MinIO key
                     # For local storage, this would be a file path
-                    if main_report_key.startswith(('minio://', str(report.user.id))):
+                    if main_report_key.startswith(("minio://", str(report.user.id))):
                         report.main_report_object_key = main_report_key
                         logger.info(f"Set main report object key: {main_report_key}")
                     else:
                         # This is a local file path, need to handle differently
-                        logger.warning(f"Main report appears to be local file: {main_report_key}")
-                        
+                        logger.warning(
+                            f"Main report appears to be local file: {main_report_key}"
+                        )
+
                 # Update file metadata with generated files info
                 report.file_metadata = {
                     "generated_files_count": len(generated_files),
-                    "generated_files": generated_files[:10],  # Store first 10 files to avoid huge metadata
-                    "main_report_object_key": report.main_report_object_key
+                    "generated_files": generated_files[
+                        :10
+                    ],  # Store first 10 files to avoid huge metadata
+                    "main_report_object_key": report.main_report_object_key,
                 }
-               
+
             # Fallback: Save processed report content directly to MinIO if no generated files
             elif "report_content" in result and result["report_content"]:
                 try:
-                    from notebooks.utils.storage import get_minio_backend
                     import io
-                    
+
+                    from notebooks.utils.storage import get_minio_backend
+
                     filename = f"report_{report.id}.md"
                     # Generate MinIO key: userId/notebook/notebookID/report/reportID/filename
                     minio_key = f"{report.user.id}/notebook/{report.notebooks.id if report.notebooks else 'standalone'}/report/{report.id}/{filename}"
-                    
+
                     # Upload to MinIO
-                    content_bytes = result["report_content"].encode('utf-8')
+                    content_bytes = result["report_content"].encode("utf-8")
                     content_stream = io.BytesIO(content_bytes)
                     file_size = len(content_bytes)
-                    
+
                     minio_backend = get_minio_backend()
                     minio_backend.client.put_object(
                         bucket_name=minio_backend.bucket_name,
                         object_name=minio_key,
                         data=content_stream,
                         length=file_size,
-                        content_type="text/markdown"
+                        content_type="text/markdown",
                     )
-                    
+
                     # Save MinIO key and metadata to database
                     report.main_report_object_key = minio_key
                     report.file_metadata = {
                         "main_report_filename": filename,
                         "main_report_size": file_size,
                         "main_report_content_type": "text/markdown",
-                        "main_report_minio_key": minio_key
+                        "main_report_minio_key": minio_key,
                     }
                     logger.info(f"Saved main report content to MinIO: {minio_key}")
                 except Exception as e:
                     logger.warning(f"Could not save main report to MinIO: {e}")
             else:
-                logger.warning("No generated files or report content found in result data")
-            
+                logger.warning(
+                    "No generated files or report content found in result data"
+                )
+
             # Update article_title with generated title from polishing
-            if "article_title" in result and result["article_title"] != report.article_title:
+            if (
+                "article_title" in result
+                and result["article_title"] != report.article_title
+            ):
                 report.article_title = result["article_title"]
-                logger.info(f"Updated article_title from GenerateOverallTitle: {result['article_title']}")
-            
+                logger.info(
+                    f"Updated article_title from GenerateOverallTitle: {result['article_title']}"
+                )
+
             # Update topic with improved/generated topic if available
-            if "generated_topic" in result and result["generated_topic"] and result["generated_topic"] != report.topic:
+            if (
+                "generated_topic" in result
+                and result["generated_topic"]
+                and result["generated_topic"] != report.topic
+            ):
                 report.topic = result["generated_topic"]
-            
+
             # Store additional metadata in file_metadata (use MinIO keys if available, otherwise use original paths)
             file_metadata = report.file_metadata.copy() if report.file_metadata else {}
-            file_metadata.update({
-                "output_directory": result.get("output_directory", ""),
-                "created_at": result.get("created_at", datetime.now(timezone.utc).isoformat()),
-            })
-            
+            file_metadata.update(
+                {
+                    "output_directory": result.get("output_directory", ""),
+                    "created_at": result.get(
+                        "created_at", datetime.now(UTC).isoformat()
+                    ),
+                }
+            )
+
             # Add main report info to metadata if saved
             if report.main_report_object_key:
                 file_metadata["main_report_object_key"] = report.main_report_object_key
-                logger.info(f"Stored main report object key in file_metadata: {report.main_report_object_key}")
-            
+                logger.info(
+                    f"Stored main report object key in file_metadata: {report.main_report_object_key}"
+                )
+
             report.file_metadata = file_metadata
-            
+
             # Store generated files (use MinIO keys if available, otherwise use original paths)
             if generated_files:
                 report.generated_files = generated_files
-            
+
             if result.get("processing_logs"):
                 report.processing_logs = result["processing_logs"]
-            
+
             # Save all changes to database including result_content, file_metadata, article_title, topic, and MinIO fields
-            report.save(update_fields=["result_content", "file_metadata", "article_title", "topic", "generated_files", "processing_logs", "main_report_object_key", "updated_at"])
-            
+            report.save(
+                update_fields=[
+                    "result_content",
+                    "file_metadata",
+                    "article_title",
+                    "topic",
+                    "generated_files",
+                    "processing_logs",
+                    "main_report_object_key",
+                    "updated_at",
+                ]
+            )
+
             # Update status after saving content and metadata
             report.update_status(status)
-            
+
             # Update cache
             cache_key = f"report_job:{report_id}"
             job_data = cache.get(cache_key, {})
-            job_data.update({
-                "status": status,
-                "result": self._format_result(report),
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            })
+            job_data.update(
+                {
+                    "status": status,
+                    "result": self._format_result(report),
+                    "updated_at": datetime.now(UTC).isoformat(),
+                }
+            )
             cache.set(cache_key, job_data, timeout=self.cache_timeout)
-            
-            logger.info(f"Updated report {report_id} with final result, status: {status}")
-            
+
+            logger.info(
+                f"Updated report {report_id} with final result, status: {status}"
+            )
+
         except Report.DoesNotExist:
-            logger.error(f"Report with report_id {report_id} not found for result update")
+            logger.error(
+                f"Report with report_id {report_id} not found for result update"
+            )
         except Exception as e:
             logger.error(f"Error updating job result for {report_id}: {e}")
-    
+
     def update_job_error(self, report_id: str, error: str):
         """Update job with error information"""
         try:
             # Clean up error detector for this job since it's failing
             self.error_detector.reset_job_errors(report_id)
-            
+
             report = Report.objects.get(id=report_id)
-            
+
             # Cleanup ReportImage records for failed jobs
             self._cleanup_report_images_on_failure(report)
-            
-            report.update_status(
-                Report.STATUS_FAILED,
-                error=error
-            )
-            
+
+            report.update_status(Report.STATUS_FAILED, error=error)
+
             # Also terminate the celery task if it's still running
             if report.celery_task_id:
                 try:
                     self._terminate_celery_task_robust(report.celery_task_id)
-                    logger.info(f"Terminated Celery task {report.celery_task_id} for failed report {report_id}")
+                    logger.info(
+                        f"Terminated Celery task {report.celery_task_id} for failed report {report_id}"
+                    )
                 except Exception as termination_error:
-                    logger.warning(f"Failed to terminate Celery task {report.celery_task_id} for report {report_id}: {termination_error}")
-            
+                    logger.warning(
+                        f"Failed to terminate Celery task {report.celery_task_id} for report {report_id}: {termination_error}"
+                    )
+
             # Cleanup temp directories and prevent MinIO upload for failed jobs
             try:
                 from ..orchestrator import report_orchestrator
+
                 report_orchestrator.cleanup_failed_job(report_id)
-                logger.info(f"Cleaned up temp directories for failed report {report_id}")
+                logger.info(
+                    f"Cleaned up temp directories for failed report {report_id}"
+                )
             except Exception as cleanup_error:
-                logger.warning(f"Failed to cleanup temp directories for failed report {report_id}: {cleanup_error}")
-            
+                logger.warning(
+                    f"Failed to cleanup temp directories for failed report {report_id}: {cleanup_error}"
+                )
+
             # Update cache
             cache_key = f"report_job:{report_id}"
             job_data = cache.get(cache_key, {})
-            job_data.update({
-                "status": Report.STATUS_FAILED,
-                "error": error,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-            })
+            job_data.update(
+                {
+                    "status": Report.STATUS_FAILED,
+                    "error": error,
+                    "updated_at": datetime.now(UTC).isoformat(),
+                }
+            )
             cache.set(cache_key, job_data, timeout=self.cache_timeout)
-            
+
             logger.error(f"Updated report {report_id} with error: {error}")
-            
+
         except Report.DoesNotExist:
-            logger.error(f"Report with report_id {report_id} not found for error update")
+            logger.error(
+                f"Report with report_id {report_id} not found for error update"
+            )
         except Exception as e:
             logger.error(f"Error updating job error for {report_id}: {e}")
-    
+
     def cancel_job(self, report_id: str) -> bool:
         """
         DEPRECATED: Cancellation is now handled directly in ReportJobCancelView.
         This method is kept for backward compatibility but does nothing.
         Use POST /api/v1/reports/jobs/{report_id}/cancel/ instead.
         """
-        logger.warning(f"cancel_job called for report {report_id} - this method is deprecated. Use ReportJobCancelView instead.")
+        logger.warning(
+            f"cancel_job called for report {report_id} - this method is deprecated. Use ReportJobCancelView instead."
+        )
         return False
-    
+
     def delete_job(self, report_id: str) -> bool:
         """
         Complete deletion of a job with robust termination handling.
@@ -496,15 +608,26 @@ class JobService:
         """
         try:
             report = Report.objects.get(id=report_id)
-            logger.info(f"Starting deletion of report {report_id} (status: {report.status})")
+            logger.info(
+                f"Starting deletion of report {report_id} (status: {report.status})"
+            )
 
             # Step 1: Terminate Celery task if we have a task ID and job is still running
-            if report.celery_task_id and report.status in [Report.STATUS_RUNNING, Report.STATUS_PENDING]:
-                logger.info(f"Found celery_task_id: {report.celery_task_id} for report {report_id}")
-                termination_success = self._terminate_celery_task_robust(report.celery_task_id)
+            if report.celery_task_id and report.status in [
+                Report.STATUS_RUNNING,
+                Report.STATUS_PENDING,
+            ]:
+                logger.info(
+                    f"Found celery_task_id: {report.celery_task_id} for report {report_id}"
+                )
+                termination_success = self._terminate_celery_task_robust(
+                    report.celery_task_id
+                )
 
                 if not termination_success:
-                    logger.error(f"Termination failed for celery_task_id: {report.celery_task_id}")
+                    logger.error(
+                        f"Termination failed for celery_task_id: {report.celery_task_id}"
+                    )
                     return False  # Fail fast - don't proceed if task termination failed
 
                 # Update status to cancelled only after confirmed termination
@@ -512,23 +635,33 @@ class JobService:
                     report.update_status(Report.STATUS_CANCELLED)
                     logger.info(f"Updated report {report_id} status to CANCELLED")
                 except Exception as e:
-                    logger.warning(f"Failed to update status for report {report_id}: {e}")
+                    logger.warning(
+                        f"Failed to update status for report {report_id}: {e}"
+                    )
             else:
-                logger.info(f"Skipping task termination for report {report_id} - status: {report.status}, celery_task_id: {bool(report.celery_task_id)}")
+                logger.info(
+                    f"Skipping task termination for report {report_id} - status: {report.status}, celery_task_id: {bool(report.celery_task_id)}"
+                )
 
             # Step 2: Clean up all associated data
             cleanup_success = self._cleanup_all_job_data(report)
 
             if not cleanup_success:
-                logger.warning(f"Some cleanup operations failed for report {report_id}, but proceeding with deletion")
+                logger.warning(
+                    f"Some cleanup operations failed for report {report_id}, but proceeding with deletion"
+                )
 
             # Step 3: Delete the database record (final step)
             try:
                 report.delete()
-                logger.info(f"Successfully deleted report {report_id} and all associated data")
+                logger.info(
+                    f"Successfully deleted report {report_id} and all associated data"
+                )
                 return True
             except Exception as e:
-                logger.error(f"Failed to delete database record for report {report_id}: {e}")
+                logger.error(
+                    f"Failed to delete database record for report {report_id}: {e}"
+                )
                 return False
 
         except Report.DoesNotExist:
@@ -544,16 +677,19 @@ class JobService:
         Returns True if revocation is successful, False otherwise.
         """
         try:
-            from backend.celery import app
             from celery.result import AsyncResult
+
+            from backend.celery import app
 
             # Get task result to check current state
             task_result = AsyncResult(celery_task_id, app=app)
             logger.info(f"Revoking task {celery_task_id} (state: {task_result.state})")
 
             # If already finished, no need to revoke
-            if task_result.state in ['SUCCESS', 'FAILURE', 'REVOKED']:
-                logger.info(f"Task {celery_task_id} already finished with state: {task_result.state}")
+            if task_result.state in ["SUCCESS", "FAILURE", "REVOKED"]:
+                logger.info(
+                    f"Task {celery_task_id} already finished with state: {task_result.state}"
+                )
                 return True
 
             # Revoke the task with termination
@@ -593,15 +729,20 @@ class JobService:
         try:
             self._cleanup_report_images(report)
         except Exception as e:
-            logger.warning(f"Failed to cleanup ReportImage records for job {report.id}: {e}")
+            logger.warning(
+                f"Failed to cleanup ReportImage records for job {report.id}: {e}"
+            )
             cleanup_success = False
 
         # Clean up temp directories
         try:
             from ..orchestrator import report_orchestrator
+
             report_orchestrator.cleanup_failed_job(report.id)
         except Exception as e:
-            logger.warning(f"Failed to cleanup temp directories for job {report.id}: {e}")
+            logger.warning(
+                f"Failed to cleanup temp directories for job {report.id}: {e}"
+            )
             cleanup_success = False
 
         return cleanup_success
@@ -613,13 +754,18 @@ class JobService:
                 return
 
             from infrastructure.storage.adapters import get_storage_adapter
+
             storage_adapter = get_storage_adapter()
 
             # Delete main report file
             if report.main_report_object_key:
                 try:
-                    storage_adapter.delete_file(report.main_report_object_key, str(report.user.id))
-                    logger.info(f"Deleted main report file: {report.main_report_object_key}")
+                    storage_adapter.delete_file(
+                        report.main_report_object_key, str(report.user.id)
+                    )
+                    logger.info(
+                        f"Deleted main report file: {report.main_report_object_key}"
+                    )
                 except Exception as e:
                     logger.warning(f"Failed to delete main report file: {e}")
 
@@ -630,60 +776,81 @@ class JobService:
                         storage_adapter.delete_file(file_path, str(report.user.id))
                         logger.info(f"Deleted generated file: {file_path}")
                     except Exception as e:
-                        logger.warning(f"Failed to delete generated file {file_path}: {e}")
+                        logger.warning(
+                            f"Failed to delete generated file {file_path}: {e}"
+                        )
 
         except Exception as e:
-            logger.warning(f"Error cleaning up storage files for report {report.id}: {e}")
+            logger.warning(
+                f"Error cleaning up storage files for report {report.id}: {e}"
+            )
 
     def _cleanup_report_images(self, report: Report):
         """Clean up ReportImage records for a report"""
         try:
             from .image import ImageService
+
             image_service = ImageService()
             image_service.cleanup_report_images(report)
             logger.info(f"Cleaned up ReportImage records for report {report.id}")
         except Exception as e:
-            logger.warning(f"Error cleaning up ReportImage records for report {report.id}: {e}")
+            logger.warning(
+                f"Error cleaning up ReportImage records for report {report.id}: {e}"
+            )
 
-    def list_jobs(self, user_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
+    def list_jobs(
+        self, user_id: int | None = None, limit: int = 50
+    ) -> list[dict[str, Any]]:
         """List report generation jobs"""
         try:
             query = Report.objects.select_related("user").order_by("-created_at")
-            
+
             if user_id:
                 query = query.filter(user=user_id)
-            
+
             reports = query[:limit]
-            
+
             jobs = []
             for report in reports:
-                jobs.append({
-                    "report_id": str(report.id),  # Convert UUID to string for JSON serialization
-                    "user_id": str(report.user.pk),  # Convert UUID to string for JSON serialization
-                    "status": report.status,
-                    "progress": report.progress,
-                    "created_at": report.created_at.isoformat(),
-                    "updated_at": report.updated_at.isoformat(),
-                    "result": self._format_result(report) if report.status == Report.STATUS_COMPLETED else None,
-                    "error": report.error_message or None,
-                })
-            
+                jobs.append(
+                    {
+                        "report_id": str(
+                            report.id
+                        ),  # Convert UUID to string for JSON serialization
+                        "user_id": str(
+                            report.user.pk
+                        ),  # Convert UUID to string for JSON serialization
+                        "status": report.status,
+                        "progress": report.progress,
+                        "created_at": report.created_at.isoformat(),
+                        "updated_at": report.updated_at.isoformat(),
+                        "result": self._format_result(report)
+                        if report.status == Report.STATUS_COMPLETED
+                        else None,
+                        "error": report.error_message or None,
+                    }
+                )
+
             return jobs
-            
+
         except Exception as e:
             logger.error(f"Error listing jobs: {e}")
             return []
-    
+
     def cleanup_old_jobs(self, days: int = 7):
         """Clean up old completed jobs"""
         try:
-            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-            
+            cutoff_date = datetime.now(UTC) - timedelta(days=days)
+
             old_reports = Report.objects.filter(
                 created_at__lt=cutoff_date,
-                status__in=[Report.STATUS_COMPLETED, Report.STATUS_FAILED, Report.STATUS_CANCELLED],
+                status__in=[
+                    Report.STATUS_COMPLETED,
+                    Report.STATUS_FAILED,
+                    Report.STATUS_CANCELLED,
+                ],
             )
-            
+
             count = 0
             for report in old_reports:
                 # Clean up cache
@@ -691,124 +858,128 @@ class JobService:
                     cache_key = f"report_job:{report.id}"
                     cache.delete(cache_key)
                 count += 1
-            
+
             logger.info(f"Cleaned up {count} old report job cache entries")
-            
+
         except Exception as e:
             logger.error(f"Error cleaning up old jobs: {e}")
-    
-    def _format_result(self, report: Report) -> Optional[Dict[str, Any]]:
+
+    def _format_result(self, report: Report) -> dict[str, Any] | None:
         """Format the result data for API responses"""
         if report.status != Report.STATUS_COMPLETED:
             return None
-        
+
         result = {}
-        
+
         # Add report content
         if report.result_content:
             result["report_content"] = report.result_content
-            
+
         # Add file metadata
         if report.file_metadata:
             result.update(report.file_metadata)
-            
+
         # Add generated files
         if report.generated_files:
             result["generated_files"] = report.generated_files
-            
+
         # Add processing logs
         if report.processing_logs:
             result["processing_logs"] = report.processing_logs
-            
+
         # Add main report object key
         if report.main_report_object_key:
             result["main_report_object_key"] = report.main_report_object_key
-        
+
         return result if result else None
-    
-    def _check_worker_crash(self, report: Report) -> Dict[str, Any]:
+
+    def _check_worker_crash(self, report: Report) -> dict[str, Any]:
         """Check if a Celery worker has crashed for a running job"""
         try:
             # Check if job has been running for too long without updates
             if report.updated_at:
-                time_since_update = datetime.now(timezone.utc) - report.updated_at
+                time_since_update = datetime.now(UTC) - report.updated_at
                 # Consider job crashed if no updates for 60 minutes
                 if time_since_update > timedelta(minutes=60):
-                    logger.warning(f"Job {report.id} has not been updated for {time_since_update}")
-                    
+                    logger.warning(
+                        f"Job {report.id} has not been updated for {time_since_update}"
+                    )
+
                     # If we have a celery_task_id, check the actual task state
                     if report.celery_task_id:
                         return self._check_celery_task_state(report.celery_task_id)
                     else:
                         # No celery_task_id, assume crashed if stale for too long
                         return {
-                            'crashed': True,
-                            'error_message': f'Task timeout: No updates for {time_since_update}',
-                            'progress_message': 'Worker appears to have crashed or hung'
+                            "crashed": True,
+                            "error_message": f"Task timeout: No updates for {time_since_update}",
+                            "progress_message": "Worker appears to have crashed or hung",
                         }
-            
-            return {'crashed': False}
-            
+
+            return {"crashed": False}
+
         except Exception as e:
             logger.error(f"Error checking worker crash for job {report.id}: {e}")
-            return {'crashed': False}
-    
-    def _check_celery_task_state(self, celery_task_id: str) -> Dict[str, Any]:
+            return {"crashed": False}
+
+    def _check_celery_task_state(self, celery_task_id: str) -> dict[str, Any]:
         """Check if a Celery task has failed or is in an unknown state"""
         try:
             task_result = AsyncResult(celery_task_id)
-            
+
             # Check task state
-            if task_result.state == 'FAILURE':
+            if task_result.state == "FAILURE":
                 # Extract actual error message from Celery
                 error_msg = "Celery task failed"
                 progress_msg = "Task failed during execution"
-                
-                if hasattr(task_result, 'info') and task_result.info:
+
+                if hasattr(task_result, "info") and task_result.info:
                     if isinstance(task_result.info, dict):
-                        error_msg = task_result.info.get('error', str(task_result.info))
+                        error_msg = task_result.info.get("error", str(task_result.info))
                     else:
                         error_msg = str(task_result.info)
-                
-                if hasattr(task_result, 'traceback') and task_result.traceback:
+
+                if hasattr(task_result, "traceback") and task_result.traceback:
                     # Include traceback for debugging
                     error_msg += f"\nTraceback: {task_result.traceback}"
-                
+
                 logger.warning(f"Celery task {celery_task_id} failed: {error_msg}")
                 return {
-                    'crashed': True,
-                    'error_message': error_msg,
-                    'progress_message': progress_msg
+                    "crashed": True,
+                    "error_message": error_msg,
+                    "progress_message": progress_msg,
                 }
-                
-            elif task_result.state == 'REVOKED':
+
+            elif task_result.state == "REVOKED":
                 logger.warning(f"Celery task {celery_task_id} was revoked")
                 return {
-                    'crashed': True,
-                    'error_message': 'Task was revoked/cancelled',
-                    'progress_message': 'Task was cancelled by system or user'
+                    "crashed": True,
+                    "error_message": "Task was revoked/cancelled",
+                    "progress_message": "Task was cancelled by system or user",
                 }
-                
-            elif task_result.state in ['PENDING', 'RETRY', 'STARTED']:
+
+            elif task_result.state in ["PENDING", "RETRY", "STARTED"]:
                 # Task is in a valid running state
-                return {'crashed': False}
-                
+                return {"crashed": False}
+
             else:
                 # Unknown state, could indicate a problem
-                logger.warning(f"Celery task {celery_task_id} in unknown state: {task_result.state}")
+                logger.warning(
+                    f"Celery task {celery_task_id} in unknown state: {task_result.state}"
+                )
                 return {
-                    'crashed': True,
-                    'error_message': f'Task in unknown state: {task_result.state}',
-                    'progress_message': 'Task is in an unexpected state'
+                    "crashed": True,
+                    "error_message": f"Task in unknown state: {task_result.state}",
+                    "progress_message": "Task is in an unexpected state",
                 }
-                
+
         except Exception as e:
             logger.error(f"Error checking Celery task state {celery_task_id}: {e}")
             # If we can't check task state, assume it might be crashed
             return {
-                'crashed': True,
-                'error_message': f'Unable to check task state: {str(e)}',
-                'progress_message': 'Worker may have crashed or be unreachable'
+                "crashed": True,
+                "error_message": f"Unable to check task state: {str(e)}",
+                "progress_message": "Worker may have crashed or be unreachable",
             }
 
     # ------------------------------------------------------------------
@@ -842,7 +1013,11 @@ class JobService:
                     error_msg += f"\nTraceback: {task_result.traceback}"
 
                 # Update the report only if we have not already marked it as FAILED
-                if report.status not in [Report.STATUS_FAILED, Report.STATUS_COMPLETED, Report.STATUS_CANCELLED]:
+                if report.status not in [
+                    Report.STATUS_FAILED,
+                    Report.STATUS_COMPLETED,
+                    Report.STATUS_CANCELLED,
+                ]:
                     try:
                         report.update_status(
                             Report.STATUS_FAILED,
@@ -859,17 +1034,24 @@ class JobService:
                             {
                                 "status": Report.STATUS_FAILED,
                                 "error": error_msg,
-                                "updated_at": datetime.now(timezone.utc).isoformat(),
+                                "updated_at": datetime.now(UTC).isoformat(),
                             }
                         )
                         cache.set(cache_key, job_data, timeout=self.cache_timeout)
                     except Report.DoesNotExist:
-                        logger.info(f"Report {report.id} was deleted during sync, skipping status update")
+                        logger.info(
+                            f"Report {report.id} was deleted during sync, skipping status update"
+                        )
                     except Exception as update_error:
-                        logger.warning(f"Failed to update report {report.id} status to FAILED: {update_error}")
+                        logger.warning(
+                            f"Failed to update report {report.id} status to FAILED: {update_error}"
+                        )
 
             elif task_result.state == "REVOKED":
-                if report.status not in [Report.STATUS_CANCELLED, Report.STATUS_COMPLETED]:
+                if report.status not in [
+                    Report.STATUS_CANCELLED,
+                    Report.STATUS_COMPLETED,
+                ]:
                     report.update_status(
                         Report.STATUS_CANCELLED,
                         error="Task was revoked/cancelled",
@@ -884,7 +1066,7 @@ class JobService:
                         {
                             "status": Report.STATUS_CANCELLED,
                             "error": "Task was revoked/cancelled",
-                            "updated_at": datetime.now(timezone.utc).isoformat(),
+                            "updated_at": datetime.now(UTC).isoformat(),
                         }
                     )
                     cache.set(cache_key, job_data, timeout=self.cache_timeout)
@@ -901,22 +1083,22 @@ class JobService:
             )
 
     # Removed: old _terminate_celery_task method - replaced with _terminate_celery_task_robust
-    
+
     def prepare_report_images(self, report: Report) -> bool:
         """Prepare ReportImage records before report generation starts.
-        
+
         This creates ReportImage records early so they're available during figure insertion.
-        
+
         Args:
             report: Report instance
-            
+
         Returns:
             bool: True if preparation was successful, False otherwise
         """
         if not report.include_image:
             logger.info(f"Image processing disabled for report {report.id}")
             return True
-        
+
         try:
             from .image import ImageService
 
@@ -928,58 +1110,77 @@ class JobService:
             ) or image_service.get_cached_figure_data(
                 report.user.pk, report.notebooks.id if report.notebooks else None
             )
-            
+
             if figure_data and "figures" in figure_data:
                 # Extract figure IDs from cached figure data
-                figure_ids = [fig.get("figure_id") for fig in figure_data["figures"] if fig.get("figure_id")]
-                
+                figure_ids = [
+                    fig.get("figure_id")
+                    for fig in figure_data["figures"]
+                    if fig.get("figure_id")
+                ]
+
                 if figure_ids:
-                    
                     # Find corresponding images in knowledge base
-                    kb_images = image_service.find_images_by_figure_ids(figure_ids, report.user.id)
-                    
+                    kb_images = image_service.find_images_by_figure_ids(
+                        figure_ids, report.user.id
+                    )
+
                     if kb_images:
                         # Copy images to report folder and create ReportImage records
-                        report_images = image_service.copy_images_to_report(report, kb_images)
-                        logger.info(f"Prepared {len(report_images)} ReportImage records for report {report.id}")
+                        report_images = image_service.copy_images_to_report(
+                            report, kb_images
+                        )
+                        logger.info(
+                            f"Prepared {len(report_images)} ReportImage records for report {report.id}"
+                        )
                         return True
                     else:
                         logger.warning(f"No images found for figure IDs: {figure_ids}")
                 else:
-                    logger.info(f"No figure IDs found in cached figure data for report {report.id}")
+                    logger.info(
+                        f"No figure IDs found in cached figure data for report {report.id}"
+                    )
             else:
                 logger.info(f"No cached figure data found for report {report.id}")
-            
+
             return True
-            
+
         except Exception as e:
             logger.error(f"Error preparing report images for report {report.id}: {e}")
             return False
-    
+
     def _cleanup_report_images_on_failure(self, report: Report):
         """Clean up ReportImage records when a job fails.
-        
+
         Args:
             report: Report instance
         """
         try:
             from ..services.image import ImageService
+
             image_service = ImageService()
             image_service.cleanup_report_images(report)
             logger.info(f"Cleaned up ReportImage records for failed report {report.id}")
         except Exception as e:
-            logger.error(f"Error cleaning up ReportImage records for failed report {report.id}: {e}")
-    
+            logger.error(
+                f"Error cleaning up ReportImage records for failed report {report.id}: {e}"
+            )
+
     def _cleanup_report_images_on_cancellation(self, report: Report):
         """Clean up ReportImage records when a job is cancelled.
-        
+
         Args:
             report: Report instance
         """
         try:
             from ..services.image import ImageService
+
             image_service = ImageService()
             image_service.cleanup_report_images(report)
-            logger.info(f"Cleaned up ReportImage records for cancelled report {report.id}")
+            logger.info(
+                f"Cleaned up ReportImage records for cancelled report {report.id}"
+            )
         except Exception as e:
-            logger.error(f"Error cleaning up ReportImage records for cancelled report {report.id}: {e}")
+            logger.error(
+                f"Error cleaning up ReportImage records for cancelled report {report.id}: {e}"
+            )

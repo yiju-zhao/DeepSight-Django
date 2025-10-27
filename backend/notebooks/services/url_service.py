@@ -3,13 +3,14 @@ URL Service - Handle URL processing business logic following Django patterns.
 
 All URL processing is now handled asynchronously via Celery tasks.
 """
+
 import logging
-from uuid import uuid4
+
+from core.services import NotebookBaseService
 from django.db import transaction
 from rest_framework import status
 
 from ..models import KnowledgeBaseItem
-from core.services import NotebookBaseService
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class URLService(NotebookBaseService):
                 parsing_status="queueing",
                 notes=f"URL: {url}",
                 tags=[],
-                metadata={'url': url, 'upload_url_id': upload_url_id}
+                metadata={"url": url, "upload_url_id": upload_url_id},
             )
 
             logger.info(f"Created KB item {kb_item.id} for URL: {url}")
@@ -52,13 +53,12 @@ class URLService(NotebookBaseService):
                 "success": True,
                 "upload_url_id": upload_url_id,
                 "file_id": str(kb_item.id),
-                "status_code": status.HTTP_202_ACCEPTED  # 202 for async processing
+                "status_code": status.HTTP_202_ACCEPTED,  # 202 for async processing
             }
 
         except Exception as e:
             logger.exception(f"Single URL parsing failed for {url}: {e}")
             raise
-
 
     @transaction.atomic
     def handle_url_with_media(self, url, upload_url_id, notebook, user):
@@ -78,7 +78,11 @@ class URLService(NotebookBaseService):
                 parsing_status="queueing",
                 notes=f"URL with media: {url}",
                 tags=[],
-                metadata={'url': url, 'upload_url_id': upload_url_id, 'extract_media': True}
+                metadata={
+                    "url": url,
+                    "upload_url_id": upload_url_id,
+                    "extract_media": True,
+                },
             )
 
             logger.info(f"Created KB item {kb_item.id} for URL with media: {url}")
@@ -92,7 +96,7 @@ class URLService(NotebookBaseService):
                 "success": True,
                 "upload_url_id": upload_url_id,
                 "file_id": str(kb_item.id),
-                "status_code": status.HTTP_202_ACCEPTED  # 202 for async processing
+                "status_code": status.HTTP_202_ACCEPTED,  # 202 for async processing
             }
 
         except Exception as e:
@@ -117,7 +121,11 @@ class URLService(NotebookBaseService):
                 parsing_status="queueing",
                 notes=f"Document URL: {url}",
                 tags=[],
-                metadata={'url': url, 'upload_url_id': upload_url_id, 'document_only': True}
+                metadata={
+                    "url": url,
+                    "upload_url_id": upload_url_id,
+                    "document_only": True,
+                },
             )
 
             logger.info(f"Created KB item {kb_item.id} for document URL: {url}")
@@ -131,7 +139,7 @@ class URLService(NotebookBaseService):
                 "success": True,
                 "upload_url_id": upload_url_id,
                 "file_id": str(kb_item.id),
-                "status_code": status.HTTP_202_ACCEPTED  # 202 for async processing
+                "status_code": status.HTTP_202_ACCEPTED,  # 202 for async processing
             }
 
         except Exception as e:

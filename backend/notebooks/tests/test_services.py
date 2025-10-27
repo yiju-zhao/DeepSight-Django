@@ -2,13 +2,14 @@
 Service tests for the notebooks module.
 """
 
-from unittest.mock import Mock, patch
-from django.test import TestCase
-from django.contrib.auth import get_user_model
+from unittest.mock import Mock
 
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+
+from ..exceptions import NotebookNotFoundError
 from ..models import Notebook
 from ..services.notebook_service import NotebookService
-from ..exceptions import NotebookNotFoundError
 
 User = get_user_model()
 
@@ -42,8 +43,7 @@ class NotebookServiceTests(TestCase):
 
     def test_create_notebook(self):
         """Test notebook creation via service."""
-        from unittest.mock import Mock
-        
+
         # Mock serializer
         mock_serializer = Mock()
         mock_serializer.save.return_value = Mock(
@@ -76,4 +76,4 @@ class NotebookServiceTests(TestCase):
         notebook = Notebook.objects.create(user=other_user, name="Other Notebook")
 
         with self.assertRaises(NotebookNotFoundError):
-            self.service.get_notebook_or_404(str(notebook.id), self.user) 
+            self.service.get_notebook_or_404(str(notebook.id), self.user)

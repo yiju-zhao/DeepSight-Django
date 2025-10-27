@@ -20,18 +20,14 @@ if sys.platform == "darwin":  # macOS
     os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
     os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 
-import glob
-import json
 import logging
 import pathlib
 import tempfile
-from datetime import datetime
-from typing import Dict, List, Optional, Union, Any
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
-import pandas as pd
-from prompts import PromptType, configure_prompts, create_prompt_module
+from prompts import PromptType, configure_prompts
 
 # Get the directory where the script is located
 SCRIPT_DIR = pathlib.Path(__file__).parent.absolute()
@@ -48,13 +44,16 @@ STORMWikiLMConfigs = None  # type: ignore
 STORMWikiRunner = None  # type: ignore
 STORMWikiRunnerArguments = None  # type: ignore
 OpenAIModel = GoogleModel = None  # type: ignore
-BraveRM = TavilySearchRM = SerperRM = YouRM = BingSearch = DuckDuckGoSearchRM = SearXNG = AzureAISearch = None  # type: ignore
+BraveRM = TavilySearchRM = SerperRM = YouRM = BingSearch = DuckDuckGoSearchRM = (
+    SearXNG
+) = AzureAISearch = None  # type: ignore
 get_whitelisted_domains = is_valid_source = None  # type: ignore
 FileIOHelper = QueryLogger = load_api_key = truncate_filename = None  # type: ignore
 
 # ---------------------------------------------------------------------------
 # Lazy import helper
 # ---------------------------------------------------------------------------
+
 
 def _lazy_import_knowledge_storm():
     """Import knowledge_storm modules *after* prompts are configured.
@@ -70,38 +69,73 @@ def _lazy_import_knowledge_storm():
 
     global STORMWikiLMConfigs, STORMWikiRunner, STORMWikiRunnerArguments
     global OpenAIModel, GoogleModel
-    global BraveRM, TavilySearchRM, SerperRM, YouRM, BingSearch, DuckDuckGoSearchRM, SearXNG, AzureAISearch
+    global \
+        BraveRM, \
+        TavilySearchRM, \
+        SerperRM, \
+        YouRM, \
+        BingSearch, \
+        DuckDuckGoSearchRM, \
+        SearXNG, \
+        AzureAISearch
     global get_whitelisted_domains, is_valid_source
     global FileIOHelper, QueryLogger, load_api_key, truncate_filename
 
     from knowledge_storm import (
         STORMWikiLMConfigs as _STORMWikiLMConfigs,
+    )
+    from knowledge_storm import (
         STORMWikiRunner as _STORMWikiRunner,
+    )
+    from knowledge_storm import (
         STORMWikiRunnerArguments as _STORMWikiRunnerArguments,
     )
-
-    from knowledge_storm.lm import OpenAIModel as _OpenAIModel, GoogleModel as _GoogleModel
-
+    from knowledge_storm.lm import (
+        GoogleModel as _GoogleModel,
+    )
+    from knowledge_storm.lm import (
+        OpenAIModel as _OpenAIModel,
+    )
     from knowledge_storm.rm import (
-        BraveRM as _BraveRM,
-        TavilySearchRM as _TavilySearchRM,
-        SerperRM as _SerperRM,
-        YouRM as _YouRM,
-        BingSearch as _BingSearch,
-        DuckDuckGoSearchRM as _DuckDuckGoSearchRM,
-        SearXNG as _SearXNG,
         AzureAISearch as _AzureAISearch,
     )
-
+    from knowledge_storm.rm import (
+        BingSearch as _BingSearch,
+    )
+    from knowledge_storm.rm import (
+        BraveRM as _BraveRM,
+    )
+    from knowledge_storm.rm import (
+        DuckDuckGoSearchRM as _DuckDuckGoSearchRM,
+    )
+    from knowledge_storm.rm import (
+        SearXNG as _SearXNG,
+    )
+    from knowledge_storm.rm import (
+        SerperRM as _SerperRM,
+    )
+    from knowledge_storm.rm import (
+        TavilySearchRM as _TavilySearchRM,
+    )
+    from knowledge_storm.rm import (
+        YouRM as _YouRM,
+    )
     from knowledge_storm.storm_wiki.modules.retriever import (
         get_whitelisted_domains as _get_whitelisted_domains,
+    )
+    from knowledge_storm.storm_wiki.modules.retriever import (
         is_valid_source as _is_valid_source,
     )
-
     from knowledge_storm.utils import (
         FileIOHelper as _FileIOHelper,
+    )
+    from knowledge_storm.utils import (
         QueryLogger as _QueryLogger,
+    )
+    from knowledge_storm.utils import (
         load_api_key as _load_api_key,
+    )
+    from knowledge_storm.utils import (
         truncate_filename as _truncate_filename,
     )
 
@@ -159,12 +193,12 @@ class ReportGenerationConfig:
     output_dir: str = "results/api"
     max_thread_num: int = 10
     model_provider: ModelProvider = ModelProvider.OPENAI
-    model_uid: Optional[str] = None  # For Xinference: the model UID selected by user
+    model_uid: str | None = None  # For Xinference: the model UID selected by user
     retriever: RetrieverType = RetrieverType.TAVILY
     temperature: float = 0.2
     top_p: float = 0.4
     prompt_type: PromptType = PromptType.GENERAL
-    report_id: Optional[int] = None
+    report_id: int | None = None
 
     # Generation flags
     do_research: bool = True
@@ -183,31 +217,31 @@ class ReportGenerationConfig:
     reranker_threshold: float = 0.5
 
     # Optional parameters
-    time_range: Optional[TimeRange] = None
+    time_range: TimeRange | None = None
     include_domains: bool = False
-    whitelist_domains: Optional[List[str]] = None
+    whitelist_domains: list[str] | None = None
     search_depth: str = "basic"  # "basic" or "advanced" for TavilySearchRM
-    old_outline_path: Optional[str] = None
+    old_outline_path: str | None = None
     skip_rewrite_outline: bool = False
 
     # Content inputs
-    topic: Optional[str] = None
+    topic: str | None = None
     article_title: str = "StormReport"
     # Consolidated text input (replaces paper_path, transcript_path, paper_content, transcript_content)
-    text_input: Optional[str] = None
-    csv_path: Optional[str] = None
-    author_json: Optional[str] = None
-    caption_files: Optional[List[str]] = None
-    source_ids: Optional[List[str]] = None  # For image path fixing
-    user_id: Optional[str] = None  # User ID for MinIO access
-    figure_data: Optional[List[Any]] = None  # For image data
+    text_input: str | None = None
+    csv_path: str | None = None
+    author_json: str | None = None
+    caption_files: list[str] | None = None
+    source_ids: list[str] | None = None  # For image path fixing
+    user_id: str | None = None  # User ID for MinIO access
+    figure_data: list[Any] | None = None  # For image data
 
     # CSV processing options (for non-interactive API use)
-    csv_session_code: Optional[str] = None
-    csv_date_filter: Optional[str] = None  # Format: YYYY-MM-DD
+    csv_session_code: str | None = None
+    csv_date_filter: str | None = None  # Format: YYYY-MM-DD
 
     @classmethod
-    def from_dict(cls, config_dict: Dict[str, Any]) -> "ReportGenerationConfig":
+    def from_dict(cls, config_dict: dict[str, Any]) -> "ReportGenerationConfig":
         """Create a ReportGenerationConfig from a dictionary.
 
         Args:
@@ -258,7 +292,8 @@ class ReportGenerationConfig:
 
         return cls(
             topic=config_dict.get("topic"),
-            article_title=config_dict.get("article_title") or f"Report_{config_dict.get('report_id', 'Unknown')}",
+            article_title=config_dict.get("article_title")
+            or f"Report_{config_dict.get('report_id', 'Unknown')}",
             output_dir=str(config_dict["output_dir"]),
             report_id=config_dict.get("report_id"),
             model_provider=model_provider_map.get(
@@ -286,10 +321,14 @@ class ReportGenerationConfig:
             final_context_k=config_dict.get("final_context_k", 20),
             reranker_threshold=config_dict.get("reranker_threshold", 0.5),
             max_thread_num=config_dict.get("max_thread_num", 10),
-            time_range=time_range_map.get(config_dict.get("time_range")) if config_dict.get("time_range") else None,
+            time_range=time_range_map.get(config_dict.get("time_range"))
+            if config_dict.get("time_range")
+            else None,
             include_domains=config_dict.get("include_domains", False),
             skip_rewrite_outline=config_dict.get("skip_rewrite_outline", False),
-            whitelist_domains=config_dict.get("domain_list", []) if config_dict.get("domain_list") else None,
+            whitelist_domains=config_dict.get("domain_list", [])
+            if config_dict.get("domain_list")
+            else None,
             search_depth=config_dict.get("search_depth", "basic"),
             old_outline_path=old_outline_path,
             source_ids=config_dict.get("source_ids", []),
@@ -308,11 +347,11 @@ class ReportGenerationResult:
     success: bool
     article_title: str
     output_directory: str
-    generated_files: List[str]
-    error_message: Optional[str] = None
-    processing_logs: List[str] = None
-    report_content: Optional[str] = None
-    generated_topic: Optional[str] = None
+    generated_files: list[str]
+    error_message: str | None = None
+    processing_logs: list[str] = None
+    report_content: str | None = None
+    generated_topic: str | None = None
 
 
 class DeepReportGenerator:
@@ -329,8 +368,6 @@ class DeepReportGenerator:
             level=logging.INFO,
             format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         )
-
-
 
     def generate_report(self, config: ReportGenerationConfig) -> ReportGenerationResult:
         """Generate a research report based on the provided configuration.
@@ -359,7 +396,9 @@ class DeepReportGenerator:
 
             # Configure prompts and perform lazy import
             configure_prompts(config.prompt_type)
-            processing_logs.append(f"Prompts configured for {config.prompt_type.value} type")
+            processing_logs.append(
+                f"Prompts configured for {config.prompt_type.value} type"
+            )
             _lazy_import_knowledge_storm()
 
             # Load API keys
@@ -367,15 +406,21 @@ class DeepReportGenerator:
             processing_logs.append("API keys loaded successfully")
 
             # Validate inputs
-            if (not config.topic and not config.text_input and
-                not config.csv_path and not config.caption_files):
+            if (
+                not config.topic
+                and not config.text_input
+                and not config.csv_path
+                and not config.caption_files
+            ):
                 raise ValueError(
                     "Either a topic, text input, CSV file, or caption files must be provided."
                 )
 
             # Setup language models and configurations
             lm_configs = config_manager.setup_language_models(config)
-            processing_logs.append(f"Language models configured for {config.model_provider}")
+            processing_logs.append(
+                f"Language models configured for {config.model_provider}"
+            )
 
             # Create engine arguments
             engine_args = orchestrator.create_engine_arguments(config)
@@ -385,18 +430,27 @@ class DeepReportGenerator:
             processing_logs.append(f"Retriever configured: {config.retriever}")
 
             # Process CSV metadata
-            article_title, speakers, csv_text_input = io_manager.process_csv_metadata(config)
+            article_title, speakers, csv_text_input = io_manager.process_csv_metadata(
+                config
+            )
             processing_logs.append("CSV metadata processed")
 
             # Setup output directory
-            article_output_dir = io_manager.setup_output_directory(config, article_title)
+            article_output_dir = io_manager.setup_output_directory(
+                config, article_title
+            )
 
             # Initialize and configure runner
             runner = orchestrator.initialize_runner(engine_args, lm_configs, rm, config)
 
             # Configure runner content
             content_logs = orchestrator.configure_runner_content(
-                runner, config, article_title, speakers, csv_text_input, article_output_dir
+                runner,
+                config,
+                article_title,
+                speakers,
+                csv_text_input,
+                article_output_dir,
             )
             processing_logs.extend(content_logs)
 
@@ -404,7 +458,9 @@ class DeepReportGenerator:
             orchestrator.validate_runner_content(config, runner)
 
             # Set article directory name
-            folder_name = truncate_filename(article_title.replace(" ", "_").replace("/", "_"))
+            folder_name = truncate_filename(
+                article_title.replace(" ", "_").replace("/", "_")
+            )
             runner.article_dir_name = folder_name
 
             # Log processing information
@@ -418,14 +474,20 @@ class DeepReportGenerator:
             generated_files = io_manager.collect_generated_files(article_output_dir)
 
             # Process final report content
-            final_report_content = io_manager.process_final_report_content(config, article_output_dir)
+            final_report_content = io_manager.process_final_report_content(
+                config, article_output_dir
+            )
             if final_report_content:
                 processing_logs.append("Final report content processed")
             else:
-                processing_logs.append("Post-processing disabled or no content to process")
+                processing_logs.append(
+                    "Post-processing disabled or no content to process"
+                )
 
             # Create report file if needed
-            report_file_path = io_manager.create_report_file(config, article_output_dir, final_report_content)
+            report_file_path = io_manager.create_report_file(
+                config, article_output_dir, final_report_content
+            )
             if report_file_path:
                 generated_files.append(report_file_path)
 
@@ -434,12 +496,12 @@ class DeepReportGenerator:
 
             return ReportGenerationResult(
                 success=True,
-                article_title=metadata['final_article_title'],
+                article_title=metadata["final_article_title"],
                 output_directory=article_output_dir,
                 generated_files=generated_files,
                 processing_logs=processing_logs,
                 report_content=final_report_content,
-                generated_topic=metadata['generated_topic'],
+                generated_topic=metadata["generated_topic"],
             )
 
         except Exception as e:
@@ -458,7 +520,7 @@ class DeepReportGenerator:
 
 # Convenience function for backward compatibility and simple usage
 def generate_report_from_config(
-    config: ReportGenerationConfig
+    config: ReportGenerationConfig,
 ) -> ReportGenerationResult:
     """Generate a report using the provided configuration.
 

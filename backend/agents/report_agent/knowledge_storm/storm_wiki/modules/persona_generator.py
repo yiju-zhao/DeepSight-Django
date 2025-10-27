@@ -1,6 +1,4 @@
-import logging
 import re
-from typing import Union, List, Optional
 
 import dspy
 from prompts import import_prompts
@@ -33,7 +31,7 @@ class GenPersona(dspy.Signature):
 class CreateWriterWithPersona(dspy.Module):
     """Discover different perspectives of researching the topic by reading Wikipedia pages of related topics."""
 
-    def __init__(self, engine: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def __init__(self, engine: dspy.dsp.LM | dspy.dsp.HFModel):
         super().__init__()
         self.find_related_topic = dspy.ChainOfThought(FindRelatedTopic)
         self.gen_persona = dspy.ChainOfThought(GenPersona)
@@ -42,8 +40,8 @@ class CreateWriterWithPersona(dspy.Module):
     def forward(
         self,
         text_input: str,
-        topic: Optional[str] = None,
-        old_outline: Optional[str] = None,
+        topic: str | None = None,
+        old_outline: str | None = None,
         draft=None,
     ):
         with dspy.settings.context(lm=self.engine):
@@ -70,16 +68,16 @@ class StormPersonaGenerator:
     A generator class for creating personas based on a given text and optional topic.
     """
 
-    def __init__(self, lm_config: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def __init__(self, lm_config: dspy.dsp.LM | dspy.dsp.HFModel):
         self.create_writer_with_persona = CreateWriterWithPersona(engine=lm_config)
 
     def generate_persona(
         self,
         text_input: str,
         max_num_persona: int = 3,
-        topic: Optional[str] = None,
-        old_outline: Optional[str] = None,
-    ) -> List[str]:
+        topic: str | None = None,
+        old_outline: str | None = None,
+    ) -> list[str]:
         """
         Generates a list of personas based on the provided text and optional topic.
 

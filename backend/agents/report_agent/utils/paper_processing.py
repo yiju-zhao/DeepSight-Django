@@ -1,17 +1,18 @@
-import re
-import os
 import glob
-import shutil
-import logging
 import json
+import logging
+import os
+import re
+import shutil
 import sys
 
 # Add backend to path for common utilities
-backend_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
+backend_path = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
+)
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
-from reports.utils import clean_title_text
 
 if not logging.getLogger().hasHandlers():
     logging.basicConfig(
@@ -22,42 +23,50 @@ if not logging.getLogger().hasHandlers():
 def _get_figure_url_from_db(figure_id: str, report_id: str) -> str:
     """
     Get the MinIO URL for an image from the database using the figure_id and report_id.
-    
+
     Args:
         figure_id: The figure_id of the ReportImage
         report_id: The report_id to uniquely identify the image
-        
+
     Returns:
         The MinIO URL for the image, or None if not found
     """
     try:
         # Import here to avoid circular imports
-        import django
         import os
+
+        import django
         from django.conf import settings as django_settings
-        
+
         # Initialize Django if not already done
         if not django_settings.configured:
-            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+            os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
             django.setup()
-        
+
         from reports.models import ReportImage
-        
+
         try:
             image = ReportImage.objects.get(figure_id=figure_id, report_id=report_id)
             url = image.get_image_url()
-            logging.info(f"Successfully retrieved image URL for figure_id {figure_id} and report_id {report_id} from ReportImage")
+            logging.info(
+                f"Successfully retrieved image URL for figure_id {figure_id} and report_id {report_id} from ReportImage"
+            )
             return url
         except ReportImage.DoesNotExist:
-            logging.warning(f"Image with figure_id {figure_id} and report_id {report_id} not found in ReportImage database")
+            logging.warning(
+                f"Image with figure_id {figure_id} and report_id {report_id} not found in ReportImage database"
+            )
             return None
         except ValueError as ve:
             logging.warning(f"Invalid figure_id format {figure_id}: {ve}")
             return None
-            
+
     except Exception as e:
-        logging.error(f"Error getting image URL for figure_id {figure_id} and report_id {report_id}: {e}")
+        logging.error(
+            f"Error getting image URL for figure_id {figure_id} and report_id {report_id}: {e}"
+        )
         import traceback
+
         logging.error(f"Traceback: {traceback.format_exc()}")
         return None
 
@@ -290,8 +299,6 @@ def copy_paper_images(paper_md_path: str, report_output_dir: str) -> None:
 # preserve_figure_formatting_local function removed - using common utility instead
 
 
-
-
 # extract_figure_data function removed - use reports.utils.image_utils.extract_figure_data_from_markdown directly
 
 
@@ -302,7 +309,7 @@ def format_author_affiliations(json_path):
       - 'author': All authors with their affiliation superscripts
       - 'affiliation': All affiliations with their superscripts
     """
-    with open(json_path, "r", encoding="utf-8") as f:
+    with open(json_path, encoding="utf-8") as f:
         data = json.load(f)
 
     # Format authors

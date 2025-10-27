@@ -1,23 +1,25 @@
 import copy
 import datetime
-from typing import Union, Optional
+import os
+import sys
 
 import dspy
-
-from .storm_dataclass import StormArticle
-from ...interface import ArticlePolishingModule
-from ...utils import ArticleTextProcessing
-
 from prompts import import_prompts
 
-import sys
-import os
+from ...interface import ArticlePolishingModule
+from ...utils import ArticleTextProcessing
+from .storm_dataclass import StormArticle
 
 sys.path.append(
     os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 )
 # Import image utilities and other functions directly
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..', '..')))
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "..", "..")
+    ),
+)
 from reports.utils import preserve_figure_formatting
 from utils.paper_processing import format_author_affiliations
 
@@ -40,8 +42,8 @@ class GenerateOverallTitle(dspy.Signature):
 class StormArticlePolishingModule(ArticlePolishingModule):
     def __init__(
         self,
-        article_gen_lm: Union[dspy.dsp.LM, dspy.dsp.HFModel],
-        article_polish_lm: Union[dspy.dsp.LM, dspy.dsp.HFModel],
+        article_gen_lm: dspy.dsp.LM | dspy.dsp.HFModel,
+        article_polish_lm: dspy.dsp.LM | dspy.dsp.HFModel,
     ):
         self.article_gen_lm = article_gen_lm
         self.article_polish_lm = article_polish_lm
@@ -61,7 +63,7 @@ class StormArticlePolishingModule(ArticlePolishingModule):
         remove_duplicate: bool = True,
         preserve_citation_order: bool = True,
         time_range: str = None,
-        parsed_paper_title: Optional[str] = None,
+        parsed_paper_title: str | None = None,
     ) -> StormArticle:
         """
         Polish article, add a new first-level title at the beginning, and adjust heading levels.
@@ -77,7 +79,7 @@ class StormArticlePolishingModule(ArticlePolishingModule):
             time_range (str): The specific time range used (day, week, month, year).
             parsed_paper_title (Optional[str]): An optional title parsed directly from a single input paper.
         """
-        
+
         article_text = draft_article.to_string()
 
         # Make sure figures are properly formatted in the draft article
@@ -160,7 +162,7 @@ class StormArticlePolishingModule(ArticlePolishingModule):
                     article_text=polished_article_text
                 )
                 overall_title = overall_title_result.overall_title.strip()
-        
+
         # Store the generated title for external access
         self.generated_title = overall_title
 
@@ -226,8 +228,8 @@ class PolishPage(dspy.Signature):
 class PolishPageModule(dspy.Module):
     def __init__(
         self,
-        write_lead_engine: Union[dspy.dsp.LM, dspy.dsp.HFModel],
-        polish_engine: Union[dspy.dsp.LM, dspy.dsp.HFModel],
+        write_lead_engine: dspy.dsp.LM | dspy.dsp.HFModel,
+        polish_engine: dspy.dsp.LM | dspy.dsp.HFModel,
     ):
         super().__init__()
         self.write_lead_engine = write_lead_engine

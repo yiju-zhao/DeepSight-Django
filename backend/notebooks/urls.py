@@ -6,57 +6,59 @@ This module wires DRF routers and extra endpoints directly to avoid nested
 `api/` subpackages.
 """
 
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_nested import routers
 
 # Import ViewSets from notebooks.views package
 from .views import (
-    NotebookViewSet,
+    BatchJobViewSet,
+    FileStatusSSEView,
     FileViewSet,
     KnowledgeBaseViewSet,
-    BatchJobViewSet,
-    SessionChatViewSet,
-    SessionAgentInfoView,
-    FileStatusSSEView,
     NotebookJobsSSEView,
+    NotebookViewSet,
+    SessionAgentInfoView,
+    SessionChatViewSet,
 )
 
 # App namespace
-app_name = 'notebooks'
+app_name = "notebooks"
 
 # Routers
 router = DefaultRouter()
-router.register(r'notebooks', NotebookViewSet, basename='notebook')
+router.register(r"notebooks", NotebookViewSet, basename="notebook")
 
-notebooks_router = routers.NestedDefaultRouter(router, r'notebooks', lookup='notebook')
-notebooks_router.register(r'files', FileViewSet, basename='notebook-files')
-notebooks_router.register(r'chat/sessions', SessionChatViewSet, basename='notebook-chat-sessions')
-notebooks_router.register(r'knowledge', KnowledgeBaseViewSet, basename='notebook-knowledge')
-notebooks_router.register(r'batches', BatchJobViewSet, basename='notebook-batches')
+notebooks_router = routers.NestedDefaultRouter(router, r"notebooks", lookup="notebook")
+notebooks_router.register(r"files", FileViewSet, basename="notebook-files")
+notebooks_router.register(
+    r"chat/sessions", SessionChatViewSet, basename="notebook-chat-sessions"
+)
+notebooks_router.register(
+    r"knowledge", KnowledgeBaseViewSet, basename="notebook-knowledge"
+)
+notebooks_router.register(r"batches", BatchJobViewSet, basename="notebook-batches")
 
 urlpatterns = [
     # Main router URLs - /api/v1/notebooks/
-    path('', include(router.urls)),
+    path("", include(router.urls)),
     # Nested URLs - /api/v1/notebooks/{id}/...
-    path('', include(notebooks_router.urls)),
-
+    path("", include(notebooks_router.urls)),
     # SSE endpoints
     path(
-        'notebooks/<uuid:notebook_id>/files/<str:file_id>/status/stream/',
+        "notebooks/<uuid:notebook_id>/files/<str:file_id>/status/stream/",
         FileStatusSSEView.as_view(),
-        name='file-status-stream',
+        name="file-status-stream",
     ),
     path(
-        'notebooks/<uuid:notebook_id>/jobs/stream/',
+        "notebooks/<uuid:notebook_id>/jobs/stream/",
         NotebookJobsSSEView.as_view(),
-        name='notebook-jobs-stream',
+        name="notebook-jobs-stream",
     ),
-
     # Custom endpoints
     path(
-        'notebooks/<uuid:notebook_pk>/chat/agent/',
+        "notebooks/<uuid:notebook_pk>/chat/agent/",
         SessionAgentInfoView.as_view(),
-        name='session-agent-info',
+        name="session-agent-info",
     ),
 ]

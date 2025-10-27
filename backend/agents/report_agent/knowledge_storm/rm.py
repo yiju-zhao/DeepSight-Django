@@ -1,14 +1,14 @@
 import logging
 import os
-from typing import Callable, Union, List
+from collections.abc import Callable
 
 import backoff
 import dspy
 import requests
 from dsp import backoff_hdlr, giveup_hdlr
 
+from .storm_wiki.modules.retriever import BLACKLISTED, DEPRECATED, GENERALLY_UNRELIABLE
 from .utils import WebPageHelper
-from .storm_wiki.modules.retriever import GENERALLY_UNRELIABLE, DEPRECATED, BLACKLISTED
 
 
 class YouRM(dspy.Retrieve):
@@ -37,7 +37,7 @@ class YouRM(dspy.Retrieve):
         return {"YouRM": usage}
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: str | list[str], exclude_urls: list[str] = None
     ):
         """Search with You.com for self.k top passages for query or queries
 
@@ -48,6 +48,8 @@ class YouRM(dspy.Retrieve):
         Returns:
             a list of Dicts, each dict has keys of 'description', 'snippets' (list of strings), 'title', 'url'
         """
+        if exclude_urls is None:
+            exclude_urls = []
         queries = (
             [query_or_queries]
             if isinstance(query_or_queries, str)
@@ -127,7 +129,7 @@ class BingSearch(dspy.Retrieve):
         return {"BingSearch": usage}
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: str | list[str], exclude_urls: list[str] = None
     ):
         """Search with Bing for self.k top passages for query or queries
 
@@ -138,6 +140,8 @@ class BingSearch(dspy.Retrieve):
         Returns:
             a list of Dicts, each dict has keys of 'description', 'snippets' (list of strings), 'title', 'url'
         """
+        if exclude_urls is None:
+            exclude_urls = []
         queries = (
             [query_or_queries]
             if isinstance(query_or_queries, str)
@@ -304,7 +308,7 @@ class VectorRM(dspy.Retrieve):
         """
         return self.qdrant.client.count(collection_name=self.collection_name)
 
-    def forward(self, query_or_queries: Union[str, List[str]], exclude_urls: List[str]):
+    def forward(self, query_or_queries: str | list[str], exclude_urls: list[str]):
         """
         Search in your data for self.k top passages for query or queries.
 
@@ -386,8 +390,10 @@ class StanfordOvalArxivRM(dspy.Retrieve):
             )
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: str | list[str], exclude_urls: list[str] = None
     ):
+        if exclude_urls is None:
+            exclude_urls = []
         collected_results = []
         queries = (
             [query_or_queries]
@@ -476,7 +482,7 @@ class SerperRM(dspy.Retrieve):
             "POST", self.search_url, headers=headers, json=query_params
         )
 
-        if response == None:
+        if response is None:
             raise RuntimeError(
                 f"Error had occurred while running the search process.\n Error is {response.reason}, had failed with status code {response.status_code}"
             )
@@ -488,7 +494,7 @@ class SerperRM(dspy.Retrieve):
         self.usage = 0
         return {"SerperRM": usage}
 
-    def forward(self, query_or_queries: Union[str, List[str]], exclude_urls: List[str]):
+    def forward(self, query_or_queries: str | list[str], exclude_urls: list[str]):
         """
         Calls the API and searches for the query passed in.
 
@@ -575,7 +581,7 @@ class BraveRM(dspy.Retrieve):
         k=3,
         is_valid_source: Callable = None,
         time_range: str = None,  # "day", "week", "month", "year"
-        include_domains: List[str] = None,  # List of domains to include in search
+        include_domains: list[str] = None,  # List of domains to include in search
     ):
         super().__init__(k=k)
         if not brave_search_api_key and not os.environ.get("BRAVE_API_KEY"):
@@ -603,7 +609,7 @@ class BraveRM(dspy.Retrieve):
         return {"BraveRM": usage}
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: str | list[str], exclude_urls: list[str] = None
     ):
         """Search with api.search.brave.com for self.k top passages for query or queries
 
@@ -614,6 +620,8 @@ class BraveRM(dspy.Retrieve):
         Returns:
             a list of Dicts, each dict has keys of 'description', 'snippets' (list of strings), 'title', 'url'
         """
+        if exclude_urls is None:
+            exclude_urls = []
         queries = (
             [query_or_queries]
             if isinstance(query_or_queries, str)
@@ -678,7 +686,7 @@ class SearXNG(dspy.Retrieve):
         k=3,
         is_valid_source: Callable = None,
         time_range: str = None,  # "day", "month", "year"
-        engines: List[
+        engines: list[
             str
         ] = None,  # Specific engines to use that support time filtering
     ):
@@ -714,7 +722,7 @@ class SearXNG(dspy.Retrieve):
         return {"SearXNG": usage}
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: str | list[str], exclude_urls: list[str] = None
     ):
         """Search with SearxNG for self.k top passages for query or queries
 
@@ -725,6 +733,8 @@ class SearXNG(dspy.Retrieve):
         Returns:
             a list of Dicts, each dict has keys of 'description', 'snippets' (list of strings), 'title', 'url'
         """
+        if exclude_urls is None:
+            exclude_urls = []
         queries = (
             [query_or_queries]
             if isinstance(query_or_queries, str)
@@ -752,7 +762,7 @@ class SearXNG(dspy.Retrieve):
                     params["time_range"] = self.time_range
 
                 # Build correct SearXNG search URL with /search endpoint
-                search_url = self.searxng_api_url.rstrip('/') + '/search'
+                search_url = self.searxng_api_url.rstrip("/") + "/search"
 
                 response = requests.get(
                     search_url,
@@ -867,7 +877,7 @@ class DuckDuckGoSearchRM(dspy.Retrieve):
         return results
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: str | list[str], exclude_urls: list[str] = None
     ):
         """Search with DuckDuckGoSearch for self.k top passages for query or queries
         Args:
@@ -876,6 +886,8 @@ class DuckDuckGoSearchRM(dspy.Retrieve):
         Returns:
             a list of Dicts, each dict has keys of 'description', 'snippets' (list of strings), 'title', 'url'
         """
+        if exclude_urls is None:
+            exclude_urls = []
         queries = (
             [query_or_queries]
             if isinstance(query_or_queries, str)
@@ -933,7 +945,7 @@ class TavilySearchRM(dspy.Retrieve):
         webpage_helper_max_threads: int = 10,
         include_raw_content: bool = False,
         include_answer: bool = False,
-        include_domains: List[str] = None,
+        include_domains: list[str] = None,
         time_range: str = None,  # e.g., "day", "week", "month"
         search_depth: str = None,  # "basic" or "advanced"
         chunks_per_source: int = 3,  # Number of content chunks to retrieve from each source
@@ -977,18 +989,20 @@ class TavilySearchRM(dspy.Retrieve):
         priority_sets = [
             ("BLACKLISTED", BLACKLISTED),
             ("GENERALLY_UNRELIABLE", GENERALLY_UNRELIABLE),
-            ("DEPRECATED", DEPRECATED)
+            ("DEPRECATED", DEPRECATED),
         ]
 
         max_domains = 130  # Tavily's API limit
         current_count = 0
 
-        for set_name, domain_set in priority_sets:
+        for _set_name, domain_set in priority_sets:
             if current_count >= max_domains:
                 break
 
             # Extract wildcard domains from this priority set
-            wildcard_domains = [pattern[2:] for pattern in domain_set if pattern.startswith("*.")]
+            wildcard_domains = [
+                pattern[2:] for pattern in domain_set if pattern.startswith("*.")
+            ]
 
             # Add domains until we hit the limit
             for domain in sorted(wildcard_domains):  # Sort for consistency
@@ -1004,7 +1018,9 @@ class TavilySearchRM(dspy.Retrieve):
             if pattern.startswith("*."):
                 all_wildcard_domains.append(pattern[2:])
 
-        logging.info(f"TavilySearchRM: Reduced excluded domains from {len(all_wildcard_domains)} to {len(self.excluded_domains)} (Tavily limit: {max_domains})")
+        logging.info(
+            f"TavilySearchRM: Reduced excluded domains from {len(all_wildcard_domains)} to {len(self.excluded_domains)} (Tavily limit: {max_domains})"
+        )
 
         self.is_valid_source = is_valid_source or (lambda x: True)
 
@@ -1014,8 +1030,10 @@ class TavilySearchRM(dspy.Retrieve):
         return {"TavilySearchRM": usage}
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: str | list[str], exclude_urls: list[str] = None
     ):
+        if exclude_urls is None:
+            exclude_urls = []
         queries = (
             [query_or_queries]
             if isinstance(query_or_queries, str)
@@ -1138,7 +1156,7 @@ class GoogleSearch(dspy.Retrieve):
         return {"GoogleSearch": usage}
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: str | list[str], exclude_urls: list[str] = None
     ):
         """Search using Google Custom Search API for self.k top results for query or queries.
 
@@ -1149,6 +1167,8 @@ class GoogleSearch(dspy.Retrieve):
         Returns:
             A list of dicts, each dict has keys: 'title', 'url', 'snippet', 'description'.
         """
+        if exclude_urls is None:
+            exclude_urls = []
         queries = (
             [query_or_queries]
             if isinstance(query_or_queries, str)
@@ -1279,7 +1299,7 @@ class AzureAISearch(dspy.Retrieve):
         return {"AzureAISearch": usage}
 
     def forward(
-        self, query_or_queries: Union[str, List[str]], exclude_urls: List[str] = []
+        self, query_or_queries: str | list[str], exclude_urls: list[str] = None
     ):
         """Search with Azure Open AI for self.k top passages for query or queries
 
@@ -1290,6 +1310,8 @@ class AzureAISearch(dspy.Retrieve):
         Returns:
             a list of Dicts, each dict has keys of 'description', 'snippets' (list of strings), 'title', 'url'
         """
+        if exclude_urls is None:
+            exclude_urls = []
         try:
             from azure.core.credentials import AzureKeyCredential
             from azure.search.documents import SearchClient

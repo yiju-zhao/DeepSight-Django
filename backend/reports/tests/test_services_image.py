@@ -21,15 +21,19 @@ class TestImageServiceInsertion(unittest.TestCase):
                 self.image_caption = caption
                 self.report = _Report()
 
-        report_images = [_ReportImage(figure_id, "Figure 1: Example")] 
+        report_images = [_ReportImage(figure_id, "Figure 1: Example")]
 
         # Patch DatabaseUrlProvider to avoid DB access and return a stable URL
-        with patch("reports.services.image.DatabaseUrlProvider.get_image_url", return_value="https://cdn.example/img.png"):
+        with patch(
+            "reports.services.image.DatabaseUrlProvider.get_image_url",
+            return_value="https://cdn.example/img.png",
+        ):
             svc = ImageService()
-            updated = svc.insert_figure_images(content, report_images, report_id="rpt-1")
+            updated = svc.insert_figure_images(
+                content, report_images, report_id="rpt-1"
+            )
 
         # Ensure placeholder is replaced with an <img ...> and caption present
-        self.assertIn("<img src=\"https://cdn.example/img.png\"", updated)
+        self.assertIn('<img src="https://cdn.example/img.png"', updated)
         self.assertNotIn(f"<{figure_id}>", updated)
         self.assertIn("Figure 1: Example", updated)
-

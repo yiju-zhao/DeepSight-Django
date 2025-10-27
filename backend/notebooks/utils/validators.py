@@ -4,12 +4,12 @@ Provides comprehensive validation for files and URLs.
 """
 
 import os
-import magic
-from typing import Dict, List, Union
 from pathlib import Path
 from urllib.parse import urlparse
-from django.core.files.uploadedfile import UploadedFile
+
+import magic
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
 from django.core.validators import URLValidator as DjangoURLValidator
 
 # Constants for file validation
@@ -43,7 +43,7 @@ class FileValidator:
         self.max_file_size = MAX_FILE_SIZE
         self.allowed_extensions = ALLOWED_FILE_EXTENSIONS
 
-    def validate_file(self, file: Union[UploadedFile, any]) -> Dict[str, any]:
+    def validate_file(self, file: UploadedFile | any) -> dict[str, any]:
         """Validate uploaded file with comprehensive checks."""
         errors = []
         warnings = []
@@ -52,34 +52,38 @@ class FileValidator:
         if not file:
             return {"valid": False, "errors": ["No file provided"]}
 
-        if not hasattr(file, 'name') or not file.name:
+        if not hasattr(file, "name") or not file.name:
             return {"valid": False, "errors": ["File has no name"]}
 
         # File size validation
         try:
-            file_size = file.size if hasattr(file, 'size') else len(file.read())
+            file_size = file.size if hasattr(file, "size") else len(file.read())
             if file_size > self.max_file_size:
-                errors.append(f"File size {file_size} bytes exceeds maximum {self.max_file_size} bytes")
+                errors.append(
+                    f"File size {file_size} bytes exceeds maximum {self.max_file_size} bytes"
+                )
         except Exception as e:
             warnings.append(f"Could not determine file size: {e}")
 
         # File extension validation
         file_path = Path(file.name)
         file_extension = file_path.suffix.lower()
-        
+
         if file_extension not in self.allowed_extensions:
-            errors.append(f"File extension '{file_extension}' not allowed. Allowed: {list(self.allowed_extensions.keys())}")
+            errors.append(
+                f"File extension '{file_extension}' not allowed. Allowed: {list(self.allowed_extensions.keys())}"
+            )
             return {
                 "valid": False,
                 "errors": errors,
                 "warnings": warnings,
                 "file_extension": file_extension,
-                "content_type": None
+                "content_type": None,
             }
 
         # Content type validation
         expected_content_type = self.allowed_extensions[file_extension]
-        actual_content_type = getattr(file, 'content_type', None)
+        actual_content_type = getattr(file, "content_type", None)
 
         if actual_content_type and actual_content_type != expected_content_type:
             # Check for common variations
@@ -90,20 +94,22 @@ class FileValidator:
                 "audio/mpeg": ["audio/mp3"],
                 "video/mp4": ["video/mp4v-es"],
             }
-            
+
             variations = content_type_variations.get(expected_content_type, [])
             if actual_content_type not in variations:
-                warnings.append(f"Content type mismatch: expected {expected_content_type}, got {actual_content_type}")
+                warnings.append(
+                    f"Content type mismatch: expected {expected_content_type}, got {actual_content_type}"
+                )
 
         return {
             "valid": len(errors) == 0,
             "errors": errors,
             "warnings": warnings,
             "file_extension": file_extension,
-            "content_type": expected_content_type
+            "content_type": expected_content_type,
         }
 
-    def validate_file_content(self, file_path: str) -> Dict[str, any]:
+    def validate_file_content(self, file_path: str) -> dict[str, any]:
         """Validate file content using magic number detection."""
         errors = []
         warnings = []
@@ -121,74 +127,78 @@ class FileValidator:
                 # Check for acceptable variations
                 type_variations = {
                     "application/pdf": ["application/x-pdf"],
-                    "text/plain": ["text/x-python", "application/x-python-code", "inode/x-empty"],
+                    "text/plain": [
+                        "text/x-python",
+                        "application/x-python-code",
+                        "inode/x-empty",
+                    ],
                     "text/markdown": ["text/plain", "text/x-markdown"],
                     "audio/mpeg": ["audio/mp3"],
                     "video/mp4": ["video/mp4v-es"],
                 }
-                
+
                 variations = type_variations.get(expected_type, [])
                 if detected_type not in variations:
-                    errors.append(f"File content type mismatch: expected {expected_type}, detected {detected_type}")
+                    errors.append(
+                        f"File content type mismatch: expected {expected_type}, detected {detected_type}"
+                    )
 
         except Exception as e:
             warnings.append(f"Could not validate file content: {e}")
 
-        return {
-            "valid": len(errors) == 0,
-            "errors": errors,
-            "warnings": warnings
-        }
+        return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
 
 class URLValidator:
     """Validate URLs for processing."""
-    
-    BLOCKED_DOMAINS = {'localhost', '127.0.0.1', '0.0.0.0'}
-    ALLOWED_SCHEMES = {'http', 'https'}
-    
+
+    BLOCKED_DOMAINS = {"localhost", "127.0.0.1", "0.0.0.0"}
+    ALLOWED_SCHEMES = {"http", "https"}
+
     def __init__(self):
         self.django_validator = DjangoURLValidator()
-    
-    def validate_url(self, url: str) -> Dict[str, any]:
+
+    def validate_url(self, url: str) -> dict[str, any]:
         """Validate URL format and security."""
         errors = []
         warnings = []
-        
+
         if not url:
             return {"valid": False, "errors": ["No URL provided"]}
-        
+
         # Basic format validation
         try:
             self.django_validator(url)
         except ValidationError as e:
             errors.append(f"Invalid URL format: {e}")
             return {"valid": False, "errors": errors}
-        
+
         # Parse URL for additional checks
         try:
             parsed = urlparse(url)
         except Exception as e:
             errors.append(f"Could not parse URL: {e}")
             return {"valid": False, "errors": errors}
-        
+
         # Scheme validation
         if parsed.scheme.lower() not in self.ALLOWED_SCHEMES:
-            errors.append(f"URL scheme '{parsed.scheme}' not allowed. Allowed: {list(self.ALLOWED_SCHEMES)}")
-        
+            errors.append(
+                f"URL scheme '{parsed.scheme}' not allowed. Allowed: {list(self.ALLOWED_SCHEMES)}"
+            )
+
         # Domain validation
         if parsed.netloc.lower() in self.BLOCKED_DOMAINS:
             errors.append(f"Domain '{parsed.netloc}' is blocked")
-        
+
         # Check for private IP ranges (basic check)
-        if parsed.netloc.startswith('192.168.') or parsed.netloc.startswith('10.'):
+        if parsed.netloc.startswith("192.168.") or parsed.netloc.startswith("10."):
             warnings.append("URL appears to point to private network")
-        
+
         return {
             "valid": len(errors) == 0,
             "errors": errors,
             "warnings": warnings,
-            "parsed_url": parsed
+            "parsed_url": parsed,
         }
 
 
@@ -207,15 +217,15 @@ def sanitize_filename(filename: str) -> str:
     """Sanitize filename for safe storage."""
     # Remove any path components
     filename = os.path.basename(filename)
-    
+
     # Replace problematic characters
-    problematic_chars = ['<', '>', ':', '"', '|', '?', '*', '\\', '/']
+    problematic_chars = ["<", ">", ":", '"', "|", "?", "*", "\\", "/"]
     for char in problematic_chars:
-        filename = filename.replace(char, '_')
-    
+        filename = filename.replace(char, "_")
+
     # Limit length
     if len(filename) > 255:
         name, ext = os.path.splitext(filename)
-        filename = name[:255-len(ext)] + ext
-    
-    return filename 
+        filename = name[: 255 - len(ext)] + ext
+
+    return filename

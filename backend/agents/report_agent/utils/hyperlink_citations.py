@@ -105,10 +105,10 @@ if __name__ == "__main__":
         print(f"Error: Reference JSON file not found: {reference_json_path}")
         os.sys.exit(1)
 
-    with open(input_md_path, "r", encoding="utf-8") as f:
+    with open(input_md_path, encoding="utf-8") as f:
         md_content = f.read()
 
-    with open(reference_json_path, "r", encoding="utf-8") as f:
+    with open(reference_json_path, encoding="utf-8") as f:
         refs_from_json = json.load(f)
 
     # The structure from StormArticle.reference is what add_hyperlinks_to_citations expects.

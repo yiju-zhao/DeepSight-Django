@@ -5,16 +5,16 @@ This module handles the main execution logic and coordinates
 the STORM pipeline execution.
 """
 
-import os
 import logging
-from typing import List, Optional
 
 # Preserve lazy import pattern
 STORMWikiRunner = STORMWikiRunnerArguments = QueryLogger = None
 
+
 def _ensure_storm_imported():
     """Ensure STORM modules are imported (delegated to main module)."""
     from . import deep_report_generator as drg
+
     drg._lazy_import_knowledge_storm()
 
     global STORMWikiRunner, STORMWikiRunnerArguments, QueryLogger
@@ -29,13 +29,15 @@ class RunnerOrchestrator:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
 
-    def create_engine_arguments(self, config) -> 'STORMWikiRunnerArguments':
+    def create_engine_arguments(self, config) -> "STORMWikiRunnerArguments":
         """Create and return STORM engine arguments."""
         _ensure_storm_imported()
 
         if STORMWikiRunnerArguments is None:
             self.logger.error("STORMWikiRunnerArguments is not available after import")
-            raise RuntimeError("Failed to import STORMWikiRunnerArguments from knowledge_storm")
+            raise RuntimeError(
+                "Failed to import STORMWikiRunnerArguments from knowledge_storm"
+            )
 
         return STORMWikiRunnerArguments(
             output_dir=config.output_dir,
@@ -53,7 +55,9 @@ class RunnerOrchestrator:
             report_id=config.report_id,
         )
 
-    def initialize_runner(self, engine_args, lm_configs, rm, config) -> 'STORMWikiRunner':
+    def initialize_runner(
+        self, engine_args, lm_configs, rm, config
+    ) -> "STORMWikiRunner":
         """Initialize and configure the STORM runner."""
         _ensure_storm_imported()
 
@@ -72,9 +76,15 @@ class RunnerOrchestrator:
 
         return runner
 
-    def configure_runner_content(self, runner, config, article_title: str,
-                                speakers: Optional[str], csv_text_input: Optional[str],
-                                output_dir: str) -> List[str]:
+    def configure_runner_content(
+        self,
+        runner,
+        config,
+        article_title: str,
+        speakers: str | None,
+        csv_text_input: str | None,
+        output_dir: str,
+    ) -> list[str]:
         """Configure runner with content and metadata."""
         processing_logs = []
 
@@ -94,9 +104,11 @@ class RunnerOrchestrator:
         runner.storm_article_generation.query_logger = QueryLogger(output_dir)
 
         # Handle figure data if provided
-        if hasattr(config, 'figure_data') and config.figure_data:
+        if hasattr(config, "figure_data") and config.figure_data:
             runner.figure_data = config.figure_data
-            processing_logs.append(f"Figure data loaded: {len(config.figure_data)} figures")
+            processing_logs.append(
+                f"Figure data loaded: {len(config.figure_data)} figures"
+            )
 
         return processing_logs
 
@@ -126,7 +138,7 @@ class RunnerOrchestrator:
                 "will be extracted from the text input to form a topic."
             )
 
-    def execute_pipeline(self, runner, config) -> List[str]:
+    def execute_pipeline(self, runner, config) -> list[str]:
         """Execute the STORM pipeline."""
         processing_logs = []
 
@@ -157,6 +169,7 @@ class RunnerOrchestrator:
     def extract_final_metadata(self, runner, article_title: str) -> dict:
         """Extract final metadata from the runner."""
         return {
-            'final_article_title': getattr(runner, 'generated_article_title', None) or article_title,
-            'generated_topic': getattr(runner, 'generated_topic', None)
+            "final_article_title": getattr(runner, "generated_article_title", None)
+            or article_title,
+            "generated_topic": getattr(runner, "generated_topic", None),
         }

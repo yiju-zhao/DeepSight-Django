@@ -1,31 +1,40 @@
-from django.db.models import Count, Avg, Q
+from collections import Counter
+
+from django.db.models import Q
 from django.http import Http404
 from django.utils.decorators import method_decorator
 from django.views.decorators.cache import cache_page
-from rest_framework import viewsets, status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
-from collections import Counter
 
-from .models import Venue, Instance, Publication, Event
+from .models import Event, Instance, Publication, Venue
 from .serializers import (
-    VenueSerializer, InstanceSerializer, PublicationSerializer,
-    EventSerializer
+    EventSerializer,
+    InstanceSerializer,
+    PublicationSerializer,
+    VenueSerializer,
 )
-from .utils import split_comma_values, split_semicolon_values, deduplicate_keywords, build_cooccurrence_matrix, build_fine_histogram
+from .utils import (
+    build_fine_histogram,
+    deduplicate_keywords,
+    split_semicolon_values,
+)
 
 
 class StandardPageNumberPagination(PageNumberPagination):
     """Standard pagination for conferences API"""
+
     page_size = 20
-    page_size_query_param = 'page_size'
+    page_size_query_param = "page_size"
     max_page_size = 100
 
 
 class VenueViewSet(viewsets.ModelViewSet):
     """ViewSet for Venue model"""
+
     queryset = Venue.objects.all()
     serializer_class = VenueSerializer
     permission_classes = [IsAuthenticated]
@@ -33,13 +42,14 @@ class VenueViewSet(viewsets.ModelViewSet):
 
 class InstanceViewSet(viewsets.ModelViewSet):
     """ViewSet for Instance model"""
-    queryset = Instance.objects.select_related('venue').all()
+
+    queryset = Instance.objects.select_related("venue").all()
     serializer_class = InstanceSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        venue = self.request.query_params.get('venue')
+        venue = self.request.query_params.get("venue")
         if venue:
             queryset = queryset.filter(venue__name__iexact=venue)
         return queryset
@@ -47,16 +57,17 @@ class InstanceViewSet(viewsets.ModelViewSet):
 
 class PublicationViewSet(viewsets.ModelViewSet):
     """ViewSet for Publication model"""
-    queryset = Publication.objects.select_related('instance__venue').all()
+
+    queryset = Publication.objects.select_related("instance__venue").all()
     serializer_class = PublicationSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardPageNumberPagination
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        instance_id = self.request.query_params.get('instance')
-        search = self.request.query_params.get('search')
-        ordering = self.request.query_params.get('ordering')
+        instance_id = self.request.query_params.get("instance")
+        search = self.request.query_params.get("search")
+        ordering = self.request.query_params.get("ordering")
 
         if instance_id:
             queryset = queryset.filter(instance_id=instance_id)
@@ -64,39 +75,40 @@ class PublicationViewSet(viewsets.ModelViewSet):
         if search:
             # Search in title, authors, and keywords (case-insensitive)
             queryset = queryset.filter(
-                Q(title__icontains=search) |
-                Q(authors__icontains=search) |
-                Q(keywords__icontains=search)
+                Q(title__icontains=search)
+                | Q(authors__icontains=search)
+                | Q(keywords__icontains=search)
             )
 
         # Filter out publications with status "reject"
-        queryset = queryset.exclude(session__iexact='reject')
+        queryset = queryset.exclude(session__iexact="reject")
 
         # Apply ordering
         if ordering:
             # Support for title and rating ordering
-            if ordering in ['title', '-title', 'rating', '-rating']:
+            if ordering in ["title", "-title", "rating", "-rating"]:
                 queryset = queryset.order_by(ordering)
             else:
                 # Default ordering by rating descending
-                queryset = queryset.order_by('-rating')
+                queryset = queryset.order_by("-rating")
         else:
             # Default ordering by rating descending
-            queryset = queryset.order_by('-rating')
+            queryset = queryset.order_by("-rating")
 
         return queryset
 
 
 class EventViewSet(viewsets.ModelViewSet):
     """ViewSet for Event model"""
-    queryset = Event.objects.select_related('instance__venue').all()
+
+    queryset = Event.objects.select_related("instance__venue").all()
     serializer_class = EventSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardPageNumberPagination
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        instance_id = self.request.query_params.get('instance')
+        instance_id = self.request.query_params.get("instance")
         if instance_id:
             queryset = queryset.filter(instance_id=instance_id)
         return queryset
@@ -104,25 +116,24 @@ class EventViewSet(viewsets.ModelViewSet):
 
 class OverviewViewSet(viewsets.ViewSet):
     """ViewSet for dashboard analytics and overview"""
-    permission_classes = [IsAuthenticated]
 
+    permission_classes = [IsAuthenticated]
 
     def _get_publications_queryset(self, venue=None, year=None, instance_id=None):
         """Get filtered publications queryset"""
-        queryset = Publication.objects.select_related('instance__venue')
+        queryset = Publication.objects.select_related("instance__venue")
 
         if instance_id:
             queryset = queryset.filter(instance_id=instance_id)
         elif venue and year:
             queryset = queryset.filter(
-                instance__venue__name__iexact=venue,
-                instance__year=year
+                instance__venue__name__iexact=venue, instance__year=year
             )
         else:
             raise Http404("Either instance ID or both venue and year must be provided")
 
         # Filter out publications with status "reject"
-        queryset = queryset.exclude(session__iexact='reject')
+        queryset = queryset.exclude(session__iexact="reject")
 
         return queryset
 
@@ -148,7 +159,7 @@ class OverviewViewSet(viewsets.ViewSet):
         affiliations_per_publication = []
         publications_with_affiliations_and_topics = []  # Store full publication data
 
-        resource_counts = {'with_github': 0, 'with_site': 0, 'with_pdf': 0}
+        resource_counts = {"with_github": 0, "with_site": 0, "with_pdf": 0}
 
         for pub in pub_list:
             # Authors (semicolon-separated - as stored in DB)
@@ -173,16 +184,17 @@ class OverviewViewSet(viewsets.ViewSet):
                 affiliations_per_publication.append(list(set(affiliations)))
 
                 # Store publication with affiliations and research topic for stacked chart
-                publications_with_affiliations_and_topics.append({
-                    'affiliations': list(set(affiliations)),
-                    'research_topic': pub.research_topic
-                })
+                publications_with_affiliations_and_topics.append(
+                    {
+                        "affiliations": list(set(affiliations)),
+                        "research_topic": pub.research_topic,
+                    }
+                )
             else:
                 affiliations_per_publication.append([])
-                publications_with_affiliations_and_topics.append({
-                    'affiliations': [],
-                    'research_topic': pub.research_topic
-                })
+                publications_with_affiliations_and_topics.append(
+                    {"affiliations": [], "research_topic": pub.research_topic}
+                )
 
             # Keywords (semicolon-separated)
             if pub.keywords:
@@ -208,11 +220,11 @@ class OverviewViewSet(viewsets.ViewSet):
 
             # Resource counts
             if pub.github and pub.github.strip():
-                resource_counts['with_github'] += 1
+                resource_counts["with_github"] += 1
             if pub.site and pub.site.strip():
-                resource_counts['with_site'] += 1
+                resource_counts["with_site"] += 1
             if pub.pdf_url and pub.pdf_url.strip():
-                resource_counts['with_pdf'] += 1
+                resource_counts["with_pdf"] += 1
 
         # Calculate counters once
         topics_counter = Counter(all_topics)
@@ -231,32 +243,32 @@ class OverviewViewSet(viewsets.ViewSet):
 
         # Return all processed data
         return {
-            'total_publications': total_publications,
-            'unique_authors': len(set(all_authors)),
-            'unique_affiliations': len(set(all_affiliations)),
-            'unique_countries': len(set(all_countries)),
-            'avg_rating': round(avg_rating, 2),
-            'resource_counts': resource_counts,
-            'counters': {
-                'topics': topics_counter,
-                'affiliations': affiliations_counter,
-                'countries': countries_counter,
-                'keywords': keywords_deduplicated,
-                'sessions': sessions_counter,
-                'ratings': ratings_counter,
-                'author_positions': author_positions_counter,
+            "total_publications": total_publications,
+            "unique_authors": len(set(all_authors)),
+            "unique_affiliations": len(set(all_affiliations)),
+            "unique_countries": len(set(all_countries)),
+            "avg_rating": round(avg_rating, 2),
+            "resource_counts": resource_counts,
+            "counters": {
+                "topics": topics_counter,
+                "affiliations": affiliations_counter,
+                "countries": countries_counter,
+                "keywords": keywords_deduplicated,
+                "sessions": sessions_counter,
+                "ratings": ratings_counter,
+                "author_positions": author_positions_counter,
             },
-            'raw_data': {
-                'countries_per_publication': countries_per_publication,
-                'affiliations_per_publication': affiliations_per_publication,
-                'publications_with_affiliations_and_topics': publications_with_affiliations_and_topics,
-                'all_ratings': all_ratings,  # Keep original float ratings for fine histogram
-            }
+            "raw_data": {
+                "countries_per_publication": countries_per_publication,
+                "affiliations_per_publication": affiliations_per_publication,
+                "publications_with_affiliations_and_topics": publications_with_affiliations_and_topics,
+                "all_ratings": all_ratings,  # Keep original float ratings for fine histogram
+            },
         }
 
     def _build_organization_publications(self, raw_data):
         """Build organization publications data with simple counting: if pub has (A,B) then A+1, B+1"""
-        affiliations_per_publication = raw_data.get('affiliations_per_publication', [])
+        affiliations_per_publication = raw_data.get("affiliations_per_publication", [])
 
         # Simple counting: each organization gets +1 for each publication it appears in
         org_totals = Counter()
@@ -272,32 +284,40 @@ class OverviewViewSet(viewsets.ViewSet):
         # Convert to the expected format
         result = []
         for org, total in org_totals.items():
-            result.append({
-                'organization': org,
-                'total': total,
-                'research_areas': {}  # Empty since we're not breaking down by research area anymore
-            })
+            result.append(
+                {
+                    "organization": org,
+                    "total": total,
+                    "research_areas": {},  # Empty since we're not breaking down by research area anymore
+                }
+            )
 
         # Sort by total publications descending and take top 15
-        result.sort(key=lambda x: x['total'], reverse=True)
+        result.sort(key=lambda x: x["total"], reverse=True)
         return result[:15]
 
     def _build_organization_publications_by_research_area(self, raw_data):
         """Build organization publications data grouped by research areas (stacked bar chart format)"""
-        publications_data = raw_data.get('publications_with_affiliations_and_topics', [])
+        publications_data = raw_data.get(
+            "publications_with_affiliations_and_topics", []
+        )
 
         # Count publications by organization and research area
         org_research_counts = {}
 
         for pub_data in publications_data:
-            affiliations = pub_data.get('affiliations', [])
-            research_topic = pub_data.get('research_topic', '')
+            affiliations = pub_data.get("affiliations", [])
+            research_topic = pub_data.get("research_topic", "")
 
             # Extract research area (part before ->)
-            research_area = research_topic.split('->')[0].strip() if research_topic and '->' in research_topic else research_topic
+            research_area = (
+                research_topic.split("->")[0].strip()
+                if research_topic and "->" in research_topic
+                else research_topic
+            )
 
             # Skip unknown/empty research areas - they'll be counted in Others later
-            if not research_area or research_area.lower() in ['unknown', 'none', '']:
+            if not research_area or research_area.lower() in ["unknown", "none", ""]:
                 research_area = None
 
             # Count for each organization
@@ -319,7 +339,7 @@ class OverviewViewSet(viewsets.ViewSet):
         # We need the actual total from the original data, not just the known research areas
         org_total_pubs = {}
         for pub_data in publications_data:
-            affiliations = pub_data.get('affiliations', [])
+            affiliations = pub_data.get("affiliations", [])
             for org in affiliations:
                 org = org.strip()
                 if not org:
@@ -343,18 +363,23 @@ class OverviewViewSet(viewsets.ViewSet):
         for research_area in all_research_areas:
             total = 0
             for org in top_org_names:
-                if org in org_research_counts and research_area in org_research_counts[org]:
+                if (
+                    org in org_research_counts
+                    and research_area in org_research_counts[org]
+                ):
                     total += org_research_counts[org][research_area]
             research_area_totals[research_area] = total
 
         # Get top 9 research areas
-        top_research_areas = sorted(research_area_totals.items(), key=lambda x: x[1], reverse=True)[:9]
+        top_research_areas = sorted(
+            research_area_totals.items(), key=lambda x: x[1], reverse=True
+        )[:9]
         top_research_area_names = [area for area, _ in top_research_areas]
 
         # Build result in the requested format
         result = []
         for org in top_org_names:
-            org_data = {'organization': org}
+            org_data = {"organization": org}
 
             # Add top 9 research areas
             top_9_total = 0
@@ -369,7 +394,7 @@ class OverviewViewSet(viewsets.ViewSet):
             others_count = total_pubs - top_9_total
 
             if others_count > 0:
-                org_data['Others'] = others_count
+                org_data["Others"] = others_count
 
             result.append(org_data)
 
@@ -377,21 +402,23 @@ class OverviewViewSet(viewsets.ViewSet):
 
     def _convert_to_force_graph(self, chord_data):
         """Convert chord diagram data to force graph format (nodes and links)"""
-        if not chord_data or not chord_data.get('keys') or not chord_data.get('matrix'):
-            return {'nodes': [], 'links': []}
+        if not chord_data or not chord_data.get("keys") or not chord_data.get("matrix"):
+            return {"nodes": [], "links": []}
 
-        keys = chord_data['keys']
-        matrix = chord_data['matrix']
-        totals = chord_data.get('totals', {})
+        keys = chord_data["keys"]
+        matrix = chord_data["matrix"]
+        totals = chord_data.get("totals", {})
 
         # Create nodes
         nodes = []
         for i, key in enumerate(keys):
-            nodes.append({
-                'id': key,
-                'val': totals.get(key, 1),  # Node size based on total publications
-                'group': 1  # All same group for now
-            })
+            nodes.append(
+                {
+                    "id": key,
+                    "val": totals.get(key, 1),  # Node size based on total publications
+                    "group": 1,  # All same group for now
+                }
+            )
 
         # Create links from matrix (only for collaborations, skip diagonal)
         links = []
@@ -399,17 +426,19 @@ class OverviewViewSet(viewsets.ViewSet):
             for j in range(i + 1, len(keys)):  # Only upper triangle (avoid duplicates)
                 weight = matrix[i][j]
                 if weight > 0:  # Only create links if there are collaborations
-                    links.append({
-                        'source': keys[i],
-                        'target': keys[j],
-                        'value': weight  # Link thickness based on collaboration count
-                    })
+                    links.append(
+                        {
+                            "source": keys[i],
+                            "target": keys[j],
+                            "value": weight,  # Link thickness based on collaboration count
+                        }
+                    )
 
-        return {'nodes': nodes, 'links': links}
+        return {"nodes": nodes, "links": links}
 
     def _build_country_force_graph(self, raw_data):
         """Build force graph data for countries directly from publication data"""
-        countries_per_publication = raw_data.get('countries_per_publication', [])
+        countries_per_publication = raw_data.get("countries_per_publication", [])
 
         # Count total publications per country
         country_totals = Counter()
@@ -418,7 +447,9 @@ class OverviewViewSet(viewsets.ViewSet):
 
         for countries in countries_per_publication:
             # Remove empty strings and strip whitespace
-            clean_countries = [country.strip() for country in countries if country.strip()]
+            clean_countries = [
+                country.strip() for country in countries if country.strip()
+            ]
 
             # Count total publications per country
             for country in clean_countries:
@@ -439,27 +470,33 @@ class OverviewViewSet(viewsets.ViewSet):
         # Create nodes for all countries
         nodes = []
         for country in all_countries:
-            nodes.append({
-                'id': country,
-                'val': country_totals[country],  # Node size based on total publications
-                'group': 1
-            })
+            nodes.append(
+                {
+                    "id": country,
+                    "val": country_totals[
+                        country
+                    ],  # Node size based on total publications
+                    "group": 1,
+                }
+            )
 
         # Create links between all countries
         links = []
         for (country1, country2), collab_count in country_collaborations.items():
             if country1 in all_countries and country2 in all_countries:
-                links.append({
-                    'source': country1,
-                    'target': country2,
-                    'value': collab_count  # Particle speed based on collaboration count
-                })
+                links.append(
+                    {
+                        "source": country1,
+                        "target": country2,
+                        "value": collab_count,  # Particle speed based on collaboration count
+                    }
+                )
 
-        return {'nodes': nodes, 'links': links}
+        return {"nodes": nodes, "links": links}
 
     def _build_organization_force_graph(self, raw_data):
         """Build force graph data for organizations directly from publication data"""
-        affiliations_per_publication = raw_data.get('affiliations_per_publication', [])
+        affiliations_per_publication = raw_data.get("affiliations_per_publication", [])
 
         # Count total publications per organization
         org_totals = Counter()
@@ -489,41 +526,49 @@ class OverviewViewSet(viewsets.ViewSet):
         # Create nodes for top 15 organizations
         nodes = []
         for org in top_orgs:
-            nodes.append({
-                'id': org,
-                'val': org_totals[org],  # Node size based on total publications
-                'group': 1
-            })
+            nodes.append(
+                {
+                    "id": org,
+                    "val": org_totals[org],  # Node size based on total publications
+                    "group": 1,
+                }
+            )
 
         # Create links between top 15 organizations only
         links = []
         for (org1, org2), collab_count in org_collaborations.items():
             if org1 in top_orgs and org2 in top_orgs:
-                links.append({
-                    'source': org1,
-                    'target': org2,
-                    'value': collab_count  # Particle speed based on collaboration count
-                })
+                links.append(
+                    {
+                        "source": org1,
+                        "target": org2,
+                        "value": collab_count,  # Particle speed based on collaboration count
+                    }
+                )
 
-        return {'nodes': nodes, 'links': links}
+        return {"nodes": nodes, "links": links}
 
     def _build_kpis(self, processed_data):
         """Build KPI data from processed data"""
         return {
-            'total_publications': processed_data['total_publications'],
-            'unique_authors': processed_data['unique_authors'],
-            'unique_affiliations': processed_data['unique_affiliations'],
-            'unique_countries': processed_data['unique_countries'],
-            'avg_rating': processed_data['avg_rating'],
-            'session_distribution': dict(processed_data['counters']['countries'].most_common(10)),
-            'author_position_distribution': dict(processed_data['counters']['affiliations'].most_common(10)),
-            'resource_counts': processed_data['resource_counts'],
+            "total_publications": processed_data["total_publications"],
+            "unique_authors": processed_data["unique_authors"],
+            "unique_affiliations": processed_data["unique_affiliations"],
+            "unique_countries": processed_data["unique_countries"],
+            "avg_rating": processed_data["avg_rating"],
+            "session_distribution": dict(
+                processed_data["counters"]["countries"].most_common(10)
+            ),
+            "author_position_distribution": dict(
+                processed_data["counters"]["affiliations"].most_common(10)
+            ),
+            "resource_counts": processed_data["resource_counts"],
         }
 
     def _build_charts(self, processed_data, bin_size=0.5):
         """Build chart data from processed data"""
-        counters = processed_data['counters']
-        raw_data = processed_data.get('raw_data', {})
+        counters = processed_data["counters"]
+        raw_data = processed_data.get("raw_data", {})
 
         # Build force graph data for countries directly from raw data
         country_force_graph = self._build_country_force_graph(raw_data)
@@ -531,62 +576,85 @@ class OverviewViewSet(viewsets.ViewSet):
         # Build force graph data for organizations directly from raw data
         organization_force_graph = self._build_organization_force_graph(raw_data)
 
-
         # Build fine-grained histogram
         ratings_histogram_fine = build_fine_histogram(
-            raw_data.get('all_ratings', []),
-            bin_size=bin_size
+            raw_data.get("all_ratings", []), bin_size=bin_size
         )
 
         # Build keywords treemap data
         keywords_treemap = [
-            {'name': k, 'value': v}
-            for k, v in sorted(counters['keywords'].items(), key=lambda x: x[1], reverse=True)[:30]
+            {"name": k, "value": v}
+            for k, v in sorted(
+                counters["keywords"].items(), key=lambda x: x[1], reverse=True
+            )[:30]
         ]
 
         # Build organization publications data using exact same logic as collaboration chart
         organization_publications = self._build_organization_publications(raw_data)
 
         # Build organization publications data grouped by research areas
-        organization_publications_by_research_area = self._build_organization_publications_by_research_area(raw_data)
+        organization_publications_by_research_area = (
+            self._build_organization_publications_by_research_area(raw_data)
+        )
 
         return {
-            'topics': [{'name': k, 'count': v} for k, v in counters['topics'].most_common(10)],
-            'top_affiliations': [{'name': k, 'count': v} for k, v in counters['affiliations'].most_common(10)],
-            'top_countries': [{'name': k, 'count': v} for k, v in counters['countries'].most_common(10)],
-            'top_keywords': [{'name': k, 'count': v} for k, v in sorted(counters['keywords'].items(), key=lambda x: x[1], reverse=True)[:20]],
-            'ratings_histogram': [{'rating': k, 'count': v} for k, v in sorted(counters['ratings'].items())],
-            'session_types': [{'name': k, 'count': v} for k, v in counters['sessions'].items()],
-            'author_positions': [{'name': k, 'count': v} for k, v in counters['author_positions'].most_common(10)],
+            "topics": [
+                {"name": k, "count": v} for k, v in counters["topics"].most_common(10)
+            ],
+            "top_affiliations": [
+                {"name": k, "count": v}
+                for k, v in counters["affiliations"].most_common(10)
+            ],
+            "top_countries": [
+                {"name": k, "count": v}
+                for k, v in counters["countries"].most_common(10)
+            ],
+            "top_keywords": [
+                {"name": k, "count": v}
+                for k, v in sorted(
+                    counters["keywords"].items(), key=lambda x: x[1], reverse=True
+                )[:20]
+            ],
+            "ratings_histogram": [
+                {"rating": k, "count": v}
+                for k, v in sorted(counters["ratings"].items())
+            ],
+            "session_types": [
+                {"name": k, "count": v} for k, v in counters["sessions"].items()
+            ],
+            "author_positions": [
+                {"name": k, "count": v}
+                for k, v in counters["author_positions"].most_common(10)
+            ],
             # New visualizations
-            'force_graphs': {
-                'country': country_force_graph,
-                'organization': organization_force_graph
+            "force_graphs": {
+                "country": country_force_graph,
+                "organization": organization_force_graph,
             },
-            'ratings_histogram_fine': ratings_histogram_fine,
-            'keywords_treemap': keywords_treemap,
-            'organization_publications': organization_publications,
-            'organization_publications_by_research_area': organization_publications_by_research_area,
+            "ratings_histogram_fine": ratings_histogram_fine,
+            "keywords_treemap": keywords_treemap,
+            "organization_publications": organization_publications,
+            "organization_publications_by_research_area": organization_publications_by_research_area,
         }
 
     @method_decorator(cache_page(60 * 15))  # Cache for 15 minutes
     def list(self, request):
         """Get dashboard data for a specific instance"""
-        instance_id = request.query_params.get('instance')
-        bin_size_param = request.query_params.get('bin_size', '0.5')
+        instance_id = request.query_params.get("instance")
+        bin_size_param = request.query_params.get("bin_size", "0.5")
 
         if not instance_id:
             return Response(
-                {'error': 'instance parameter is required'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "instance parameter is required"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
             instance_id = int(instance_id)
         except (ValueError, TypeError):
             return Response(
-                {'error': 'Invalid instance parameter'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid instance parameter"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Parse and validate bin_size parameter
@@ -608,29 +676,26 @@ class OverviewViewSet(viewsets.ViewSet):
             charts = self._build_charts(processed_data, bin_size=bin_size)
 
             response_data = {
-                'kpis': kpis,
-                'charts': charts,
+                "kpis": kpis,
+                "charts": charts,
             }
 
             return Response(response_data)
 
         except Http404 as e:
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"error": str(e)}, status=status.HTTP_404_NOT_FOUND)
 
     @method_decorator(cache_page(60 * 30))  # Cache for 30 minutes
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=["get"])
     def general(self, request):
         """Get general conferences overview statistics"""
         venues = Venue.objects.all()
-        instances = Instance.objects.select_related('venue').all()
+        instances = Instance.objects.select_related("venue").all()
         publications = Publication.objects.all()
 
         total_conferences = venues.count()
         total_papers = publications.count()
-        years_covered = sorted(set(instances.values_list('year', flat=True)))
+        years_covered = sorted(set(instances.values_list("year", flat=True)))
         avg_papers_per_year = total_papers / len(years_covered) if years_covered else 0
 
         # Conference summary
@@ -638,20 +703,22 @@ class OverviewViewSet(viewsets.ViewSet):
         for venue in venues:
             venue_instances = instances.filter(venue=venue)
             venue_papers = publications.filter(instance__venue=venue).count()
-            conferences.append({
-                'name': venue.name,
-                'type': venue.type,
-                'instances': venue_instances.count(),
-                'total_papers': venue_papers,
-                'years': sorted(venue_instances.values_list('year', flat=True))
-            })
+            conferences.append(
+                {
+                    "name": venue.name,
+                    "type": venue.type,
+                    "instances": venue_instances.count(),
+                    "total_papers": venue_papers,
+                    "years": sorted(venue_instances.values_list("year", flat=True)),
+                }
+            )
 
         response_data = {
-            'total_conferences': total_conferences,
-            'total_papers': total_papers,
-            'years_covered': years_covered,
-            'avg_papers_per_year': round(avg_papers_per_year, 1),
-            'conferences': conferences,
+            "total_conferences": total_conferences,
+            "total_papers": total_papers,
+            "years_covered": years_covered,
+            "avg_papers_per_year": round(avg_papers_per_year, 1),
+            "conferences": conferences,
         }
 
         return Response(response_data)

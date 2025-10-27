@@ -10,81 +10,62 @@ URL Structure:
 """
 
 from django.urls import path
-from django.views.decorators.csrf import csrf_exempt
 
 from . import views
 
 # App namespace
-app_name = 'reports'
+app_name = "reports"
 
 urlpatterns = [
     # ========================================
     # Global Report Configuration
     # ========================================
-
     # Report models and configuration (not notebook-specific)
-    path(
-        'models/',
-        views.ReportModelsView.as_view(),
-        name='report-models'
-    ),
-
+    path("models/", views.ReportModelsView.as_view(), name="report-models"),
     # Get available Xinference models
     path(
-        'xinference/models/',
+        "xinference/models/",
         views.XinferenceModelsView.as_view(),
-        name='xinference-models'
+        name="xinference-models",
     ),
-
     # ========================================
     # Canonical Report Endpoints (no notebook in path)
     # ========================================
-
     # List and create reports
-    path(
-        '',
-        views.ReportJobListCreateView.as_view(),
-        name='report-list-create'
-    ),
-
+    path("", views.ReportJobListCreateView.as_view(), name="report-list-create"),
     # Individual report operations
+    path("<str:report_id>/", views.ReportJobDetailView.as_view(), name="report-detail"),
     path(
-        '<str:report_id>/',
-        views.ReportJobDetailView.as_view(),
-        name='report-detail'
-    ),
-    path(
-        '<str:report_id>/download/',
+        "<str:report_id>/download/",
         views.ReportJobDownloadView.as_view(),
-        name='report-download'
+        name="report-download",
     ),
     path(
-        '<str:report_id>/download-pdf/',
+        "<str:report_id>/download-pdf/",
         views.ReportJobPdfDownloadView.as_view(),
-        name='report-pdf-download'
+        name="report-pdf-download",
     ),
     path(
-        '<str:report_id>/files/',
+        "<str:report_id>/files/",
         views.ReportJobFilesView.as_view(),
-        name='report-files'
+        name="report-files",
     ),
     path(
-        '<str:report_id>/content/',
+        "<str:report_id>/content/",
         views.ReportJobContentView.as_view(),
-        name='report-content'
+        name="report-content",
     ),
     path(
-        '<str:report_id>/cancel/',
+        "<str:report_id>/cancel/",
         views.ReportJobCancelView.as_view(),
-        name='report-cancel'
+        name="report-cancel",
     ),
     path(
-        '<str:report_id>/image/<str:image_id>/inline/',
+        "<str:report_id>/image/<str:image_id>/inline/",
         views.ReportJobImageInlineView.as_view(),
-        name='report-image-inline'
+        name="report-image-inline",
     ),
     # Stream endpoint removed: progress/SSE no longer supported
-
 ]
 
 # ========================================

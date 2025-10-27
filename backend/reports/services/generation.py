@@ -3,23 +3,23 @@ ReportGenerationService: streamlined high-level generation flow.
 Implements orchestration without legacy indirection.
 """
 
-import shutil
 import logging
-from typing import Dict, Any, Optional
+import shutil
 from pathlib import Path
+from typing import Any
 
-from .input_processor import KnowledgeBaseInputProcessor
+from ..models import Report
+from ..storage import StorageFactory
 from .config import (
+    get_free_retrievers,
     get_model_provider_config,
     get_retriever_config,
+    get_search_depth_options,
     get_supported_providers,
     get_supported_retrievers,
-    get_free_retrievers,
     get_time_range_mapping,
-    get_search_depth_options,
 )
-from ..storage import StorageFactory
-from ..models import Report
+from .input_processor import KnowledgeBaseInputProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,10 @@ class ReportGenerationService:
         """Lazy-load the DeepReportGenerator."""
         if self._generator is None:
             try:
-                from agents.report_agent.deep_report_generator import DeepReportGenerator
+                from agents.report_agent.deep_report_generator import (
+                    DeepReportGenerator,
+                )
+
                 self._generator = DeepReportGenerator()
             except ImportError as e:
                 raise ImportError(f"Failed to import DeepReportGenerator: {e}")
@@ -44,7 +47,7 @@ class ReportGenerationService:
                 raise Exception(f"Failed to initialize DeepReportGenerator: {e}")
         return self._generator
 
-    def generate_report(self, report_id: int) -> Dict[str, Any]:
+    def generate_report(self, report_id: int) -> dict[str, Any]:
         try:
             try:
                 report = Report.objects.get(id=report_id)
@@ -58,13 +61,16 @@ class ReportGenerationService:
             if report.include_image:
                 try:
                     from .job import JobService
+
                     job_service = JobService()
                     if not job_service.prepare_report_images(report):
                         logger.warning(
                             f"Failed to prepare ReportImage records for report {report_id}, continuing anyway"
                         )
                 except Exception as e:
-                    logger.warning(f"Image preparation error for report {report_id}: {e}")
+                    logger.warning(
+                        f"Image preparation error for report {report_id}: {e}"
+                    )
 
             output_dir = self.file_storage.create_output_directory(
                 user_id=report.user.pk,
@@ -82,6 +88,7 @@ class ReportGenerationService:
 
                 if report.include_image:
                     from .image import ImageService
+
                     selected_file_ids = content_data.get("selected_file_ids", [])
                     if selected_file_ids:
                         image_service = ImageService()
@@ -144,7 +151,7 @@ class ReportGenerationService:
                 )
             raise
 
-    def validate_configuration(self, config: Dict[str, Any]) -> bool:
+    def validate_configuration(self, config: dict[str, Any]) -> bool:
         """Validate report generation configuration."""
         try:
             logger.info(f"Validating report configuration: {config}")
@@ -197,7 +204,7 @@ class ReportGenerationService:
             logger.error(f"Error during validation: {e}")
             return False
 
-    def _generate_report(self, config: Dict[str, Any]) -> Dict[str, Any]:
+    def _generate_report(self, config: dict[str, Any]) -> dict[str, Any]:
         """Generate report using the core generator."""
         try:
             from agents.report_agent.deep_report_generator import ReportGenerationConfig
@@ -223,9 +230,12 @@ class ReportGenerationService:
             }
         except Exception as e:
             logger.error(f"Report generation failed: {e}")
-            return {"success": False, "error_message": f"Report generation failed: {str(e)}"}
+            return {
+                "success": False,
+                "error_message": f"Report generation failed: {str(e)}",
+            }
 
-    def validate_report_config(self, config: Dict[str, Any]) -> bool:
+    def validate_report_config(self, config: dict[str, Any]) -> bool:
         """Public wrapper for validate_configuration."""
         try:
             return self.validate_configuration(config)
@@ -233,7 +243,7 @@ class ReportGenerationService:
             logger.error(f"Error validating report config: {e}")
             return False
 
-    def get_supported_options(self) -> Dict[str, Any]:
+    def get_supported_options(self) -> dict[str, Any]:
         """Get supported providers and configuration options."""
         try:
             return {
@@ -254,7 +264,9 @@ class ReportGenerationService:
             logger.info(f"Cleaned up temp directories for cancelled report {report_id}")
             return True
         except Exception as e:
-            logger.error(f"Error during cancellation cleanup for report {report_id}: {e}")
+            logger.error(
+                f"Error during cancellation cleanup for report {report_id}: {e}"
+            )
             return False
 
     def _cleanup_temp_directory(self, temp_dir: str) -> None:
@@ -276,5 +288,6 @@ class ReportGenerationService:
     def __del__(self):
         """Cleanup on service deletion."""
         self._cleanup_all_temp_directories()
+
 
 __all__ = ["ReportGenerationService"]

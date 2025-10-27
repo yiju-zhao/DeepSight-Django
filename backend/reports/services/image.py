@@ -5,22 +5,17 @@ Implements image handling by consolidating logic used for report images.
 
 import logging
 import os
-import glob
-import json
-from pathlib import Path
-from typing import List, Tuple, Dict, Optional
 
 from django.db import transaction
-from django.conf import settings
 from notebooks.models import KnowledgeBaseImage
 from notebooks.utils.storage import get_minio_backend
+
 from reports.models import Report, ReportImage
 from reports.utils import (
-    extract_figure_ids_from_content,
-    extract_figure_data_from_markdown,
-    convert_to_uuid_objects,
-    ImageInsertionService,
     DatabaseUrlProvider,
+    ImageInsertionService,
+    convert_to_uuid_objects,
+    extract_figure_ids_from_content,
 )
 
 logger = logging.getLogger(__name__)
@@ -37,46 +32,50 @@ class ImageService:
             self._minio_backend = get_minio_backend()
         return self._minio_backend
 
-    def find_images_by_figure_ids(self, figure_ids: List[str], user_id: int) -> List[KnowledgeBaseImage]:
+    def find_images_by_figure_ids(
+        self, figure_ids: list[str], user_id: int
+    ) -> list[KnowledgeBaseImage]:
         """Find KnowledgeBaseImage records by figure_id field."""
         if not figure_ids:
             return []
 
         uuid_figure_ids = convert_to_uuid_objects(figure_ids)
 
-        images = (
-            KnowledgeBaseImage.objects.filter(
-                figure_id__in=uuid_figure_ids, knowledge_base_item__notebook__user_id=user_id
-            )
-            .select_related("knowledge_base_item__notebook__user")
-        )
+        images = KnowledgeBaseImage.objects.filter(
+            figure_id__in=uuid_figure_ids,
+            knowledge_base_item__notebook__user_id=user_id,
+        ).select_related("knowledge_base_item__notebook__user")
 
         logger.info(f"Found {images.count()} images for {len(figure_ids)} figure IDs")
         return list(images)
 
-    def copy_images_to_report(self, report: Report, kb_images: List[KnowledgeBaseImage]) -> List[ReportImage]:
+    def copy_images_to_report(
+        self, report: Report, kb_images: list[KnowledgeBaseImage]
+    ) -> list[ReportImage]:
         """Copy selected images from knowledge base to report folder and create ReportImage records."""
         if not kb_images:
             logger.info("No images to copy")
             return []
 
-        report_images: List[ReportImage] = []
+        report_images: list[ReportImage] = []
 
         notebook_part = report.notebooks.id if report.notebooks else "standalone"
-        report_image_folder = f"{report.user.id}/notebook/{notebook_part}/report/{report.id}/images"
+        report_image_folder = (
+            f"{report.user.id}/notebook/{notebook_part}/report/{report.id}/images"
+        )
 
         with transaction.atomic():
             for kb_image in kb_images:
                 try:
                     source_key = kb_image.minio_object_key
                     file_extension = os.path.splitext(source_key)[1] or ".jpg"
-                    dest_key = f"{report_image_folder}/{kb_image.figure_id}{file_extension}"
+                    dest_key = (
+                        f"{report_image_folder}/{kb_image.figure_id}{file_extension}"
+                    )
 
                     success = self._get_minio_backend().copy_file(source_key, dest_key)
                     if not success:
-                        logger.error(
-                            f"Failed to copy image {source_key} to {dest_key}"
-                        )
+                        logger.error(f"Failed to copy image {source_key} to {dest_key}")
                         continue
 
                     report_image, created = ReportImage.objects.get_or_create(
@@ -99,10 +98,14 @@ class ImageService:
                     logger.error(f"Error copying image {kb_image.figure_id}: {e}")
                     continue
 
-        logger.info(f"Successfully copied {len(report_images)} images to report {report.id}")
+        logger.info(
+            f"Successfully copied {len(report_images)} images to report {report.id}"
+        )
         return report_images
 
-    def process_report_images(self, report: Report, content: str) -> Tuple[List[ReportImage], str]:
+    def process_report_images(
+        self, report: Report, content: str
+    ) -> tuple[list[ReportImage], str]:
         """Extract figure IDs from content, copy images, and return updated content."""
         figure_ids = extract_figure_ids_from_content(content)
         if not figure_ids:
@@ -119,7 +122,7 @@ class ImageService:
         return report_images, updated_content
 
     def _insert_figure_images(
-        self, content: str, report_images: List[ReportImage], report_id=None
+        self, content: str, report_images: list[ReportImage], report_id=None
     ) -> str:
         if not report_images:
             return content
@@ -132,7 +135,7 @@ class ImageService:
 
     # Public convenience to align with existing call sites
     def insert_figure_images(
-        self, content: str, report_images: List[ReportImage], report_id=None
+        self, content: str, report_images: list[ReportImage], report_id=None
     ) -> str:
         return self._insert_figure_images(content, report_images, report_id)
 
@@ -159,7 +162,9 @@ class ImageService:
     # FIGURE DATA SERVICE METHODS (Merged from FigureDataService)
     # =============================================================================
 
-    def create_knowledge_base_figure_data(self, user_id: int, file_id: str, figure_data: List[Dict]) -> Optional[str]:
+    def create_knowledge_base_figure_data(
+        self, user_id: int, file_id: str, figure_data: list[dict]
+    ) -> str | None:
         """
         Store figure data in database for a knowledge base item.
         This replaces the old figure_data.json file approach.
@@ -179,23 +184,27 @@ class ImageService:
 
             # Update images from figure data
             success = kb_service.update_images_from_figure_data(
-                kb_item_id=int(file_id),
-                figure_data=figure_data,
-                user_id=user_id
+                kb_item_id=int(file_id), figure_data=figure_data, user_id=user_id
             )
 
             if success:
                 logger.info(f"Stored figure data in database for kb_item {file_id}")
                 return f"database_storage_kb_{file_id}"  # Return a success indicator
             else:
-                logger.warning(f"Failed to store figure data in database for kb_item {file_id}")
+                logger.warning(
+                    f"Failed to store figure data in database for kb_item {file_id}"
+                )
                 return None
 
         except Exception as e:
-            logger.error(f"Error storing figure data in database for kb_item {file_id}: {e}")
+            logger.error(
+                f"Error storing figure data in database for kb_item {file_id}: {e}"
+            )
             return None
 
-    def create_combined_figure_data(self, report, selected_file_ids: List[str]) -> Optional[str]:
+    def create_combined_figure_data(
+        self, report, selected_file_ids: list[str]
+    ) -> str | None:
         """
         Get combined figure data from database for a report.
         This replaces creating combined figure_data.json files.
@@ -214,8 +223,7 @@ class ImageService:
 
             # Get combined figure data from database
             combined_figure_data = kb_service.get_combined_figure_data_for_files(
-                file_ids=selected_file_ids,
-                user_id=report.user.pk
+                file_ids=selected_file_ids, user_id=report.user.pk
             )
 
             if not combined_figure_data:
@@ -226,14 +234,18 @@ class ImageService:
             # This avoids the need to create temporary files
             report._cached_figure_data = combined_figure_data
 
-            logger.info(f"Retrieved combined figure data from database: {len(combined_figure_data)} figures")
+            logger.info(
+                f"Retrieved combined figure data from database: {len(combined_figure_data)} figures"
+            )
             return f"database_combined_{report.id}"  # Return success indicator
 
         except Exception as e:
             logger.error(f"Error creating combined figure data from database: {e}")
             return None
 
-    def get_cached_figure_data(self, user_id: int, reference: Optional[str]) -> Optional[Dict]:
+    def get_cached_figure_data(
+        self, user_id: int, reference: str | None
+    ) -> dict | None:
         """
         Get cached figure data for a user and reference.
 
@@ -259,10 +271,12 @@ class ImageService:
             return None
 
         except Exception as e:
-            logger.error(f"Error getting cached figure data for user {user_id}, reference {reference}: {e}")
+            logger.error(
+                f"Error getting cached figure data for user {user_id}, reference {reference}: {e}"
+            )
             return None
 
-    def load_combined_figure_data(self, figure_data_reference: str) -> List[Dict]:
+    def load_combined_figure_data(self, figure_data_reference: str) -> list[dict]:
         """
         Load figure data from KnowledgeBaseImage table using database references.
         No longer uses JSON files - everything comes from database.
@@ -272,28 +286,31 @@ class ImageService:
 
         try:
             # Check if this is a database reference
-            if figure_data_reference.startswith('database_'):
+            if figure_data_reference.startswith("database_"):
                 # Extract identifiers from the reference
-                if 'combined_' in figure_data_reference:
+                if "combined_" in figure_data_reference:
                     # This is a combined figure data request for a report
-                    report_id = figure_data_reference.split('_')[-1]
+                    report_id = figure_data_reference.split("_")[-1]
 
                     # Try to get from cached data first
                     from reports.models import Report
+
                     try:
                         report = Report.objects.get(id=report_id)
-                        if hasattr(report, '_cached_figure_data'):
+                        if hasattr(report, "_cached_figure_data"):
                             return report._cached_figure_data
                     except Exception:
                         pass
 
                     # If no cached data, return empty list
-                    logger.warning(f"No cached figure data found for report {report_id}")
+                    logger.warning(
+                        f"No cached figure data found for report {report_id}"
+                    )
                     return []
 
-                elif 'kb_' in figure_data_reference:
+                elif "kb_" in figure_data_reference:
                     # This is a single knowledge base item request
-                    kb_item_id = figure_data_reference.split('_')[-1]
+                    kb_item_id = figure_data_reference.split("_")[-1]
                     return self._load_kb_item_figure_data(int(kb_item_id))
 
             # Direct knowledge base item ID (new approach)
@@ -302,11 +319,13 @@ class ImageService:
                 return self._load_kb_item_figure_data(kb_item_id)
 
         except Exception as e:
-            logger.error(f"Error loading figure data from reference {figure_data_reference}: {e}")
+            logger.error(
+                f"Error loading figure data from reference {figure_data_reference}: {e}"
+            )
 
         return []
 
-    def _load_kb_item_figure_data(self, kb_item_id: int) -> List[Dict]:
+    def _load_kb_item_figure_data(self, kb_item_id: int) -> list[dict]:
         """Load figure data directly from KnowledgeBaseImage table"""
         try:
             from notebooks.models import KnowledgeBaseImage
@@ -314,19 +333,21 @@ class ImageService:
             # Get all images for this knowledge base item
             images = KnowledgeBaseImage.objects.filter(
                 knowledge_base_item_id=kb_item_id
-            ).order_by('created_at')
+            ).order_by("created_at")
 
             figure_data = []
             for image in images:
                 # Use to_figure_data_dict method for consistency
                 figure_dict = image.to_figure_data_dict()
                 # Add additional metadata for backwards compatibility if needed
-                figure_dict.update({
-                    'content_type': image.content_type,
-                    'file_size': image.file_size,
-                    'minio_object_key': image.minio_object_key,
-                    'kb_item_id': kb_item_id,
-                })
+                figure_dict.update(
+                    {
+                        "content_type": image.content_type,
+                        "file_size": image.file_size,
+                        "minio_object_key": image.minio_object_key,
+                        "kb_item_id": kb_item_id,
+                    }
+                )
                 figure_data.append(figure_dict)
 
             logger.info(f"Loaded {len(figure_data)} figures for KB item {kb_item_id}")
@@ -336,7 +357,9 @@ class ImageService:
             logger.error(f"Error loading figure data for KB item {kb_item_id}: {e}")
             return []
 
-    def get_figure_data_for_knowledge_base_item(self, user_id: int, file_id: str) -> List[Dict]:
+    def get_figure_data_for_knowledge_base_item(
+        self, user_id: int, file_id: str
+    ) -> list[dict]:
         """
         Get figure data for a single knowledge base item from database.
         This is a new method that directly queries the database.
@@ -354,12 +377,12 @@ class ImageService:
             kb_service = KnowledgeBaseService()
 
             return kb_service.get_images_for_knowledge_base_item(
-                kb_item_id=int(file_id),
-                user_id=user_id
+                kb_item_id=int(file_id), user_id=user_id
             )
 
         except Exception as e:
             logger.error(f"Error getting figure data for kb_item {file_id}: {e}")
             return []
+
 
 __all__ = ["ImageService"]

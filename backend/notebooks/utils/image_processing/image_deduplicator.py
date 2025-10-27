@@ -2,22 +2,23 @@
 Image deduplication using pixel-level and semantic similarity methods.
 """
 
-import os
-import shutil
-import time
-import re
 import logging
-from typing import List, Tuple, Dict, Any, Optional
+import os
+import re
+import shutil
+from typing import Any
+
+import imagehash
 import numpy as np
 from PIL import Image
-import imagehash
 
 logger = logging.getLogger(__name__)
+
 
 def prepare_work_dir(source_dir: str, work_dir: str):
     """
     Copy all images from source_dir to work_dir for processing.
-    
+
     Args:
         source_dir: Source directory containing images
         work_dir: Working directory for deduplication
@@ -31,43 +32,47 @@ def prepare_work_dir(source_dir: str, work_dir: str):
         logger.error(f"Failed to prepare work directory: {e}")
         raise
 
+
 def setup_cuda_environment():
     """
     Setup CUDA environment for Linux servers to avoid cuDNN issues.
     """
     try:
         import torch
-        
+
         # Set environment variables to avoid cuDNN version mismatch
-        os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
-        
+        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+
         # Disable cuDNN benchmark for more stable results
         torch.backends.cudnn.benchmark = False
         torch.backends.cudnn.deterministic = True
-        
+
         # Clear CUDA cache
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-            logger.info(f"CUDA setup completed. Available GPUs: {torch.cuda.device_count()}")
+            logger.info(
+                f"CUDA setup completed. Available GPUs: {torch.cuda.device_count()}"
+            )
             logger.info(f"Current CUDA device: {torch.cuda.current_device()}")
             logger.info(f"CUDA version: {torch.version.cuda}")
-        
+
     except Exception as e:
         logger.warning(f"CUDA environment setup warning: {e}")
 
-def get_optimal_device(force_device: Optional[str] = None) -> str:
+
+def get_optimal_device(force_device: str | None = None) -> str:
     """
     Get the optimal device for computation with proper error handling.
-    
+
     Args:
         force_device: Force a specific device (cuda, cpu, mps)
-        
+
     Returns:
         Device string to use
     """
     try:
         import torch
-        
+
         if force_device:
             if force_device == "cuda" and not torch.cuda.is_available():
                 logger.warning("CUDA requested but not available, falling back to CPU")
@@ -76,7 +81,7 @@ def get_optimal_device(force_device: Optional[str] = None) -> str:
                 logger.warning("MPS requested but not available, falling back to CPU")
                 return "cpu"
             return force_device
-        
+
         # Auto-detect best device
         if torch.cuda.is_available():
             # Setup CUDA environment for stability
@@ -86,12 +91,13 @@ def get_optimal_device(force_device: Optional[str] = None) -> str:
             return "mps"
         else:
             return "cpu"
-            
+
     except Exception as e:
         logger.warning(f"Device detection failed: {e}, using CPU")
         return "cpu"
 
-def load_clip_model_and_preprocessing(device: Optional[str] = None):
+
+def load_clip_model_and_preprocessing(device: str | None = None):
     """
     Load CLIP model and preprocessing for semantic similarity using open_clip_torch.
 
@@ -102,30 +108,34 @@ def load_clip_model_and_preprocessing(device: Optional[str] = None):
         Tuple of (model, preprocess_function, actual_device_used)
     """
     try:
-        import torch
         import open_clip
+        import torch
 
         # Get optimal device
         actual_device = get_optimal_device(device)
         logger.info(f"Loading CLIP model on device: {actual_device}")
 
         # Load model using open_clip
-        model, _, preprocess = open_clip.create_model_and_transforms('ViT-L-14-quickgelu', pretrained='dfn2b')
-        
+        model, _, preprocess = open_clip.create_model_and_transforms(
+            "ViT-L-14-quickgelu", pretrained="dfn2b"
+        )
+
         # Move model to device with error handling
         try:
             model = model.to(actual_device)
             model.eval()
-            
+
             # Test model on device with a dummy tensor
             if actual_device != "cpu":
                 test_tensor = torch.randn(1, 3, 224, 224).to(actual_device)
                 with torch.no_grad():
                     _ = model.encode_image(test_tensor)
                 test_tensor = None  # Clean up
-                
+
         except Exception as device_error:
-            logger.warning(f"Failed to use {actual_device}: {device_error}, falling back to CPU")
+            logger.warning(
+                f"Failed to use {actual_device}: {device_error}, falling back to CPU"
+            )
             actual_device = "cpu"
             model = model.to(actual_device)
             model.eval()
@@ -134,37 +144,51 @@ def load_clip_model_and_preprocessing(device: Optional[str] = None):
         return model, preprocess, actual_device
 
     except ImportError:
-        logger.error("OpenCLIP not available. Install with: pip install open_clip_torch")
-        raise ImportError("OpenCLIP not available. Install with: pip install open_clip_torch")
+        logger.error(
+            "OpenCLIP not available. Install with: pip install open_clip_torch"
+        )
+        raise ImportError(
+            "OpenCLIP not available. Install with: pip install open_clip_torch"
+        )
     except Exception as e:
         logger.error(f"Failed to load CLIP model: {e}")
         raise
 
-def global_pixel_dedupe(work_dir: str, max_distance: int) -> Tuple[int, List[Dict[str, Any]]]:
+
+def global_pixel_dedupe(
+    work_dir: str, max_distance: int
+) -> tuple[int, list[dict[str, Any]]]:
     """
     Compare all images in work_dir with all other images using perceptual hash.
     If hash Hamming distance <= max_distance, removes one of them (the latter in sorted order).
-    
+
     Args:
         work_dir: Directory containing images to deduplicate
         max_distance: Maximum Hamming distance for considering images as duplicates
-        
+
     Returns:
         Tuple of (removed_count, logs)
     """
     try:
-        files_names = sorted([f for f in os.listdir(work_dir)
-                              if os.path.isfile(os.path.join(work_dir, f)) and not f.endswith("dedupe_log.json")], reverse=True)
-        
+        files_names = sorted(
+            [
+                f
+                for f in os.listdir(work_dir)
+                if os.path.isfile(os.path.join(work_dir, f))
+                and not f.endswith("dedupe_log.json")
+            ],
+            reverse=True,
+        )
+
         if len(files_names) < 2:
             return 0, []
-        
+
         logger.info(f"Starting global pixel deduplication on {len(files_names)} images")
-        
+
         # Compute hashes for all images
         image_hashes = {}
         valid_file_paths = []
-        
+
         for fname in files_names:
             fpath = os.path.join(work_dir, fname)
             try:
@@ -174,43 +198,43 @@ def global_pixel_dedupe(work_dir: str, max_distance: int) -> Tuple[int, List[Dic
                     valid_file_paths.append(fpath)
             except Exception as e:
                 logger.warning(f"Could not process image {fname}: {e}")
-        
+
         # Compare all pairs and mark for removal
         files_marked_for_removal = set()
         global_pixel_logs = []
-        
+
         for i in range(len(valid_file_paths)):
             file_a_path = valid_file_paths[i]
             if file_a_path in files_marked_for_removal:
                 continue
-                
+
             file_a_name = os.path.basename(file_a_path)
             hash_a = image_hashes[file_a_path]
-            
+
             for j in range(i + 1, len(valid_file_paths)):
                 file_b_path = valid_file_paths[j]
                 if file_b_path in files_marked_for_removal:
                     continue
-                    
+
                 file_b_name = os.path.basename(file_b_path)
                 hash_b = image_hashes[file_b_path]
                 dist = hash_a - hash_b
-                
+
                 log_entry = {
-                    "file_a": file_a_name, 
-                    "file_b": file_b_name, 
-                    "hamming": int(dist), 
-                    "removed": False, 
-                    "removed_file": None
+                    "file_a": file_a_name,
+                    "file_b": file_b_name,
+                    "hamming": int(dist),
+                    "removed": False,
+                    "removed_file": None,
                 }
-                
+
                 if dist <= max_distance:
                     log_entry["removed"] = True
                     log_entry["removed_file"] = file_b_name
                     files_marked_for_removal.add(file_b_path)
-                
+
                 global_pixel_logs.append(log_entry)
-        
+
         # Remove marked files
         removed_count = 0
         for file_path in files_marked_for_removal:
@@ -219,15 +243,20 @@ def global_pixel_dedupe(work_dir: str, max_distance: int) -> Tuple[int, List[Dic
                 removed_count += 1
             except Exception as e:
                 logger.warning(f"Failed to remove {file_path}: {e}")
-        
-        logger.info(f"Global pixel deduplication completed: removed {removed_count} images")
+
+        logger.info(
+            f"Global pixel deduplication completed: removed {removed_count} images"
+        )
         return removed_count, global_pixel_logs
 
     except Exception as e:
         logger.error(f"Global pixel deduplication failed: {e}")
         raise
 
-def sequential_deep_dedupe(work_dir: str, threshold: float, device: str, model, preprocess) -> Tuple[int, List[Dict[str, Any]]]:
+
+def sequential_deep_dedupe(
+    work_dir: str, threshold: float, device: str, model, preprocess
+) -> tuple[int, list[dict[str, Any]]]:
     """
     Sequentially compare each image to the next using CLIP embeddings.
     Remove the latter if cosine similarity >= threshold.
@@ -245,8 +274,15 @@ def sequential_deep_dedupe(work_dir: str, threshold: float, device: str, model, 
     try:
         import torch
 
-        files = sorted([f for f in os.listdir(work_dir)
-                        if os.path.isfile(os.path.join(work_dir, f)) and not f.endswith("dedupe_log.json")], reverse=True)
+        files = sorted(
+            [
+                f
+                for f in os.listdir(work_dir)
+                if os.path.isfile(os.path.join(work_dir, f))
+                and not f.endswith("dedupe_log.json")
+            ],
+            reverse=True,
+        )
 
         removed_count = 0
         deep_logs = []
@@ -265,13 +301,13 @@ def sequential_deep_dedupe(work_dir: str, threshold: float, device: str, model, 
 
             try:
                 # Load and preprocess images
-                img_prev = Image.open(path_prev).convert('RGB')
-                img_next = Image.open(path_next).convert('RGB')
+                img_prev = Image.open(path_prev).convert("RGB")
+                img_next = Image.open(path_next).convert("RGB")
 
                 # Ensure tensors are on the correct device
                 input_prev = preprocess(img_prev).unsqueeze(0)
                 input_next = preprocess(img_next).unsqueeze(0)
-                
+
                 # Move tensors to device with error handling
                 try:
                     input_prev = input_prev.to(device)
@@ -296,7 +332,7 @@ def sequential_deep_dedupe(work_dir: str, threshold: float, device: str, model, 
                     # Calculate cosine similarity - ensure tensors are on same device
                     if emb_prev.device != emb_next.device:
                         emb_next = emb_next.to(emb_prev.device)
-                    
+
                     sim = float(torch.dot(emb_prev.squeeze(), emb_next.squeeze()))
 
                 # Clean up GPU memory
@@ -309,7 +345,7 @@ def sequential_deep_dedupe(work_dir: str, threshold: float, device: str, model, 
                     "file_next": fname_next,
                     "cosine": sim,
                     "removed": False,
-                    "removed_file": None
+                    "removed_file": None,
                 }
 
                 if sim >= threshold:
@@ -332,14 +368,19 @@ def sequential_deep_dedupe(work_dir: str, threshold: float, device: str, model, 
                 logger.warning(f"Error processing {fname_prev} and {fname_next}: {e}")
                 idx += 1
 
-        logger.info(f"Sequential deep deduplication completed: removed {removed_count} images")
+        logger.info(
+            f"Sequential deep deduplication completed: removed {removed_count} images"
+        )
         return removed_count, deep_logs
 
     except Exception as e:
         logger.error(f"Sequential deep deduplication failed: {e}")
         raise
 
-def global_deep_dedupe(work_dir: str, threshold: float, device: str, model, preprocess) -> Tuple[int, List[Dict[str, Any]]]:
+
+def global_deep_dedupe(
+    work_dir: str, threshold: float, device: str, model, preprocess
+) -> tuple[int, list[dict[str, Any]]]:
     """
     Compare all images in work_dir using CLIP embeddings.
     If cosine similarity >= threshold, removes one (the latter in sorted order).
@@ -357,8 +398,15 @@ def global_deep_dedupe(work_dir: str, threshold: float, device: str, model, prep
     try:
         import torch
 
-        files_names = sorted([f for f in os.listdir(work_dir)
-                              if os.path.isfile(os.path.join(work_dir, f)) and not f.endswith("dedupe_log.json")], reverse=True)
+        files_names = sorted(
+            [
+                f
+                for f in os.listdir(work_dir)
+                if os.path.isfile(os.path.join(work_dir, f))
+                and not f.endswith("dedupe_log.json")
+            ],
+            reverse=True,
+        )
 
         if len(files_names) < 2:
             return 0, []
@@ -372,14 +420,16 @@ def global_deep_dedupe(work_dir: str, threshold: float, device: str, model, prep
         for fname in files_names:
             fpath = os.path.join(work_dir, fname)
             try:
-                img = Image.open(fpath).convert('RGB')
+                img = Image.open(fpath).convert("RGB")
                 input_tensor = preprocess(img).unsqueeze(0)
-                
+
                 # Move tensor to device with error handling
                 try:
                     input_tensor = input_tensor.to(device)
                 except Exception as device_error:
-                    logger.warning(f"Device transfer failed for {fname}: {device_error}, using CPU")
+                    logger.warning(
+                        f"Device transfer failed for {fname}: {device_error}, using CPU"
+                    )
                     input_tensor = input_tensor.to("cpu")
                     # Move model to CPU if needed
                     if next(model.parameters()).device != torch.device("cpu"):
@@ -391,7 +441,7 @@ def global_deep_dedupe(work_dir: str, threshold: float, device: str, model, prep
                     # Move to CPU for storage to save GPU memory
                     image_embeddings[fpath] = embedding.squeeze().cpu().numpy()
                     valid_file_paths.append(fpath)
-                
+
                 # Clean up GPU memory
                 del input_tensor, embedding
                 if device != "cpu":
@@ -427,7 +477,7 @@ def global_deep_dedupe(work_dir: str, threshold: float, device: str, model, prep
                     "file_b": file_b_name,
                     "cosine": sim,
                     "removed": False,
-                    "removed_file": None
+                    "removed_file": None,
                 }
 
                 if sim >= threshold:
@@ -446,14 +496,19 @@ def global_deep_dedupe(work_dir: str, threshold: float, device: str, model, prep
             except Exception as e:
                 logger.warning(f"Failed to remove {file_path}: {e}")
 
-        logger.info(f"Global deep deduplication completed: removed {removed_count} images")
+        logger.info(
+            f"Global deep deduplication completed: removed {removed_count} images"
+        )
         return removed_count, global_deep_logs
 
     except Exception as e:
         logger.error(f"Global deep deduplication failed: {e}")
         raise
 
-def text_ocr_filter_dedupe(work_dir: str, min_words: int, ocr_lang: str = 'en', ocr_gpu: bool = True) -> Tuple[int, List[Dict[str, Any]]]:
+
+def text_ocr_filter_dedupe(
+    work_dir: str, min_words: int, ocr_lang: str = "en", ocr_gpu: bool = True
+) -> tuple[int, list[dict[str, Any]]]:
     """
     Remove images that don't contain sufficient text/numbers using OCR.
 
@@ -469,8 +524,15 @@ def text_ocr_filter_dedupe(work_dir: str, min_words: int, ocr_lang: str = 'en', 
     try:
         import easyocr
 
-        files_names = sorted([f for f in os.listdir(work_dir)
-                              if os.path.isfile(os.path.join(work_dir, f)) and not f.endswith("dedupe_log.json")], reverse=True)
+        files_names = sorted(
+            [
+                f
+                for f in os.listdir(work_dir)
+                if os.path.isfile(os.path.join(work_dir, f))
+                and not f.endswith("dedupe_log.json")
+            ],
+            reverse=True,
+        )
 
         if len(files_names) == 0:
             return 0, []
@@ -480,7 +542,9 @@ def text_ocr_filter_dedupe(work_dir: str, min_words: int, ocr_lang: str = 'en', 
         try:
             reader = easyocr.Reader([ocr_lang], gpu=ocr_gpu)
         except Exception as ocr_error:
-            logger.warning(f"Failed to initialize OCR with GPU: {ocr_error}, falling back to CPU")
+            logger.warning(
+                f"Failed to initialize OCR with GPU: {ocr_error}, falling back to CPU"
+            )
             reader = easyocr.Reader([ocr_lang], gpu=False)
 
         # Pattern to match words and numbers
@@ -503,7 +567,7 @@ def text_ocr_filter_dedupe(work_dir: str, min_words: int, ocr_lang: str = 'en', 
                     "word_count": word_count,
                     "contains_sufficient_text": word_count >= min_words,
                     "removed": False,
-                    "removed_file": None
+                    "removed_file": None,
                 }
 
                 if word_count < min_words:
@@ -521,14 +585,16 @@ def text_ocr_filter_dedupe(work_dir: str, min_words: int, ocr_lang: str = 'en', 
             except Exception as e:
                 logger.warning(f"OCR failed for {fname}: {e}")
                 # Keep the image if OCR fails
-                text_ocr_logs.append({
-                    "file": fname,
-                    "word_count": 0,
-                    "contains_sufficient_text": False,
-                    "removed": False,
-                    "removed_file": None,
-                    "error": f"OCR failed: {str(e)}"
-                })
+                text_ocr_logs.append(
+                    {
+                        "file": fname,
+                        "word_count": 0,
+                        "contains_sufficient_text": False,
+                        "removed": False,
+                        "removed_file": None,
+                        "error": f"OCR failed: {str(e)}",
+                    }
+                )
 
         logger.info(f"Text OCR filter completed: removed {removed_count} images")
         return removed_count, text_ocr_logs

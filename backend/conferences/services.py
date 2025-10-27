@@ -20,24 +20,24 @@ class PublicationDataService:
             Dictionary with processed data including split fields
         """
         return {
-            'id': publication.id,
-            'title': publication.title,
-            'authors': publication.authors,
-            'rating': publication.rating,
-            'research_topic': publication.research_topic,
-            'session': publication.session,
-            'aff_unique': publication.aff_unique,
-            'aff_country_unique': publication.aff_country_unique,
-            'keywords': publication.keywords,
-            'pdf_url': publication.pdf_url,
-            'github': publication.github,
-            'site': publication.site,
-            'instance_year': publication.instance.year,
-            'venue_name': publication.instance.venue.name,
+            "id": publication.id,
+            "title": publication.title,
+            "authors": publication.authors,
+            "rating": publication.rating,
+            "research_topic": publication.research_topic,
+            "session": publication.session,
+            "aff_unique": publication.aff_unique,
+            "aff_country_unique": publication.aff_country_unique,
+            "keywords": publication.keywords,
+            "pdf_url": publication.pdf_url,
+            "github": publication.github,
+            "site": publication.site,
+            "instance_year": publication.instance.year,
+            "venue_name": publication.instance.venue.name,
             # Split fields
-            'authors_list': split_comma_values(publication.authors),
-            'countries_list': split_comma_values(publication.aff_country_unique),
-            'keywords_list': split_semicolon_values(publication.keywords),
+            "authors_list": split_comma_values(publication.authors),
+            "countries_list": split_comma_values(publication.aff_country_unique),
+            "keywords_list": split_semicolon_values(publication.keywords),
         }
 
     def process_publications_for_aggregation(self, publications) -> dict:
@@ -75,13 +75,13 @@ class PublicationDataService:
                 all_keywords.extend(keywords)
 
         return {
-            'unique_authors': len(set(all_authors)),
-            'unique_countries': len(set(all_countries)),  # Count unique for KPIs
-            'unique_affiliations': len(set(all_affiliations)),  # Count unique for KPIs
-            'all_authors': all_authors,
-            'all_countries': all_countries,  # Keep duplicates for chart counting
-            'all_affiliations': all_affiliations,  # Keep duplicates for chart counting
-            'all_keywords': all_keywords,
+            "unique_authors": len(set(all_authors)),
+            "unique_countries": len(set(all_countries)),  # Count unique for KPIs
+            "unique_affiliations": len(set(all_affiliations)),  # Count unique for KPIs
+            "all_authors": all_authors,
+            "all_countries": all_countries,  # Keep duplicates for chart counting
+            "all_affiliations": all_affiliations,  # Keep duplicates for chart counting
+            "all_keywords": all_keywords,
         }
 
 

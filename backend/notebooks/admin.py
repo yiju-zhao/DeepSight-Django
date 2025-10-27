@@ -1,12 +1,12 @@
 from django.contrib import admin
 from django.utils.html import format_html
+
 from .models import (
-    Notebook,
-    KnowledgeBaseItem,
     ChatSession,
+    KnowledgeBaseItem,
+    Notebook,
     SessionChatMessage,
 )
-
 
 
 class KnowledgeBaseItemInline(admin.TabularInline):
@@ -44,8 +44,6 @@ class NotebookAdmin(admin.ModelAdmin):
         )
 
 
-
-
 @admin.register(KnowledgeBaseItem)
 class KnowledgeBaseItemAdmin(admin.ModelAdmin):
     """Admin configuration for KnowledgeBaseItem model."""
@@ -63,8 +61,29 @@ class KnowledgeBaseItemAdmin(admin.ModelAdmin):
     search_fields = ("title", "content", "notebook__name", "notebook__user__username")
     readonly_fields = ("created_at", "updated_at", "source_hash")
     fieldsets = (
-        (None, {"fields": ("notebook", "title", "content_type", "parsing_status", "notes")}),
-        ("Content", {"fields": ("file_object_key", "original_file_object_key", "content", "tags")}),
+        (
+            None,
+            {
+                "fields": (
+                    "notebook",
+                    "title",
+                    "content_type",
+                    "parsing_status",
+                    "notes",
+                )
+            },
+        ),
+        (
+            "Content",
+            {
+                "fields": (
+                    "file_object_key",
+                    "original_file_object_key",
+                    "content",
+                    "tags",
+                )
+            },
+        ),
         ("Metadata", {"fields": ("metadata", "source_hash"), "classes": ("collapse",)}),
         (
             "Timestamps",
@@ -86,19 +105,29 @@ class KnowledgeBaseItemAdmin(admin.ModelAdmin):
     get_file_status.short_description = "Files"
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("notebook", "notebook__user")
-
+        return (
+            super().get_queryset(request).select_related("notebook", "notebook__user")
+        )
 
 
 @admin.register(ChatSession)
 class ChatSessionAdmin(admin.ModelAdmin):
-    list_display = ("id", "notebook", "title", "status", "message_count", "started_at", "last_activity")
+    list_display = (
+        "id",
+        "notebook",
+        "title",
+        "status",
+        "message_count",
+        "started_at",
+        "last_activity",
+    )
     list_filter = ("status", "started_at", "notebook__user")
     search_fields = ("title", "notebook__name", "notebook__user__username")
     readonly_fields = ("started_at", "last_activity")
 
     def message_count(self, obj):
         return obj.messages.count()
+
     message_count.short_description = "Messages"
 
 
@@ -111,4 +140,5 @@ class SessionChatMessageAdmin(admin.ModelAdmin):
 
     def short_message(self, obj):
         return (obj.message[:75] + "...") if len(obj.message) > 75 else obj.message
+
     short_message.short_description = "Message"

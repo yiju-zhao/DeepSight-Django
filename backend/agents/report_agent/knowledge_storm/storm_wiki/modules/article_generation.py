@@ -1,21 +1,21 @@
 import concurrent.futures
 import copy
+import json
 import logging
-from concurrent.futures import as_completed
-from typing import List, Union, Dict, Any, Optional
-from sentence_transformers import CrossEncoder
-import dspy
 import re
-import torch
 import threading
-from .callback import BaseCallbackHandler
-from .storm_dataclass import StormInformationTable, StormArticle
+from concurrent.futures import as_completed
+
+import dspy
+import torch
+from prompts import import_prompts
+from sentence_transformers import CrossEncoder
+
 from ...interface import ArticleGenerationModule, Information
 from ...utils import ArticleTextProcessing
+from .callback import BaseCallbackHandler
 from .enhanced_rag import EnhancedStormInformationTable
-from prompts import import_prompts
-
-import json
+from .storm_dataclass import StormArticle, StormInformationTable
 
 
 def get_device():
@@ -56,7 +56,7 @@ def filter_queries(raw_output):
     prefix_pattern = re.compile(r"^\s*rewritten\s+queries:\s*", re.IGNORECASE)
     actual_queries = []
 
-    for i, (orig_line, lower_line) in enumerate(zip(original_lines, lowercase_lines)):
+    for _i, (orig_line, lower_line) in enumerate(zip(original_lines, lowercase_lines, strict=False)):
         # Strip whitespace but keep for later to preserve indentation
         orig_stripped = orig_line.strip()
         lower_stripped = lower_line.strip()
@@ -100,7 +100,7 @@ class StormArticleGenerationModule(ArticleGenerationModule):
 
     def __init__(
         self,
-        article_gen_lm: Union[dspy.dsp.LM, dspy.dsp.HFModel],
+        article_gen_lm: dspy.dsp.LM | dspy.dsp.HFModel,
         max_thread_num: int = 10,
         reranker_model_name: str = "cross-encoder/ms-marco-MiniLM-L6-v2",
         rerank_top_k: int = None,
@@ -135,7 +135,7 @@ class StormArticleGenerationModule(ArticleGenerationModule):
         section_outline: str,
         section_query: list[str],
         topic: str,
-        figure_data: Optional[List[Dict[str, str]]] = None,
+        figure_data: list[dict[str, str]] | None = None,
     ) -> dict:
         """
         Generate a section using the enhanced RAG pipeline with contextual snippets,
@@ -203,7 +203,7 @@ class StormArticleGenerationModule(ArticleGenerationModule):
         article_with_outline: StormArticle,
         callback_handler: BaseCallbackHandler = None,
         topic: str = None,
-        figure_data: Optional[List[Dict[str, str]]] = None,
+        figure_data: list[dict[str, str]] | None = None,
     ) -> StormArticle:
         """
         Generate article for the topic based on the information table and article outline.
@@ -253,7 +253,7 @@ class StormArticleGenerationModule(ArticleGenerationModule):
                 return section_data
 
             current_headings = parent_headings + [node.section_name]
-            subheadings = [
+            [
                 child.section_name
                 for child in node.children
                 if isinstance(child.section_name, str)
@@ -461,7 +461,7 @@ class StormArticleGenerationModule(ArticleGenerationModule):
 class ConvToSection(dspy.Module):
     """Use the information collected from the information-seeking conversation to write a section."""
 
-    def __init__(self, engine: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def __init__(self, engine: dspy.dsp.LM | dspy.dsp.HFModel):
         super().__init__()
         self.write_section = dspy.Predict(WriteSection)
         self.engine = engine
@@ -471,9 +471,9 @@ class ConvToSection(dspy.Module):
         text_input: str,
         outline: str,
         section: str,
-        collected_info: List[Information],
+        collected_info: list[Information],
         topic: str,
-        figure_data: Optional[List[Dict[str, str]]] = None,
+        figure_data: list[dict[str, str]] | None = None,
     ):
         info = ""
         if collected_info:  # Check if collected_info is not empty

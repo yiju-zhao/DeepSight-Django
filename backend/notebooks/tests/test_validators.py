@@ -2,18 +2,18 @@
 Validator tests for the notebooks module.
 """
 
-import tempfile
 import os
-from django.test import TestCase
+import tempfile
+
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.core.exceptions import ValidationError
+from django.test import TestCase
 
 from ..utils.validators import (
     FileValidator,
     URLValidator,
-    validate_file_type,
     get_content_type_for_extension,
-    sanitize_filename
+    sanitize_filename,
+    validate_file_type,
 )
 
 
@@ -32,7 +32,7 @@ class FileValidatorTests(TestCase):
         )
 
         result = self.validator.validate_file(uploaded_file)
-        
+
         self.assertTrue(result["valid"])
         self.assertEqual(result["file_extension"], ".txt")
         self.assertEqual(result["content_type"], "text/plain")
@@ -47,7 +47,7 @@ class FileValidatorTests(TestCase):
         )
 
         result = self.validator.validate_file(uploaded_file)
-        
+
         self.assertFalse(result["valid"])
         self.assertTrue(any("File size" in error for error in result["errors"]))
 
@@ -59,37 +59,37 @@ class FileValidatorTests(TestCase):
         )
 
         result = self.validator.validate_file(uploaded_file)
-        
+
         self.assertFalse(result["valid"])
         self.assertTrue(any("not allowed" in error for error in result["errors"]))
 
     def test_missing_file(self):
         """Test validation with no file provided."""
         result = self.validator.validate_file(None)
-        
+
         self.assertFalse(result["valid"])
         self.assertTrue(any("No file provided" in error for error in result["errors"]))
 
     def test_file_without_name(self):
         """Test validation of file without name."""
         file_content = b"Test content"
-        uploaded_file = SimpleUploadedFile(
-            "", file_content, content_type="text/plain"
-        )
+        uploaded_file = SimpleUploadedFile("", file_content, content_type="text/plain")
 
         result = self.validator.validate_file(uploaded_file)
-        
+
         self.assertFalse(result["valid"])
 
     def test_content_type_mismatch_warning(self):
         """Test content type mismatch generates warning."""
         file_content = b"This is text content."
         uploaded_file = SimpleUploadedFile(
-            "test.txt", file_content, content_type="application/pdf"  # Wrong content type
+            "test.txt",
+            file_content,
+            content_type="application/pdf",  # Wrong content type
         )
 
         result = self.validator.validate_file(uploaded_file)
-        
+
         # Should still be valid but with warnings
         self.assertTrue(result["valid"])
         self.assertGreater(len(result["warnings"]), 0)
@@ -97,7 +97,7 @@ class FileValidatorTests(TestCase):
     def test_validate_file_content_with_temp_file(self):
         """Test file content validation with temporary file."""
         # Create a temporary text file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("This is test content")
             temp_path = f.name
 
@@ -111,7 +111,7 @@ class FileValidatorTests(TestCase):
     def test_validate_nonexistent_file_content(self):
         """Test file content validation with nonexistent file."""
         result = self.validator.validate_file_content("/nonexistent/file.txt")
-        
+
         self.assertFalse(result["valid"])
         self.assertTrue(any("does not exist" in error for error in result["errors"]))
 
@@ -127,7 +127,7 @@ class URLValidatorTests(TestCase):
         valid_urls = [
             "https://example.com",
             "http://example.com/path",
-            "https://subdomain.example.com/path?query=value"
+            "https://subdomain.example.com/path?query=value",
         ]
 
         for url in valid_urls:
@@ -142,7 +142,7 @@ class URLValidatorTests(TestCase):
             "not-a-url",
             "ftp://example.com",  # Unsupported scheme
             "javascript:alert('xss')",
-            ""
+            "",
         ]
 
         for url in invalid_urls:
@@ -155,21 +155,20 @@ class URLValidatorTests(TestCase):
         blocked_urls = [
             "http://localhost/path",
             "https://127.0.0.1/test",
-            "http://0.0.0.0:8000"
+            "http://0.0.0.0:8000",
         ]
 
         for url in blocked_urls:
             with self.subTest(url=url):
                 result = self.validator.validate_url(url)
                 self.assertFalse(result["valid"], f"URL {url} should be blocked")
-                self.assertTrue(any("blocked" in error.lower() for error in result["errors"]))
+                self.assertTrue(
+                    any("blocked" in error.lower() for error in result["errors"])
+                )
 
     def test_private_network_warning(self):
         """Test that private network URLs generate warnings."""
-        private_urls = [
-            "http://192.168.1.1/test",
-            "https://10.0.0.1/path"
-        ]
+        private_urls = ["http://192.168.1.1/test", "https://10.0.0.1/path"]
 
         for url in private_urls:
             with self.subTest(url=url):
@@ -180,7 +179,7 @@ class URLValidatorTests(TestCase):
     def test_empty_url(self):
         """Test validation with empty URL."""
         result = self.validator.validate_url("")
-        
+
         self.assertFalse(result["valid"])
         self.assertTrue(any("No URL provided" in error for error in result["errors"]))
 
@@ -209,7 +208,7 @@ class UtilityFunctionTests(TestCase):
             (".md", "text/markdown"),
             (".mp3", "audio/mpeg"),
             (".mp4", "video/mp4"),
-            (".unknown", "application/octet-stream")  # Default for unknown
+            (".unknown", "application/octet-stream"),  # Default for unknown
         ]
 
         for extension, expected_type in test_cases:
@@ -222,7 +221,7 @@ class UtilityFunctionTests(TestCase):
         test_cases = [
             ("normal_file.txt", "normal_file.txt"),
             ("file with spaces.pdf", "file with spaces.pdf"),
-            ("file<>:\"\\|?*/.txt", "file_______/.txt"),  # Problematic chars replaced
+            ('file<>:"\\|?*/.txt', "file_______/.txt"),  # Problematic chars replaced
             ("very_long_filename_" + "x" * 300 + ".txt", None),  # Should be truncated
             ("../../../etc/passwd", "passwd"),  # Path traversal removed
         ]
@@ -235,4 +234,4 @@ class UtilityFunctionTests(TestCase):
                     self.assertLessEqual(len(result), 255)
                     self.assertTrue(result.endswith(".txt"))
                 else:
-                    self.assertEqual(result, expected) 
+                    self.assertEqual(result, expected)

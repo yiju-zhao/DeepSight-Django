@@ -38,10 +38,10 @@ class IsNotebookOwner(BasePermission):
 
     def has_object_permission(self, request, view, obj):
         # For objects that have a notebook field
-        if hasattr(obj, 'notebook'):
+        if hasattr(obj, "notebook"):
             return obj.notebook.user == request.user
         # For objects that are notebooks themselves
-        if hasattr(obj, 'user'):
+        if hasattr(obj, "user"):
             return obj.user == request.user
         return False
 
@@ -56,11 +56,12 @@ class IsAuthenticatedAndNotebook(permissions.IsAuthenticated):
         # First check if user is authenticated
         if not super().has_permission(request, view):
             return False
-        
+
         # Check if notebook_id is in URL kwargs
-        notebook_id = view.kwargs.get('notebook_id')
+        notebook_id = view.kwargs.get("notebook_id")
         if notebook_id:
             from notebooks.models import Notebook
+
             try:
                 notebook = Notebook.objects.get(id=notebook_id, user=request.user)
                 # Store notebook in request for later use
@@ -68,5 +69,5 @@ class IsAuthenticatedAndNotebook(permissions.IsAuthenticated):
                 return True
             except Notebook.DoesNotExist:
                 return False
-        
+
         return True

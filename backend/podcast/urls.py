@@ -9,44 +9,36 @@ URL Structure (report-style):
 """
 
 from django.urls import path
-from django.views.decorators.csrf import csrf_exempt
 
 from . import views
 
 # App namespace
-app_name = 'podcast'
+app_name = "podcast"
 
 urlpatterns = [
     # ========================================
     # New canonical endpoints (report-style, no 'jobs' in path)
     # ========================================
+    path("", views.PodcastListCreateView.as_view(), name="podcast-list-create"),
     path(
-        '',
-        views.PodcastListCreateView.as_view(),
-        name='podcast-list-create'
+        "<uuid:podcast_id>/", views.PodcastDetailView.as_view(), name="podcast-detail"
     ),
     path(
-        '<uuid:podcast_id>/',
-        views.PodcastDetailView.as_view(),
-        name='podcast-detail'
-    ),
-    path(
-        '<uuid:podcast_id>/cancel/',
+        "<uuid:podcast_id>/cancel/",
         views.PodcastCancelView.as_view(),
-        name='podcast-cancel'
+        name="podcast-cancel",
     ),
     path(
-        '<uuid:podcast_id>/audio/',
+        "<uuid:podcast_id>/audio/",
         views.PodcastAudioRedirectView.as_view(),
-        name='podcast-audio'
+        name="podcast-audio",
     ),
     path(
-        '<uuid:podcast_id>/files/',
+        "<uuid:podcast_id>/files/",
         views.PodcastFilesView.as_view(),
-        name='podcast-files'
+        name="podcast-files",
     ),
     # Stream endpoint removed: progress/SSE no longer supported
-
     # Note: legacy '/jobs/' endpoints removed in favor of report-style naming
 ]
 

@@ -2,18 +2,10 @@
 Model tests for the notebooks module.
 """
 
-import tempfile
-from django.test import TestCase
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ValidationError
+from django.test import TestCase
 
-from ..models import (
-    Notebook, 
-    Source, 
-    KnowledgeBaseItem, 
-    BatchJob,
-    BatchJobItem
-)
+from ..models import BatchJob, BatchJobItem, KnowledgeBaseItem, Notebook, Source
 
 User = get_user_model()
 
@@ -50,13 +42,13 @@ class NotebookModelTests(TestCase):
         other_user = User.objects.create_user(
             username="other", email="other@example.com", password="pass"
         )
-        
+
         notebook1 = Notebook.objects.create(user=self.user, name="User 1 Notebook")
         notebook2 = Notebook.objects.create(user=other_user, name="User 2 Notebook")
-        
+
         user1_notebooks = Notebook.objects.filter(user=self.user)
         user2_notebooks = Notebook.objects.filter(user=other_user)
-        
+
         self.assertEqual(user1_notebooks.count(), 1)
         self.assertEqual(user2_notebooks.count(), 1)
         self.assertEqual(user1_notebooks.first(), notebook1)
@@ -70,16 +62,12 @@ class SourceModelTests(TestCase):
         self.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpass123"
         )
-        self.notebook = Notebook.objects.create(
-            user=self.user, name="Test Notebook"
-        )
+        self.notebook = Notebook.objects.create(user=self.user, name="Test Notebook")
 
     def test_source_creation(self):
         """Test source creation."""
         source = Source.objects.create(
-            notebook=self.notebook,
-            source_type="file",
-            title="test.pdf"
+            notebook=self.notebook, source_type="file", title="test.pdf"
         )
 
         self.assertEqual(source.notebook, self.notebook)
@@ -90,19 +78,16 @@ class SourceModelTests(TestCase):
     def test_source_str_representation(self):
         """Test source string representation."""
         source = Source.objects.create(
-            notebook=self.notebook,
-            source_type="url",
-            title="https://example.com"
+            notebook=self.notebook, source_type="url", title="https://example.com"
         )
-        
+
         self.assertEqual(str(source), "https://example.com")
-        
+
         # Test without title
         source_no_title = Source.objects.create(
-            notebook=self.notebook,
-            source_type="file"
+            notebook=self.notebook, source_type="file"
         )
-        
+
         self.assertTrue(str(source_no_title).startswith("Source"))
 
 
@@ -122,7 +107,7 @@ class KnowledgeBaseItemModelTests(TestCase):
             content_type="document",
             content="Test content",
             tags=[],
-            file_metadata={}
+            file_metadata={},
         )
 
         self.assertEqual(item.user, self.user)
@@ -138,7 +123,7 @@ class KnowledgeBaseItemModelTests(TestCase):
             content="Test content",
             source_hash="test_hash_123",
             tags=[],
-            file_metadata={}
+            file_metadata={},
         )
 
         self.assertEqual(item.source_hash, "test_hash_123")
@@ -149,7 +134,7 @@ class KnowledgeBaseItemModelTests(TestCase):
             user=self.user,
             title="Test Document",
             tags=["tag1", "tag2", "tag3"],
-            file_metadata={}
+            file_metadata={},
         )
 
         self.assertEqual(item.tags, ["tag1", "tag2", "tag3"])
@@ -162,52 +147,44 @@ class BatchJobModelTests(TestCase):
         self.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpass123"
         )
-        self.notebook = Notebook.objects.create(
-            user=self.user, name="Test Notebook"
-        )
+        self.notebook = Notebook.objects.create(user=self.user, name="Test Notebook")
 
     def test_batch_job_creation(self):
         """Test batch job creation."""
         batch_job = BatchJob.objects.create(
-            notebook=self.notebook,
-            job_type='url_parse',
-            total_items=5
+            notebook=self.notebook, job_type="url_parse", total_items=5
         )
 
         self.assertEqual(batch_job.notebook, self.notebook)
-        self.assertEqual(batch_job.job_type, 'url_parse')
+        self.assertEqual(batch_job.job_type, "url_parse")
         self.assertEqual(batch_job.total_items, 5)
-        self.assertEqual(batch_job.status, 'pending')
+        self.assertEqual(batch_job.status, "pending")
         self.assertEqual(batch_job.completed_items, 0)
         self.assertEqual(batch_job.failed_items, 0)
 
     def test_batch_job_item_creation(self):
         """Test batch job item creation."""
         batch_job = BatchJob.objects.create(
-            notebook=self.notebook,
-            job_type='file_upload',
-            total_items=3
+            notebook=self.notebook, job_type="file_upload", total_items=3
         )
 
         batch_item = BatchJobItem.objects.create(
             batch_job=batch_job,
-            item_data={'filename': 'test.pdf'},
-            upload_id='test_upload_123',
-            status='pending'
+            item_data={"filename": "test.pdf"},
+            upload_id="test_upload_123",
+            status="pending",
         )
 
         self.assertEqual(batch_item.batch_job, batch_job)
-        self.assertEqual(batch_item.item_data, {'filename': 'test.pdf'})
-        self.assertEqual(batch_item.upload_id, 'test_upload_123')
-        self.assertEqual(batch_item.status, 'pending')
+        self.assertEqual(batch_item.item_data, {"filename": "test.pdf"})
+        self.assertEqual(batch_item.upload_id, "test_upload_123")
+        self.assertEqual(batch_item.status, "pending")
 
     def test_batch_job_str_representation(self):
         """Test batch job string representation."""
         batch_job = BatchJob.objects.create(
-            notebook=self.notebook,
-            job_type='url_parse_media',
-            total_items=2
+            notebook=self.notebook, job_type="url_parse_media", total_items=2
         )
 
         expected = f"BatchJob {batch_job.id} (url_parse_media) - pending"
-        self.assertEqual(str(batch_job), expected) 
+        self.assertEqual(str(batch_job), expected)

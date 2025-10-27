@@ -1,6 +1,6 @@
 import unittest
-from unittest.mock import patch, Mock
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 
 class FakeMarkdownPdf:
@@ -40,7 +40,7 @@ class TestPdfService(unittest.TestCase):
         from reports.services.pdf import PdfService
 
         svc = PdfService()
-        md = "<h1>Title</h1>\n<img src=\"http://example.com/x.png\">"
+        md = '<h1>Title</h1>\n<img src="http://example.com/x.png">'
         out = Path("/tmp/test_report.pdf")
         try:
             pdf_path = svc.convert_markdown_to_pdf(md, str(out))
@@ -50,4 +50,3 @@ class TestPdfService(unittest.TestCase):
         finally:
             if out.exists():
                 out.unlink()
-

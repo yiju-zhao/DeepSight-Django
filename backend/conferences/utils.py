@@ -4,11 +4,10 @@ Conference utility functions
 Helper functions for text processing and data manipulation.
 """
 
-from typing import List, Optional, Dict
 from collections import Counter
 
 
-def split_comma_values(field_value: Optional[str]) -> List[str]:
+def split_comma_values(field_value: str | None) -> list[str]:
     """Split comma-separated values and filter out blanks
 
     Handles malformed data like:
@@ -26,10 +25,10 @@ def split_comma_values(field_value: Optional[str]) -> List[str]:
     """
     if not field_value:
         return []
-    return [item.strip() for item in field_value.split(',') if item.strip()]
+    return [item.strip() for item in field_value.split(",") if item.strip()]
 
 
-def split_semicolon_values(field_value: Optional[str]) -> List[str]:
+def split_semicolon_values(field_value: str | None) -> list[str]:
     """Split semicolon-separated values and filter out blanks
 
     Handles malformed data like:
@@ -45,10 +44,10 @@ def split_semicolon_values(field_value: Optional[str]) -> List[str]:
     """
     if not field_value:
         return []
-    return [item.strip() for item in field_value.split(';') if item.strip()]
+    return [item.strip() for item in field_value.split(";") if item.strip()]
 
 
-def split_by_separator(field_value: Optional[str], separator: str = ',') -> List[str]:
+def split_by_separator(field_value: str | None, separator: str = ",") -> list[str]:
     """Split values by custom separator and filter out blanks
 
     Args:
@@ -63,7 +62,7 @@ def split_by_separator(field_value: Optional[str], separator: str = ',') -> List
     return [item.strip() for item in field_value.split(separator) if item.strip()]
 
 
-def join_values(values: List[str], separator: str = ',') -> str:
+def join_values(values: list[str], separator: str = ",") -> str:
     """Join list of values with separator, filtering out empty values
 
     Args:
@@ -74,13 +73,13 @@ def join_values(values: List[str], separator: str = ',') -> str:
         Joined string
     """
     if not values:
-        return ''
+        return ""
     # Filter out empty values and strip whitespace
     clean_values = [str(value).strip() for value in values if str(value).strip()]
     return separator.join(clean_values)
 
 
-def deduplicate_keywords(keywords: List[str]) -> Dict[str, int]:
+def deduplicate_keywords(keywords: list[str]) -> dict[str, int]:
     """Deduplicate keywords that are case-insensitive variants of the same term
 
     Examples:
@@ -101,9 +100,15 @@ def deduplicate_keywords(keywords: List[str]) -> Dict[str, int]:
         """Normalize keyword for comparison (lowercase, remove plural 's')"""
         normalized = keyword.lower().strip()
         # Simple plural handling - remove trailing 's' if it makes sense
-        if len(normalized) > 3 and normalized.endswith('s') and not normalized.endswith('ss'):
+        if (
+            len(normalized) > 3
+            and normalized.endswith("s")
+            and not normalized.endswith("ss")
+        ):
             # Don't remove 's' from words that end in 'ss', 'us', 'is', etc.
-            if not any(normalized.endswith(suffix) for suffix in ['ss', 'us', 'is', 'os', 'as']):
+            if not any(
+                normalized.endswith(suffix) for suffix in ["ss", "us", "is", "os", "as"]
+            ):
                 # Check if removing 's' creates a meaningful word (basic heuristic)
                 singular = normalized[:-1]
                 if len(singular) >= 2:  # Ensure we don't create single-letter words
@@ -131,8 +136,10 @@ def deduplicate_keywords(keywords: List[str]) -> Dict[str, int]:
 
         # Pick the most frequent variant as canonical
         # Preference: most frequent > shorter form > alphabetically first
-        canonical_form = max(variant_counter.keys(),
-                           key=lambda x: (variant_counter[x], -len(x), x.lower()))
+        canonical_form = max(
+            variant_counter.keys(),
+            key=lambda x: (variant_counter[x], -len(x), x.lower()),
+        )
 
         # Sum all counts for this normalized form
         total_count = sum(variant_counter.values())
@@ -141,7 +148,9 @@ def deduplicate_keywords(keywords: List[str]) -> Dict[str, int]:
     return canonical_counts
 
 
-def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int = 10) -> Dict:
+def build_cooccurrence_matrix(
+    items_per_publication: list[list[str]], top_n: int = 10
+) -> dict:
     """Build co-occurrence matrix for chord diagrams
 
     Args:
@@ -155,7 +164,7 @@ def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int
         - totals: total unique paper count per item (for reference)
     """
     if not items_per_publication:
-        return {'keys': [], 'matrix': [], 'totals': {}}
+        return {"keys": [], "matrix": [], "totals": {}}
 
     # Count total unique paper participation per item
     item_totals = Counter()
@@ -188,7 +197,7 @@ def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int
     top_items = [item for item, count in item_totals.most_common(top_n)]
 
     if not top_items:
-        return {'keys': [], 'matrix': [], 'totals': {}}
+        return {"keys": [], "matrix": [], "totals": {}}
 
     # Build symmetric matrix
     n = len(top_items)
@@ -209,14 +218,15 @@ def build_cooccurrence_matrix(items_per_publication: List[List[str]], top_n: int
                 count = pair_counts.get(pair_key, 0)
                 matrix[i][j] = count
 
-    return {
-        'keys': top_items,
-        'matrix': matrix,
-        'totals': dict(item_totals)
-    }
+    return {"keys": top_items, "matrix": matrix, "totals": dict(item_totals)}
 
 
-def build_fine_histogram(values: List[float], bin_size: float = 0.5, min_val: float = None, max_val: float = None) -> List[Dict]:
+def build_fine_histogram(
+    values: list[float],
+    bin_size: float = 0.5,
+    min_val: float = None,
+    max_val: float = None,
+) -> list[dict]:
     """Build fine-grained histogram with configurable bin size
 
     Args:
@@ -250,20 +260,26 @@ def build_fine_histogram(values: List[float], bin_size: float = 0.5, min_val: fl
     current_start = min_val
 
     while current_start < max_val:
-        current_end = min(current_start + bin_size, max_val + bin_size)  # Allow for edge cases
-        bins.append({
-            'start': current_start,
-            'end': current_end,
-            'bin': current_start + bin_size / 2,  # Center of bin
-            'count': 0
-        })
+        current_end = min(
+            current_start + bin_size, max_val + bin_size
+        )  # Allow for edge cases
+        bins.append(
+            {
+                "start": current_start,
+                "end": current_end,
+                "bin": current_start + bin_size / 2,  # Center of bin
+                "count": 0,
+            }
+        )
         current_start = current_end
 
     # Count values in each bin
     for value in clean_values:
         for bin_info in bins:
-            if bin_info['start'] <= value < bin_info['end'] or (value == max_val and bin_info['end'] > max_val):
-                bin_info['count'] += 1
+            if bin_info["start"] <= value < bin_info["end"] or (
+                value == max_val and bin_info["end"] > max_val
+            ):
+                bin_info["count"] += 1
                 break
 
     # Remove empty bins at the end if desired

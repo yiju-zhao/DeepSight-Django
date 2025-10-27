@@ -1,7 +1,8 @@
-from contextlib import contextmanager
 import time
-import pytz
+from contextlib import contextmanager
 from datetime import datetime
+
+import pytz
 
 # Define California timezone
 CALIFORNIA_TZ = pytz.timezone("America/Los_Angeles")

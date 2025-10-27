@@ -1,5 +1,4 @@
 import concurrent.futures
-import dspy
 import functools
 import hashlib
 import json
@@ -7,7 +6,9 @@ import logging
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from typing import Dict, List, Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
+
+import dspy
 
 from .utils import ArticleTextProcessing
 
@@ -96,7 +97,7 @@ class Information:
 
     def _md5_hash(self, value):
         """Generate an MD5 hash for a given value."""
-        if isinstance(value, (dict, list, tuple)):
+        if isinstance(value, dict | list | tuple):
             value = json.dumps(value, sort_keys=True)
         return hashlib.md5(str(value).encode("utf-8")).hexdigest()
 
@@ -165,7 +166,7 @@ class Article(ABC):
 
     def find_section(
         self, node: ArticleSectionNode, name: str
-    ) -> Optional[ArticleSectionNode]:
+    ) -> ArticleSectionNode | None:
         """
         Return the node of the section given the section name.
 
@@ -221,7 +222,7 @@ class Article(ABC):
             }
         """
 
-        def build_tree(node) -> Dict[str, Dict]:
+        def build_tree(node) -> dict[str, dict]:
             tree = {}
             for child in node.children:
                 tree[child.section_name] = build_tree(child)
@@ -229,7 +230,7 @@ class Article(ABC):
 
         return build_tree(self.root)
 
-    def get_first_level_section_names(self) -> List[str]:
+    def get_first_level_section_names(self) -> list[str]:
         """
         Get first level section names
         """
@@ -272,8 +273,8 @@ class Retriever:
 
     def collect_and_reset_rm_usage(self):
         combined_usage = []
-        if hasattr(getattr(self, "rm"), "get_usage_and_reset"):
-            combined_usage.append(getattr(self, "rm").get_usage_and_reset())
+        if hasattr(self.rm, "get_usage_and_reset"):
+            combined_usage.append(self.rm.get_usage_and_reset())
 
         name_to_usage = {}
         for usage in combined_usage:
@@ -286,8 +287,10 @@ class Retriever:
         return name_to_usage
 
     def retrieve(
-        self, query: Union[str, List[str]], exclude_urls: List[str] = []
-    ) -> List[Information]:
+        self, query: str | list[str], exclude_urls: list[str] = None
+    ) -> list[Information]:
+        if exclude_urls is None:
+            exclude_urls = []
         queries = query if isinstance(query, list) else [query]
         to_return = []
 
@@ -522,7 +525,7 @@ class Engine(ABC):
             setattr(self, method_name, decorated_method)
 
     @abstractmethod
-    def run_knowledge_curation_module(self, **kwargs) -> Optional[InformationTable]:
+    def run_knowledge_curation_module(self, **kwargs) -> InformationTable | None:
         pass
 
     @abstractmethod
@@ -585,7 +588,7 @@ class Agent(ABC):
         - The agent's role, perspective, and the knowledge base content will influence how the utterance is formulated.
     """
 
-    from .dataclass import KnowledgeBase, ConversationTurn
+    from .dataclass import ConversationTurn, KnowledgeBase
 
     def __init__(self, topic: str, role_name: str, role_description: str):
         self.topic = topic
@@ -601,7 +604,7 @@ class Agent(ABC):
     def generate_utterance(
         self,
         knowledge_base: KnowledgeBase,
-        conversation_history: List[ConversationTurn],
+        conversation_history: list[ConversationTurn],
         logging_wrapper: "LoggingWrapper",
         **kwargs,
     ):

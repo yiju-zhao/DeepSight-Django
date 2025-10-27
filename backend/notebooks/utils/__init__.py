@@ -8,51 +8,51 @@ This package provides organized utilities for the DeepSight notebooks applicatio
 """
 
 # Core configuration
-from .helpers import config, NotebooksConfig
-
-# Validators
-from .validators import (
-    FileValidator,
-    URLValidator,
-    validate_file_type,
-    get_content_type_for_extension,
-    sanitize_filename,
-    ALLOWED_FILE_EXTENSIONS,
-    MAX_FILE_SIZE
+# Helper utilities and services
+from .helpers import (
+    AsyncResponseMixin,
+    ContentIndexingService,
+    ErrorHandlingMixin,
+    NotebookPermissionMixin,
+    NotebooksConfig,
+    RAGChatbot,
+    calculate_content_hash,
+    calculate_source_hash,
+    calculate_user_content_hash,
+    check_content_duplicate,
+    check_source_duplicate,
+    clean_title,
+    cleanup_temp_file,
+    config,
+    create_temp_file,
+    extract_domain,
+    format_file_size,
+    generate_unique_filename,
+    get_file_extension,
+    get_mime_type_from_extension,
+    is_safe_filename,
+    sanitize_path,
+    truncate_text,
 )
 
 # Storage operations
 from .storage import (
     FileStorageService,
-    StorageAdapter,
     MinIOBackend,
+    StorageAdapter,
+    get_minio_backend,
     get_storage_adapter,
-    get_minio_backend
 )
 
-# Helper utilities and services
-from .helpers import (
-    clean_title,
-    calculate_content_hash,
-    calculate_user_content_hash,
-    check_content_duplicate,
-    calculate_source_hash,
-    check_source_duplicate,
-    extract_domain,
-    sanitize_path,
-    get_file_extension,
-    get_mime_type_from_extension,
-    is_safe_filename,
-    generate_unique_filename,
-    create_temp_file,
-    cleanup_temp_file,
-    format_file_size,
-    truncate_text,
-    ContentIndexingService,
-    RAGChatbot,
-    NotebookPermissionMixin,
-    ErrorHandlingMixin,
-    AsyncResponseMixin
+# Validators
+from .validators import (
+    ALLOWED_FILE_EXTENSIONS,
+    MAX_FILE_SIZE,
+    FileValidator,
+    URLValidator,
+    get_content_type_for_extension,
+    sanitize_filename,
+    validate_file_type,
 )
 
 # Legacy imports with fallbacks for backward compatibility
@@ -76,51 +76,47 @@ ExternalRAGChatbot = None
 
 __all__ = [
     # Configuration
-    'config',
-    'NotebooksConfig',
-    
+    "config",
+    "NotebooksConfig",
     # Validators
-    'FileValidator',
-    'URLValidator',
-    'validate_file_type',
-    'get_content_type_for_extension',
-    'sanitize_filename',
-    'ALLOWED_FILE_EXTENSIONS',
-    'MAX_FILE_SIZE',
-    
+    "FileValidator",
+    "URLValidator",
+    "validate_file_type",
+    "get_content_type_for_extension",
+    "sanitize_filename",
+    "ALLOWED_FILE_EXTENSIONS",
+    "MAX_FILE_SIZE",
     # Storage
-    'FileStorageService',
-    'StorageAdapter',
-    'MinIOBackend',
-    'get_storage_adapter',
-    'get_minio_backend',
-    
+    "FileStorageService",
+    "StorageAdapter",
+    "MinIOBackend",
+    "get_storage_adapter",
+    "get_minio_backend",
     # Helpers
-    'clean_title',
-    'calculate_content_hash',
-    'calculate_user_content_hash',
-    'check_content_duplicate',
-    'calculate_source_hash',
-    'check_source_duplicate',
-    'extract_domain',
-    'sanitize_path',
-    'get_file_extension',
-    'get_mime_type_from_extension',
-    'is_safe_filename',
-    'generate_unique_filename',
-    'create_temp_file',
-    'cleanup_temp_file',
-    'format_file_size',
-    'truncate_text',
-    'ContentIndexingService',
-    'RAGChatbot',
-    'NotebookPermissionMixin',
-    'ErrorHandlingMixin',
-    'AsyncResponseMixin',
-    
+    "clean_title",
+    "calculate_content_hash",
+    "calculate_user_content_hash",
+    "check_content_duplicate",
+    "calculate_source_hash",
+    "check_source_duplicate",
+    "extract_domain",
+    "sanitize_path",
+    "get_file_extension",
+    "get_mime_type_from_extension",
+    "is_safe_filename",
+    "generate_unique_filename",
+    "create_temp_file",
+    "cleanup_temp_file",
+    "format_file_size",
+    "truncate_text",
+    "ContentIndexingService",
+    "RAGChatbot",
+    "NotebookPermissionMixin",
+    "ErrorHandlingMixin",
+    "AsyncResponseMixin",
     # Legacy processors (may be None if not available)
-    'UploadProcessor',
-    'URLExtractor',
-    'MediaProcessor',
-    'ExternalRAGChatbot'
+    "UploadProcessor",
+    "URLExtractor",
+    "MediaProcessor",
+    "ExternalRAGChatbot",
 ]

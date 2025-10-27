@@ -4,10 +4,10 @@ Moved from factories to remove unnecessary abstraction.
 """
 
 import logging
-import os
 import mimetypes
+import os
 import uuid
-from typing import Dict, Any, List
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,9 @@ class KnowledgeBaseInputProcessor:
     def __init__(self):
         pass
 
-    def process_selected_files(self, file_paths: List[str], user_id: int = None) -> Dict[str, Any]:
+    def process_selected_files(
+        self, file_paths: list[str], user_id: int = None
+    ) -> dict[str, Any]:
         """Process selected files from knowledge base and extract content"""
         input_data = {"text_files": [], "selected_file_ids": []}
 
@@ -46,7 +48,11 @@ class KnowledgeBaseInputProcessor:
                     kb_item = KnowledgeBaseItem.objects.select_related("notebook").get(
                         id=file_id, notebook__user_id=user_id
                     )
-                    content = kb_item.content if kb_item.content and kb_item.content.strip() else None
+                    content = (
+                        kb_item.content
+                        if kb_item.content and kb_item.content.strip()
+                        else None
+                    )
 
                     if content:
                         filename = kb_item.title or f"file_{file_id}"
@@ -58,7 +64,9 @@ class KnowledgeBaseInputProcessor:
                                 kb_item.file_metadata.get("original_filename")
                                 or kb_item.title
                             )
-                            raw_extension = os.path.splitext(original_filename)[1].lower()
+                            raw_extension = os.path.splitext(original_filename)[
+                                1
+                            ].lower()
                             raw_mime, _ = mimetypes.guess_type(original_filename)
                         file_data = {
                             "content": content,
@@ -75,9 +83,7 @@ class KnowledgeBaseInputProcessor:
                         logger.warning(f"No content found for file ID: {file_id}")
 
                 except KnowledgeBaseItem.DoesNotExist:
-                    logger.warning(
-                        f"Knowledge base item not found for ID: {file_id}"
-                    )
+                    logger.warning(f"Knowledge base item not found for ID: {file_id}")
                     continue
                 except Exception as e:
                     logger.warning(f"Failed to process file ID {file_id}: {e}")
@@ -93,7 +99,7 @@ class KnowledgeBaseInputProcessor:
             logger.error(f"Error processing selected files: {e}")
             return input_data
 
-    def get_content_data(self, processed_data: Dict[str, Any]) -> Dict[str, Any]:
+    def get_content_data(self, processed_data: dict[str, Any]) -> dict[str, Any]:
         """Get content data for report generation with consolidated text_input."""
         content_data = {"text_input": "", "selected_file_ids": []}
 
@@ -104,9 +110,7 @@ class KnowledgeBaseInputProcessor:
                 filename = file_data.get("filename", "")
                 if not content.strip():
                     continue
-                formatted_block = (
-                    f"--- START OF FILE: {filename} ---\n\n{content}\n\n--- END OF FILE: {filename} ---"
-                )
+                formatted_block = f"--- START OF FILE: {filename} ---\n\n{content}\n\n--- END OF FILE: {filename} ---"
                 text_contents.append(formatted_block)
 
             if text_contents:
@@ -120,4 +124,3 @@ class KnowledgeBaseInputProcessor:
         except Exception as e:
             logger.error(f"Error preparing content data: {e}")
             return {"text_input": "", "selected_file_ids": []}
-

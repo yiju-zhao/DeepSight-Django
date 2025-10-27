@@ -1,11 +1,9 @@
-from django.contrib.auth import authenticate, login, logout
-from rest_framework import permissions, status
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from django.contrib.auth import get_user_model
-
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.contrib.auth import authenticate, get_user_model, login, logout
 from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
+from rest_framework import permissions, status
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -20,7 +18,7 @@ class CSRFTokenView(APIView):
         return Response({"detail": "CSRF cookie set"})
 
 
-from .serializers import UserSerializer, SignupSerializer, LoginSerializer
+from .serializers import LoginSerializer, SignupSerializer, UserSerializer
 
 User = get_user_model()
 

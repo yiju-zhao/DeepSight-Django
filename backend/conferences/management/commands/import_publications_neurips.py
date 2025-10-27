@@ -1,8 +1,10 @@
 import json
+from datetime import datetime
+
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
-from conferences.models import Publication, Venue, Instance
-from datetime import datetime
+
+from conferences.models import Instance, Publication, Venue
 
 # Maps the key from the JSON file to the corresponding field in the Publication model
 # All multi-value fields are stored with semicolon separators (as in original JSON)
@@ -25,30 +27,54 @@ PUBLICATION_MAP = {
     "github": "github",
     "site": "site",
     "status": "session",
-    "pdf": "pdf_url"  # direct PDF URL from NeurIPS data
+    "pdf": "pdf_url",  # direct PDF URL from NeurIPS data
 }
 
+
 class Command(BaseCommand):
-    help = 'Imports NeurIPS conference publications from a specified JSON file.'
+    help = "Imports NeurIPS conference publications from a specified JSON file."
 
     def add_arguments(self, parser):
-        parser.add_argument('json_file', type=str, help='The absolute path to the JSON file to import.')
-        parser.add_argument('--venue-name', type=str, required=True, help='Name of the venue/conference')
-        parser.add_argument('--venue-type', type=str, default='Conference', help='Type of venue (default: Conference)')
-        parser.add_argument('--venue-description', type=str, default='', help='Description of the venue')
-        parser.add_argument('--year', type=int, required=True, help='Conference year')
-        parser.add_argument('--start-date', type=str, required=True, help='Start date (YYYY-MM-DD)')
-        parser.add_argument('--end-date', type=str, required=True, help='End date (YYYY-MM-DD)')
-        parser.add_argument('--location', type=str, required=True, help='Conference location')
-        parser.add_argument('--website', type=str, default='', help='Conference website')
-        parser.add_argument('--summary', type=str, default='', help='Conference summary')
+        parser.add_argument(
+            "json_file", type=str, help="The absolute path to the JSON file to import."
+        )
+        parser.add_argument(
+            "--venue-name", type=str, required=True, help="Name of the venue/conference"
+        )
+        parser.add_argument(
+            "--venue-type",
+            type=str,
+            default="Conference",
+            help="Type of venue (default: Conference)",
+        )
+        parser.add_argument(
+            "--venue-description", type=str, default="", help="Description of the venue"
+        )
+        parser.add_argument("--year", type=int, required=True, help="Conference year")
+        parser.add_argument(
+            "--start-date", type=str, required=True, help="Start date (YYYY-MM-DD)"
+        )
+        parser.add_argument(
+            "--end-date", type=str, required=True, help="End date (YYYY-MM-DD)"
+        )
+        parser.add_argument(
+            "--location", type=str, required=True, help="Conference location"
+        )
+        parser.add_argument(
+            "--website", type=str, default="", help="Conference website"
+        )
+        parser.add_argument(
+            "--summary", type=str, default="", help="Conference summary"
+        )
 
     def handle(self, *args, **options):
-        json_file_path = options['json_file']
-        self.stdout.write(self.style.SUCCESS(f'Starting NeurIPS import from "{json_file_path}"...'))
+        json_file_path = options["json_file"]
+        self.stdout.write(
+            self.style.SUCCESS(f'Starting NeurIPS import from "{json_file_path}"...')
+        )
 
         try:
-            with open(json_file_path, 'r', encoding='utf-8') as f:
+            with open(json_file_path, encoding="utf-8") as f:
                 data = json.load(f)
         except FileNotFoundError:
             raise CommandError(f'Error: File not found at "{json_file_path}"')
@@ -57,20 +83,20 @@ class Command(BaseCommand):
 
         # Parse dates
         try:
-            start_date = datetime.strptime(options['start_date'], '%Y-%m-%d').date()
-            end_date = datetime.strptime(options['end_date'], '%Y-%m-%d').date()
+            start_date = datetime.strptime(options["start_date"], "%Y-%m-%d").date()
+            end_date = datetime.strptime(options["end_date"], "%Y-%m-%d").date()
         except ValueError:
-            raise CommandError('Error: Date format should be YYYY-MM-DD')
+            raise CommandError("Error: Date format should be YYYY-MM-DD")
 
         try:
             with transaction.atomic():
                 # Step 1: Create or get venue
                 venue, venue_created = Venue.objects.get_or_create(
-                    name=options['venue_name'],
+                    name=options["venue_name"],
                     defaults={
-                        'type': options['venue_type'],
-                        'description': options['venue_description']
-                    }
+                        "type": options["venue_type"],
+                        "description": options["venue_description"],
+                    },
                 )
 
                 if venue_created:
@@ -81,14 +107,14 @@ class Command(BaseCommand):
                 # Step 2: Create or get instance
                 instance, instance_created = Instance.objects.get_or_create(
                     venue=venue,
-                    year=options['year'],
+                    year=options["year"],
                     defaults={
-                        'start_date': start_date,
-                        'end_date': end_date,
-                        'location': options['location'],
-                        'website': options['website'],
-                        'summary': options['summary']
-                    }
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "location": options["location"],
+                        "website": options["website"],
+                        "summary": options["summary"],
+                    },
                 )
 
                 if instance_created:
@@ -102,7 +128,7 @@ class Command(BaseCommand):
 
                 for entry in data:
                     # Map JSON data to model fields
-                    model_data = {'instance': instance}
+                    model_data = {"instance": instance}
 
                     for json_key, model_field in PUBLICATION_MAP.items():
                         if json_key in entry and entry[json_key] is not None:
@@ -111,55 +137,67 @@ class Command(BaseCommand):
                             # Frontend utilities handle the appropriate splitting
                             model_data[model_field] = value
 
-
                     # Handle NeurIPS specific rating processing
-                    if 'rating' in entry and entry['rating']:
-                        rating_data = entry['rating']
-                        if isinstance(rating_data, str) and ';' in rating_data:
+                    if "rating" in entry and entry["rating"]:
+                        rating_data = entry["rating"]
+                        if isinstance(rating_data, str) and ";" in rating_data:
                             try:
                                 # Take average of ratings
-                                ratings = [float(r.strip()) for r in rating_data.split(';') if r.strip()]
+                                ratings = [
+                                    float(r.strip())
+                                    for r in rating_data.split(";")
+                                    if r.strip()
+                                ]
                                 if ratings:
-                                    model_data['rating'] = sum(ratings) / len(ratings)
+                                    model_data["rating"] = sum(ratings) / len(ratings)
                             except (ValueError, TypeError):
-                                self.stderr.write(f"Warning: Invalid rating format: {rating_data}")
-                        elif isinstance(rating_data, (int, float)):
-                            model_data['rating'] = float(rating_data)
+                                self.stderr.write(
+                                    f"Warning: Invalid rating format: {rating_data}"
+                                )
+                        elif isinstance(rating_data, int | float):
+                            model_data["rating"] = float(rating_data)
                         elif isinstance(rating_data, str):
                             try:
-                                model_data['rating'] = float(rating_data)
+                                model_data["rating"] = float(rating_data)
                             except (ValueError, TypeError):
-                                self.stderr.write(f"Warning: Invalid rating value: {rating_data}")
+                                self.stderr.write(
+                                    f"Warning: Invalid rating value: {rating_data}"
+                                )
 
                     # Handle rating_avg field if present
-                    if 'rating_avg' in entry and entry['rating_avg']:
-                        rating_avg = entry['rating_avg']
+                    if "rating_avg" in entry and entry["rating_avg"]:
+                        rating_avg = entry["rating_avg"]
                         if isinstance(rating_avg, list) and len(rating_avg) > 0:
                             try:
-                                model_data['rating'] = float(rating_avg[0])
+                                model_data["rating"] = float(rating_avg[0])
                             except (ValueError, TypeError, IndexError):
-                                self.stderr.write(f"Warning: Invalid rating_avg format: {rating_avg}")
+                                self.stderr.write(
+                                    f"Warning: Invalid rating_avg format: {rating_avg}"
+                                )
 
                     # Construct PDF URL from paper ID if not already provided
-                    if 'pdf' not in entry or not entry['pdf']:
-                        if 'id' in entry and entry['id']:
-                            paper_id = entry['id']
-                            model_data['pdf_url'] = f"https://openreview.net/pdf?id={paper_id}"
+                    if "pdf" not in entry or not entry["pdf"]:
+                        if "id" in entry and entry["id"]:
+                            paper_id = entry["id"]
+                            model_data["pdf_url"] = (
+                                f"https://openreview.net/pdf?id={paper_id}"
+                            )
 
                     # Check for required fields
-                    if not model_data.get('title'):
-                        self.stderr.write(f"Skipping entry due to missing title: {entry}")
+                    if not model_data.get("title"):
+                        self.stderr.write(
+                            f"Skipping entry due to missing title: {entry}"
+                        )
                         continue
 
                     # Use title and instance as unique identifier
                     unique_identifier = {
-                        'title': model_data.get('title'),
-                        'instance': instance
+                        "title": model_data.get("title"),
+                        "instance": instance,
                     }
 
                     obj, created = Publication.objects.update_or_create(
-                        **unique_identifier,
-                        defaults=model_data
+                        **unique_identifier, defaults=model_data
                     )
 
                     if created:
@@ -170,12 +208,12 @@ class Command(BaseCommand):
                         self.stdout.write(f"  Updated: {obj.title}")
 
         except Exception as e:
-            raise CommandError(f'An error occurred during the import process: {e}')
+            raise CommandError(f"An error occurred during the import process: {e}")
 
         self.stdout.write(
             self.style.SUCCESS(
-                f'NeurIPS import completed successfully!\n'
-                f'Publications created: {publications_created}\n'
-                f'Publications updated: {publications_updated}'
+                f"NeurIPS import completed successfully!\n"
+                f"Publications created: {publications_created}\n"
+                f"Publications updated: {publications_updated}"
             )
         )

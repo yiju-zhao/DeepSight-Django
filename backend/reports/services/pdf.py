@@ -12,12 +12,12 @@ Features:
 - Professional PDF styling with CSS
 """
 
+import base64
 import logging
 import re
-import base64
-import requests
 from pathlib import Path
-from typing import Optional
+
+import requests
 
 try:
     from markdown_pdf import MarkdownPdf, Section
@@ -30,71 +30,71 @@ logger = logging.getLogger(__name__)
 
 class PdfService:
     """Service for converting markdown reports to PDF with automatic image handling"""
-    
+
     def __init__(self):
         if MarkdownPdf is None:
             raise ImportError(
                 "markdown-pdf library not found. "
                 "Please install it using: pip install markdown-pdf"
             )
-    
+
     def _convert_remote_images_to_base64(self, content: str) -> str:
         """
         Convert remote image URLs to base64 data URLs.
-        
+
         Args:
             content: HTML/markdown content with remote image URLs
-            
+
         Returns:
             str: Content with remote images converted to base64 data URLs
         """
         # Find all img tags with remote URLs
         img_pattern = r'<img([^>]*?)src=["\']([^"\']*https?://[^"\']*)["\']([^>]*?)>'
-        
+
         def replace_img(match):
             before_src = match.group(1)
             img_url = match.group(2)
             after_src = match.group(3)
-            
+
             try:
                 response = requests.get(img_url, timeout=30)
                 response.raise_for_status()
-                
+
                 # Get image data and content type
                 img_data = response.content
-                content_type = response.headers.get('content-type', 'image/jpeg')
-                
+                content_type = response.headers.get("content-type", "image/jpeg")
+
                 # Convert to base64
-                img_base64 = base64.b64encode(img_data).decode('utf-8')
-                
+                img_base64 = base64.b64encode(img_data).decode("utf-8")
+
                 # Create data URL
                 data_url = f"data:{content_type};base64,{img_base64}"
-                
+
                 # Return the updated img tag
                 return f'<img{before_src}src="{data_url}"{after_src}>'
-                
+
             except Exception as e:
                 logger.warning(f"Failed to convert image {img_url}: {e}")
                 # Return original img tag if conversion fails
                 return match.group(0)
-        
+
         # Replace all remote images with base64 data URLs
         updated_content = re.sub(img_pattern, replace_img, content)
-        
+
         return updated_content
-    
+
     def convert_markdown_to_pdf(
         self,
         markdown_content: str,
         output_path: str,
         title: str = "Research Report",
         paper_size: str = "A4",
-        image_root: Optional[str] = None,
-        input_file_path: Optional[str] = None
+        image_root: str | None = None,
+        input_file_path: str | None = None,
     ) -> str:
         """
         Convert markdown content to PDF with automatic remote image handling.
-        
+
         Args:
             markdown_content: The markdown content to convert
             output_path: Path where the PDF should be saved
@@ -102,10 +102,10 @@ class PdfService:
             paper_size: Paper size (A4, Letter, etc.)
             image_root: Root directory for resolving image paths (optional)
             input_file_path: Path to the original markdown file (for image resolution)
-            
+
         Returns:
             str: Path to the generated PDF file
-            
+
         Raises:
             Exception: If conversion fails
         """
@@ -113,19 +113,21 @@ class PdfService:
             # Ensure output directory exists
             output_file = Path(output_path)
             output_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             logger.info(f"Converting markdown to PDF: {output_file.name}")
             logger.debug(f"Content length: {len(markdown_content):,} characters")
-            
+
             # Convert remote images to base64 data URLs
-            content_with_base64_images = self._convert_remote_images_to_base64(markdown_content)
-            
+            content_with_base64_images = self._convert_remote_images_to_base64(
+                markdown_content
+            )
+
             # Create PDF converter with no TOC and optimization enabled
             pdf = MarkdownPdf(
                 toc_level=0,  # No table of contents per requirements
-                optimize=True
+                optimize=True,
             )
-            
+
             # Determine image root for resolving relative paths
             if input_file_path:
                 root_dir = str(Path(input_file_path).parent.resolve())
@@ -136,14 +138,12 @@ class PdfService:
             else:
                 root_dir = str(output_file.parent.resolve())
                 logger.debug(f"Using output directory as root: {root_dir}")
-            
+
             # Create section with content
             section = Section(
-                content_with_base64_images,
-                root=root_dir,
-                paper_size=paper_size
+                content_with_base64_images, root=root_dir, paper_size=paper_size
             )
-            
+
             # Custom CSS for better appearance with page numbers
             custom_css = """
             body {
@@ -159,10 +159,10 @@ class PdfService:
                 margin-top: 24px;
                 margin-bottom: 16px;
             }
-            h1 { 
-                font-size: 24px; 
-                border-bottom: 2px solid #eee; 
-                padding-bottom: 8px; 
+            h1 {
+                font-size: 24px;
+                border-bottom: 2px solid #eee;
+                padding-bottom: 8px;
             }
             h2 { font-size: 20px; }
             h3 { font-size: 18px; }
@@ -210,36 +210,34 @@ class PdfService:
                 margin: 2cm;
             }
             """
-            
+
             # Add section with custom CSS
             pdf.add_section(section, user_css=custom_css)
-            
+
             # Set PDF metadata
             pdf.meta["title"] = title
             pdf.meta["creator"] = "DeepSight Research Report Generator"
             pdf.meta["producer"] = "markdown-pdf library"
-            
+
             # Save the PDF
             pdf.save(str(output_file))
-            
+
             return str(output_file)
-            
+
         except Exception as e:
             logger.error(f"Failed to convert markdown to PDF: {e}")
             raise Exception(f"PDF conversion failed: {e}")
-    
+
     def convert_report_file_to_pdf(
-        self,
-        report_file_path: str,
-        title: str = "Research Report"
+        self, report_file_path: str, title: str = "Research Report"
     ) -> str:
         """
         Convert an existing markdown report file to PDF.
-        
+
         Args:
             report_file_path: Path to the markdown report file
             title: Title for the PDF document
-            
+
         Returns:
             str: Path to the generated PDF file
         """
@@ -248,22 +246,23 @@ class PdfService:
             report_path = Path(report_file_path)
             if not report_path.exists():
                 raise FileNotFoundError(f"Report file not found: {report_file_path}")
-            
-            with open(report_path, 'r', encoding='utf-8') as f:
+
+            with open(report_path, encoding="utf-8") as f:
                 markdown_content = f.read()
-            
+
             # Generate PDF path (same directory, .pdf extension)
-            pdf_path = report_path.with_suffix('.pdf')
-            
+            pdf_path = report_path.with_suffix(".pdf")
+
             return self.convert_markdown_to_pdf(
                 markdown_content=markdown_content,
                 output_path=str(pdf_path),
                 title=title,
-                input_file_path=str(report_path)
+                input_file_path=str(report_path),
             )
-            
+
         except Exception as e:
             logger.error(f"Failed to convert report file to PDF: {e}")
             raise Exception(f"Report file PDF conversion failed: {e}")
+
 
 __all__ = ["PdfService"]

@@ -8,17 +8,16 @@ This module provides utilities for:
 - Audio processing and concatenation (WAV output)
 """
 
-import logging
-import uuid
-import json
-import subprocess
-import re
-import unicodedata
-from typing import Dict, Any, Optional, List, Tuple
-from pathlib import Path
-import os
-
 import base64
+import logging
+import os
+import re
+import subprocess
+import unicodedata
+import uuid
+from pathlib import Path
+from typing import Any
+
 import requests
 from django.conf import settings
 
@@ -37,7 +36,8 @@ logger = logging.getLogger(__name__)
 # TTS SYSTEM PROMPT HELPERS
 # =============================================================================
 
-def build_tts_system_prompt(language: str = 'en') -> str:
+
+def build_tts_system_prompt(language: str = "en") -> str:
     """
     Build TTS system prompt based on language selection.
 
@@ -51,10 +51,12 @@ def build_tts_system_prompt(language: str = 'en') -> str:
 
     lines.append("<|scene_desc_start|>")
 
-    if language == 'zh':
+    if language == "zh":
         lines.append("在一个安静的房间录制的博客语音，全程使用中文自然表达。")
     else:
-        lines.append("Audio for podcast conversation in a quite room. Speak only English with natural prosody.")
+        lines.append(
+            "Audio for podcast conversation in a quite room. Speak only English with natural prosody."
+        )
 
     lines.append("<|scene_desc_end|>")
 
@@ -65,7 +67,8 @@ def build_tts_system_prompt(language: str = 'en') -> str:
 # CONVERSATION PARSING FUNCTIONS
 # =============================================================================
 
-def parse_conversation(conversation_text: str) -> Tuple[Optional[str], str]:
+
+def parse_conversation(conversation_text: str) -> tuple[str | None, str]:
     """
     Extract only the title from the conversation text and keep the
     original conversation content unchanged.
@@ -79,29 +82,29 @@ def parse_conversation(conversation_text: str) -> Tuple[Optional[str], str]:
     - title: Extracted from first line starting with '#', otherwise None
     - original_text: The input conversation_text unchanged
     """
-    title: Optional[str] = None
-    lines = conversation_text.split('\n')
-    if lines and lines[0].strip().startswith('#'):
+    title: str | None = None
+    lines = conversation_text.split("\n")
+    if lines and lines[0].strip().startswith("#"):
         title = lines[0].strip()[1:].strip()
         logger.info(f"Extracted podcast title: {title}")
     return title, conversation_text
 
 
-def parse_bracket_turns(conversation_text: str) -> List[Dict[str, str]]:
+def parse_bracket_turns(conversation_text: str) -> list[dict[str, str]]:
     """
     Parse bracket-formatted conversation into structured turns without altering
     original content or speaker names.
 
     Pattern: [speaker] content ... until next [ or end.
     """
-    pattern = r'\[([^\]]+)\]\s*(.*?)(?=\n\[|$)'
+    pattern = r"\[([^\]]+)\]\s*(.*?)(?=\n\[|$)"
     matches = re.findall(pattern, conversation_text, re.DOTALL)
-    turns: List[Dict[str, str]] = []
+    turns: list[dict[str, str]] = []
     for speaker, content in matches:
         s = speaker.strip()
         c = content.strip()
         if s and c:
-            turns.append({'speaker': s, 'content': c})
+            turns.append({"speaker": s, "content": c})
     logger.info(f"Extracted {len(turns)} conversation turns from bracket format")
     return turns
 
@@ -110,58 +113,61 @@ def parse_bracket_turns(conversation_text: str) -> List[Dict[str, str]]:
 # CONTENT EXTRACTION FUNCTIONS
 # =============================================================================
 
-async def extract_selected_content(selected_item_ids: List[int]) -> str:
+
+async def extract_selected_content(selected_item_ids: list[int]) -> str:
     """
     Extract content from selected knowledge base items.
-    
+
     Args:
         selected_item_ids: List of KnowledgeBaseItem IDs selected by frontend
-        
+
     Returns:
         Extracted content string from selected items
     """
     if not selected_item_ids:
         return "No content selected for podcast generation."
-    
+
     try:
         from asgiref.sync import sync_to_async
         from notebooks.models import KnowledgeBaseItem
-        
+
         content_parts = []
-        
+
         # Get selected knowledge base items asynchronously
         kb_items = await sync_to_async(list)(
             KnowledgeBaseItem.objects.filter(id__in=selected_item_ids)
         )
-        
+
         for item in kb_items:
-            
             # Add main content
-            if hasattr(item, 'content') and item.content:
+            if hasattr(item, "content") and item.content:
                 content_parts.append(f"Content: {item.content}")
-            elif hasattr(item, 'summary') and item.summary:
+            elif hasattr(item, "summary") and item.summary:
                 content_parts.append(f"Summary: {item.summary}")
-            
+
             # Add separator between items
             content_parts.append("---")
-        
+
         # Join all content
         full_content = "\n\n".join(content_parts)
-        
+
         # Return truncated content if too long
         if len(full_content) > MAX_CONTENT_LENGTH:
             return full_content[:MAX_CONTENT_LENGTH] + "..."
-        
+
         return full_content if full_content else "No content found for selected items."
-        
+
     except Exception as e:
-        logger.error(f"Content extraction failed for selected items {selected_item_ids}: {e}")
+        logger.error(
+            f"Content extraction failed for selected items {selected_item_ids}: {e}"
+        )
         return f"Error extracting content: {str(e)}"
 
 
 # =============================================================================
 # AUDIO PROCESSING FUNCTIONS
 # =============================================================================
+
 
 def _normalize_chinese_punctuation(text: str) -> str:
     """Convert full-width Chinese punctuation to half-width English equivalents."""
@@ -205,7 +211,7 @@ def _remove_extra_punctuation(text: str) -> str:
     Removes: All other punctuation including : ; " ' ( ) [ ] - — … etc.
     """
     # Pattern to match XML-like tags (e.g., <SE>, </SE>, <SE_s>, <SE_e>)
-    tag_pattern = r'<[^>]+>'
+    tag_pattern = r"<[^>]+>"
 
     # Find all tags and replace them with placeholders
     tags = re.findall(tag_pattern, text)
@@ -217,20 +223,20 @@ def _remove_extra_punctuation(text: str) -> str:
     result = []
     for char in text:
         # Keep alphanumeric and whitespace
-        if char.isalnum() or char.isspace() or char == '_':
+        if char.isalnum() or char.isspace() or char == "_":
             result.append(char)
         # Keep allowed punctuation (comma, period, exclamation, question mark)
-        elif char in ',.!?，。！？':
+        elif char in ",.!?，。！？":
             result.append(char)
         # Check if it's a punctuation character in Unicode
-        elif unicodedata.category(char).startswith('P'):
+        elif unicodedata.category(char).startswith("P"):
             # Skip this punctuation - it's not in our allowed list
             continue
         else:
             # Keep other characters (e.g., Chinese characters, special symbols that aren't punctuation)
             result.append(char)
 
-    text = ''.join(result)
+    text = "".join(result)
 
     # Restore tags
     for i, tag in enumerate(tags):
@@ -287,7 +293,10 @@ def normalize_tts_text(text: str) -> str:
     text = "\n".join(lines).strip()
 
     # 6) Ensure terminal punctuation for smoother prosody
-    if text and not any(text.endswith(c) for c in [".", "!", "?", ",", "。", "！", "？", "，", "</SE_e>", "</SE>"]):
+    if text and not any(
+        text.endswith(c)
+        for c in [".", "!", "?", ",", "。", "！", "？", "，", "</SE_e>", "</SE>"]
+    ):
         text += "."
 
     return text
@@ -296,6 +305,7 @@ def normalize_tts_text(text: str) -> str:
 # =============================================================================
 # HIGGS TTS SESSION (INIT ONCE PER AUDIO JOB)
 # =============================================================================
+
 
 class HiggsTTSSession:
     """
@@ -312,17 +322,19 @@ class HiggsTTSSession:
             logger.error(f"OpenAI client not available for Higgs: {e}")
             return
 
-        base_url = getattr(settings, 'HIGGS_API_BASE', 'http://localhost:8000/v1')
-        model = getattr(settings, 'HIGGS_TTS_MODEL', None)
+        base_url = getattr(settings, "HIGGS_API_BASE", "http://localhost:8000/v1")
+        model = getattr(settings, "HIGGS_TTS_MODEL", None)
         try:
             client = OpenAI(api_key="EMPTY", base_url=base_url)  # type: ignore
             if not model:
                 try:
                     models = client.models.list()
-                    if models and getattr(models, 'data', None):
+                    if models and getattr(models, "data", None):
                         model = models.data[0].id
                     else:
-                        logger.error("Higgs: no models returned; set HIGGS_TTS_MODEL in settings")
+                        logger.error(
+                            "Higgs: no models returned; set HIGGS_TTS_MODEL in settings"
+                        )
                 except Exception as e:
                     logger.error(f"Higgs: failed to list models: {e}")
             self.client = client
@@ -332,7 +344,9 @@ class HiggsTTSSession:
             self.client = None
             self.model = None
 
-    def smart_voice(self, text: str, system_prompt: Optional[str] = None) -> Optional[bytes]:
+    def smart_voice(
+        self, text: str, system_prompt: str | None = None
+    ) -> bytes | None:
         if not self.client or not self.model:
             return None
         DEFAULT_SYSTEM_PROMPT = (
@@ -364,7 +378,9 @@ class HiggsTTSSession:
             logger.error(f"Higgs smart voice failed: {e}")
             return None
 
-    def voice_clone(self, seed_audio_wav: bytes, seed_text: str, new_text: str) -> Optional[bytes]:
+    def voice_clone(
+        self, seed_audio_wav: bytes, seed_text: str, new_text: str
+    ) -> bytes | None:
         if not self.client or not self.model:
             return None
         try:
@@ -400,7 +416,7 @@ class HiggsTTSSession:
             return None
 
 
-def _chunk_text_by_length(text: str, max_chars: int = 250) -> List[str]:
+def _chunk_text_by_length(text: str, max_chars: int = 250) -> list[str]:
     """
     Chunk a single speaker's turn into smaller pieces by length, with boundary awareness.
 
@@ -415,7 +431,7 @@ def _chunk_text_by_length(text: str, max_chars: int = 250) -> List[str]:
     text = text.strip()
     n = len(text)
     i = 0
-    out: List[str] = []
+    out: list[str] = []
     strong_punct = "。！？；.!?:;"
 
     def _avoid_mid_tag(start: int, end: int) -> int:
@@ -461,11 +477,11 @@ def _chunk_text_by_length(text: str, max_chars: int = 250) -> List[str]:
     return out
 
 
-def _openai_tts(text: str) -> Optional[bytes]:
+def _openai_tts(text: str) -> bytes | None:
     """Fallback TTS using OpenAI gpt-4o-mini-tts via REST to produce WAV bytes.
     Note: voice cloning is not supported here; used for both first and later segments if Higgs fails.
     """
-    api_key = os.getenv('OPENAI_API_KEY')
+    api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         logger.error("OPENAI_API_KEY not set; cannot use fallback TTS")
         return None
@@ -494,14 +510,14 @@ def _openai_tts(text: str) -> Optional[bytes]:
 
 
 def _synthesize_and_merge_turn_chunks(
-    chunks: List[str],
+    chunks: list[str],
     speaker: str,
     segment_index: int,
     audio_output_dir: Path,
-    speaker_state: Dict[str, Dict[str, Any]],
-    higgs_session: Optional[HiggsTTSSession] = None,
-    language: str = 'en',
-) -> Optional[Path]:
+    speaker_state: dict[str, dict[str, Any]],
+    higgs_session: HiggsTTSSession | None = None,
+    language: str = "en",
+) -> Path | None:
     """
     Given pre-chunked text for a single speaker turn, synthesize each chunk to audio,
     then concatenate into a single segment file. Manages per-speaker cloning seed.
@@ -516,21 +532,28 @@ def _synthesize_and_merge_turn_chunks(
         # Build system prompt based on language
         system_prompt = build_tts_system_prompt(language=language)
 
-        chunk_files: List[Path] = []
+        chunk_files: list[Path] = []
         for ci, chunk_text in enumerate(chunks):
-            audio_bytes: Optional[bytes] = None
+            audio_bytes: bytes | None = None
 
             if speaker not in speaker_state:
-                audio_bytes = session.smart_voice(chunk_text, system_prompt=system_prompt)
+                audio_bytes = session.smart_voice(
+                    chunk_text, system_prompt=system_prompt
+                )
                 if audio_bytes:
-                    speaker_state[speaker] = {"seed_audio": audio_bytes, "seed_text": chunk_text}
+                    speaker_state[speaker] = {
+                        "seed_audio": audio_bytes,
+                        "seed_text": chunk_text,
+                    }
             else:
                 seed = speaker_state[speaker]
                 audio_bytes = session.voice_clone(
                     seed.get("seed_audio", b""), seed.get("seed_text", ""), chunk_text
                 )
                 if not audio_bytes:
-                    audio_bytes = session.smart_voice(chunk_text, system_prompt=system_prompt)
+                    audio_bytes = session.smart_voice(
+                        chunk_text, system_prompt=system_prompt
+                    )
 
             if not audio_bytes:
                 audio_bytes = _openai_tts(chunk_text)
@@ -566,7 +589,9 @@ def _synthesize_and_merge_turn_chunks(
         # Concatenate chunk files into final segment file
         temp_filename = f"segment_{segment_index:03d}_{speaker}.wav"
         temp_file_path = audio_output_dir / temp_filename
-        success = concatenate_audio_segments(chunk_files, temp_file_path, audio_output_dir)
+        success = concatenate_audio_segments(
+            chunk_files, temp_file_path, audio_output_dir
+        )
 
         # Cleanup chunk files
         for f in chunk_files:
@@ -590,10 +615,10 @@ def generate_audio_segment(
     speaker: str,
     segment_index: int,
     audio_output_dir: Path,
-    speaker_state: Dict[str, Dict[str, Any]],
-    higgs_session: Optional[HiggsTTSSession] = None,
-    language: str = 'en',
-) -> Optional[Path]:
+    speaker_state: dict[str, dict[str, Any]],
+    higgs_session: HiggsTTSSession | None = None,
+    language: str = "en",
+) -> Path | None:
     """
     Generate audio segment for a single conversation turn.
 
@@ -609,13 +634,15 @@ def generate_audio_segment(
         Path to generated audio segment or None if failed
     """
     try:
-        logger.debug(f"generate_audio_segment called: speaker='{speaker}', segment_index={segment_index}")
-        
+        logger.debug(
+            f"generate_audio_segment called: speaker='{speaker}', segment_index={segment_index}"
+        )
+
         # Normalize content prior to TTS
         content = normalize_tts_text(content)
 
         # Split the single speaker's turn into chunks by length (uniformly)
-        chunks: List[str] = _chunk_text_by_length(content, max_chars=250) or [content]
+        chunks: list[str] = _chunk_text_by_length(content, max_chars=250) or [content]
 
         return _synthesize_and_merge_turn_chunks(
             chunks=chunks,
@@ -626,17 +653,17 @@ def generate_audio_segment(
             higgs_session=higgs_session,
             language=language,
         )
-            
+
     except Exception as e:
         logger.error(f"Error generating audio segment for {speaker}: {e}")
         return None
 
 
 def generate_conversation_audio_optimized(
-    conversation_turns: List[Dict[str, str]],
+    conversation_turns: list[dict[str, str]],
     audio_output_dir: Path,
-    language: str = 'en'
-) -> Optional[Path]:
+    language: str = "en",
+) -> Path | None:
     """
     Generate audio file from conversation turns using optimized approach:
     1. Group content by speaker
@@ -653,15 +680,15 @@ def generate_conversation_audio_optimized(
     """
     try:
         # Track per-speaker seed (first segment) to support cloning later
-        speaker_state: Dict[str, Dict[str, Any]] = {}
+        speaker_state: dict[str, dict[str, Any]] = {}
         # Initialize one Higgs client/model session for the whole job
         higgs_session = HiggsTTSSession()
 
         # Generate per-turn segments in order, grouping by speaker implicitly
-        audio_segments: List[Path] = []
+        audio_segments: list[Path] = []
         for i, turn in enumerate(conversation_turns):
-            speaker = turn.get('speaker', '').strip()
-            content = (turn.get('content') or '').strip()
+            speaker = turn.get("speaker", "").strip()
+            content = (turn.get("content") or "").strip()
             if not speaker or not content:
                 continue
             segment_file = generate_audio_segment(
@@ -681,7 +708,9 @@ def generate_conversation_audio_optimized(
             audio_filename = f"panel_podcast_optimized_{uuid.uuid4().hex[:8]}.wav"
             final_audio_path = audio_output_dir / audio_filename
 
-            success = concatenate_audio_segments(audio_segments, final_audio_path, audio_output_dir)
+            success = concatenate_audio_segments(
+                audio_segments, final_audio_path, audio_output_dir
+            )
 
             # Clean up temporary files
             for segment in audio_segments:
@@ -695,58 +724,88 @@ def generate_conversation_audio_optimized(
 
         logger.error("No audio segments generated in optimized approach")
         return None
-        
+
     except Exception as e:
         logger.error(f"Optimized audio generation failed: {e}")
         return None
 
 
 def concatenate_audio_segments(
-    segments: List[Path], 
-    output_file: Path, 
-    audio_output_dir: Path
+    segments: list[Path], output_file: Path, audio_output_dir: Path
 ) -> bool:
     """
     Concatenate multiple audio segments into a single file.
-    
+
     Args:
         segments: List of audio segment file paths
         output_file: Final output file path
         audio_output_dir: Directory for temporary files
-        
+
     Returns:
         True if successful, False otherwise
     """
     if not segments:
         return False
-    
+
     try:
         # Create a temporary file list for ffmpeg
         concat_list_file = audio_output_dir / f"concat_list_{uuid.uuid4().hex[:8]}.txt"
-        
-        with open(concat_list_file, 'w') as f:
+
+        with open(concat_list_file, "w") as f:
             for segment in segments:
                 f.write(f"file '{segment.absolute()}'\n")
-        
+
         try:
             # Try ffmpeg concatenation with stream copy (fast, requires same codec/params)
-            subprocess.run([
-                "ffmpeg", "-f", "concat", "-safe", "0",
-                "-i", str(concat_list_file),
-                "-c", "copy", str(output_file)
-            ], check=True, capture_output=True, timeout=300)
+            subprocess.run(
+                [
+                    "ffmpeg",
+                    "-f",
+                    "concat",
+                    "-safe",
+                    "0",
+                    "-i",
+                    str(concat_list_file),
+                    "-c",
+                    "copy",
+                    str(output_file),
+                ],
+                check=True,
+                capture_output=True,
+                timeout=300,
+            )
 
             concat_list_file.unlink()
             return True
 
-        except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        except (
+            subprocess.CalledProcessError,
+            FileNotFoundError,
+            subprocess.TimeoutExpired,
+        ):
             # Retry with re-encode to a common PCM WAV to handle mismatched params
             try:
-                subprocess.run([
-                    "ffmpeg", "-f", "concat", "-safe", "0",
-                    "-i", str(concat_list_file),
-                    "-c:a", "pcm_s16le", "-ar", "24000", "-ac", "1", str(output_file)
-                ], check=True, capture_output=True, timeout=300)
+                subprocess.run(
+                    [
+                        "ffmpeg",
+                        "-f",
+                        "concat",
+                        "-safe",
+                        "0",
+                        "-i",
+                        str(concat_list_file),
+                        "-c:a",
+                        "pcm_s16le",
+                        "-ar",
+                        "24000",
+                        "-ac",
+                        "1",
+                        str(output_file),
+                    ],
+                    check=True,
+                    capture_output=True,
+                    timeout=300,
+                )
 
                 concat_list_file.unlink()
                 return True
@@ -754,12 +813,15 @@ def concatenate_audio_segments(
                 # Fallbacks
                 if len(segments) == 1:
                     import shutil
+
                     shutil.copy2(segments[0], output_file)
                     return True
                 else:
-                    logger.warning("ffmpeg failed; using simple concatenation as last resort")
+                    logger.warning(
+                        "ffmpeg failed; using simple concatenation as last resort"
+                    )
                     return _simple_audio_concatenation(segments, output_file)
-        
+
         finally:
             # Clean up concat list file if it exists
             if concat_list_file.exists():
@@ -767,22 +829,22 @@ def concatenate_audio_segments(
                     concat_list_file.unlink()
                 except:
                     pass
-                    
+
     except Exception as e:
         logger.error(f"Error concatenating audio segments: {e}")
         return False
 
 
-def _simple_audio_concatenation(segments: List[Path], output_file: Path) -> bool:
+def _simple_audio_concatenation(segments: list[Path], output_file: Path) -> bool:
     """
     Simple fallback concatenation by combining binary data.
-    
+
     Note: This is a basic approach and may not work well with all audio formats.
     """
     try:
-        with open(output_file, 'wb') as outfile:
+        with open(output_file, "wb") as outfile:
             for segment in segments:
-                with open(segment, 'rb') as infile:
+                with open(segment, "rb") as infile:
                     outfile.write(infile.read())
         return True
     except Exception as e:

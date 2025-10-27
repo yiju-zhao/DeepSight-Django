@@ -18,11 +18,11 @@ except ImportError:
 
 # Supporting service modules
 try:
-    from .file_type_processors import FileTypeProcessors
-    from .device_manager import DeviceManager
-    from .transcription_service import TranscriptionService
     from .caption_service import CaptionService
+    from .device_manager import DeviceManager
+    from .file_type_processors import FileTypeProcessors
     from .minio_post_processor import MinIOPostProcessor
+    from .transcription_service import TranscriptionService
 except ImportError:
     FileTypeProcessors = None
     DeviceManager = None
@@ -37,12 +37,12 @@ except ImportError:
     URLExtractor = None
 
 __all__ = [
-    'MediaProcessor',
-    'UploadProcessor',
-    'FileTypeProcessors',
-    'DeviceManager', 
-    'TranscriptionService',
-    'CaptionService',
-    'MinIOPostProcessor',
-    'URLExtractor'
-] 
+    "MediaProcessor",
+    "UploadProcessor",
+    "FileTypeProcessors",
+    "DeviceManager",
+    "TranscriptionService",
+    "CaptionService",
+    "MinIOPostProcessor",
+    "URLExtractor",
+]

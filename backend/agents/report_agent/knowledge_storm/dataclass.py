@@ -1,8 +1,9 @@
-import dspy
-import numpy as np
 import re
 import threading
-from typing import Set, Dict, List, Optional, Union, Tuple
+from typing import Optional
+
+import dspy
+import numpy as np
 
 from .encoder import Encoder
 from .interface import Information
@@ -29,11 +30,11 @@ class ConversationTurn:
         role: str,
         raw_utterance: str,
         utterance_type: str,
-        claim_to_make: Optional[str] = None,
-        utterance: Optional[str] = None,
-        queries: Optional[List[str]] = None,
-        raw_retrieved_info: Optional[List[Information]] = None,
-        cited_info: Optional[List[Information]] = None,
+        claim_to_make: str | None = None,
+        utterance: str | None = None,
+        queries: list[str] | None = None,
+        raw_retrieved_info: list[Information] | None = None,
+        cited_info: list[Information] | None = None,
     ):
         self.utterance = utterance if utterance is not None else raw_utterance
         self.raw_utterance = raw_utterance
@@ -66,7 +67,7 @@ class ConversationTurn:
         }
 
     @classmethod
-    def from_dict(cls, conv_turn_dict: Dict):
+    def from_dict(cls, conv_turn_dict: dict):
         raw_retrieved_info = [
             Information.from_dict(info) for info in conv_turn_dict["raw_retrieved_info"]
         ]
@@ -97,10 +98,10 @@ class KnowledgeNode:
     def __init__(
         self,
         name: str,
-        content: Optional[str] = None,
+        content: str | None = None,
         parent: Optional["KnowledgeNode"] = None,
-        children: Optional[List["KnowledgeNode"]] = None,
-        synthesize_output: Optional[str] = None,
+        children: list["KnowledgeNode"] | None = None,
+        synthesize_output: str | None = None,
         need_regenerate_synthesize_output: bool = True,
     ):
         """
@@ -112,7 +113,7 @@ class KnowledgeNode:
             parent (KnowledgeNode, optional): The parent node of the current node. Defaults to None.
         """
         self.name = name
-        self.content: Set[int] = set(content) if content is not None else set()
+        self.content: set[int] = set(content) if content is not None else set()
         self.children = [] if children is None else children
         self.parent = parent
         self.synthesize_output = synthesize_output
@@ -208,7 +209,7 @@ class KnowledgeNode:
             self.need_regenerate_synthesize_output = True
             self.content.add(information_index)
 
-    def get_all_descendents(self) -> List["KnowledgeNode"]:
+    def get_all_descendents(self) -> list["KnowledgeNode"]:
         """
         Get a list of all descendant nodes.
 
@@ -225,7 +226,7 @@ class KnowledgeNode:
         collect_descendents(self)
         return descendents
 
-    def get_all_predecessors(self) -> List["KnowledgeNode"]:
+    def get_all_predecessors(self) -> list["KnowledgeNode"]:
         """
         Get a list of all predecessor nodes (from current node to root).
 
@@ -308,7 +309,7 @@ class KnowledgeBase:
     def __init__(
         self,
         topic: str,
-        knowledge_base_lm: Union[dspy.dsp.LM, dspy.dsp.HFModel],
+        knowledge_base_lm: dspy.dsp.LM | dspy.dsp.HFModel,
         node_expansion_trigger_count: int,
         encoder: Encoder,
     ):
@@ -326,8 +327,8 @@ class KnowledgeBase:
             ArticleGenerationModule,
         )
         from .collaborative_storm.modules.information_insertion_module import (
-            InsertInformationModule,
             ExpandNodeModule,
+            InsertInformationModule,
         )
         from .collaborative_storm.modules.knowledge_base_summary import (
             KnowledgeBaseSummaryModule,
@@ -355,8 +356,8 @@ class KnowledgeBase:
             "encoded_structure": np.array([[]]),
             "structure_string": "",
         }
-        self.info_uuid_to_info_dict: Dict[int, Information] = {}
-        self.info_hash_to_uuid_dict: Dict[int, int] = {}
+        self.info_uuid_to_info_dict: dict[int, Information] = {}
+        self.info_hash_to_uuid_dict: dict[int, int] = {}
         self._lock = threading.Lock()
 
     def to_dict(self):
@@ -373,8 +374,8 @@ class KnowledgeBase:
     @classmethod
     def from_dict(
         cls,
-        data: Dict,
-        knowledge_base_lm: Union[dspy.dsp.LM, dspy.dsp.HFModel],
+        data: dict,
+        knowledge_base_lm: dspy.dsp.LM | dspy.dsp.HFModel,
         node_expansion_trigger_count: int,
         encoder: Encoder,
     ):
@@ -397,8 +398,8 @@ class KnowledgeBase:
         return knowledge_base
 
     def get_knowledge_base_structure_embedding(
-        self, root: Optional[KnowledgeNode] = None
-    ) -> Tuple[np.ndarray, List[str]]:
+        self, root: KnowledgeNode | None = None
+    ) -> tuple[np.ndarray, list[str]]:
         outline_string = self.get_node_hierarchy_string(
             include_indent=False,
             include_full_path=True,
@@ -407,7 +408,7 @@ class KnowledgeBase:
         )
         outline_string_hash = hash(outline_string)
         if outline_string_hash != self.kb_embedding["hash"]:
-            outline_strings: List[str] = outline_string.split("\n")
+            outline_strings: list[str] = outline_string.split("\n")
             cleaned_outline_strings = [
                 outline.replace(" -> ", ", ") for outline in outline_strings
             ]
@@ -472,7 +473,7 @@ class KnowledgeBase:
     def insert_node(
         self,
         new_node_name,
-        parent_node: Optional[KnowledgeNode] = None,
+        parent_node: KnowledgeNode | None = None,
         duplicate_handling="skip",
     ):
         """
@@ -543,8 +544,8 @@ class KnowledgeBase:
         include_full_path=False,
         include_hash_tag=True,
         include_node_content_count=False,
-        cited_indices: Optional[List[int]] = None,
-        root: Optional[KnowledgeNode] = None,
+        cited_indices: list[int] | None = None,
+        root: KnowledgeNode | None = None,
     ) -> str:
         def find_node_contain_index(node, index):
             """
@@ -639,7 +640,7 @@ class KnowledgeBase:
         self,
         path: str,
         missing_node_handling="abort",
-        root: Optional[KnowledgeNode] = None,
+        root: KnowledgeNode | None = None,
     ):
         """
         Returns the target node given a path string.
@@ -682,7 +683,7 @@ class KnowledgeBase:
         path: str,
         information: Information,
         missing_node_handling="abort",
-        root: Optional[KnowledgeNode] = None,
+        root: KnowledgeNode | None = None,
     ):
         """
         Inserts information into the knowledge base at the specified path.

@@ -1,9 +1,8 @@
 import os
-import numpy as np
-
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Tuple, Union, Optional, Dict, Literal
 from pathlib import Path
+
+import numpy as np
 
 try:
     import warnings
@@ -56,10 +55,10 @@ class Encoder:
 
     def __init__(
         self,
-        encoder_type: Optional[str] = None,
-        api_key: Optional[str] = None,
-        api_base: Optional[str] = None,
-        api_version: Optional[str] = None,
+        encoder_type: str | None = None,
+        api_key: str | None = None,
+        api_base: str | None = None,
+        api_version: str | None = None,
     ):
         """
         Initializes the Encoder with the appropriate embedding model.
@@ -109,7 +108,7 @@ class Encoder:
             self.total_token_usage = 0
         return token_usage
 
-    def encode(self, texts: Union[str, List[str]], max_workers: int = 5) -> np.ndarray:
+    def encode(self, texts: str | list[str], max_workers: int = 5) -> np.ndarray:
         """
         Public method to get embeddings for the given texts.
 
@@ -131,9 +130,9 @@ class Encoder:
 
     def _get_text_embeddings(
         self,
-        texts: Union[str, List[str]],
+        texts: str | list[str],
         max_workers: int = 5,
-    ) -> Tuple[np.ndarray, int]:
+    ) -> tuple[np.ndarray, int]:
         """
         Get text embeddings using OpenAI's text-embedding-3-small model.
 

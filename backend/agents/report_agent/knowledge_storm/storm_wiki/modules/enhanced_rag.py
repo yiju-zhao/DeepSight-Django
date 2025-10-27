@@ -1,15 +1,12 @@
 import logging
-import threading
-from typing import List, Dict, Set, Tuple, Optional
-import numpy as np
-from sentence_transformers import SentenceTransformer, CrossEncoder
-from rank_bm25 import BM25Okapi
-import torch
-from ...interface import Information
-from ...utils import ArticleTextProcessing
-import torch.nn.functional as F
-import dspy
 
+import numpy as np
+import torch
+import torch.nn.functional as F
+from rank_bm25 import BM25Okapi
+from sentence_transformers import CrossEncoder
+
+from ...interface import Information
 from .storm_dataclass import StormInformationTable
 
 
@@ -103,13 +100,13 @@ class EnhancedStormInformationTable(StormInformationTable):
 
     def retrieve_information(
         self,
-        queries: List[str],
+        queries: list[str],
         initial_retrieval_k: int = 150,  # Default to retrieving top 150 chunks initially
         final_context_k: int = 20,  # Default to returning top 20 chunks after reranking
         bm25_weight: float = 0.5,
         vector_weight: float = 0.5,
         query_logger=None,
-    ) -> List[Information]:
+    ) -> list[Information]:
         """
         Retrieve information using the enhanced retrieval pipeline:
         1. Initial retrieval: Get top-N chunks using hybrid search (vector + BM25)
@@ -405,10 +402,10 @@ class EnhancedStormInformationTable(StormInformationTable):
         """
         # Create URL-to-score mappings
         vector_url_to_score = {
-            hit.url: score for hit, score in zip(vector_hits, vector_scores)
+            hit.url: score for hit, score in zip(vector_hits, vector_scores, strict=False)
         }
         bm25_url_to_score = {
-            hit.url: score for hit, score in zip(bm25_hits, bm25_scores)
+            hit.url: score for hit, score in zip(bm25_hits, bm25_scores, strict=False)
         }
 
         # Create URL-to-hit mappings
@@ -487,7 +484,7 @@ class EnhancedStormInformationTable(StormInformationTable):
         # Combine with original information objects that were valid
         reranked_results = [
             (info, float(score))
-            for info, score in zip(valid_candidates_info, rerank_scores)
+            for info, score in zip(valid_candidates_info, rerank_scores, strict=False)
         ]
 
         # Filter out results with scores lower than reranker_threshold

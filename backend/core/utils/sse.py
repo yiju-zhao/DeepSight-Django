@@ -6,8 +6,8 @@ Uses Redis Pub/Sub for event broadcasting from Celery tasks to SSE endpoints.
 
 import json
 import logging
-from typing import Dict, Any, Optional
 from datetime import datetime
+from typing import Any
 
 import redis
 from django.conf import settings
@@ -20,7 +20,7 @@ def publish_notebook_event(
     entity: str,
     entity_id: str,
     status: str,
-    payload: Optional[Dict[str, Any]] = None,
+    payload: dict[str, Any] | None = None,
 ) -> bool:
     """
     Publish a job status event to Redis for SSE streaming.
@@ -65,16 +65,14 @@ def publish_notebook_event(
 
         # Get Redis client and publish
         redis_client = redis.Redis.from_url(
-            settings.CELERY_BROKER_URL,
-            decode_responses=True
+            settings.CELERY_BROKER_URL, decode_responses=True
         )
 
         channel = f"sse:notebook:{notebook_id}"
         redis_client.publish(channel, json.dumps(message))
 
         logger.info(
-            f"Published {entity} event to {channel}: "
-            f"id={entity_id}, status={status}"
+            f"Published {entity} event to {channel}: id={entity_id}, status={status}"
         )
         return True
 
@@ -84,7 +82,7 @@ def publish_notebook_event(
             f"Failed to publish notebook event: "
             f"notebook_id={notebook_id}, entity={entity}, "
             f"entity_id={entity_id}, status={status}, error={e}",
-            exc_info=True
+            exc_info=True,
         )
         return False
 
@@ -94,8 +92,8 @@ def build_job_event(
     entity_id: str,
     notebook_id: str,
     status: str,
-    payload: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    payload: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """
     Build a standardized job event message.
 

@@ -3,14 +3,14 @@ Caption generation for images using OpenAI's vision models.
 Includes utilities for knowledge base image caption processing.
 """
 
-import os
 import base64
-import mimetypes
 import json
-import re
 import logging
-import tempfile
-from typing import List, Dict, Any, Optional
+import mimetypes
+import os
+import re
+from typing import Any
+
 from tqdm import tqdm
 
 try:
@@ -20,6 +20,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 def to_data_url(path: str) -> str:
     """Read an image file and return data-URL string suitable for OpenAI vision models."""
     mime, _ = mimetypes.guess_type(path)
@@ -28,118 +29,128 @@ def to_data_url(path: str) -> str:
         b64 = base64.b64encode(f.read()).decode()
     return f"data:{mime};base64,{b64}"
 
+
 def generate_caption_for_image(
-    image_path: str, 
+    image_path: str,
     prompt: str = "Look at the image and do the following in one sentences: Focus more on important numbers or text shown in the image (such as signs, titles, or numbers), and briefly summarize the key points from the text. Give your answer in one clear sentences. Add a tag at the end if you find <chart> or <table> in the image.",
-    api_key: Optional[str] = None
+    api_key: str | None = None,
 ) -> str:
     """
     Generate a caption for a single image using OpenAI's vision model.
-    
+
     Args:
         image_path: Path to the image file
         prompt: Prompt for caption generation
         api_key: OpenAI API key (will try to get from environment if not provided)
-        
+
     Returns:
         Generated caption text
     """
     try:
         from openai import OpenAI
-        
+
         # Get API key
         if not api_key:
             api_key = load_api_key_from_settings()
 
         if not api_key:
-            raise ValueError("OpenAI API key not found. Set OPENAI_API_KEY environment variable or provide api_key parameter.")
-        
+            raise ValueError(
+                "OpenAI API key not found. Set OPENAI_API_KEY environment variable or provide api_key parameter."
+            )
+
         client = OpenAI(api_key=api_key)
         data_url = to_data_url(image_path)
-        
+
         chat = client.chat.completions.create(
             model="gpt-4.1-mini",  # Using the latest vision model
-            messages=[{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": data_url}},
-                ],
-            }],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": data_url}},
+                    ],
+                }
+            ],
             max_tokens=100,
         )
-        
+
         return chat.choices[0].message.content.strip()
-        
+
     except Exception as e:
         logger.error(f"Caption generation failed for {image_path}: {e}")
         return f"Caption generation failed: {str(e)}"
+
 
 def generate_captions_for_directory(
     images_dir: str,
     output_file: str,
     prompt: str = "Look at the image and do the following in one sentences: Focus more on important numbers or text shown in the image (such as signs, titles, or numbers), and briefly summarize the key points from the text. Give your answer in one clear sentences. Add a tag at the end if you find <chart> or <table> in the image.",
-    api_key: Optional[str] = None
-) -> List[Dict[str, Any]]:
+    api_key: str | None = None,
+) -> list[dict[str, Any]]:
     """
     Generate captions for all PNG images in a directory.
-    
+
     Args:
         images_dir: Directory containing PNG images to caption
         output_file: Path to save the captions JSON file
         prompt: Caption prompt to use for all images
         api_key: OpenAI API key
-        
+
     Returns:
         List of caption results
     """
     try:
         if not os.path.exists(images_dir):
             raise FileNotFoundError(f"Images directory not found: {images_dir}")
-        
+
         # Find all PNG images
         images = [
-            f for f in os.listdir(images_dir)
-            if f.lower().endswith(".png") and os.path.isfile(os.path.join(images_dir, f))
+            f
+            for f in os.listdir(images_dir)
+            if f.lower().endswith(".png")
+            and os.path.isfile(os.path.join(images_dir, f))
         ]
-        
+
         if not images:
             logger.warning(f"No PNG images found in {images_dir}")
             return []
-        
+
         results = []
         total_images = len(images)
         logger.info(f"Starting caption generation for {total_images} images...")
-        
+
         # Use tqdm for progress bar
         for img in tqdm(images, desc="Generating captions", unit="image"):
             image_path = os.path.join(images_dir, img)
             caption_text = generate_caption_for_image(image_path, prompt, api_key)
-            
-            results.append({
-                "image_path": image_path,
-                "caption": caption_text
-            })
-        
+
+            results.append({"image_path": image_path, "caption": caption_text})
+
         # Sort results by image number (extracted from filename)
         try:
-            results.sort(key=lambda x: int(re.search(r'(\d+)', os.path.basename(x['image_path'])).group(0)))
+            results.sort(
+                key=lambda x: int(
+                    re.search(r"(\d+)", os.path.basename(x["image_path"])).group(0)
+                )
+            )
         except (AttributeError, ValueError):
             # If sorting fails, keep original order
             logger.warning("Could not sort results by image number")
-        
+
         # Save results to file
         with open(output_file, "w") as out_f:
             json.dump(results, out_f, indent=2)
-        
+
         logger.info(f"Generated {len(results)} captions and saved to {output_file}")
         return results
-        
+
     except Exception as e:
         logger.error(f"Caption generation for directory failed: {e}")
         raise
 
-def load_api_key_from_settings() -> Optional[str]:
+
+def load_api_key_from_settings() -> str | None:
     """
     Load OpenAI API key from environment or Django settings.
 
@@ -154,7 +165,8 @@ def load_api_key_from_settings() -> Optional[str]:
     # Try to load from Django settings
     try:
         from django.conf import settings
-        if hasattr(settings, 'OPENAI_API_KEY') and settings.OPENAI_API_KEY:
+
+        if hasattr(settings, "OPENAI_API_KEY") and settings.OPENAI_API_KEY:
             return settings.OPENAI_API_KEY
     except Exception:
         pass
@@ -164,6 +176,7 @@ def load_api_key_from_settings() -> Optional[str]:
 
 # Knowledge Base Image Caption Functions
 # =====================================
+
 
 def populate_image_captions_for_kb_item(kb_item, markdown_content=None):
     """
@@ -185,22 +198,20 @@ def populate_image_captions_for_kb_item(kb_item, markdown_content=None):
             markdown_content = _get_markdown_content_for_captions(kb_item)
 
         if not markdown_content:
-            logger.warning(f"No markdown content found for KB item {kb_item.id}, using AI-only captions")
+            logger.warning(
+                f"No markdown content found for KB item {kb_item.id}, using AI-only captions"
+            )
 
         # Get all images for this knowledge base item that need captions
         from ...models import KnowledgeBaseImage
+
         images_needing_captions = KnowledgeBaseImage.objects.filter(
-            knowledge_base_item=kb_item,
-            image_caption__in=['', None]
-        ).order_by('created_at')
+            knowledge_base_item=kb_item, image_caption__in=["", None]
+        ).order_by("created_at")
 
         if not images_needing_captions.exists():
             logger.info(f"No images need captions for KB item {kb_item.id}")
-            return {
-                'success': True,
-                'captions_count': 0,
-                'total_images': 0
-            }
+            return {"success": True, "captions_count": 0, "total_images": 0}
 
         # Extract figure data from markdown if available
         figure_data = []
@@ -218,7 +229,9 @@ def populate_image_captions_for_kb_item(kb_item, markdown_content=None):
 
                 # Try to find caption from markdown first
                 if figure_data:
-                    caption = _find_caption_for_kb_image(image, figure_data, list(images_needing_captions))
+                    caption = _find_caption_for_kb_image(
+                        image, figure_data, list(images_needing_captions)
+                    )
                     if caption:
                         caption_source = "markdown"
 
@@ -232,9 +245,11 @@ def populate_image_captions_for_kb_item(kb_item, markdown_content=None):
                 # Update the image with the caption
                 if caption:
                     image.image_caption = caption
-                    image.save(update_fields=['image_caption', 'updated_at'])
+                    image.save(update_fields=["image_caption", "updated_at"])
                     updated_count += 1
-                    logger.info(f"Updated image {image.id} with {caption_source} caption: {caption[:50]}...")
+                    logger.info(
+                        f"Updated image {image.id} with {caption_source} caption: {caption[:50]}..."
+                    )
                 else:
                     logger.warning(f"No caption found for image {image.id}")
 
@@ -242,21 +257,20 @@ def populate_image_captions_for_kb_item(kb_item, markdown_content=None):
                 logger.error(f"Error processing image {image.id}: {e}")
 
         # Log summary
-        logger.info(f"Caption population completed: Updated {updated_count} images with captions ({ai_generated_count} AI-generated)")
+        logger.info(
+            f"Caption population completed: Updated {updated_count} images with captions ({ai_generated_count} AI-generated)"
+        )
 
         return {
-            'success': True,
-            'captions_count': updated_count,
-            'total_images': images_needing_captions.count(),
-            'ai_generated_count': ai_generated_count
+            "success": True,
+            "captions_count": updated_count,
+            "total_images": images_needing_captions.count(),
+            "ai_generated_count": ai_generated_count,
         }
 
     except Exception as e:
         logger.error(f"Error populating captions for KB item {kb_item.id}: {e}")
-        return {
-            'success': False,
-            'error': str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 def _get_markdown_content_for_captions(kb_item):
@@ -280,7 +294,9 @@ def _extract_figure_data_from_content(content):
         import tempfile
 
         # Create a temporary markdown file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.md', delete=False, encoding='utf-8') as temp_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as temp_file:
             temp_file.write(content)
             temp_file_path = temp_file.name
 
@@ -305,18 +321,18 @@ def _find_caption_for_kb_image(image, figure_data, all_images):
         if image.minio_object_key:
             image_basename = os.path.basename(image.minio_object_key).lower()
             for figure in figure_data:
-                figure_image_path = figure.get('image_path', '')
+                figure_image_path = figure.get("image_path", "")
                 if figure_image_path:
-                    figure_basename = figure_image_path.split('/')[-1].lower()
+                    figure_basename = figure_image_path.split("/")[-1].lower()
                     if figure_basename == image_basename:
-                        return figure.get('caption', '')
+                        return figure.get("caption", "")
 
         # Fallback: match by index in the figure data list
         if figure_data:
             try:
                 image_index = all_images.index(image)
                 if image_index < len(figure_data):
-                    return figure_data[image_index].get('caption', '')
+                    return figure_data[image_index].get("caption", "")
             except (ValueError, IndexError):
                 pass
 
@@ -334,7 +350,9 @@ def _generate_ai_caption_for_kb_image(image):
         temp_image_path = _download_kb_image_to_temp(image)
 
         if not temp_image_path:
-            logger.error(f"Could not download image {image.id} from MinIO for AI captioning")
+            logger.error(
+                f"Could not download image {image.id} from MinIO for AI captioning"
+            )
             return None
 
         try:
@@ -364,32 +382,31 @@ def _download_kb_image_to_temp(image):
             return None
 
         # Determine file extension from content type or object key
-        file_extension = '.png'  # default
+        file_extension = ".png"  # default
         if image.content_type:
-            if 'jpeg' in image.content_type or 'jpg' in image.content_type:
-                file_extension = '.jpg'
-            elif 'png' in image.content_type:
-                file_extension = '.png'
-            elif 'gif' in image.content_type:
-                file_extension = '.gif'
-            elif 'webp' in image.content_type:
-                file_extension = '.webp'
+            if "jpeg" in image.content_type or "jpg" in image.content_type:
+                file_extension = ".jpg"
+            elif "png" in image.content_type:
+                file_extension = ".png"
+            elif "gif" in image.content_type:
+                file_extension = ".gif"
+            elif "webp" in image.content_type:
+                file_extension = ".webp"
         elif image.minio_object_key:
             # Try to get extension from object key
             object_key_lower = image.minio_object_key.lower()
-            if object_key_lower.endswith('.jpg') or object_key_lower.endswith('.jpeg'):
-                file_extension = '.jpg'
-            elif object_key_lower.endswith('.png'):
-                file_extension = '.png'
-            elif object_key_lower.endswith('.gif'):
-                file_extension = '.gif'
-            elif object_key_lower.endswith('.webp'):
-                file_extension = '.webp'
+            if object_key_lower.endswith(".jpg") or object_key_lower.endswith(".jpeg"):
+                file_extension = ".jpg"
+            elif object_key_lower.endswith(".png"):
+                file_extension = ".png"
+            elif object_key_lower.endswith(".gif"):
+                file_extension = ".gif"
+            elif object_key_lower.endswith(".webp"):
+                file_extension = ".webp"
 
         # Create temporary file
         with tempfile.NamedTemporaryFile(
-            suffix=file_extension,
-            delete=False
+            suffix=file_extension, delete=False
         ) as temp_file:
             temp_file.write(image_content)
             temp_file_path = temp_file.name

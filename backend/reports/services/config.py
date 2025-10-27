@@ -4,7 +4,7 @@ Replaces the old reports/config/* modules.
 """
 
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 try:
     from django.conf import settings
@@ -20,11 +20,11 @@ def _get_setting(key: str, default: Any = None) -> Any:
     return os.getenv(key, default)
 
 
-def get_secrets_path() -> Optional[str]:
+def get_secrets_path() -> str | None:
     return _get_setting("REPORT_SECRETS_PATH", None)
 
 
-def get_model_provider_config(provider: str) -> Dict[str, Any]:
+def get_model_provider_config(provider: str) -> dict[str, Any]:
     if provider == "openai":
         return {
             "api_key": _get_setting("OPENAI_API_KEY"),
@@ -42,7 +42,9 @@ def get_model_provider_config(provider: str) -> Dict[str, Any]:
         }
     if provider == "xinference":
         return {
-            "api_key": _get_setting("XINFERENCE_API_KEY", "dummy"),  # Xinference doesn't need real API key
+            "api_key": _get_setting(
+                "XINFERENCE_API_KEY", "dummy"
+            ),  # Xinference doesn't need real API key
             "api_base": _get_setting("XINFERENCE_API_BASE"),
             "temperature": 0.7,
             "max_tokens": 4000,
@@ -50,7 +52,7 @@ def get_model_provider_config(provider: str) -> Dict[str, Any]:
     return {}
 
 
-def get_retriever_config(retriever: str) -> Dict[str, Any]:
+def get_retriever_config(retriever: str) -> dict[str, Any]:
     configs = {
         "tavily": {
             "api_key": _get_setting("TAVILY_API_KEY"),
@@ -75,11 +77,11 @@ def get_retriever_config(retriever: str) -> Dict[str, Any]:
     return configs.get(retriever, {})
 
 
-def get_supported_providers() -> List[str]:
+def get_supported_providers() -> list[str]:
     return ["openai", "google"]
 
 
-def get_supported_retrievers() -> List[str]:
+def get_supported_retrievers() -> list[str]:
     return [
         "tavily",
         "brave",
@@ -92,20 +94,20 @@ def get_supported_retrievers() -> List[str]:
     ]
 
 
-def get_free_retrievers() -> List[str]:
+def get_free_retrievers() -> list[str]:
     return ["duckduckgo", "searxng"]
 
 
-def get_time_range_mapping() -> Dict[str, Any]:
+def get_time_range_mapping() -> dict[str, Any]:
     return {"day": "day", "week": "week", "month": "month", "year": "year"}
 
 
-def get_search_depth_options() -> List[str]:
+def get_search_depth_options() -> list[str]:
     return ["basic", "advanced"]
 
 
-def validate_config(config: Dict[str, Any]) -> Dict[str, bool]:
-    results: Dict[str, bool] = {}
+def validate_config(config: dict[str, Any]) -> dict[str, bool]:
+    results: dict[str, bool] = {}
     provider = config.get("model_provider", "openai")
     prov_cfg = get_model_provider_config(provider)
     results[f"{provider}_model"] = bool(prov_cfg.get("api_key"))
@@ -121,6 +123,7 @@ def validate_config(config: Dict[str, Any]) -> Dict[str, bool]:
 class ReportSettingsConfig:
     """Minimal object to satisfy legacy signature in GenerationService."""
 
-    def validate_config(self, config: Dict[str, Any]) -> Dict[str, bool]:  # pragma: no cover
+    def validate_config(
+        self, config: dict[str, Any]
+    ) -> dict[str, bool]:  # pragma: no cover
         return validate_config(config)
-

@@ -5,9 +5,8 @@ Celery configuration for Django project.
 import os
 import sys
 import warnings
+
 from celery import Celery
-from celery.signals import worker_init
-from django.conf import settings
 
 # Suppress Pydantic serialization warnings from LiteLLM in Celery workers
 warnings.filterwarnings("ignore", message=".*Pydantic serializer warnings.*")
@@ -30,7 +29,8 @@ app.autodiscover_tasks()
 # Fix for macOS fork() issues with Metal Performance Shaders
 if sys.platform == "darwin":  # macOS
     import multiprocessing
-    multiprocessing.set_start_method('spawn', force=True)
+
+    multiprocessing.set_start_method("spawn", force=True)
 
 # Configure Celery settings
 app.conf.update(
@@ -50,8 +50,12 @@ app.conf.update(
         "notebooks.tasks.process_url_document_task": {"queue": "notebook_processing"},
         "notebooks.tasks.process_file_upload_task": {"queue": "notebook_processing"},
         "notebooks.tasks.upload_to_ragflow_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.generate_image_captions_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.test_caption_generation_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.generate_image_captions_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.test_caption_generation_task": {
+            "queue": "notebook_processing"
+        },
         "notebooks.tasks.check_ragflow_status_task": {"queue": "notebook_processing"},
     },
     # Task settings

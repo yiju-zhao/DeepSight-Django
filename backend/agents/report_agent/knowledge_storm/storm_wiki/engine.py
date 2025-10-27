@@ -3,29 +3,36 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from typing import Union, Literal, Optional, List, Dict
+from typing import Literal
 
 import dspy
+from prompts import import_prompts
 
+from ..interface import Engine, LMConfigs, Retriever
+from ..lm import LitellmModel
+from ..utils import FileIOHelper, makeStringRed, truncate_filename
 from .modules.article_generation import StormArticleGenerationModule
 from .modules.article_polish import StormArticlePolishingModule
 from .modules.callback import BaseCallbackHandler
 from .modules.knowledge_curation import StormKnowledgeCurationModule
 from .modules.outline_generation import StormOutlineGenerationModule
 from .modules.persona_generator import StormPersonaGenerator
-from .modules.storm_dataclass import StormInformationTable, StormArticle
-from ..interface import Engine, LMConfigs, Retriever
-from ..lm import LitellmModel
-from ..utils import FileIOHelper, makeStringRed, truncate_filename
-from prompts import import_prompts
+from .modules.storm_dataclass import StormArticle, StormInformationTable
 
 sys.path.insert(
     0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
 )
 from utils.hyperlink_citations import add_hyperlinks_to_citations
+
 # Import image utilities directly
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', '..')))
-from reports.utils import ImageInsertionService, DatabaseUrlProvider, preserve_figure_formatting
+sys.path.insert(
+    0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
+)
+from reports.utils import (
+    DatabaseUrlProvider,
+    ImageInsertionService,
+    preserve_figure_formatting,
+)
 
 
 class TopicGenerator(dspy.Signature):
@@ -48,7 +55,7 @@ class UserInputTopicImprover(dspy.Signature):
 
 
 class TopicImprover(dspy.Module):
-    def __init__(self, engine: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def __init__(self, engine: dspy.dsp.LM | dspy.dsp.HFModel):
         super().__init__()
         self.engine = engine
         self.topic_generator = dspy.Predict(TopicGenerator)
@@ -56,8 +63,8 @@ class TopicImprover(dspy.Module):
 
     def forward(
         self,
-        text_input: Optional[str] = None,
-        user_input: Optional[str] = None,
+        text_input: str | None = None,
+        user_input: str | None = None,
     ) -> str:
         # Maintain backward compatibility by accepting user_input but treating it as topic
         topic = user_input
@@ -65,18 +72,18 @@ class TopicImprover(dspy.Module):
         with dspy.settings.context(lm=self.engine):
             if text_input and topic:
                 # Both text input and topic provided - use TopicGenerator to improve topic with text
-                result = self.topic_generator(
-                    text_input=text_input, topic=topic
-                )
+                result = self.topic_generator(text_input=text_input, topic=topic)
                 generated_topic = result.improved_topic
-                
+
                 # Check if the result is valid
                 if not generated_topic or generated_topic.strip() == "":
-                    logging.warning("TopicGenerator returned empty result, fallback to generic topic based on content")
+                    logging.warning(
+                        "TopicGenerator returned empty result, fallback to generic topic based on content"
+                    )
                     # Fallback to a simple topic extraction
                     words = text_input.split()[:10]  # First 10 words
                     generated_topic = f"Analysis of {' '.join(words)}"
-                
+
                 return generated_topic
             elif topic and not text_input:
                 # Only topic provided - use UserInputTopicImprover
@@ -102,10 +109,10 @@ class STORMWikiLMConfigs(LMConfigs):
         openai_api_key: str,
         azure_api_key: str,
         openai_type: Literal["openai", "azure"],
-        api_base: Optional[str] = None,
-        api_version: Optional[str] = None,
-        temperature: Optional[float] = 1.0,
-        top_p: Optional[float] = 0.9,
+        api_base: str | None = None,
+        api_version: str | None = None,
+        temperature: float | None = 1.0,
+        top_p: float | None = 0.9,
     ):
         azure_kwargs = {
             "api_key": azure_api_key,
@@ -175,8 +182,8 @@ class STORMWikiLMConfigs(LMConfigs):
     def init_google_model(
         self,
         google_api_key: str,
-        temperature: Optional[float] = 0.3,
-        top_p: Optional[float] = 0.9,
+        temperature: float | None = 0.3,
+        top_p: float | None = 0.9,
     ):
         """Initialize Google Gemini models using LitellmModel."""
         google_kwargs = {
@@ -210,8 +217,8 @@ class STORMWikiLMConfigs(LMConfigs):
         api_base: str,
         model: str,
         api_key: str = "dummy",
-        temperature: Optional[float] = 0.3,
-        top_p: Optional[float] = 0.9,
+        temperature: float | None = 0.3,
+        top_p: float | None = 0.9,
     ):
         """Initialize Xinference models using LitellmModel."""
         xinference_kwargs = {
@@ -241,22 +248,22 @@ class STORMWikiLMConfigs(LMConfigs):
             model=f"openai/{model}", max_tokens=500, **xinference_kwargs
         )
 
-    def set_conv_simulator_lm(self, model: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def set_conv_simulator_lm(self, model: dspy.dsp.LM | dspy.dsp.HFModel):
         self.conv_simulator_lm = model
 
-    def set_question_asker_lm(self, model: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def set_question_asker_lm(self, model: dspy.dsp.LM | dspy.dsp.HFModel):
         self.question_asker_lm = model
 
-    def set_outline_gen_lm(self, model: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def set_outline_gen_lm(self, model: dspy.dsp.LM | dspy.dsp.HFModel):
         self.outline_gen_lm = model
 
-    def set_article_gen_lm(self, model: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def set_article_gen_lm(self, model: dspy.dsp.LM | dspy.dsp.HFModel):
         self.article_gen_lm = model
 
-    def set_article_polish_lm(self, model: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def set_article_polish_lm(self, model: dspy.dsp.LM | dspy.dsp.HFModel):
         self.article_polish_lm = model
 
-    def set_topic_improver_lm(self, model: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def set_topic_improver_lm(self, model: dspy.dsp.LM | dspy.dsp.HFModel):
         self.topic_improver_lm = model
 
 
@@ -265,13 +272,23 @@ class STORMWikiRunnerArguments:
     # Required fields first (no default values)
     output_dir: str = field(metadata={"help": "Output directory for the results."})
     article_title: str = field(metadata={"help": "Title of the article."})
-    
+
     # Optional fields with default values
-    topic: Optional[str] = field(default=None, metadata={"help": "Topic of the article."})
-    text_input: Optional[str] = field(default=None, metadata={"help": "Text input content."})
-    speakers: Optional[List[str]] = field(default=None, metadata={"help": "Speakers in the article."})
-    author_json: Optional[str] = field(default=None, metadata={"help": "Author JSON for the article."})
-    report_id: Optional[str] = field(default=None, metadata={"help": "Report ID for image insertion."})
+    topic: str | None = field(
+        default=None, metadata={"help": "Topic of the article."}
+    )
+    text_input: str | None = field(
+        default=None, metadata={"help": "Text input content."}
+    )
+    speakers: list[str] | None = field(
+        default=None, metadata={"help": "Speakers in the article."}
+    )
+    author_json: str | None = field(
+        default=None, metadata={"help": "Author JSON for the article."}
+    )
+    report_id: str | None = field(
+        default=None, metadata={"help": "Report ID for image insertion."}
+    )
     max_conv_turn: int = field(
         default=3,
         metadata={
@@ -315,7 +332,7 @@ class STORMWikiRunnerArguments:
         default=0.5,
         metadata={"help": "Minimum score threshold for reranker results (0 to 1)."},
     )
-    time_range: Optional[str] = field(
+    time_range: str | None = field(
         default=None,
         metadata={
             "help": "Specific time range for search results (day, week, month, year)."
@@ -324,12 +341,16 @@ class STORMWikiRunnerArguments:
 
 
 class STORMWikiRunner(Engine):
-    def __init__(self, args: STORMWikiRunnerArguments, lm_configs: STORMWikiLMConfigs, rm):
+    def __init__(
+        self, args: STORMWikiRunnerArguments, lm_configs: STORMWikiLMConfigs, rm
+    ):
         super().__init__(lm_configs=lm_configs)
         self.args = args
         self.lm_configs = lm_configs
         self.article_title = args.article_title
-        self.generated_topic = args.topic if args.topic else None  # Keep empty topics as None
+        self.generated_topic = (
+            args.topic if args.topic else None
+        )  # Keep empty topics as None
         self.speakers = args.speakers if hasattr(args, "speakers") else None
         self.author_json = args.author_json if hasattr(args, "author_json") else None
         self.text_input = args.text_input if hasattr(args, "text_input") else None
@@ -393,8 +414,8 @@ class STORMWikiRunner(Engine):
         self.topic_improver = TopicImprover(self.lm_configs.topic_improver_lm)
         self.lm_configs.init_check()
         self.apply_decorators()
-        self.report_id = getattr(args, 'report_id', None)  # Store report_id from config
-    
+        self.report_id = getattr(args, "report_id", None)  # Store report_id from config
+
     def _ensure_report_images_exist(self):
         """
         Ensure that ReportImage records exist for all figures in figure_data.
@@ -402,55 +423,60 @@ class STORMWikiRunner(Engine):
         """
         if not self.figure_data or not self.report_id:
             return
-            
+
         try:
             # Import Django models (with proper initialization)
             import os
+
             import django
             from django.conf import settings as django_settings
-            
+
             # Initialize Django if not already done
             if not django_settings.configured:
-                os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings')
+                os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
                 django.setup()
-            
-            from reports.models import Report, ReportImage
-            from notebooks.models import KnowledgeBaseImage
+
+            from reports.models import Report
             from reports.services.image import ImageService as ReportImageService
-            
+
             # Get the report instance
             try:
                 report = Report.objects.get(id=self.report_id)
             except Report.DoesNotExist:
                 print(f"Warning: Report {self.report_id} not found")
                 return
-            
+
             # Extract figure IDs from figure_data
             figure_ids = []
             for fig in self.figure_data:
-                if isinstance(fig, dict) and 'figure_id' in fig:
-                    figure_ids.append(fig['figure_id'])
-            
+                if isinstance(fig, dict) and "figure_id" in fig:
+                    figure_ids.append(fig["figure_id"])
+
             if not figure_ids:
                 print("No figure IDs found in figure_data")
                 return
-            
+
             # Use ReportImageService to create the records
             image_service = ReportImageService()
-            
+
             # Find corresponding images in knowledge base
-            kb_images = image_service.find_images_by_figure_ids(figure_ids, report.user.id)
-            
+            kb_images = image_service.find_images_by_figure_ids(
+                figure_ids, report.user.id
+            )
+
             if kb_images:
                 # Copy images to report folder and create ReportImage records
                 report_images = image_service.copy_images_to_report(report, kb_images)
-                print(f"Created {len(report_images)} ReportImage records for report {report.id}")
+                print(
+                    f"Created {len(report_images)} ReportImage records for report {report.id}"
+                )
             else:
                 print(f"No knowledge base images found for figure IDs: {figure_ids}")
-                
+
         except Exception as e:
             print(f"Error ensuring ReportImage records exist: {e}")
             import traceback
+
             traceback.print_exc()
 
     def _get_formatted_inputs(self) -> str:
@@ -459,20 +485,19 @@ class STORMWikiRunner(Engine):
             return self.text_input
         return "N/A"
 
-    def _improve_topic(self, text_input: Optional[str] = None, user_input: Optional[str] = None) -> str:
+    def _improve_topic(
+        self, text_input: str | None = None, user_input: str | None = None
+    ) -> str:
         """Improves the topic using the TopicImprover module."""
-        return self.topic_improver.forward(
-            text_input=text_input,
-            user_input=user_input
-        )
+        return self.topic_improver.forward(text_input=text_input, user_input=user_input)
 
     def _get_considered_personas(
         self,
         combined_input_content: str,
         max_num_persona,
-        topic: Optional[str] = None,
-        old_outline: Optional[str] = None,
-    ) -> List[str]:
+        topic: str | None = None,
+        old_outline: str | None = None,
+    ) -> list[str]:
         # The persona_generator will work with the consolidated text_input
         return self.persona_generator.generate_persona(
             text_input=combined_input_content,
@@ -485,8 +510,8 @@ class STORMWikiRunner(Engine):
         self,
         ground_truth_url: str = "None",
         callback_handler: BaseCallbackHandler = None,
-        topic: Optional[str] = None,
-        old_outline: Optional[str] = None,
+        topic: str | None = None,
+        old_outline: str | None = None,
     ) -> StormInformationTable:
         combined_input_content = self._get_formatted_inputs()
         (information_table, conversation_log) = (
@@ -513,9 +538,9 @@ class STORMWikiRunner(Engine):
     def run_outline_generation_module(
         self,
         information_table: StormInformationTable,
-        old_outline: Optional[StormArticle] = None,
+        old_outline: StormArticle | None = None,
         callback_handler: BaseCallbackHandler = None,
-        topic: Optional[str] = None,
+        topic: str | None = None,
     ) -> StormArticle:
         combined_input_content = self._get_formatted_inputs()
         outline, draft_outline = self.storm_outline_generation_module.generate_outline(
@@ -571,13 +596,16 @@ class STORMWikiRunner(Engine):
             self._ensure_report_images_exist()
 
             # Extract figure IDs from figure_data
-            figure_ids = [fig['figure_id'] for fig in self.figure_data if isinstance(fig, dict) and 'figure_id' in fig]
+            figure_ids = [
+                fig["figure_id"]
+                for fig in self.figure_data
+                if isinstance(fig, dict) and "figure_id" in fig
+            ]
 
             # Use unified image insertion service with correct method
             image_service = ImageInsertionService(DatabaseUrlProvider())
             modified_text_with_figs = image_service.insert_images_into_content(
-                content=article_text_before_figs,
-                figure_ids=figure_ids
+                content=article_text_before_figs, figure_ids=figure_ids
             )
 
             # Apply figure formatting preservation to ensure proper newlines around figures
@@ -604,7 +632,6 @@ class STORMWikiRunner(Engine):
         article_content = draft_article.to_string()
         article_content = preserve_figure_formatting(article_content)
 
-
         # Save with preserved formatting and fixed image paths
         with open(
             os.path.join(self.article_output_dir, "storm_gen_article.md"),
@@ -623,11 +650,11 @@ class STORMWikiRunner(Engine):
         self,
         draft_article: StormArticle,
         recent_content_only: bool,
-        speakers: Optional[str] = None,
-        author_json: Optional[str] = None,
+        speakers: str | None = None,
+        author_json: str | None = None,
         remove_duplicate: bool = False,
         preserve_citation_order: bool = True,
-        time_range: Optional[str] = None,
+        time_range: str | None = None,
     ) -> StormArticle:
         combined_input_content = self._get_formatted_inputs()
 
@@ -642,9 +669,11 @@ class STORMWikiRunner(Engine):
             time_range=time_range,
             parsed_paper_title=self.parsed_paper_title,
         )
-        
+
         # Capture the generated title from the polishing module
-        self.generated_article_title = getattr(self.storm_article_polishing_module, 'generated_title', None)
+        self.generated_article_title = getattr(
+            self.storm_article_polishing_module, "generated_title", None
+        )
 
         article_content_str = polished_article.to_string()
         reference_data = polished_article.reference
@@ -660,7 +689,6 @@ class STORMWikiRunner(Engine):
         hyperlinked_content_str = preserve_figure_formatting(hyperlinked_content_str)
         # Apply a second time to catch any edge cases
         hyperlinked_content_str = preserve_figure_formatting(hyperlinked_content_str)
-
 
         FileIOHelper.write_str(
             hyperlinked_content_str,
@@ -717,7 +745,7 @@ class STORMWikiRunner(Engine):
 
     def run(
         self,
-        user_input: Optional[str] = None,
+        user_input: str | None = None,
         ground_truth_url: str = "",
         do_research: bool = True,
         do_generate_outline: bool = True,
@@ -725,7 +753,7 @@ class STORMWikiRunner(Engine):
         do_polish_article: bool = True,
         remove_duplicate: bool = True,
         callback_handler: BaseCallbackHandler = BaseCallbackHandler(),
-        old_outline_path: Optional[str] = None,
+        old_outline_path: str | None = None,
         skip_rewrite_outline: bool = False,
     ) -> None:
         """Run the STORM Wiki engine."""
@@ -751,14 +779,17 @@ class STORMWikiRunner(Engine):
 
         # Determine the topic to improve
         topic_to_improve = user_input or self.generated_topic
-        
+
         # If no topic provided but we have text_input, use system_topic as the base topic
         if not topic_to_improve and self.text_input:
             from prompts import import_prompts
-            prompts = import_prompts()
+
+            import_prompts()
             topic_to_improve = import_prompts().SystemTopic_docstring
-            logging.info(f"No topic provided, using system_topic as base: {topic_to_improve}")
-        
+            logging.info(
+                f"No topic provided, using system_topic as base: {topic_to_improve}"
+            )
+
         # Try to improve topic if we have something to work with
         if topic_to_improve or self.text_input:
             try:
@@ -766,7 +797,7 @@ class STORMWikiRunner(Engine):
                     text_input=self.text_input,
                     user_input=topic_to_improve,
                 )
-                
+
                 # Check if TopicImprover returned a valid result
                 if not improved_topic or improved_topic.strip() == "":
                     logging.warning("TopicImprover returned None or empty string")
@@ -774,10 +805,12 @@ class STORMWikiRunner(Engine):
                 else:
                     # Log the result
                     if not user_input and not self.generated_topic and self.text_input:
-                        logging.info(f"Generated topic from text input: {improved_topic}")
+                        logging.info(
+                            f"Generated topic from text input: {improved_topic}"
+                        )
                     else:
                         logging.info(f"Improved topic: {improved_topic}")
-                    
+
                 self.generated_topic = improved_topic
             except Exception as e:
                 logging.warning(f"Failed to improve topic: {e}")
@@ -801,7 +834,6 @@ class STORMWikiRunner(Engine):
                 raise ValueError(
                     "Failed to determine a topic for the report. All inputs (topic, text_input) might be missing or topic generation failed."
                 )
-
 
         old_outline = None
         old_outline_str = None

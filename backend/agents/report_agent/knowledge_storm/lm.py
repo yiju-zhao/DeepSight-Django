@@ -1,20 +1,19 @@
-import backoff
-import dspy
 import functools
 import logging
 import os
 import random
-import requests
 import threading
-from typing import Optional, Literal, Any
-import ujson
 from pathlib import Path
+from typing import Any, Literal
 
-
+import backoff
+import dspy
+import requests
+import ujson
 from dsp import ERRORS, backoff_hdlr, giveup_hdlr
 from dsp.modules.hf import openai_to_hf
 from dsp.modules.hf_client import send_hftgi_request_v01_wrapped
-from openai import OpenAI, AzureOpenAI
+from openai import AzureOpenAI, OpenAI
 from transformers import AutoTokenizer
 
 try:
@@ -32,7 +31,9 @@ with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=UserWarning)
     # Suppress Pydantic serialization warnings from LiteLLM
     warnings.filterwarnings("ignore", message=".*Pydantic serializer warnings.*")
-    warnings.filterwarnings("ignore", message=".*PydanticSerializationUnexpectedValue.*")
+    warnings.filterwarnings(
+        "ignore", message=".*PydanticSerializationUnexpectedValue.*"
+    )
     if "LITELLM_LOCAL_MODEL_COST_MAP" not in os.environ:
         os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
     import litellm
@@ -102,7 +103,7 @@ class LM:
 
         # Logging, with removed api key & where `cost` is None on cache hit.
         kwargs = {k: v for k, v in kwargs.items() if not k.startswith("api_")}
-        entry = dict(prompt=prompt, messages=messages, kwargs=kwargs, response=response)
+        entry = {"prompt": prompt, "messages": messages, "kwargs": kwargs, "response": response}
         entry = dict(**entry, outputs=outputs, usage=dict(response["usage"]))
         entry = dict(
             **entry, cost=response.get("_hidden_params", {}).get("response_cost")
@@ -120,7 +121,9 @@ def cached_litellm_completion(request):
     return litellm_completion(request, cache={"no-cache": False, "no-store": False})
 
 
-def litellm_completion(request, cache={"no-cache": True, "no-store": True}):
+def litellm_completion(request, cache=None):
+    if cache is None:
+        cache = {"no-cache": True, "no-store": True}
     kwargs = ujson.loads(request)
     return litellm.completion(cache=cache, **kwargs)
 
@@ -132,7 +135,9 @@ def cached_litellm_text_completion(request):
     )
 
 
-def litellm_text_completion(request, cache={"no-cache": True, "no-store": True}):
+def litellm_text_completion(request, cache=None):
+    if cache is None:
+        cache = {"no-cache": True, "no-store": True}
     kwargs = ujson.loads(request)
 
     # Extract the provider and model from the model string.
@@ -201,7 +206,7 @@ class LitellmModel(LM):
     def __init__(
         self,
         model: str = "openai/gpt-4.1-mini",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model_type: Literal["chat", "text"] = "chat",
         **kwargs,
     ):
@@ -250,7 +255,7 @@ class LitellmModel(LM):
         )
         # response is already a dict from litellm.completion(), no need to call .json()
         # Handle both dict responses (from litellm) and response objects (from other sources)
-        if hasattr(response, 'json') and callable(getattr(response, 'json')):
+        if hasattr(response, "json") and callable(response.json):
             try:
                 response_dict = response.json()
             except Exception:
@@ -267,9 +272,9 @@ class LitellmModel(LM):
 
         # Logging, with removed api key & where `cost` is None on cache hit.
         kwargs = {k: v for k, v in kwargs.items() if not k.startswith("api_")}
-        entry = dict(
-            prompt=prompt, messages=messages, kwargs=kwargs, response=response_dict
-        )
+        entry = {
+            "prompt": prompt, "messages": messages, "kwargs": kwargs, "response": response_dict
+        }
         entry = dict(**entry, outputs=outputs, usage=dict(response_dict["usage"]))
         entry = dict(
             **entry, cost=response.get("_hidden_params", {}).get("response_cost")
@@ -290,7 +295,7 @@ class OpenAIModel(dspy.OpenAI):
     def __init__(
         self,
         model: str = "gpt-4.1-mini",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         model_type: Literal["chat", "text"] = None,
         **kwargs,
     ):
@@ -379,7 +384,7 @@ class DeepSeekModel(dspy.OpenAI):
     def __init__(
         self,
         model: str = "deepseek-chat",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         api_base: str = "https://api.deepseek.com",
         **kwargs,
     ):
@@ -625,7 +630,7 @@ class GroqModel(dspy.OpenAI):
     def __init__(
         self,
         model: str = "llama3-70b-8192",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         api_base: str = "https://api.groq.com/openai/v1",
         **kwargs,
     ):
@@ -739,8 +744,8 @@ class ClaudeModel(dspy.dsp.modules.lm.LM):
     def __init__(
         self,
         model: str,
-        api_key: Optional[str] = None,
-        api_base: Optional[str] = None,
+        api_key: str | None = None,
+        api_base: str | None = None,
         **kwargs,
     ):
         super().__init__(model)
@@ -1039,7 +1044,7 @@ class TogetherClient(dspy.HFModel):
     def __init__(
         self,
         model,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         apply_tokenizer_chat_template=False,
         hf_tokenizer_name=None,
         model_type: Literal["chat", "text"] = "chat",
@@ -1188,7 +1193,7 @@ class GoogleModel(dspy.dsp.modules.lm.LM):
     def __init__(
         self,
         model: str,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         **kwargs,
     ):
         """You can use `genai.list_models()` to get a list of available models."""
@@ -1262,7 +1267,7 @@ class GoogleModel(dspy.dsp.modules.lm.LM):
         }
 
         # Google disallows "n" arguments.
-        n = kwargs.pop("n", None)
+        kwargs.pop("n", None)
 
         response = self.llm.generate_content(prompt, generation_config=kwargs)
 

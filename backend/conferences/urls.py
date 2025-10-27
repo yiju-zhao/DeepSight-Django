@@ -1,18 +1,19 @@
-from django.urls import path, include
+from django.urls import include, path
 from rest_framework.routers import DefaultRouter
+
 from . import views
 
 # Create router and register viewsets
 router = DefaultRouter(trailing_slash=True)
-router.register(r'venues', views.VenueViewSet, basename='venue')
-router.register(r'instances', views.InstanceViewSet, basename='instance')
-router.register(r'publications', views.PublicationViewSet, basename='publication')
-router.register(r'events', views.EventViewSet, basename='event')
-router.register(r'overview', views.OverviewViewSet, basename='overview')
+router.register(r"venues", views.VenueViewSet, basename="venue")
+router.register(r"instances", views.InstanceViewSet, basename="instance")
+router.register(r"publications", views.PublicationViewSet, basename="publication")
+router.register(r"events", views.EventViewSet, basename="event")
+router.register(r"overview", views.OverviewViewSet, basename="overview")
 
 # URL patterns
 urlpatterns = [
-    path('', include(router.urls)),
+    path("", include(router.urls)),
 ]
 
 # Available endpoints:

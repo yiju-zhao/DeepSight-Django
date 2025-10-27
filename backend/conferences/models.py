@@ -1,15 +1,18 @@
 import uuid
+
 from django.db import models
 from storages.backends.s3boto3 import S3Boto3Storage
+
 
 def publication_file_path(instance, filename):
     """
     e.g. publications/CVPR/2017/3303/3D_Bounding_Box_Estimation.pdf
     """
-    venue   = instance.instance.venue.name.replace(" ", "_")
-    year    = instance.instance.year
-    pid     = instance.id or "new"
+    venue = instance.instance.venue.name.replace(" ", "_")
+    year = instance.instance.year
+    pid = instance.id or "new"
     return f"publications/{venue}/{year}/{pid}/{filename}"
+
 
 class Venue(models.Model):
     name = models.CharField(max_length=255)
@@ -20,12 +23,12 @@ class Venue(models.Model):
         return self.name
 
     class Meta:
-        ordering = ['name']
+        ordering = ["name"]
 
 
 class Instance(models.Model):
     instance_id = models.AutoField(primary_key=True)
-    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name='instances')
+    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="instances")
     year = models.IntegerField()
     start_date = models.DateField()
     end_date = models.DateField()
@@ -37,17 +40,19 @@ class Instance(models.Model):
         return f"{self.venue.name} {self.year}"
 
     class Meta:
-        ordering = ['-year', 'venue__name']
+        ordering = ["-year", "venue__name"]
         indexes = [
-            models.Index(fields=['venue', 'year']),
-            models.Index(fields=['year']),
+            models.Index(fields=["venue", "year"]),
+            models.Index(fields=["year"]),
         ]
 
 
 class Publication(models.Model):
     # Primary key and relationships
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    instance = models.ForeignKey(Instance, on_delete=models.CASCADE, related_name='publications')
+    instance = models.ForeignKey(
+        Instance, on_delete=models.CASCADE, related_name="publications"
+    )
 
     # Core publication information
     title = models.CharField(max_length=255)
@@ -83,24 +88,25 @@ class Publication(models.Model):
         help_text="PDF file stored in MinIO",
     )
 
-
     def __str__(self):
         return self.title
 
     class Meta:
-        ordering = ['title']
+        ordering = ["title"]
         indexes = [
-            models.Index(fields=['instance']),
-            models.Index(fields=['instance', 'research_topic']),
-            models.Index(fields=['session']),
-            models.Index(fields=['rating']),
+            models.Index(fields=["instance"]),
+            models.Index(fields=["instance", "research_topic"]),
+            models.Index(fields=["session"]),
+            models.Index(fields=["rating"]),
         ]
 
 
 class Event(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session_id = models.IntegerField()
-    instance = models.ForeignKey(Instance, on_delete=models.CASCADE, related_name='events')
+    instance = models.ForeignKey(
+        Instance, on_delete=models.CASCADE, related_name="events"
+    )
     title = models.CharField(max_length=255)
     description = models.TextField()
     abstract = models.TextField()
@@ -112,4 +118,4 @@ class Event(models.Model):
         return self.title
 
     class Meta:
-        ordering = ['session_id', 'title']
+        ordering = ["session_id", "title"]

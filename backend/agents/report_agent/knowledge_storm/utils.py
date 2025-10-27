@@ -1,19 +1,17 @@
 import concurrent.futures
-import dspy
-import httpx
 import json
 import logging
 import os
 import pickle
 import re
-import regex
 import sys
-import toml
 import threading
-from typing import List, Dict
-from tqdm import tqdm
 
+import httpx
+import regex
+import toml
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from tqdm import tqdm
 from trafilatura import extract
 
 from .lm import LitellmModel
@@ -41,7 +39,7 @@ def truncate_filename(filename, max_length=125):
 
 def load_api_key(toml_file_path):
     try:
-        with open(toml_file_path, "r") as file:
+        with open(toml_file_path) as file:
             data = toml.load(file)
     except FileNotFoundError:
         print(f"File not found: {toml_file_path}", file=sys.stderr)
@@ -209,7 +207,7 @@ class QdrantVectorStoreManager:
             raise ValueError("Please provide a file path.")
         # check if the file is a csv file
         if not file_path.endswith(".csv"):
-            raise ValueError(f"Not valid file format. Please provide a csv file.")
+            raise ValueError("Not valid file format. Please provide a csv file.")
         if content_column is None:
             raise ValueError("Please provide the name of the content column.")
         if url_column is None:
@@ -445,7 +443,7 @@ class ArticleTextProcessing:
                 max_ref_num = max(
                     [int(x) for x in re.findall(r"\[(\d+)\]", turn.agent_utterance)]
                 )
-            except Exception as e:
+            except Exception:
                 max_ref_num = 0
             # Make sure search_results is not None before using len()
             if turn.search_results is not None and max_ref_num > len(
@@ -666,7 +664,7 @@ class FileIOHelper:
 
     @staticmethod
     def load_json(file_name, encoding="utf-8"):
-        with open(file_name, "r", encoding=encoding) as fr:
+        with open(file_name, encoding=encoding) as fr:
             return json.load(fr)
 
     @staticmethod
@@ -676,7 +674,7 @@ class FileIOHelper:
 
     @staticmethod
     def load_str(path):
-        with open(path, "r") as f:
+        with open(path) as f:
             return "\n".join(f.readlines())
 
     @staticmethod
@@ -741,7 +739,7 @@ class WebPageHelper:
             print(f"Error while requesting {exc.request.url!r} - {exc!r}")
             return None
 
-    def urls_to_articles(self, urls: List[str]) -> Dict:
+    def urls_to_articles(self, urls: list[str]) -> dict:
         with concurrent.futures.ThreadPoolExecutor(
             max_workers=self.max_thread_num
         ) as executor:
@@ -749,7 +747,7 @@ class WebPageHelper:
 
         articles = {}
 
-        for h, u in zip(htmls, urls):
+        for h, u in zip(htmls, urls, strict=False):
             if h is None:
                 continue
             article_text = extract(
@@ -763,7 +761,7 @@ class WebPageHelper:
 
         return articles
 
-    def urls_to_snippets(self, urls: List[str]) -> Dict:
+    def urls_to_snippets(self, urls: list[str]) -> dict:
         articles = self.urls_to_articles(urls)
         for u in articles:
             articles[u]["snippets"] = self.text_splitter.split_text(articles[u]["text"])
@@ -821,7 +819,7 @@ User input: {user_input}"""
                     )
             return "Sorry, the input is inappropriate. Please try another topic!"
 
-    except Exception as e:
+    except Exception:
         return "Sorry, the input is inappropriate. Please try another topic!"
     return "Approved"
 
@@ -848,7 +846,7 @@ def purpose_appropriateness_check(user_input):
         if response.startswith("No"):
             return "Please provide a more detailed explanation on your purpose of requesting this article."
 
-    except Exception as e:
+    except Exception:
         return "Please provide a more detailed explanation on your purpose of requesting this article."
     return "Approved"
 
@@ -884,7 +882,7 @@ class QueryLogger:
 
         # Clear existing log file if any
         try:
-            with open(self.log_path, "w", encoding="utf-8") as f:
+            with open(self.log_path, "w", encoding="utf-8"):
                 pass  # Just open and close to clear/create the file
         except Exception as e:
             logging.error(f"Failed to initialize QueryLogger: {e}")

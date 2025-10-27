@@ -1,9 +1,10 @@
 from rest_framework import serializers
+
 from .models import Podcast
 
 
 class PodcastSerializer(serializers.ModelSerializer):
-    job_id = serializers.UUIDField(source='id', read_only=True)
+    job_id = serializers.UUIDField(source="id", read_only=True)
     notebook_id = serializers.SerializerMethodField()
     audio_url = serializers.SerializerMethodField()
     id = serializers.UUIDField(read_only=True)
@@ -47,6 +48,7 @@ class PodcastSerializer(serializers.ModelSerializer):
 
 class NotebookPodcastCreateSerializer(serializers.Serializer):
     """Serializer for creating podcast jobs within a specific notebook context."""
+
     source_file_ids = serializers.ListField(
         child=serializers.CharField(),
         help_text="List of source file IDs from the notebook to generate podcast from",
@@ -70,6 +72,7 @@ class NotebookPodcastCreateSerializer(serializers.Serializer):
 
 class PodcastCreateSerializer(serializers.Serializer):
     """Canonical create serializer: accepts notebook id in payload."""
+
     notebook = serializers.UUIDField(help_text="Notebook ID associated with this job")
     source_file_ids = serializers.ListField(
         child=serializers.CharField(),
@@ -88,7 +91,7 @@ class PodcastCreateSerializer(serializers.Serializer):
     language = serializers.CharField(
         required=False,
         allow_blank=True,
-        default='en',
+        default="en",
         help_text="Language for the generated podcast (en or zh)",
     )
 
@@ -99,7 +102,7 @@ class PodcastCreateSerializer(serializers.Serializer):
 
 
 class PodcastListSerializer(serializers.ModelSerializer):
-    job_id = serializers.UUIDField(source='id', read_only=True)
+    job_id = serializers.UUIDField(source="id", read_only=True)
     notebook_id = serializers.SerializerMethodField()
     audio_url = serializers.SerializerMethodField()
     id = serializers.UUIDField(read_only=True)
@@ -119,7 +122,7 @@ class PodcastListSerializer(serializers.ModelSerializer):
             "error_message",
             "notebook_id",
         ]
-    
+
     def get_notebook_id(self, obj):
         return obj.notebook.pk if obj.notebook else None
 

@@ -3,12 +3,12 @@ Celery tasks for report generation.
 """
 
 import logging
-import re
-import time
-from typing import Dict, Any
+from typing import Any
+
 from celery import shared_task
-from .orchestrator import report_orchestrator
 from core.utils.sse import publish_notebook_event
+
+from .orchestrator import report_orchestrator
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,7 @@ def process_report_generation(self, report_id: int):
 
         # Update job status to running
         from .models import Report
+
         try:
             report = Report.objects.get(id=report_id)
         except Report.DoesNotExist:
@@ -35,9 +36,12 @@ def process_report_generation(self, report_id: int):
         # Check if task was revoked by Celery
         if self.request.called_directly is False:  # Only check if running in worker
             from celery.result import AsyncResult
+
             task_result = AsyncResult(self.request.id)
-            if task_result.state == 'REVOKED':
-                logger.info(f"Task {self.request.id} was revoked, aborting report generation")
+            if task_result.state == "REVOKED":
+                logger.info(
+                    f"Task {self.request.id} was revoked, aborting report generation"
+                )
                 return {"status": "revoked", "message": "Task was revoked"}
 
         # Mark as running (status only)
@@ -59,9 +63,11 @@ def process_report_generation(self, report_id: int):
         # Generate the report
         result = report_orchestrator.generate_report(report_id)
 
-        if result.get('success', False):
+        if result.get("success", False):
             # Update job with success
-            report_orchestrator.update_job_result(report_id, result, Report.STATUS_COMPLETED)
+            report_orchestrator.update_job_result(
+                report_id, result, Report.STATUS_COMPLETED
+            )
 
             # Publish SUCCESS event via SSE
             if report.notebooks:
@@ -73,14 +79,16 @@ def process_report_generation(self, report_id: int):
                     payload={
                         "article_title": report.article_title,
                         "pdf_object_key": result.get("pdf_object_key"),
-                    }
+                    },
                 )
 
-            logger.info(f"Successfully completed report generation for report {report_id}")
+            logger.info(
+                f"Successfully completed report generation for report {report_id}"
+            )
             return result
         else:
             # Handle generation failure
-            error_msg = result.get('error_message', 'Report generation failed')
+            error_msg = result.get("error_message", "Report generation failed")
             report_orchestrator.update_job_error(report_id, error_msg)
 
             # Publish FAILURE event via SSE
@@ -90,7 +98,7 @@ def process_report_generation(self, report_id: int):
                     entity="report",
                     entity_id=str(report.id),
                     status="FAILURE",
-                    payload={"error": error_msg}
+                    payload={"error": error_msg},
                 )
 
             raise Exception(error_msg)
@@ -101,6 +109,7 @@ def process_report_generation(self, report_id: int):
         # Update job with error
         try:
             from .models import Report
+
             report = Report.objects.get(id=report_id)
             report_orchestrator.update_job_error(str(report.id), str(e))
 
@@ -111,10 +120,12 @@ def process_report_generation(self, report_id: int):
                     entity="report",
                     entity_id=str(report.id),
                     status="FAILURE",
-                    payload={"error": str(e)}
+                    payload={"error": str(e)},
                 )
         except Report.DoesNotExist:
-            logger.error(f"Could not update error for report {report_id} - report not found")
+            logger.error(
+                f"Could not update error for report {report_id} - report not found"
+            )
 
         # Re-raise for Celery to handle
         raise
@@ -128,7 +139,7 @@ def cleanup_old_reports():
         report_orchestrator.cleanup_old_jobs()
         logger.info("Completed cleanup of old reports")
         return {"status": "success", "message": "Cleanup completed"}
-    
+
     except Exception as e:
         logger.error(f"Error during report cleanup: {e}")
         raise
@@ -141,16 +152,19 @@ def delete_report_and_cleanup(self, report_id: int):
         logger.info(f"Deleting report {report_id} and performing cleanup")
 
         from .models import Report
+
         report = Report.objects.get(id=report_id)
-        
 
         # Cleanup ReportImage records
         try:
             from .services.job import JobService
+
             job_service = JobService()
             job_service._cleanup_report_images_on_cancellation(report)
         except Exception as e:
-            logger.warning(f"Failed to cleanup ReportImage records for report {report_id}: {e}")
+            logger.warning(
+                f"Failed to cleanup ReportImage records for report {report_id}: {e}"
+            )
 
         # Additional cleanup operations can be added here
         # (file system cleanup, cache cleanup, etc.)
@@ -163,33 +177,36 @@ def delete_report_and_cleanup(self, report_id: int):
 
     except Report.DoesNotExist:
         logger.error(f"Report {report_id} not found for deletion")
-        return {"status": "failed", "report_id": report_id, "message": "Report not found"}
+        return {
+            "status": "failed",
+            "report_id": report_id,
+            "message": "Report not found",
+        }
     except Exception as e:
         logger.error(f"Error deleting report {report_id}: {e}")
         raise
 
 
 @shared_task
-def validate_report_configuration(config: Dict[str, Any]):
+def validate_report_configuration(config: dict[str, Any]):
     """Validate report configuration in background"""
     try:
         logger.info("Validating report configuration")
-        
+
         is_valid = report_orchestrator.validate_report_configuration(config)
         validation_results = report_orchestrator.validate_configuration_settings(config)
-        
+
         return {
             "is_valid": is_valid,
             "validation_results": validation_results,
-            "supported_options": report_orchestrator.get_supported_options()
+            "supported_options": report_orchestrator.get_supported_options(),
         }
-    
+
     except Exception as e:
         logger.error(f"Error validating report configuration: {e}")
         return {
             "is_valid": False,
             "error": str(e),
             "validation_results": {},
-            "supported_options": {}
+            "supported_options": {},
         }
-        

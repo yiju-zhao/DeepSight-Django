@@ -1,14 +1,17 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 
 class TestReportGenerationService(unittest.TestCase):
     def test_generate_report_flow(self):
-        with patch("reports.services.generation.Report") as ReportModel, \
-             patch("agents.report_agent.deep_report_generator.DeepReportGenerator") as Gen, \
-             patch("reports.services.generation.KnowledgeBaseInputProcessor") as IP, \
-             patch("reports.services.generation.StorageFactory") as SF:
-
+        with (
+            patch("reports.services.generation.Report") as ReportModel,
+            patch(
+                "agents.report_agent.deep_report_generator.DeepReportGenerator"
+            ) as Gen,
+            patch("reports.services.generation.KnowledgeBaseInputProcessor") as IP,
+            patch("reports.services.generation.StorageFactory") as SF,
+        ):
             fake_report = MagicMock()
             fake_report.include_image = False
             fake_report.selected_files_paths = []
@@ -39,9 +42,11 @@ class TestReportGenerationService(unittest.TestCase):
 
             from reports.services.generation import ReportGenerationService
 
-            with patch("reports.services.generation.get_model_provider_config") as gmp, \
-                 patch("reports.services.generation.get_retriever_config") as grc, \
-                 patch("reports.services.generation.get_free_retrievers") as gfr:
+            with (
+                patch("reports.services.generation.get_model_provider_config") as gmp,
+                patch("reports.services.generation.get_retriever_config") as grc,
+                patch("reports.services.generation.get_free_retrievers") as gfr,
+            ):
                 gmp.return_value = {"api_key": "test"}
                 grc.return_value = {"api_key": "test"}
                 gfr.return_value = []
@@ -53,23 +58,27 @@ class TestReportGenerationService(unittest.TestCase):
                 gen.generate_report.assert_called_once()
 
     def test_validate_and_supported_options_passthrough(self):
-        with patch("agents.report_agent.deep_report_generator.DeepReportGenerator") as Gen, \
-             patch("reports.services.generation.KnowledgeBaseInputProcessor"), \
-             patch("reports.services.generation.StorageFactory"):
-
+        with (
+            patch(
+                "agents.report_agent.deep_report_generator.DeepReportGenerator"
+            ) as Gen,
+            patch("reports.services.generation.KnowledgeBaseInputProcessor"),
+            patch("reports.services.generation.StorageFactory"),
+        ):
             gen = MagicMock()
             Gen.return_value = gen
 
             from reports.services.generation import ReportGenerationService
 
-            with patch("reports.services.generation.get_model_provider_config") as gmp, \
-                 patch("reports.services.generation.get_retriever_config") as grc, \
-                 patch("reports.services.generation.get_free_retrievers") as gfr, \
-                 patch("reports.services.generation.get_supported_providers") as gsp, \
-                 patch("reports.services.generation.get_supported_retrievers") as gsr, \
-                 patch("reports.services.generation.get_time_range_mapping") as gtrm, \
-                 patch("reports.services.generation.get_search_depth_options") as gsdo:
-
+            with (
+                patch("reports.services.generation.get_model_provider_config") as gmp,
+                patch("reports.services.generation.get_retriever_config") as grc,
+                patch("reports.services.generation.get_free_retrievers") as gfr,
+                patch("reports.services.generation.get_supported_providers") as gsp,
+                patch("reports.services.generation.get_supported_retrievers") as gsr,
+                patch("reports.services.generation.get_time_range_mapping") as gtrm,
+                patch("reports.services.generation.get_search_depth_options") as gsdo,
+            ):
                 gmp.return_value = {"api_key": "test"}
                 grc.return_value = {"api_key": "test"}
                 gfr.return_value = []
@@ -79,6 +88,8 @@ class TestReportGenerationService(unittest.TestCase):
                 gsdo.return_value = ["basic", "advanced"]
 
                 svc = ReportGenerationService()
-                self.assertTrue(svc.validate_report_config({"topic": "test", "output_dir": "/tmp"}))
+                self.assertTrue(
+                    svc.validate_report_config({"topic": "test", "output_dir": "/tmp"})
+                )
                 options = svc.get_supported_options()
                 self.assertIn("model_providers", options)

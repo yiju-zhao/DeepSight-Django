@@ -4,12 +4,11 @@ Real-time job monitoring for Deep Report Generator
 """
 
 import asyncio
-import httpx
-import json
-from datetime import datetime
-import sys
-
 import os
+import sys
+from datetime import datetime
+
+import httpx
 
 BASE_URL = (
     f"http://{os.getenv('HOST_IP', 'localhost')}:{os.getenv('BACKEND_PORT', '8000')}"

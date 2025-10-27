@@ -3,11 +3,12 @@ Prompts module for configurable prompt management.
 Supports both financial and general prompts.
 """
 
+from enum import Enum
 from pathlib import Path
 from typing import Union
-from enum import Enum
 
 import yaml
+
 
 class PromptType(str, Enum):
     FINANCIAL = "financial"
@@ -49,12 +50,13 @@ class PromptModule:
             # Preserve original constant naming convention used throughout the codebase
             setattr(self, f"{key}_docstring", value)
 
+
 # Global variable to store the current prompt configuration (deprecated)
 _current_prompt_type = PromptType.GENERAL
 _prompt_module_instance = None
 
 
-def configure_prompts(prompt_type: Union[PromptType, str] = PromptType.GENERAL):
+def configure_prompts(prompt_type: PromptType | str = PromptType.GENERAL):
     """Configure the global prompt type. (Thread-safe version)"""
     global _current_prompt_type, _prompt_module_instance
 
@@ -66,11 +68,13 @@ def configure_prompts(prompt_type: Union[PromptType, str] = PromptType.GENERAL):
     _prompt_module_instance = PromptModule(prompt_type)
 
 
-def create_prompt_module(prompt_type: Union[PromptType, str] = PromptType.GENERAL) -> PromptModule:
+def create_prompt_module(
+    prompt_type: PromptType | str = PromptType.GENERAL,
+) -> PromptModule:
     """Create and return a prompt module instance for the specified prompt type."""
     if isinstance(prompt_type, str):
         prompt_type = PromptType(prompt_type.lower())
-    
+
     return PromptModule(prompt_type)
 
 

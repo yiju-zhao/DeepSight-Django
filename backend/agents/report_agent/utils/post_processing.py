@@ -1,9 +1,8 @@
-import re
 import argparse
-import os
-from pathlib import Path
-from typing import List, Optional
 import logging
+import os
+import re
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +10,7 @@ logger = logging.getLogger(__name__)
 def remove_citations(content, post_processing=True):
     """
     Remove all citation markers in brackets except for pure numeric citations.
-    
+
     Keeps: [1], [11], [[1]], [2][5][19] (pure numeric citations)
     Removes: [transcript x], [paper x], [somewords], [somewords with numbers], [transcript x][00:00:00], etc.
 
@@ -38,19 +37,21 @@ def remove_citations(content, post_processing=True):
 
     # Process level-0 citations, e.g., [...]
     content = re.sub(r"\[([^\[\]]+)\]", replacer, content)
-    
+
     # Clean up any multiple spaces that resulted from removals
     content = re.sub(r"[ \t]+", " ", content)
-    
+
     # Clean up spaces at line boundaries (but preserve line breaks)
-    content = re.sub(r"^ +", "", content, flags=re.MULTILINE)  # spaces at start of lines
+    content = re.sub(
+        r"^ +", "", content, flags=re.MULTILINE
+    )  # spaces at start of lines
     content = re.sub(r" +$", "", content, flags=re.MULTILINE)  # spaces at end of lines
-    
+
     # Remove any empty lines that resulted from citations being on their own line
     # But be careful to preserve intentional double line breaks (paragraph breaks)
     # First normalize multiple newlines
     content = re.sub(r"\n{3,}", "\n\n", content)  # reduce 3+ newlines to 2
-    
+
     return content
 
 
@@ -98,31 +99,58 @@ def remove_figure_placeholders(content, remove_figure_placeholders=True):
         return content
 
     # UUID pattern: 8-4-4-4-12 hexadecimal characters
-    uuid_pattern = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-    
+    uuid_pattern = (
+        r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+    )
+
     # Targeted patterns that include surrounding whitespace/newlines for better cleanup
     patterns = [
         # UUID placeholders that are on their own line (with optional surrounding whitespace)
-        (rf"\n[ \t]*<\s*{uuid_pattern}\s*>[ \t]*\n", "\n"),  # \n<12f86924-df70-48a7-93e9-29f64855a4da>\n -> \n
+        (
+            rf"\n[ \t]*<\s*{uuid_pattern}\s*>[ \t]*\n",
+            "\n",
+        ),  # \n<12f86924-df70-48a7-93e9-29f64855a4da>\n -> \n
         # UUID placeholders at the start of content
-        (rf"^[ \t]*<\s*{uuid_pattern}\s*>[ \t]*\n", ""),  # ^<12f86924-df70-48a7-93e9-29f64855a4da>\n -> (empty)
+        (
+            rf"^[ \t]*<\s*{uuid_pattern}\s*>[ \t]*\n",
+            "",
+        ),  # ^<12f86924-df70-48a7-93e9-29f64855a4da>\n -> (empty)
         # UUID placeholders at the end of content
-        (rf"\n[ \t]*<\s*{uuid_pattern}\s*>[ \t]*$", ""),  # \n<12f86924-df70-48a7-93e9-29f64855a4da>$ -> (empty)
+        (
+            rf"\n[ \t]*<\s*{uuid_pattern}\s*>[ \t]*$",
+            "",
+        ),  # \n<12f86924-df70-48a7-93e9-29f64855a4da>$ -> (empty)
         # Any remaining inline UUID placeholders
-        (rf"<\s*{uuid_pattern}\s*>", ""),  # <12f86924-df70-48a7-93e9-29f64855a4da> -> (empty)
-        
+        (
+            rf"<\s*{uuid_pattern}\s*>",
+            "",
+        ),  # <12f86924-df70-48a7-93e9-29f64855a4da> -> (empty)
         # Bare UUID patterns (not in angle brackets)
         # UUID at the end of a sentence (preceded by space and followed by sentence end)
-        (rf"\s+{uuid_pattern}(?=\s*[.!?])", ""),  # " 33e61969-bec2-4d93-ac39-175f1c1490e1." -> "."
+        (
+            rf"\s+{uuid_pattern}(?=\s*[.!?])",
+            "",
+        ),  # " 33e61969-bec2-4d93-ac39-175f1c1490e1." -> "."
         # UUID on its own line
-        (rf"\n[ \t]*{uuid_pattern}[ \t]*\n", "\n"),  # \n33e61969-bec2-4d93-ac39-175f1c1490e1\n -> \n
+        (
+            rf"\n[ \t]*{uuid_pattern}[ \t]*\n",
+            "\n",
+        ),  # \n33e61969-bec2-4d93-ac39-175f1c1490e1\n -> \n
         # UUID at start of content
-        (rf"^[ \t]*{uuid_pattern}[ \t]*\n", ""),  # ^33e61969-bec2-4d93-ac39-175f1c1490e1\n -> (empty)
+        (
+            rf"^[ \t]*{uuid_pattern}[ \t]*\n",
+            "",
+        ),  # ^33e61969-bec2-4d93-ac39-175f1c1490e1\n -> (empty)
         # UUID at end of content
-        (rf"\n[ \t]*{uuid_pattern}[ \t]*$", ""),  # \n33e61969-bec2-4d93-ac39-175f1c1490e1$ -> (empty)
+        (
+            rf"\n[ \t]*{uuid_pattern}[ \t]*$",
+            "",
+        ),  # \n33e61969-bec2-4d93-ac39-175f1c1490e1$ -> (empty)
         # Any remaining inline bare UUIDs (with surrounding whitespace)
-        (rf"\s+{uuid_pattern}\s+", " "),  # " 33e61969-bec2-4d93-ac39-175f1c1490e1 " -> " "
-        
+        (
+            rf"\s+{uuid_pattern}\s+",
+            " ",
+        ),  # " 33e61969-bec2-4d93-ac39-175f1c1490e1 " -> " "
         # Figure placeholders that are on their own line (with optional surrounding whitespace)
         (r"\n[ \t]*<\s*[Ff]igure\s*\d+\s*[^>]*>[ \t]*\n", "\n"),  # \n<Figure 9>\n -> \n
         (r"\n[ \t]*<\s*图\s*\d+\s*[^>]*>[ \t]*\n", "\n"),  # \n<图 9>\n -> \n
@@ -187,7 +215,7 @@ def process_file(
         output_file = str(input_path.with_name(f"{stem}_processed{input_path.suffix}"))
 
     # Read the input file
-    with open(input_file, "r", encoding="utf-8") as f:
+    with open(input_file, encoding="utf-8") as f:
         content = f.read()
 
     # Process the content
@@ -242,8 +270,6 @@ def main():
         return 1
 
     return 0
-
-
 
 
 if __name__ == "__main__":

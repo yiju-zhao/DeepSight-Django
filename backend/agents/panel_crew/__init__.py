@@ -2,4 +2,4 @@
 
 from .crew import PanelCrewCollaboration
 
-__all__ = ['PanelCrewCollaboration']
+__all__ = ["PanelCrewCollaboration"]

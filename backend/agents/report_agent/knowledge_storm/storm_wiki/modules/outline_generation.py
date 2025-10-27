@@ -1,24 +1,22 @@
-import re
-import os
 import json
 import logging
-from typing import Union, Optional, Tuple
+import os
+import re
 
 import dspy
-
-from .callback import BaseCallbackHandler
-from .storm_dataclass import StormInformationTable, StormArticle
-from ...interface import OutlineGenerationModule
-from ...utils import ArticleTextProcessing
 from prompts import import_prompts
 
+from ...interface import OutlineGenerationModule
+from ...utils import ArticleTextProcessing
+from .callback import BaseCallbackHandler
 from .outline_rater import OutlineRater
+from .storm_dataclass import StormArticle, StormInformationTable
 
 logger = logging.getLogger(__name__)
 
 
 class StormOutlineGenerationModule(OutlineGenerationModule):
-    def __init__(self, outline_gen_lm: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def __init__(self, outline_gen_lm: dspy.dsp.LM | dspy.dsp.HFModel):
         super().__init__()
         self.outline_gen_lm = outline_gen_lm
         self.write_outline = WriteOutline(engine=self.outline_gen_lm)
@@ -27,12 +25,12 @@ class StormOutlineGenerationModule(OutlineGenerationModule):
         self,
         text_input: str,
         information_table: StormInformationTable,
-        old_outline: Optional[StormArticle] = None,
+        old_outline: StormArticle | None = None,
         callback_handler: BaseCallbackHandler = None,
         return_draft_outline=False,
-        topic: Optional[str] = None,
-        output_dir: Optional[str] = None,
-    ) -> Union[StormArticle, Tuple[StormArticle, StormArticle]]:
+        topic: str | None = None,
+        output_dir: str | None = None,
+    ) -> StormArticle | tuple[StormArticle, StormArticle]:
         if callback_handler is not None:
             callback_handler.on_information_organization_start()
         concatenated_dialogue_turns = sum(
@@ -73,7 +71,7 @@ class StormOutlineGenerationModule(OutlineGenerationModule):
 
 
 class WriteOutline(dspy.Module):
-    def __init__(self, engine: Union[dspy.dsp.LM, dspy.dsp.HFModel]):
+    def __init__(self, engine: dspy.dsp.LM | dspy.dsp.HFModel):
         super().__init__()
         self.draft_page_outline = dspy.Predict(WritePageOutline)
         self.write_page_outline = dspy.Predict(WritePageOutlineFromConv)
@@ -123,10 +121,10 @@ class WriteOutline(dspy.Module):
         self,
         text_input: str,
         dlg_history,
-        old_outline: Optional[str] = None,
+        old_outline: str | None = None,
         callback_handler: BaseCallbackHandler = None,
-        topic: Optional[str] = None,
-        output_dir: Optional[str] = None,
+        topic: str | None = None,
+        output_dir: str | None = None,
     ):
         trimmed_dlg_history = [
             turn
@@ -179,7 +177,7 @@ class WriteOutline(dspy.Module):
                         if os.path.exists(outline_score_path):
                             try:
                                 with open(
-                                    outline_score_path, "r", encoding="utf-8"
+                                    outline_score_path, encoding="utf-8"
                                 ) as f:
                                     outline_score_json = json.dumps(
                                         json.load(f), indent=2

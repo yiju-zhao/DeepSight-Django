@@ -1,26 +1,27 @@
-import os
 import argparse
 import json
-import time
 import logging
+import os
 import re
-from typing import Dict, Any, List, Optional
-from openai import OpenAI, AzureOpenAI
+import time
+from typing import Any
+
+from openai import AzureOpenAI, OpenAI
 
 logger = logging.getLogger(__name__)
 
 
-def read_file_content(file_path: str) -> Optional[str]:
+def read_file_content(file_path: str) -> str | None:
     """Read content from a file."""
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             return f.read()
     except Exception as e:
         logger.error(f"Error reading file {file_path}: {e}")
         return None
 
 
-def parse_outline_sections(outline_text: str) -> Dict[str, str]:
+def parse_outline_sections(outline_text: str) -> dict[str, str]:
     """
     Parse an outline text and extract each L1 section with all its content.
 
@@ -92,7 +93,7 @@ def parse_outline_sections(outline_text: str) -> Dict[str, str]:
     return l1_sections
 
 
-def extract_l2_headings(section_content: str) -> List[str]:
+def extract_l2_headings(section_content: str) -> list[str]:
     """
     Extract L2 headings from a section content.
 
@@ -109,7 +110,7 @@ def extract_l2_headings(section_content: str) -> List[str]:
     return l2_headings
 
 
-def parse_outline_l2_sections(l1_section_content: str) -> Dict[str, str]:
+def parse_outline_l2_sections(l1_section_content: str) -> dict[str, str]:
     """
     Parse an L1 section content and extract each L2 subsection with all its content.
 
@@ -159,9 +160,9 @@ def parse_outline_l2_sections(l1_section_content: str) -> Dict[str, str]:
 def rate_outline(
     client,
     old_outline: str,
-    conv_history: Optional[str] = None,
-    text_input: Optional[str] = None,
-) -> Dict[str, Any]:
+    conv_history: str | None = None,
+    text_input: str | None = None,
+) -> dict[str, Any]:
     """
     Rate an outline using OpenAI API with JSON mode.
     Returns a dictionary with L1 headings as keys, containing scores and justifications.
@@ -192,7 +193,7 @@ def rate_outline(
         context_section = context_section + "\n\n" if context_section else ""
 
         prompt = f"""
-        You are an expert evaluator tasked with assessing the importance and potential impact of technical outlines. Your goal is to provide a detailed, structured evaluation based on specific criteria. 
+        You are an expert evaluator tasked with assessing the importance and potential impact of technical outlines. Your goal is to provide a detailed, structured evaluation based on specific criteria.
 
         CRITICAL INSTRUCTION: You must use the EXACT Level 1 headings (marked with single #) from the provided outline. DO NOT modify, abbreviate, or create new headings. You must copy them character-for-character exactly as they appear in the outline.
 
@@ -241,7 +242,7 @@ def rate_outline(
         <outline_to_rate>
         {old_outline}
         </outline_to_rate>
-        
+
         Remember: Use EXACT headings from the outline. Do not modify, shorten, or create new headings.
         """
 
@@ -295,9 +296,9 @@ def rate_l2_headings(
     client,
     l1_section: str,
     l1_heading: str,
-    conv_history: Optional[str] = None,
-    text_input: Optional[str] = None,
-) -> Dict[str, Any]:
+    conv_history: str | None = None,
+    text_input: str | None = None,
+) -> dict[str, Any]:
     """
     Rate L2 headings within a specific L1 section using OpenAI API with JSON mode.
 
@@ -337,15 +338,15 @@ def rate_l2_headings(
             return {}
 
         prompt = f"""
-        You are an expert evaluator tasked with assessing the importance and potential impact of technical outline sections. 
-        
+        You are an expert evaluator tasked with assessing the importance and potential impact of technical outline sections.
+
         CRITICAL INSTRUCTION: You must use the EXACT L2 headings (marked with ##) from the provided L1 section. DO NOT modify, abbreviate, or create new headings. You must copy them character-for-character exactly as they appear.
-        
+
         You are evaluating L2 headings within this L1 section: "{l1_heading}"
-        
+
         EXACT L2 headings to evaluate:
         {l2_headings_list}
-        
+
         Evaluation Dimensions & Weights:
 
         1. Novelty & Originality (Overall Weight: 20%)
@@ -389,7 +390,7 @@ def rate_l2_headings(
         <l1_section_to_rate>
         {l1_section}
         </l1_section_to_rate>
-        
+
         Remember: Use EXACT L2 headings from the section. Do not modify, shorten, or create new headings.
         """
         max_retries = 3
@@ -442,9 +443,9 @@ def rate_l2_headings(
 
 def reassemble_outline(
     original_outline: str,
-    l1_ratings: Dict[str, Any],
-    l2_ratings_by_l1: Dict[str, Dict[str, Any]] = None,
-    heading_mapping: Dict[str, str] = None,
+    l1_ratings: dict[str, Any],
+    l2_ratings_by_l1: dict[str, dict[str, Any]] = None,
+    heading_mapping: dict[str, str] = None,
 ) -> str:
     """
     Reassemble the outline based on L1 and L2 ratings, reordering headings by their scores.
@@ -602,7 +603,7 @@ def reassemble_outline(
 class OutlineRater:
     """Class to handle outline rating functionality."""
 
-    def __init__(self, client=None, output_dir: Optional[str] = None):
+    def __init__(self, client=None, output_dir: str | None = None):
         self.client = client or self._configure_openai_client()
         self.output_dir = output_dir
 
@@ -641,8 +642,8 @@ class OutlineRater:
     def rate_and_reassemble_outline(
         self,
         outline: str,
-        conv_history: Optional[str] = None,
-        text_input: Optional[str] = None,
+        conv_history: str | None = None,
+        text_input: str | None = None,
     ) -> str:
         """
         Rate and reassemble an outline based on ratings.
@@ -662,9 +663,7 @@ class OutlineRater:
         try:
             # First rate L1 headings
             logger.info("Starting L1 headings rating...")
-            l1_ratings = rate_outline(
-                self.client, outline, conv_history, text_input
-            )
+            l1_ratings = rate_outline(self.client, outline, conv_history, text_input)
             if "error" in l1_ratings:
                 logger.error(f"Error rating L1 headings: {l1_ratings['error']}")
                 return outline
@@ -881,11 +880,7 @@ def main():
             all_l1_ratings = {}
             for l1_heading, section_content in l1_sections.items():
                 l2_ratings = rate_l2_headings(
-                    rater.client,
-                    section_content,
-                    l1_heading,
-                    conv_history,
-                    text_input
+                    rater.client, section_content, l1_heading, conv_history, text_input
                 )
                 all_l1_ratings[l1_heading] = l2_ratings
                 time.sleep(1)  # Small delay between API calls
@@ -920,7 +915,7 @@ def main():
                 section_content,
                 matching_heading,
                 conv_history,
-                text_input
+                text_input,
             )
 
     elif args.stage == "reassemble":

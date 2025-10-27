@@ -15,10 +15,10 @@ API Structure:
 """
 
 from django.contrib import admin
-from django.urls import path, include
-from rest_framework import permissions
-from drf_yasg.views import get_schema_view
+from django.urls import include, path
 from drf_yasg import openapi
+from drf_yasg.views import get_schema_view
+from rest_framework import permissions
 
 # Create the schema view for API documentation
 schema_view = get_schema_view(
@@ -37,43 +37,30 @@ urlpatterns = [
     # Admin Interface
     # ========================================
     path("admin/", admin.site.urls),
-    
     # ========================================
     # API v1 Endpoints (App-Specific)
     # ========================================
-    
     # User management
     path("api/v1/users/", include("users.urls")),
-    
     # Notebook operations (core functionality)
     path("api/v1/", include("notebooks.urls")),  # Handles notebooks/* patterns
-    
     # Podcast generation and management
     path("api/v1/podcasts/", include("podcast.urls")),
-    
     # Report generation and management
     path("api/v1/reports/", include("reports.urls")),
-
     # Conference data and analytics
     path("api/v1/conferences/", include("conferences.urls")),
-    
     # ========================================
     # API Documentation
     # ========================================
-    
     # Swagger UI (interactive API explorer)
     path(
         "swagger/",
         schema_view.with_ui("swagger", cache_timeout=0),
         name="schema-swagger-ui",
     ),
-    
     # ReDoc UI (alternative documentation format)
-    path(
-        "redoc/", 
-        schema_view.with_ui("redoc", cache_timeout=0), 
-        name="schema-redoc"
-    ),
+    path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
 ]
 
 # ========================================

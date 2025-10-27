@@ -1,10 +1,12 @@
 # reports/models.py
 import uuid
-from django.db import models
+
 from django.conf import settings
+from django.db import models
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
-from .managers import ReportManager, ReportImageManager
+
+from .managers import ReportImageManager, ReportManager
 
 
 class Report(models.Model):
@@ -195,19 +197,18 @@ class Report(models.Model):
 
     # MinIO-native storage (replaces Django FileField)
     main_report_object_key = models.CharField(
-        max_length=255, 
-        blank=True, 
-        null=True, 
+        max_length=255,
+        blank=True,
+        null=True,
         db_index=True,
-        help_text="MinIO object key for main report file"
+        help_text="MinIO object key for main report file",
     )
-    
+
     # All file metadata stored in JSON (replaces multiple file fields)
     file_metadata = models.JSONField(
-        default=dict, 
-        help_text="All file paths, names, sizes, etc."
+        default=dict, help_text="All file paths, names, sizes, etc."
     )
-    
+
     generated_files = models.JSONField(
         default=list, blank=True, help_text="List of generated file object keys"
     )
@@ -235,18 +236,18 @@ class Report(models.Model):
 
     def __str__(self):
         return f"Report: {self.article_title} ({self.status})"
-    
+
     def get_report_url(self, expires=86400):
         """Get pre-signed URL for report access"""
         if self.main_report_object_key:
             try:
                 from notebooks.utils.storage import get_minio_backend
+
                 backend = get_minio_backend()
                 return backend.get_presigned_url(self.main_report_object_key, expires)
             except Exception:
                 return None
         return None
-    
 
     def get_configuration_dict(self):
         """Return configuration as a dictionary for passing to the report generator."""
@@ -296,49 +297,49 @@ class ReportImage(models.Model):
     Store image metadata for report items, similar to KnowledgeBaseImage but for reports.
     Each image is linked to a report and stored in the report's MinIO folder.
     """
-    
+
     # Use standard auto-generated id as primary key to match database
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    
+
     # Separate figure_id field (not primary key)
-    figure_id = models.UUIDField(default=uuid.uuid4, editable=False, help_text="Unique figure identifier from knowledge base")
-    
+    figure_id = models.UUIDField(
+        default=uuid.uuid4,
+        editable=False,
+        help_text="Unique figure identifier from knowledge base",
+    )
+
     # Link to report instead of knowledge_base_item
     report = models.ForeignKey(
         Report,
         on_delete=models.CASCADE,
         related_name="images",
-        help_text="Report this image belongs to"
+        help_text="Report this image belongs to",
     )
-    
+
     # Image identification and metadata (copied from KnowledgeBaseImage)
     image_caption = models.TextField(
-        blank=True,
-        help_text="Description or caption for the image"
+        blank=True, help_text="Description or caption for the image"
     )
-    
+
     # MinIO storage fields - use correct field name from database
     report_figure_minio_object_key = models.CharField(
         max_length=255,
         db_index=True,
-        help_text="MinIO object key for the image file in report folder"
+        help_text="MinIO object key for the image file in report folder",
     )
-    
+
     # Image metadata and properties
     image_metadata = models.JSONField(
         default=dict,
-        help_text="Image metadata including dimensions, format, size, etc."
+        help_text="Image metadata including dimensions, format, size, etc.",
     )
     content_type = models.CharField(
         max_length=100,
         blank=True,
-        help_text="MIME type of the image (image/png, image/jpeg, etc.)"
+        help_text="MIME type of the image (image/png, image/jpeg, etc.)",
     )
-    file_size = models.PositiveIntegerField(
-        default=0,
-        help_text="File size in bytes"
-    )
-    
+    file_size = models.PositiveIntegerField(default=0, help_text="File size in bytes")
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -354,26 +355,30 @@ class ReportImage(models.Model):
             models.Index(fields=["report", "created_at"]),
             models.Index(fields=["report_figure_minio_object_key"]),
         ]
-    
+
     def __str__(self):
         return f"Image {self.figure_id} for Report {self.report.article_title}"
-    
+
     def get_image_url(self, expires=86400):
         """Get pre-signed URL for image access"""
         if self.report_figure_minio_object_key:
             try:
                 from notebooks.utils.storage import get_minio_backend
+
                 backend = get_minio_backend()
-                return backend.get_presigned_url(self.report_figure_minio_object_key, expires)
+                return backend.get_presigned_url(
+                    self.report_figure_minio_object_key, expires
+                )
             except Exception:
                 return None
         return None
-    
+
     def get_image_content(self):
         """Get image content as bytes from MinIO"""
         if self.report_figure_minio_object_key:
             try:
                 from notebooks.utils.storage import get_minio_backend
+
                 backend = get_minio_backend()
                 return backend.get_file(self.report_figure_minio_object_key)
             except Exception:
@@ -387,9 +392,11 @@ def cleanup_report_images(sender, instance, **kwargs):
     """Clean up associated images when a report is deleted"""
     try:
         from reports.services.image import ImageService
+
         image_service = ImageService()
         image_service.cleanup_report_images(instance)
     except Exception as e:
         import logging
+
         logger = logging.getLogger(__name__)
         logger.error(f"Error cleaning up images for report {instance.id}: {e}")
