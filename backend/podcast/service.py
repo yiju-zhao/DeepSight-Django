@@ -217,9 +217,7 @@ class PodcastService:
             # Prepare metadata from conversation
             metadata = {
                 "total_turns": len(conversation_turns),
-                "participants": list(
-                    {turn["speaker"] for turn in conversation_turns}
-                ),
+                "participants": list({turn["speaker"] for turn in conversation_turns}),
                 "generated_at": timezone.now().isoformat(),
             }
 

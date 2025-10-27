@@ -402,7 +402,8 @@ class EnhancedStormInformationTable(StormInformationTable):
         """
         # Create URL-to-score mappings
         vector_url_to_score = {
-            hit.url: score for hit, score in zip(vector_hits, vector_scores, strict=False)
+            hit.url: score
+            for hit, score in zip(vector_hits, vector_scores, strict=False)
         }
         bm25_url_to_score = {
             hit.url: score for hit, score in zip(bm25_hits, bm25_scores, strict=False)

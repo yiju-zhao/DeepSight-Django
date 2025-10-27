@@ -56,7 +56,9 @@ def filter_queries(raw_output):
     prefix_pattern = re.compile(r"^\s*rewritten\s+queries:\s*", re.IGNORECASE)
     actual_queries = []
 
-    for _i, (orig_line, lower_line) in enumerate(zip(original_lines, lowercase_lines, strict=False)):
+    for _i, (orig_line, lower_line) in enumerate(
+        zip(original_lines, lowercase_lines, strict=False)
+    ):
         # Strip whitespace but keep for later to preserve indentation
         orig_stripped = orig_line.strip()
         lower_stripped = lower_line.strip()

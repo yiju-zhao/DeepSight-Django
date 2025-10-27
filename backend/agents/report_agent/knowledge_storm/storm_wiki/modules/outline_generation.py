@@ -176,9 +176,7 @@ class WriteOutline(dspy.Module):
                         )
                         if os.path.exists(outline_score_path):
                             try:
-                                with open(
-                                    outline_score_path, encoding="utf-8"
-                                ) as f:
+                                with open(outline_score_path, encoding="utf-8") as f:
                                     outline_score_json = json.dumps(
                                         json.load(f), indent=2
                                     )

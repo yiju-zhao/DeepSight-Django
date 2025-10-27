@@ -344,9 +344,7 @@ class HiggsTTSSession:
             self.client = None
             self.model = None
 
-    def smart_voice(
-        self, text: str, system_prompt: str | None = None
-    ) -> bytes | None:
+    def smart_voice(self, text: str, system_prompt: str | None = None) -> bytes | None:
         if not self.client or not self.model:
             return None
         DEFAULT_SYSTEM_PROMPT = (

@@ -103,7 +103,12 @@ class LM:
 
         # Logging, with removed api key & where `cost` is None on cache hit.
         kwargs = {k: v for k, v in kwargs.items() if not k.startswith("api_")}
-        entry = {"prompt": prompt, "messages": messages, "kwargs": kwargs, "response": response}
+        entry = {
+            "prompt": prompt,
+            "messages": messages,
+            "kwargs": kwargs,
+            "response": response,
+        }
         entry = dict(**entry, outputs=outputs, usage=dict(response["usage"]))
         entry = dict(
             **entry, cost=response.get("_hidden_params", {}).get("response_cost")
@@ -273,7 +278,10 @@ class LitellmModel(LM):
         # Logging, with removed api key & where `cost` is None on cache hit.
         kwargs = {k: v for k, v in kwargs.items() if not k.startswith("api_")}
         entry = {
-            "prompt": prompt, "messages": messages, "kwargs": kwargs, "response": response_dict
+            "prompt": prompt,
+            "messages": messages,
+            "kwargs": kwargs,
+            "response": response_dict,
         }
         entry = dict(**entry, outputs=outputs, usage=dict(response_dict["usage"]))
         entry = dict(

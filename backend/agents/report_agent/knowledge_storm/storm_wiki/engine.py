@@ -274,9 +274,7 @@ class STORMWikiRunnerArguments:
     article_title: str = field(metadata={"help": "Title of the article."})
 
     # Optional fields with default values
-    topic: str | None = field(
-        default=None, metadata={"help": "Topic of the article."}
-    )
+    topic: str | None = field(default=None, metadata={"help": "Topic of the article."})
     text_input: str | None = field(
         default=None, metadata={"help": "Text input content."}
     )

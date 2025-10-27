@@ -418,9 +418,7 @@ class Command(BaseCommand):
 
     def _cleanup_old_backups(self, backup_dir: Path, retention_days: int):
         """Clean up old backup files."""
-        cutoff_time = datetime.now(UTC).timestamp() - (
-            retention_days * 24 * 3600
-        )
+        cutoff_time = datetime.now(UTC).timestamp() - (retention_days * 24 * 3600)
 
         deleted_count = 0
         for backup_path in backup_dir.glob("*_backup_*"):

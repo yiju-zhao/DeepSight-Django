@@ -208,9 +208,7 @@ class IOManager:
             )
 
         # Set article directory name (but don't create subfolder - use output_dir directly)
-        truncate_filename(
-            article_title.replace(" ", "_").replace("/", "_")
-        )
+        truncate_filename(article_title.replace(" ", "_").replace("/", "_"))
 
         # Use output directory directly without creating subfolder
         article_output_dir = config.output_dir
@@ -268,9 +266,7 @@ class IOManager:
             self.logger.error(f"Error processing final report content: {e}")
             return None
 
-    def create_report_file(
-        self, config, output_dir: str, content: str
-    ) -> str | None:
+    def create_report_file(self, config, output_dir: str, content: str) -> str | None:
         """Create the final report file and return its path."""
         if not content or not config.report_id:
             return None

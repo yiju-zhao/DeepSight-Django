@@ -2,7 +2,6 @@
 Django management command to test MinIO storage integration.
 """
 
-
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
