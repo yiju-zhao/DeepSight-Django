@@ -107,18 +107,6 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               )}
             </Button>
           </motion.div>
-
-          {/* Helper Text */}
-          {hasFiles && !isCreating && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="text-sm text-gray-400 mt-6"
-            >
-              Press the button above to begin your first chat session
-            </motion.p>
-          )}
         </motion.div>
       </div>
     </div>

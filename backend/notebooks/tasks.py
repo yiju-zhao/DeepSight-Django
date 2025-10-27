@@ -989,8 +989,7 @@ def test_caption_generation_task(kb_item_id: str):
 @shared_task(bind=True, acks_late=False, reject_on_worker_lost=False)
 def check_ragflow_status_task(self, kb_item_id: str):
     """
-    Poll RagFlow document processing status until completion.
-    Simple polling: keep checking every 15s until status changes to a terminal state.
+    Poll RagFlow document processing status using linear polling with a finite timeout.
 
     Args:
         kb_item_id: ID of the KnowledgeBaseItem to check
@@ -998,69 +997,71 @@ def check_ragflow_status_task(self, kb_item_id: str):
     Returns:
         dict: Status check result
     """
+    # Define linear polling policy
+    POLLING_INTERVAL = 15  # seconds
+    MAX_POLLING_RETRIES = 120  # Results in a 10-minute timeout (40 * 15s)
+
     try:
-        # Get the KB item
         kb_item = KnowledgeBaseItem.objects.select_related('notebook').get(id=kb_item_id)
 
-        if not kb_item.ragflow_document_id:
-            logger.warning(f"KB item {kb_item_id} has no RagFlow document ID")
-            return {"success": False, "error": "No RagFlow document ID"}
-
-        if not kb_item.notebook.ragflow_dataset_id:
-            logger.warning(f"KB item {kb_item_id} has no dataset ID")
-            return {"success": False, "error": "No RagFlow dataset ID"}
+        if not kb_item.ragflow_document_id or not kb_item.notebook.ragflow_dataset_id:
+            logger.warning(f"KB item {kb_item_id} is missing RagFlow document/dataset ID. Aborting task.")
+            return {"success": False, "error": "Missing RagFlow document or dataset ID"}
 
         from infrastructure.ragflow.client import get_ragflow_client
         ragflow_client = get_ragflow_client()
 
-        # Get document status from RagFlow
         doc_status = ragflow_client.get_document_status(
             dataset_id=kb_item.notebook.ragflow_dataset_id,
             document_id=kb_item.ragflow_document_id
         )
 
-        if not doc_status:
-            # No status available, poll again in 30s
-            logger.info(f"No status available yet for KB item {kb_item_id}, polling again in 30s")
-            raise self.retry(countdown=30, max_retries=None)
-
-        # Parse the status from RagFlow
-        ragflow_status = doc_status.get('status', 'unknown').upper()
+        ragflow_status = doc_status.get('status', 'unknown').upper() if doc_status else 'UNKNOWN'
         logger.info(f"RagFlow document {kb_item.ragflow_document_id} status: {ragflow_status}")
 
-        # Check for terminal states (DONE, FAIL, CANCEL)
         if ragflow_status == 'DONE':
             kb_item.mark_ragflow_completed(kb_item.ragflow_document_id)
-            logger.info(f"KB item {kb_item_id} RagFlow processing completed")
+            logger.info(f"KB item {kb_item_id} RagFlow processing completed successfully.")
             return {"success": True, "status": "completed"}
 
-        elif ragflow_status == 'FAIL':
-            kb_item.mark_ragflow_failed("RagFlow processing failed")
-            logger.error(f"KB item {kb_item_id} RagFlow processing failed")
-            return {"success": False, "status": "failed"}
+        if ragflow_status in ['FAIL', 'CANCEL']:
+            error_message = f"RagFlow processing ended with status: {ragflow_status}"
+            kb_item.mark_ragflow_failed(error_message)
+            logger.error(f"KB item {kb_item_id}: {error_message}")
+            return {"success": False, "status": ragflow_status.lower()}
 
-        elif ragflow_status == 'CANCEL':
-            kb_item.mark_ragflow_failed("RagFlow processing was cancelled")
-            logger.warning(f"KB item {kb_item_id} RagFlow processing was cancelled")
-            return {"success": False, "status": "cancelled"}
+        # Still processing, retry with a fixed interval.
+        logger.info(
+            f"RagFlow still processing (status: {ragflow_status}). "
+            f"Retrying in {POLLING_INTERVAL}s... "
+            f"(Attempt {self.request.retries + 1}/{MAX_POLLING_RETRIES})"
+        )
+        self.retry(countdown=POLLING_INTERVAL, max_retries=MAX_POLLING_RETRIES)
 
-        # Still processing (RUNNING, UNSTART, or unknown), poll again
-        logger.info(f"RagFlow still processing (status: {ragflow_status}), polling again in 30s")
-        raise self.retry(countdown=30, max_retries=None)
+    except self.MaxRetriesExceededError:
+        error_msg = f"Polling timed out after {MAX_POLLING_RETRIES} retries (10 minutes). RagFlow processing took too long."
+        logger.error(f"KB item {kb_item_id}: {error_msg}")
+        try:
+            # Final attempt to get the item and mark it as failed.
+            kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
+            kb_item.mark_ragflow_failed(error_msg)
+        except KnowledgeBaseItem.DoesNotExist:
+            logger.error(f"KB item {kb_item_id} not found when trying to mark as failed after max retries.")
 
     except KnowledgeBaseItem.DoesNotExist:
-        error_msg = f"KB item {kb_item_id} not found"
-        logger.error(error_msg)
-        return {"success": False, "error": error_msg}
+        logger.error(f"KB item {kb_item_id} not found during status check. Task will not be retried.")
 
     except Retry:
-        # Re-raise Retry exceptions without catching them
+        # Re-raise the Retry exception for Celery to handle.
         raise
 
     except Exception as e:
-        # On error, poll again in 30s
-        logger.warning(f"Error checking RagFlow status for KB item {kb_item_id}: {e}, polling again in 30s")
-        raise self.retry(countdown=30, max_retries=5)
+        # For other errors (e.g., network), retry using the same linear policy.
+        logger.warning(
+            f"Unexpected error checking RagFlow status for KB item {kb_item_id}: {e}. "
+            f"Retrying... (Attempt {self.request.retries + 1}/{MAX_POLLING_RETRIES})"
+        )
+        self.retry(countdown=POLLING_INTERVAL, max_retries=MAX_POLLING_RETRIES, exc=e)
 
 
 @shared_task
