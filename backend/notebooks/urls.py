@@ -18,7 +18,6 @@ from .views import (
     KnowledgeBaseViewSet,
     NotebookJobsSSEView,
     NotebookViewSet,
-    SessionAgentInfoView,
     SessionChatViewSet,
 )
 
@@ -54,11 +53,5 @@ urlpatterns = [
         "notebooks/<uuid:notebook_id>/jobs/stream/",
         NotebookJobsSSEView.as_view(),
         name="notebook-jobs-stream",
-    ),
-    # Custom endpoints
-    path(
-        "notebooks/<uuid:notebook_pk>/chat/agent/",
-        SessionAgentInfoView.as_view(),
-        name="session-agent-info",
     ),
 ]
