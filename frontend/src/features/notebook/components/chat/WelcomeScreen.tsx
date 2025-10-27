@@ -11,8 +11,8 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   hasFiles = false,
 }) => {
   return (
-    <div className="h-full flex items-center justify-center bg-gradient-to-br from-gray-50 to-white">
-      <div className="max-w-lg w-full px-8 py-12">
+    <div className="h-full flex items-center justify-center bg-white">
+      <div className="max-w-xl w-full px-8 py-12">
         {/* Main Content */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -20,14 +20,21 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          {/* Icon */}
+          {/* Icon - Minimalist design */}
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
+            initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="w-20 h-20 bg-gradient-to-br from-red-100 via-rose-100 to-pink-100 rounded-3xl mx-auto mb-8 flex items-center justify-center shadow-lg"
+            className="inline-flex items-center justify-center mb-8"
           >
-            <MessageCircle className="h-10 w-10 text-red-600" />
+            <div className="relative">
+              <div className="w-24 h-24 bg-white border-2 border-gray-200 rounded-2xl flex items-center justify-center">
+                <MessageCircle className="h-12 w-12 text-red-600" strokeWidth={1.5} />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full" />
+              </div>
+            </div>
           </motion.div>
 
           {/* Title */}
@@ -35,10 +42,20 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-3xl font-bold text-gray-900 mb-6"
+            className="text-3xl font-semibold text-gray-900 mb-3"
           >
-            Start Your Chat
+            Start Your Conversation
           </motion.h1>
+
+          {/* Subtitle */}
+          <motion.p
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="text-base text-gray-500 mb-8 leading-relaxed"
+          >
+            Begin an intelligent dialogue with your knowledge base
+          </motion.p>
 
           {/* Source Requirement Alert */}
           {!hasFiles && (
@@ -46,23 +63,24 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="mb-8"
+              className="mb-8 mx-auto max-w-md"
             >
-              <Alert className="border-amber-200 bg-amber-50">
-                <AlertCircle className="h-4 w-4 text-amber-600" />
-                <AlertDescription className="text-amber-800">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4 flex-shrink-0" />
-                    <span>Add at least one source to your notebook before starting the conversation</span>
+              <Alert className="border border-amber-200 bg-amber-50/50">
+                <div className="flex items-start space-x-3">
+                  <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <AlertDescription className="text-sm text-amber-900 leading-relaxed">
+                      Add at least one source to your notebook before starting the conversation
+                    </AlertDescription>
                   </div>
-                </AlertDescription>
+                </div>
               </Alert>
             </motion.div>
           )}
 
           {/* Start Chat Button */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: hasFiles ? 0.3 : 0.4 }}
           >
@@ -70,35 +88,35 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               onClick={onStartChat}
               disabled={isCreating || !hasFiles}
               size="lg"
-              className={`px-8 py-4 text-lg rounded-xl shadow-lg transition-all duration-300 transform ${
+              className={`px-10 py-6 text-base font-medium rounded-xl transition-all duration-300 ${
                 hasFiles && !isCreating
-                  ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white hover:shadow-xl hover:scale-105'
-                  : 'bg-gray-400 hover:bg-gray-400 text-white cursor-not-allowed opacity-60'
+                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg'
+                  : 'bg-gray-200 hover:bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
               {isCreating ? (
                 <>
-                  <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                  <Loader2 className="mr-2.5 h-5 w-5 animate-spin" />
                   Creating Session...
                 </>
               ) : (
                 <>
-                  <MessageCircle className="mr-3 h-5 w-5" />
-                  Start Chat
+                  <MessageCircle className="mr-2.5 h-5 w-5" />
+                  Start Conversation
                 </>
               )}
             </Button>
           </motion.div>
 
           {/* Helper Text */}
-          {hasFiles && (
+          {hasFiles && !isCreating && (
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.5, delay: 0.5 }}
-              className="text-sm text-gray-500 mt-6"
+              className="text-sm text-gray-400 mt-6"
             >
-              Begin an intelligent conversation with your knowledge base
+              Press the button above to begin your first chat session
             </motion.p>
           )}
         </motion.div>

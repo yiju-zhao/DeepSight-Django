@@ -84,7 +84,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
             <div className={PANEL_HEADERS.iconContainer}>
               <MessageCircle className={PANEL_HEADERS.icon} />
             </div>
-            <h3 className={PANEL_HEADERS.title}>Chat Sessions</h3>
+            <h3 className={PANEL_HEADERS.title}>Chat</h3>
           </div>
           <div className={PANEL_HEADERS.actionsContainer}>
             {sessions.length > 0 && (

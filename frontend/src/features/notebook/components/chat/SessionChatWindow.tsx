@@ -163,9 +163,12 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
   if (!session) {
     return (
       <div className="h-full flex items-center justify-center bg-white">
-        <div className="text-center text-gray-500">
-          <Bot className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-          <p>No session selected</p>
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-white border-2 border-gray-200 rounded-2xl mb-4">
+            <Bot className="h-10 w-10 text-gray-400" strokeWidth={1.5} />
+          </div>
+          <p className="text-sm text-gray-500 font-medium">No session selected</p>
+          <p className="text-xs text-gray-400 mt-2">Select a chat session to continue</p>
         </div>
       </div>
     );
@@ -204,15 +207,45 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
         {messages.length === 0 && !isLoading ? (
           <div className="h-full flex items-center justify-center p-8">
-            <div className="text-center max-w-md">
-              <div className="w-16 h-16 bg-gradient-to-br from-red-100 to-rose-100 rounded-2xl mx-auto mb-4 flex items-center justify-center">
-                <Sparkles className="h-8 w-8 text-red-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Ready to Chat</h3>
-              <p className="text-gray-600 leading-relaxed">
-                This is the beginning of your conversation in "{session.title}". 
-                Ask me anything about your knowledge base!
-              </p>
+            <div className="text-center max-w-lg">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+                className="inline-flex items-center justify-center mb-6"
+              >
+                <div className="relative">
+                  <div className="w-20 h-20 bg-white border-2 border-gray-200 rounded-2xl flex items-center justify-center">
+                    <Sparkles className="h-10 w-10 text-red-600" strokeWidth={1.5} />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
+                </div>
+              </motion.div>
+              <motion.h3
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="text-xl font-semibold text-gray-900 mb-2"
+              >
+                Ready to Chat
+              </motion.h3>
+              <motion.p
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="text-sm text-gray-500 leading-relaxed mb-6"
+              >
+                This is the beginning of your conversation in <span className="font-medium text-gray-700">"{session.title}"</span>
+              </motion.p>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600"
+              >
+                <Bot className="h-4 w-4" />
+                <span>Ask me anything about your knowledge base</span>
+              </motion.div>
             </div>
           </div>
         ) : (
