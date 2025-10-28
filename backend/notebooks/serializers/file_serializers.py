@@ -215,7 +215,6 @@ class KnowledgeBaseItemSerializer(serializers.ModelSerializer):
             "file_url",
             "original_file_object_key",
             "original_file_url",
-            "file_metadata",
             "metadata",
             "tags",
             "source_hash",

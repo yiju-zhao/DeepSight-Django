@@ -194,7 +194,7 @@ class SessionChatMessage(BaseModel):
 
     # Link to the session
     session = models.ForeignKey(
-        ChatSession,
+        "notebooks.ChatSession",
         on_delete=models.CASCADE,
         related_name="messages",
         help_text="Chat session this message belongs to",

@@ -676,14 +676,8 @@ class FileStorageService:
                             "original_filename", "Untitled"
                         ),
                         "source_hash_used": source_hash,  # Track source hash used for deduplication
+                        "processing_result": processing_result,  # Merged from file_metadata
                         **metadata,  # Include all other metadata
-                    },
-                    file_metadata={
-                        "file_size": metadata.get(
-                            "file_size", len(content.encode("utf-8"))
-                        ),
-                        "content_type": metadata.get("content_type", ""),
-                        "processing_result": processing_result,
                     },
                 )
 

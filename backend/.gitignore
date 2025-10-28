@@ -172,10 +172,10 @@ Thumbs.db
 *source_uploads/
 *knowledge_items/
 
-# Migrations (uncomment if you want to ignore migrations)
-# */migrations/*.py
-# */migrations/*.pyc
-# !*/migrations/__init__.py
+# Migrations - ignored to allow per-environment schema management
+*/migrations/*.py
+*/migrations/*.pyc
+!*/migrations/__init__.py
 
 # Logs
 logs/
