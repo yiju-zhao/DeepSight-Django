@@ -17,7 +17,7 @@ interface SourceItemProps {
  * Unified SourceItem component for consistent rendering across all source types
  * (PDF, URLs, media, documents, etc.)
  */
-export const SourceItem = React.memo<SourceItemProps>(({
+export const SourceItem = React.memo<SourceItemProps>(({ 
   source,
   onToggle,
   onPreview,
@@ -25,24 +25,31 @@ export const SourceItem = React.memo<SourceItemProps>(({
   getPrincipleFileIcon,
   renderFileStatus
 }) => {
-  // Determine parsing status
-  const isParsing = source.parsing_status && ['uploading', 'queueing', 'parsing'].includes(source.parsing_status);
-  const isContentReady = source.parsing_status === 'done' || source.parsing_status === 'captioning';
-  const isCaptionReady = source.captioning_status === 'completed';
+  // Unified working/ready state across parsing/ragflow/captioning
+  const parsing = source.parsing_status;
+  const rag = source.ragflow_processing_status;
+  const caption = source.captioning_status;
+  const isWorking = !!(
+    (parsing && ['uploading', 'queueing', 'parsing'].includes(parsing)) ||
+    (rag && ['uploading', 'parsing'].includes(rag)) ||
+    caption === 'in_progress'
+  );
+  const isContentReady = !isWorking;
+  const isCaptionReady = caption === 'completed';
 
   const handleItemClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only allow preview when content is ready and not parsing
-    if (!isParsing && supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {})) {
+    // Only allow preview when not working
+    if (!isWorking && supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {})) {
       onPreview(source);
     }
-  }, [onPreview, source, isParsing]);
+  }, [onPreview, source, isWorking]);
 
   const supportsPreviewCheck = supportsPreview(
     source.metadata?.file_extension || source.ext || '',
     source.metadata || {}
-  ) && !isParsing;
+  ) && !isWorking;
 
   return (
     <div
@@ -52,8 +59,8 @@ export const SourceItem = React.memo<SourceItemProps>(({
       onClick={supportsPreviewCheck ? handleItemClick : undefined}
       title={supportsPreviewCheck ? getSourceTooltip(source) : undefined}
     >
-      {/* Sweeping highlight effect during parsing */}
-      {isParsing && (
+      {/* Sweeping highlight effect only during active processing */}
+      {isWorking && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div
             className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-100/40 to-transparent"

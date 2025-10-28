@@ -704,7 +704,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               onPreview={() => { /* disabled while uploading */ }}
               getSourceTooltip={() => 'Uploading…'}
               getPrincipleFileIcon={getPrincipleFileIcon}
-              renderFileStatus={() => null}
+              renderFileStatus={renderFileStatus}
             />
           );
         })}

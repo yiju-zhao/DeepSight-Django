@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Source } from '@/features/notebook/type';
 
 /**
@@ -7,69 +7,58 @@ import { Source } from '@/features/notebook/type';
  * Handles parsing status, RagFlow sync status, and captioning status
  */
 
-export interface StatusIndicatorProps {
-  source: Source;
-}
+export interface StatusIndicatorProps { source: Source }
 
 /**
  * Renders the file processing status indicator
  * Shows different states: queueing, parsing, uploading, captioning, syncing, completed, failed
  */
 export const renderFileStatus = (source: Source): React.ReactNode => {
-  // Simplified: only show failure; otherwise no inline status.
-  const isFailed = source.parsing_status === 'failed' || source.parsing_status === 'error';
+  const parsing = source.parsing_status;
+  const rag = source.ragflow_processing_status;
+  const caption = source.captioning_status;
+
+  const isFailed = (parsing === 'failed' || parsing === 'error') || rag === 'failed' || caption === 'failed';
   if (isFailed) {
     return (
       <div className="flex items-center space-x-1">
         <AlertCircle className="h-3 w-3 text-red-500" />
-        <span className="text-xs text-red-500">
-          {source.parsing_status === 'error' ? 'Error' : 'Failed'}
-        </span>
+        <span className="text-xs text-red-500">Failed</span>
       </div>
     );
   }
+
+  const isWorking = !!(
+    (parsing && ['uploading', 'queueing', 'parsing'].includes(parsing)) ||
+    (rag && ['uploading', 'parsing'].includes(rag)) ||
+    caption === 'in_progress' ||
+    parsing === 'captioning'
+  );
+  if (isWorking) {
+    let label = 'Processing';
+    if (parsing === 'uploading' || rag === 'uploading') label = 'Uploading';
+    else if (parsing === 'queueing') label = 'Queued';
+    else if (parsing === 'parsing' || rag === 'parsing') label = 'Processing';
+    else if (parsing === 'captioning' || caption === 'in_progress') label = 'Captioning';
+    return (
+      <div className="flex items-center space-x-1 text-blue-600">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        <span className="text-xs">{label}</span>
+      </div>
+    );
+  }
+
+  const isCompleted = parsing === 'done' || rag === 'completed' || caption === 'completed';
+  if (isCompleted) {
+    return (
+      <div className="flex items-center space-x-1 text-green-600" title="Ready">
+        <CheckCircle2 className="h-3 w-3" />
+        <span className="text-xs">Completed</span>
+      </div>
+    );
+  }
+
   return null;
 };
 
-/**
- * Renders RagFlow sync status indicator
- * Note: Completed status is shown via the larger icon in SourceItem.tsx
- */
-// RagFlow sync indicators removed in simplified UX.
-
-/**
- * Get human-readable text for processing status
- */
-const getProcessingStatusText = (_status?: string): string => 'Processing...';
-
-/**
- * Check if a source is currently being processed
- */
-export const isSourceProcessing = (source: Source): boolean => {
-  return !!(
-    source.parsing_status &&
-    ['queueing', 'uploading', 'parsing', 'captioning'].includes(source.parsing_status)
-  );
-};
-
-/**
- * Check if a source has failed processing
- */
-export const isSourceFailed = (source: Source): boolean => {
-  return source.parsing_status === 'failed' || source.parsing_status === 'error';
-};
-
-/**
- * Check if RagFlow sync is in progress
- */
-export const isRagflowSyncing = (_source: Source): boolean => false;
-
-/**
- * Check if source is fully synced to RagFlow
- */
-export const isRagflowSynced = (_source: Source): boolean => true;
-
-/**
- * Get combined status text for source
- */
-export const getSourceStatusText = (source: Source): string => (isSourceFailed(source) ? 'Failed' : 'Ready');
+// Removed unused helpers to keep the renderer lean
