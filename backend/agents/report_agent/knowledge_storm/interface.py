@@ -18,6 +18,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from .dataclass import ConversationTurn, KnowledgeBase
     from .logging_wrapper import LoggingWrapper
 
 
@@ -588,8 +589,6 @@ class Agent(ABC):
         - The agent's role, perspective, and the knowledge base content will influence how the utterance is formulated.
     """
 
-    from .dataclass import ConversationTurn, KnowledgeBase
-
     def __init__(self, topic: str, role_name: str, role_description: str):
         self.topic = topic
         self.role_name = role_name
@@ -603,8 +602,8 @@ class Agent(ABC):
     @abstractmethod
     def generate_utterance(
         self,
-        knowledge_base: KnowledgeBase,
-        conversation_history: list[ConversationTurn],
+        knowledge_base: "KnowledgeBase",
+        conversation_history: list["ConversationTurn"],
         logging_wrapper: "LoggingWrapper",
         **kwargs,
     ):

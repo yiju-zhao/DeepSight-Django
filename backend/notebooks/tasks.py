@@ -671,7 +671,10 @@ def _handle_task_completion(
 
     logger.info(f"KB item {kb_item.id} marked as 'done' - ready for frontend use")
 
-    # Publish SUCCESS event via SSE
+    # Note: For simplified UX, final display is gated by RagFlow completion.
+    # We still publish a SUCCESS here to keep consumers informed, but the
+    # frontend list filters to RagFlow-completed items, so this event alone
+    # won't surface the item prematurely.
     if kb_item.notebook:
         publish_notebook_event(
             notebook_id=str(kb_item.notebook.id),
@@ -1264,12 +1267,36 @@ def check_ragflow_status_task(self, kb_item_id: str):
             logger.info(
                 f"KB item {kb_item_id} RagFlow processing completed successfully."
             )
+            try:
+                # Publish final SUCCESS for 'source' on RagFlow completion
+                publish_notebook_event(
+                    notebook_id=str(kb_item.notebook.id),
+                    entity="source",
+                    entity_id=str(kb_item.id),
+                    status="SUCCESS",
+                    payload={
+                        "file_id": str(kb_item.id),
+                        "title": kb_item.title,
+                    },
+                )
+            except Exception:
+                logger.warning("Failed to publish SSE event on RagFlow completion", exc_info=True)
             return {"success": True, "status": "completed"}
 
         if ragflow_status in ["FAIL", "CANCEL"]:
             error_message = f"RagFlow processing ended with status: {ragflow_status}"
             kb_item.mark_ragflow_failed(error_message)
             logger.error(f"KB item {kb_item_id}: {error_message}")
+            try:
+                publish_notebook_event(
+                    notebook_id=str(kb_item.notebook.id),
+                    entity="source",
+                    entity_id=str(kb_item.id),
+                    status="FAILURE",
+                    payload={"error": error_message},
+                )
+            except Exception:
+                logger.warning("Failed to publish SSE event on RagFlow failure", exc_info=True)
             return {"success": False, "status": ragflow_status.lower()}
 
         # Still processing, retry with a fixed interval.
@@ -1287,6 +1314,16 @@ def check_ragflow_status_task(self, kb_item_id: str):
             # Final attempt to get the item and mark it as failed.
             kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
             kb_item.mark_ragflow_failed(error_msg)
+            try:
+                publish_notebook_event(
+                    notebook_id=str(kb_item.notebook.id),
+                    entity="source",
+                    entity_id=str(kb_item.id),
+                    status="FAILURE",
+                    payload={"error": error_msg},
+                )
+            except Exception:
+                logger.warning("Failed to publish SSE event on RagFlow timeout", exc_info=True)
         except KnowledgeBaseItem.DoesNotExist:
             logger.error(
                 f"KB item {kb_item_id} not found when trying to mark as failed after max retries."

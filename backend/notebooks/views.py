@@ -205,9 +205,22 @@ class FileViewSet(viewsets.ModelViewSet):
         notebook = get_object_or_404(
             Notebook.objects.filter(user=self.request.user), pk=notebook_id
         )
-        return KnowledgeBaseItem.objects.filter(notebook=notebook).order_by(
+        qs = KnowledgeBaseItem.objects.filter(notebook=notebook).order_by(
             "-created_at"
         )
+
+        # By default, only show sources that have completed RagFlow processing.
+        # Allow opt-out via query param ?include_incomplete=1 for internal/debug usage.
+        try:
+            include_incomplete = self.request.query_params.get("include_incomplete", "")
+            include_flag = str(include_incomplete).lower() in {"1", "true", "yes"}
+        except Exception:
+            include_flag = False
+
+        if not include_flag:
+            qs = qs.filter(ragflow_processing_status="completed")
+
+        return qs
 
     def list(self, request, notebook_pk=None, *args, **kwargs):
         return super().list(request, *args, **kwargs)

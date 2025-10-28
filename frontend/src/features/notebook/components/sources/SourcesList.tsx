@@ -17,6 +17,7 @@ import { useNotebookJobStream } from "@/shared/hooks/useNotebookJobStream";
 import AddSourceModal from "./AddSourceModal";
 import { renderFileStatus } from "@/features/notebook/utils/statusRenderers";
 import { SourceItem } from "./SourceItem";
+import { useToast } from "@/shared/components/ui/use-toast";
 
 const fileIcons: FileIcons = {
   pdf: FileIcon,
@@ -73,6 +74,7 @@ interface SourcesListRef {
 
 
 const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, onSelectionChange, onToggleCollapse, onOpenModal, onCloseModal }, ref) => {
+  const { toast } = useToast();
   // ✅ TanStack Query as single source of truth
   const {
     data: parsedFilesResponse,
@@ -105,8 +107,19 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         console.log('[SourcesList] Source event received:', event);
         // Invalidate parsed files to trigger refetch
         queryClient.invalidateQueries({ queryKey: sourceKeys.parsedFiles(notebookId) });
+        // Show toast on failure for better UX
+        if (event.status === 'FAILURE') {
+          const name = event.payload?.title || event.payload?.filename || 'Source';
+          const description = event.payload?.error || 'Upload failed';
+          toast({ title: `${name} failed`, description, variant: 'destructive' });
+          // Stop tracking placeholder on failure
+          const uploadId = event.payload?.upload_file_id || event.payload?.upload_url_id;
+          if (uploadId) {
+            try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
+          }
+        }
       }
-    }, [queryClient, notebookId]),
+    }, [queryClient, notebookId, fileUploadStatus, toast]),
     onConnected: useCallback(() => {
       console.log('[SourcesList] SSE connected, syncing state');
       // Sync state when connection is established (handles missed events during disconnect)
@@ -131,27 +144,22 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     });
   }, [notebookId, refetchFiles, onSelectionChange]);
 
-  // Detect completion of tracked uploads by inspecting the parsed files list
+  // We no longer inspect list items for in-progress states.
+  // Placeholders are removed via SSE source events on completion/failure.
+  // However, to reliably remove placeholders when the completed item appears
+  // (RagFlow-completed and included in the list), match upload IDs in metadata.
   useEffect(() => {
     const items: any[] = parsedFilesResponse?.results || [];
     const tracked = fileUploadStatus.listTrackedUploads?.() || [];
     if (!tracked.length || !items.length) return;
 
-    const isProcessing = (file: any) => {
-      const isParsingInProgress = file.parsing_status &&
-        ['queueing', 'uploading', 'parsing', 'captioning'].includes(file.parsing_status);
-      const isRagflowInProgress = file.ragflow_processing_status &&
-        ['pending', 'uploading', 'parsing'].includes(file.ragflow_processing_status);
-      const isCaptioningInProgress = file.captioning_status &&
-        ['pending', 'in_progress'].includes(file.captioning_status);
-      return isParsingInProgress || isRagflowInProgress || isCaptioningInProgress;
-    };
-
     tracked.forEach((t: any) => {
-      const f = items.find((it: any) => String(it.id) === String(t.uploadFileId) || String(it.upload_file_id) === String(t.uploadFileId));
-      if (!f) return;
-      if (!isProcessing(f)) {
-        try { t.onComplete && t.onComplete(); } catch (e) { /* noop */ }
+      const found = items.find((it: any) =>
+        String(it?.metadata?.upload_file_id || '') === String(t.uploadFileId) ||
+        String(it?.metadata?.upload_url_id || '') === String(t.uploadFileId)
+      );
+      if (found) {
+        try { t.onComplete && t.onComplete(); } catch { /* noop */ }
         fileUploadStatus.stopTracking?.(t.uploadFileId);
       }
     });
