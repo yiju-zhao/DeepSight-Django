@@ -95,9 +95,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Simple file upload status tracking with completion detection (for new uploads)
   const fileUploadStatus = useFileUploadStatus();
-  const trackedUploads = fileUploadStatus.listTrackedUploads?.() || [];
-  // Maintain a stable item order so placeholders morph in-place
-  const [itemOrder, setItemOrder] = useState<string[]>([]);
+  // Keep a minimal local map of in-flight items; render as normal SourceItem and update in-place
+  const [localUploads, setLocalUploads] = useState<Record<string, Source>>({});
 
   // Helper to build a stable key that morphs placeholder -> final item in place
   const keyForSource = useCallback((s: Source) => {
@@ -125,6 +124,13 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           if (uploadId) {
             console.log('[SourcesList] Stopping tracking for completed upload:', uploadId);
             try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
+            // Mark local upload item as done
+            setLocalUploads(prev => {
+              const key = `upload-${uploadId}`;
+              const existing = prev[key];
+              if (!existing) return prev;
+              return { ...prev, [key]: { ...existing, parsing_status: 'done' } };
+            });
           }
         } else if (event.status === 'FAILURE') {
           const name = event.payload?.title || event.payload?.filename || 'Source';
@@ -134,6 +140,25 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           if (uploadId) {
             console.log('[SourcesList] Stopping tracking for failed upload:', uploadId);
             try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
+            // Mark local upload item as failed
+            setLocalUploads(prev => {
+              const key = `upload-${uploadId}`;
+              const existing = prev[key];
+              if (!existing) return prev;
+              return { ...prev, [key]: { ...existing, parsing_status: 'failed' } };
+            });
+          }
+        } else {
+          // Intermediate updates: propagate parsing_status if present
+          if (uploadId && event.payload?.parsing_status) {
+            const status = event.payload.parsing_status;
+            setLocalUploads(prev => {
+              const key = `upload-${uploadId}`;
+              const existing = prev[key];
+              if (!existing) return prev;
+              if (existing.parsing_status === status) return prev;
+              return { ...prev, [key]: { ...existing, parsing_status: status } };
+            });
           }
         }
       }
@@ -283,6 +308,52 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     }));
   }, [parsedFilesResponse, selectedIds]);
 
+  // When server returns the final item for an upload, enrich the local upload item instead of creating a new entry
+  useEffect(() => {
+    setLocalUploads(prev => {
+      let changed = false;
+      const next: Record<string, Source> = { ...prev };
+      const serverList = sources as Source[];
+      // Index server items by upload id for quick lookup
+      const byUploadId = new Map<string, Source>();
+      for (const s of serverList) {
+        const uid = s.metadata?.upload_file_id || s.metadata?.upload_url_id;
+        if (uid) byUploadId.set(String(uid), s);
+      }
+      for (const [key, item] of Object.entries(prev)) {
+        const uid = item.metadata?.upload_file_id || item.metadata?.upload_url_id;
+        if (!uid) continue;
+        const server = byUploadId.get(String(uid));
+        if (!server) continue;
+        // Merge essential fields into the local item while keeping the same key/id
+        const merged: Source = {
+          ...item,
+          title: server.title || item.title,
+          ext: server.ext || item.ext,
+          parsing_status: server.parsing_status || item.parsing_status,
+          captioning_status: server.captioning_status ?? item.captioning_status,
+          ragflow_processing_status: server.ragflow_processing_status ?? item.ragflow_processing_status,
+          file_id: server.file_id || item.file_id,
+          metadata: { ...(item.metadata || {}), ...(server.metadata || {}) },
+        };
+        // Detect change shallowly
+        const changedNow = (
+          merged.title !== item.title ||
+          merged.ext !== item.ext ||
+          merged.parsing_status !== item.parsing_status ||
+          merged.captioning_status !== item.captioning_status ||
+          merged.ragflow_processing_status !== item.ragflow_processing_status ||
+          merged.file_id !== item.file_id
+        );
+        if (changedNow) {
+          next[key] = merged;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [sources]);
+
   // Calculate selected count
   const selectedCount = sources.filter((source: Source) => source.selected).length;
 
@@ -308,93 +379,21 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     return sortedGroups;
   }, []);
 
-  // Build upload placeholders
-  const uploadPlaceholders: Source[] = useMemo(() => {
-    return trackedUploads.map((u: any) => {
-      const deriveExt = () => {
-        if (u.fileType === 'url') return 'url';
-        if (u.name && typeof u.name === 'string') {
-          const parts = u.name.split('.');
-          if (parts.length > 1) return parts.pop()?.toLowerCase();
-        }
-        return undefined;
-      };
-      return {
-        id: `upload-${u.uploadFileId}`,
-        title: u.name || 'Uploading…',
-        type: 'uploading',
-        selected: false,
-        parsing_status: 'uploading',
-        captioning_status: undefined,
-        ragflow_processing_status: 'uploading',
-        ext: deriveExt(),
-        metadata: {
-          upload_file_id: u.uploadFileId,
-          processing_method: u.fileType === 'url' ? 'url_extractor' : undefined,
-          original_filename: u.name,
-        },
-      } as Source;
-    });
-  }, [trackedUploads]);
-
-  // Build a merged map of items keyed by stable key
-  const itemsByKey = useMemo(() => {
-    const map = new Map<string, Source>();
-    // Insert parsed sources
-    for (const s of sources) {
-      map.set(keyForSource(s), s);
-    }
-    // Overlay placeholders (prefer placeholder while uploading)
-    for (const p of uploadPlaceholders) {
-      map.set(keyForSource(p), p);
-    }
-    return map;
-  }, [sources, uploadPlaceholders, keyForSource]);
-
-  // Keep a stable order: existing keys keep their relative positions; new uploads prepend; new parsed append
-  useEffect(() => {
-    const existing = new Set(itemOrder);
-    const allKeys = Array.from(itemsByKey.keys());
-
-    // Start with previous order but drop missing keys
-    let nextOrder = itemOrder.filter(k => itemsByKey.has(k));
-
-    // Determine upload keys (placeholders) in display order from trackedUploads
-    const uploadKeysInOrder = uploadPlaceholders.map(p => keyForSource(p));
-    for (const k of uploadKeysInOrder) {
-      if (!existing.has(k) && itemsByKey.has(k)) {
-        nextOrder = [k, ...nextOrder];
-      }
-    }
-
-    // Append new parsed keys (that are not uploads) in the order from `sources`
-    const sourceKeysInOrder = sources.map(s => keyForSource(s));
-    for (const k of sourceKeysInOrder) {
-      if (!nextOrder.includes(k) && itemsByKey.has(k)) {
-        nextOrder.push(k);
-      }
-    }
-
-    // If order was empty initially (first load), fill with all keys maintaining upload first then sources
-    if (itemOrder.length === 0) {
-      nextOrder = [...uploadKeysInOrder.filter(k => itemsByKey.has(k)), ...sourceKeysInOrder.filter(k => itemsByKey.has(k))];
-    }
-
-    // Remove any stray keys not present (already handled) and set
-    setItemOrder(nextOrder);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemsByKey, uploadPlaceholders, sources]);
-
-  const combinedSources: Source[] = useMemo(() => itemOrder.map(k => itemsByKey.get(k)).filter(Boolean) as Source[], [itemOrder, itemsByKey]);
-
-  // Get processed sources (grouped or not) based on combined list
+  // Get processed sources (grouped or not); render local uploading items first, then server sources excluding duplicates
   const processedSources = useMemo(() => {
+    const localItems = Object.values(localUploads);
+    const uploadIds = new Set(localItems.map((s) => s.metadata?.upload_file_id || s.metadata?.upload_url_id));
+    const serverItems = (sources as Source[]).filter((s) => {
+      const sid = s.metadata?.upload_file_id || s.metadata?.upload_url_id;
+      return !sid || !uploadIds.has(sid);
+    });
+    const flatList = [...localItems, ...serverItems];
     if (isGrouped) {
-      const grouped = groupSources(combinedSources);
+      const grouped = groupSources(flatList);
       return grouped || {};
     }
-    return combinedSources;
-  }, [combinedSources, isGrouped, groupSources]);
+    return flatList;
+  }, [localUploads, sources, isGrouped, groupSources]);
 
   // Handle group toggle
   const handleGroupToggle = () => {
@@ -406,6 +405,13 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   const handleProcessingComplete = useCallback((completedUploadId?: string) => {
     if (completedUploadId) {
       fileUploadStatus.stopTracking(completedUploadId);
+      // Mark local upload item as done
+      setLocalUploads(prev => {
+        const key = `upload-${completedUploadId}`;
+        const existing = prev[key];
+        if (!existing) return prev;
+        return { ...prev, [key]: { ...existing, parsing_status: 'done' } };
+      });
     }
 
     refetchFiles();
@@ -538,6 +544,33 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               _filename,
               _fileType
             );
+            // Initialize a simple source item for this upload and keep updating its render by status
+            setLocalUploads(prev => {
+              const key = `upload-${uploadFileId}`;
+              // Derive ext
+              const deriveExt = () => {
+                if (_fileType === 'url') return 'url';
+                if (_filename && typeof _filename === 'string') {
+                  const parts = _filename.split('.');
+                  if (parts.length > 1) return parts.pop()?.toLowerCase();
+                }
+                return undefined;
+              };
+              const next: Source = {
+                id: key,
+                title: _filename || 'Uploading…',
+                type: 'uploading',
+                selected: false,
+                parsing_status: 'uploading',
+                ext: deriveExt(),
+                metadata: {
+                  upload_file_id: uploadFileId,
+                  processing_method: _fileType === 'url' ? 'url_extractor' : undefined,
+                  original_filename: _filename,
+                },
+              } as Source;
+              return { ...prev, [key]: next };
+            });
             // ✅ No need for temp sources - SSE will notify when file is ready
             refetchFiles();
           }}

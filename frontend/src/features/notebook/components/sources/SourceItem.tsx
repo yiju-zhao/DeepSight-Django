@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import { supportsPreview } from '@/features/notebook/utils/filePreview';
 import { Source } from '@/features/notebook/type';
 
@@ -56,6 +56,7 @@ export const SourceItem = React.memo<SourceItemProps>(({
   const isDone = status === 'done';
   const isSweeping = isProcessing; // sweep only when processing
   const isContentReady = isDone; // only final items are interactive/selectable
+  const showImageReady = source.captioning_status === 'completed';
 
   const handleItemClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -116,6 +117,13 @@ export const SourceItem = React.memo<SourceItemProps>(({
         </div>
 
         <div className="flex items-center space-x-2 flex-shrink-0">
+          {/* Show image-ready indicator when captions are ready */}
+          {showImageReady && (
+            <div title="Image ready">
+              <ImageIcon className="h-4 w-4 text-green-600" />
+            </div>
+          )}
+
           {/* Only show checkbox when content is ready */}
           {isContentReady && (
             <div
