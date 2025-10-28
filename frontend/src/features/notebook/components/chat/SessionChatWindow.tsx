@@ -63,6 +63,7 @@ MarkdownContent.displayName = 'MarkdownContent';
 const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
   session,
   messages,
+  suggestions,
   isLoading,
   onSendMessage,
   notebookId,
@@ -301,6 +302,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
               ))}
             </AnimatePresence>
 
+            {showSuggestions && <QuestionSuggestions suggestions={suggestions} onSuggestionClick={(suggestion) => handleSendMessage(suggestion)} />}
 
             <div ref={messagesEndRef} />
           </div>
@@ -309,7 +311,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
 
       {/* Input Area */}
       <div className="flex-shrink-0 p-6 bg-white">
-        {showSuggestions && <QuestionSuggestions onSuggestionClick={(suggestion) => handleSendMessage(suggestion)} />}
         <div className="flex items-end space-x-3 bg-white rounded-2xl p-4 shadow-sm focus-within:ring-2 focus-within:ring-red-300">
           <div className="flex-1 min-h-[40px]">
             <Textarea

@@ -63,6 +63,8 @@ from .services import (
     NotebookService,
     URLService,
 )
+from .utils.view_mixins import ETagCacheMixin
+from .constants import RagflowDocStatus, ParsingStatus
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +178,7 @@ class NotebookViewSet(viewsets.ModelViewSet):
 # ----------------------------
 # File operations
 # ----------------------------
-class FileViewSet(viewsets.ModelViewSet):
+class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
     serializer_class = KnowledgeBaseItemSerializer
     permission_classes = [permissions.IsAuthenticated, IsNotebookOwner]
     pagination_class = LargePageNumberPagination
@@ -218,7 +220,7 @@ class FileViewSet(viewsets.ModelViewSet):
             include_flag = False
 
         if not include_flag:
-            qs = qs.filter(ragflow_processing_status="completed")
+            qs = qs.filter(ragflow_processing_status=RagflowDocStatus.COMPLETED)
 
         return qs
 
@@ -301,13 +303,26 @@ class FileViewSet(viewsets.ModelViewSet):
         item = self.get_object()
         try:
             file_obj = self.kb_service.get_raw_file(item, request.user.id)
-            response = HttpResponse(
-                file_obj["data"], content_type=file_obj["content_type"]
+            from infrastructure.storage.adapters import get_storage_adapter
+            storage = get_storage_adapter()
+            etag_value = None
+            object_key = item.original_file_object_key or item.file_object_key
+            if object_key:
+                etag_value = self._compute_storage_etag(storage, object_key)
+            if not etag_value:
+                base = f"{item.id}-{item.updated_at.timestamp()}"
+                etag_value = hashlib.sha1(base.encode("utf-8")).hexdigest()
+
+            max_age = self.get_signed_url_expires(request)
+            return self.build_file_response(
+                request,
+                filename=file_obj["filename"],
+                content_type=file_obj["content_type"],
+                content_bytes=file_obj["data"],
+                etag=etag_value,
+                max_age=max_age,
+                disposition="attachment",
             )
-            response["Content-Disposition"] = (
-                f'attachment; filename="{file_obj["filename"]}"'
-            )
-            return response
         except Exception as e:
             logger.exception(f"Failed to get raw file for {pk}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -317,14 +332,26 @@ class FileViewSet(viewsets.ModelViewSet):
         item = self.get_object()
         try:
             file_obj = self.kb_service.get_raw_file(item, request.user.id)
-            response = HttpResponse(
-                file_obj["data"], content_type=file_obj["content_type"]
+            from infrastructure.storage.adapters import get_storage_adapter
+            storage = get_storage_adapter()
+            etag_value = None
+            object_key = item.original_file_object_key or item.file_object_key
+            if object_key:
+                etag_value = self._compute_storage_etag(storage, object_key)
+            if not etag_value:
+                base = f"{item.id}-{item.updated_at.timestamp()}"
+                etag_value = hashlib.sha1(base.encode("utf-8")).hexdigest()
+
+            max_age = self.get_signed_url_expires(request)
+            return self.build_file_response(
+                request,
+                filename=file_obj["filename"],
+                content_type=file_obj["content_type"],
+                content_bytes=file_obj["data"],
+                etag=etag_value,
+                max_age=max_age,
+                disposition="inline",
             )
-            response["Content-Disposition"] = (
-                f'inline; filename="{file_obj["filename"]}"'
-            )
-            response["X-Content-Type-Options"] = "nosniff"
-            return response
         except Exception as e:
             logger.exception(f"Failed to get inline file for {pk}: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
@@ -345,80 +372,38 @@ class FileViewSet(viewsets.ModelViewSet):
         item = self.get_object()
         try:
             from infrastructure.storage.adapters import get_storage_backend
-
             from .models import KnowledgeBaseImage
 
             image = get_object_or_404(
                 KnowledgeBaseImage, id=image_id, knowledge_base_item=item
             )
-            # Compute ETag from storage metadata or fallback to a hash of identifiers
+
             storage = get_storage_backend()
-            etag_value = None
-            try:
-                meta = storage.get_file_metadata(image.minio_object_key)
-                if meta and isinstance(meta, dict):
-                    etag_value = meta.get("etag")
-            except Exception:
-                etag_value = None
+            etag_value = self._compute_storage_etag(storage, image.minio_object_key)
             if not etag_value:
                 base = f"{image.id}-{getattr(image, 'updated_at', None) or getattr(image, 'created_at', None)}"
                 etag_value = hashlib.sha1(base.encode("utf-8")).hexdigest()
-            # Normalize ETag header value (quoted strong ETag)
-            etag_header = (
-                etag_value
-                if etag_value.startswith('W/"') or etag_value.startswith('"')
-                else f'"{etag_value}"'
-            )
 
-            # Handle If-None-Match for conditional GET
-            inm = request.headers.get("If-None-Match") or request.META.get(
-                "HTTP_IF_NONE_MATCH"
-            )
-            if inm:
-                # Normalize comparison by stripping quotes and weak validators
-                def norm(v: str) -> str:
-                    return v.strip().lstrip("W/").strip('"')
-
-                if norm(inm) == norm(etag_header):
-                    resp = HttpResponse(status=304)
-                    resp["ETag"] = etag_header
-                    resp["Cache-Control"] = "private, max-age=300"
-                    dt = getattr(image, "updated_at", None) or getattr(
-                        image, "created_at", None
-                    )
-                    if dt:
-                        try:
-                            resp["Last-Modified"] = http_date(dt.timestamp())
-                        except Exception:
-                            pass
-                    return resp
             content = image.get_image_content()
             if content is None:
                 return Response(
                     {"detail": "Image not found"}, status=status.HTTP_404_NOT_FOUND
                 )
-            resp = HttpResponse(
-                content, content_type=image.content_type or "application/octet-stream"
-            )
-            resp["Content-Disposition"] = (
-                f'inline; filename="{image.image_metadata.get("original_filename", "image")}"'
+
+            filename = (
+                image.image_metadata.get("original_filename", "image")
                 if isinstance(image.image_metadata, dict)
-                else "inline"
+                else "image"
             )
-            resp["X-Content-Type-Options"] = "nosniff"
-            # Add short-lived caching to reduce repeated loads
-            resp["Cache-Control"] = "private, max-age=300"
-            # Use updated_at or created_at for Last-Modified
-            dt = getattr(image, "updated_at", None) or getattr(
-                image, "created_at", None
+            return self.build_file_response(
+                request,
+                filename=filename,
+                content_type=image.content_type or "application/octet-stream",
+                content_bytes=content,
+                etag=etag_value,
+                max_age=300,
+                disposition="inline",
             )
-            if dt:
-                try:
-                    resp["Last-Modified"] = http_date(dt.timestamp())
-                except Exception:
-                    pass
-            resp["ETag"] = etag_header
-            return resp
         except Exception as e:
             logger.exception(
                 f"Failed to serve inline image {image_id} for KB item {pk}: {e}"
@@ -544,7 +529,11 @@ class FileViewSet(viewsets.ModelViewSet):
         """
         try:
             # Validate file status before deletion
-            processing_statuses = ['queueing', 'parsing', 'captioning']
+            processing_statuses = [
+                ParsingStatus.QUEUEING,
+                ParsingStatus.PARSING,
+                ParsingStatus.CAPTIONING,
+            ]
             if instance.parsing_status in processing_statuses:
                 from rest_framework.exceptions import ValidationError
                 raise ValidationError({

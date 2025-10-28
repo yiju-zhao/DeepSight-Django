@@ -11,6 +11,7 @@ from django.db import transaction
 from rest_framework import status
 
 from ..models import KnowledgeBaseItem
+from ..constants import ParsingStatus, ContentType
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,8 @@ class URLService(NotebookBaseService):
             kb_item = KnowledgeBaseItem.objects.create(
                 notebook=notebook,
                 title=f"Processing: {url[:100]}",
-                content_type="webpage",
-                parsing_status="queueing",
+                content_type=ContentType.WEBPAGE,
+                parsing_status=ParsingStatus.QUEUEING,
                 notes=f"URL: {url}",
                 tags=[],
                 metadata={"url": url, "upload_url_id": upload_url_id},
@@ -74,8 +75,8 @@ class URLService(NotebookBaseService):
             kb_item = KnowledgeBaseItem.objects.create(
                 notebook=notebook,
                 title=f"Processing with media: {url[:100]}",
-                content_type="webpage",
-                parsing_status="queueing",
+                content_type=ContentType.WEBPAGE,
+                parsing_status=ParsingStatus.QUEUEING,
                 notes=f"URL with media: {url}",
                 tags=[],
                 metadata={
@@ -117,8 +118,8 @@ class URLService(NotebookBaseService):
             kb_item = KnowledgeBaseItem.objects.create(
                 notebook=notebook,
                 title=f"Processing document: {url[:100]}",
-                content_type="document",
-                parsing_status="queueing",
+                content_type=ContentType.DOCUMENT,
+                parsing_status=ParsingStatus.QUEUEING,
                 notes=f"Document URL: {url}",
                 tags=[],
                 metadata={

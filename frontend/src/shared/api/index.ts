@@ -37,7 +37,7 @@ export type {
   ChatResponse,
   KnowledgeBaseItem,
   KnowledgeBaseImage,
-} from '@/features/notebook/api';
+} from '@/shared/types/notebook';
 
 // TODO: Add other resources as they are created
 // export { reportsApi } from './resources/reports';

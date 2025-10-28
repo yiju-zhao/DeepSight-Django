@@ -25,6 +25,7 @@ const sessionKeys = {
 export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [currentMessages, setCurrentMessages] = useState<SessionChatMessage[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const closingSessionRef = useRef<string | null>(null);
 
@@ -302,12 +303,16 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
             variant: 'destructive',
           });
         },
-        () => {
+        (suggestions) => {
           // Message complete
           streamingControllerRef.current = null;
           
           // Update session list to refresh last activity
           queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+
+          if (activeSessionId === sessionId) {
+            setSuggestions(suggestions);
+          }
         }
       );
 
@@ -368,6 +373,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     activeSessionId,
     activeSession,
     currentMessages,
+    suggestions,
     isLoading: isLoadingSessions || isLoadingSession,
     isCreatingSession: createSessionMutation.isPending,
     error,

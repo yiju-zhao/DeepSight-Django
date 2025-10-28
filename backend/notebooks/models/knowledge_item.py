@@ -9,6 +9,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 from .managers import KnowledgeBaseItemManager
+from ..constants import RagflowDocStatus
 
 
 class KnowledgeBaseItem(BaseModel):
@@ -220,12 +221,14 @@ class KnowledgeBaseItem(BaseModel):
 
     def mark_parsing_complete(self):
         """Mark item as parsing complete."""
-        self.parsing_status = "done"
+        from ..constants import ParsingStatus as _PS
+        self.parsing_status = _PS.DONE
         self.save(update_fields=["parsing_status", "updated_at"])
 
     def mark_parsing_started(self):
         """Mark item as currently parsing."""
-        self.parsing_status = "parsing"
+        from ..constants import ParsingStatus as _PS
+        self.parsing_status = _PS.PARSING
         self.save(update_fields=["parsing_status", "updated_at"])
 
     def add_tag(self, tag):
@@ -257,26 +260,26 @@ class KnowledgeBaseItem(BaseModel):
 
     def is_ragflow_processing_complete(self):
         """Check if RagFlow processing is complete."""
-        return self.ragflow_processing_status == "completed"
+        return self.ragflow_processing_status == RagflowDocStatus.COMPLETED
 
     def is_ragflow_processing_failed(self):
         """Check if RagFlow processing failed."""
-        return self.ragflow_processing_status == "failed"
+        return self.ragflow_processing_status == RagflowDocStatus.FAILED
 
     def mark_ragflow_uploading(self):
         """Mark as being uploaded to RagFlow."""
-        self.ragflow_processing_status = "uploading"
+        self.ragflow_processing_status = RagflowDocStatus.UPLOADING
         self.save(update_fields=["ragflow_processing_status", "updated_at"])
 
     def mark_ragflow_parsing(self):
         """Mark as being parsed by RagFlow."""
-        self.ragflow_processing_status = "parsing"
+        self.ragflow_processing_status = RagflowDocStatus.PARSING
         self.save(update_fields=["ragflow_processing_status", "updated_at"])
 
     def mark_ragflow_completed(self, ragflow_document_id: str):
         """Mark RagFlow processing as completed."""
         self.ragflow_document_id = ragflow_document_id
-        self.ragflow_processing_status = "completed"
+        self.ragflow_processing_status = RagflowDocStatus.COMPLETED
         self.save(
             update_fields=[
                 "ragflow_document_id",
@@ -287,7 +290,7 @@ class KnowledgeBaseItem(BaseModel):
 
     def mark_ragflow_failed(self, error_message: str = ""):
         """Mark RagFlow processing as failed."""
-        self.ragflow_processing_status = "failed"
+        self.ragflow_processing_status = RagflowDocStatus.FAILED
         if error_message:
             # Store error in metadata
             if not isinstance(self.metadata, dict):

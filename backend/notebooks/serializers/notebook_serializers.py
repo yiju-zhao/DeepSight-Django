@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from ..models import Notebook
+from ..constants import ParsingStatus
 
 User = get_user_model()
 
@@ -55,7 +56,7 @@ class NotebookSerializer(serializers.ModelSerializer):
 
     def get_knowledge_item_count(self, obj):
         """Get count of processed knowledge base items."""
-        return obj.knowledge_base_items.filter(parsing_status="done").count()
+        return obj.knowledge_base_items.filter(parsing_status=ParsingStatus.DONE).count()
 
     def get_chat_message_count(self, obj):
         """Get count of chat messages in the notebook (across all sessions)."""
@@ -156,7 +157,7 @@ class NotebookListSerializer(serializers.ModelSerializer):
 
     def get_knowledge_item_count(self, obj):
         """Get count of processed items in the notebook."""
-        return obj.knowledge_base_items.filter(parsing_status="done").count()
+        return obj.knowledge_base_items.filter(parsing_status=ParsingStatus.DONE).count()
 
 
 class NotebookCreateSerializer(serializers.ModelSerializer):

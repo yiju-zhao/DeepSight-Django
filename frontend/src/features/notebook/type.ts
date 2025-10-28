@@ -332,6 +332,7 @@ export interface UseSessionChatReturn {
 
   // Messages
   currentMessages: SessionChatMessage[];
+  suggestions: string[];
 
   // Loading states
   isLoading: boolean;
@@ -341,7 +342,7 @@ export interface UseSessionChatReturn {
   error: string | null;
 
   // Actions
-  createSession: (title?: string) => Promise<ChatSession | null>;
+  createSession: () => Promise<ChatSession | null>;
   closeSession: (sessionId: string) => Promise<boolean>;
   switchSession: (sessionId: string) => void;
   updateSessionTitle: (sessionId: string, title: string) => Promise<boolean>;
@@ -372,6 +373,7 @@ export interface SessionTabsProps {
 export interface SessionChatWindowProps {
   session: ChatSession | null;
   messages: SessionChatMessage[];
+  suggestions: string[];
   isLoading: boolean;
   onSendMessage: (message: string) => Promise<boolean>;
   notebookId: string;

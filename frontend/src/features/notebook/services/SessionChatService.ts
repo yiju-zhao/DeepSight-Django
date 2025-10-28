@@ -230,7 +230,7 @@ class SessionChatService {
     reader: ReadableStreamDefaultReader<Uint8Array>,
     onToken: (token: string) => void,
     onError: (error: string) => void,
-    onDone: () => void
+    onDone: (suggestions: string[]) => void
   ) {
     const decoder = new TextDecoder();
     let buffer = '';
@@ -251,7 +251,7 @@ class SessionChatService {
                 onError(data.message || 'Unknown error');
                 return;
               case 'done':
-                onDone();
+                onDone(data.suggestions || []);
                 return;
             }
           } catch (e) {

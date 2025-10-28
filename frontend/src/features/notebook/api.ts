@@ -5,45 +5,22 @@
 
 import { apiClient } from '@/shared/api/client';
 import { PaginatedResponse, PaginationParams } from '@/shared/api/types';
-
-// Types - these should be moved to a types file eventually
-export interface Notebook {
-  readonly id: string;
-  readonly created_at: string;
-  readonly updated_at: string;
-  name: string;
-  description: string;
-  source_count: number;
-  knowledge_item_count: number;
-  chat_message_count?: number;
-  last_activity?: string;
-  ragflow_dataset_info?: any;
-  user?: string;
-  isPublic?: boolean;
-  tags?: string[];
-}
-
-export interface CreateNotebookRequest {
-  name: string;
-  description?: string;
-}
-
-export interface UpdateNotebookRequest {
-  name?: string;
-  description?: string;
-}
-
-export interface NotebookStats {
-  sourceCount: number;
-  itemCount: number;
-  processingCount: number;
-  lastUpdated: string;
-}
-
-export interface GetNotebooksParams extends PaginationParams {
-  search?: string;
-  ordering?: 'name' | '-name' | 'created_at' | '-created_at' | 'updated_at' | '-updated_at';
-}
+import type {
+  Notebook,
+  CreateNotebookRequest,
+  UpdateNotebookRequest,
+  NotebookStats,
+  GetNotebooksParams,
+  Source,
+  CreateSourceRequest,
+  UpdateSourceRequest,
+  ProcessUrlRequest,
+  AddTextRequest,
+  ChatMessage,
+  ChatResponse,
+  KnowledgeBaseItem,
+  KnowledgeBaseImage,
+} from '@/shared/types/notebook';
 
 // API Resource
 export const notebooksApi = {

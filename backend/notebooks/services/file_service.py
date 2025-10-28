@@ -11,6 +11,7 @@ from django.db import transaction
 from rest_framework import status
 
 from ..models import BatchJob, BatchJobItem, KnowledgeBaseItem
+from ..constants import ParsingStatus, ContentType
 
 logger = logging.getLogger(__name__)
 
@@ -47,8 +48,8 @@ class FileService(NotebookBaseService):
                 kb_item = KnowledgeBaseItem(
                     notebook=notebook,
                     title=file_obj.name,
-                    content_type="document",
-                    parsing_status="queueing",
+                    content_type=ContentType.DOCUMENT,
+                    parsing_status=ParsingStatus.QUEUEING,
                     notes=f"Processing {file_obj.name}",
                     tags=[],  # Explicitly set empty list
                     metadata={},
@@ -86,7 +87,7 @@ class FileService(NotebookBaseService):
 
             except Exception as queue_error:
                 # Update parsing status to done if queueing fails (parsing isn't the issue)
-                kb_item.parsing_status = "done"
+                kb_item.parsing_status = ParsingStatus.DONE
                 kb_item.save(update_fields=["parsing_status"])
                 self.logger.error(
                     f"Failed to queue processing for {file_obj.name}: {queue_error}"
@@ -141,8 +142,8 @@ class FileService(NotebookBaseService):
                 kb_item = KnowledgeBaseItem.objects.create(
                     notebook=notebook,
                     title=file_obj.name,
-                    content_type="document",
-                    parsing_status="parsing",
+                    content_type=ContentType.DOCUMENT,
+                    parsing_status=ParsingStatus.PARSING,
                     tags=[],  # Explicitly set empty list
                     metadata={},
                 )

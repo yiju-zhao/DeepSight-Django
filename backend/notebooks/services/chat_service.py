@@ -804,9 +804,19 @@ class ChatService(NotebookBaseService):
                     f"Streaming completed, accumulated {len(accumulated_content)} characters"
                 )
 
+                # Generate suggested questions
+                suggestions_result = self.generate_suggested_questions(
+                    notebook=notebook, base_question=question
+                )
+                suggestions = suggestions_result.get("suggestions", [])
+
                 # Send completion signal
                 completion_payload = json.dumps(
-                    {"type": "done", "message": "Response complete"}
+                    {
+                        "type": "done",
+                        "message": "Response complete",
+                        "suggestions": suggestions,
+                    }
                 )
                 yield f"data: {completion_payload}\n\n"
 

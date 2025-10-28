@@ -18,6 +18,13 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404
 
 from .exceptions import FileProcessingError, URLProcessingError, ValidationError
+from .constants import (
+    ParsingStatus,
+    CaptioningStatus,
+    RagflowDocStatus,
+    SseStatus,
+    ContentType,
+)
 from .models import BatchJob, BatchJobItem, KnowledgeBaseItem, Notebook
 
 User = get_user_model()
@@ -79,8 +86,8 @@ def _get_or_create_knowledge_item(
     return KnowledgeBaseItem(
         notebook=notebook,
         title=title,
-        content_type="document",
-        parsing_status="queueing",
+        content_type=ContentType.DOCUMENT,
+        parsing_status=ParsingStatus.QUEUEING,
         notes=f"Processing {title}",
         tags=[],
         metadata={},
@@ -173,7 +180,7 @@ def upload_to_ragflow_task(self, kb_item_id: str):
             # Store the RagFlow document ID and mark as parsing atomically
             try:
                 kb_item.ragflow_document_id = document_id
-                kb_item.ragflow_processing_status = "parsing"
+                kb_item.ragflow_processing_status = RagflowDocStatus.PARSING
                 kb_item.save(
                     update_fields=[
                         "ragflow_document_id",
@@ -383,8 +390,8 @@ def parse_url_task(
             kb_item = KnowledgeBaseItem.objects.create(
                 notebook=notebook,
                 title=f"Processing: {url[:100]}",
-                content_type="webpage",
-                parsing_status="queueing",
+                content_type=ContentType.WEBPAGE if 'ContentType' in globals() else "webpage",
+                parsing_status=ParsingStatus.QUEUEING,
                 notes=f"URL: {url}",
                 tags=[],
                 metadata={"url": url, "upload_url_id": upload_url_id},
@@ -392,7 +399,7 @@ def parse_url_task(
             logger.info(f"Created KB item {kb_item.id} for URL: {url}")
 
         # Update status to parsing
-        kb_item.parsing_status = "parsing"
+        kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
         # Process the URL
@@ -413,7 +420,7 @@ def parse_url_task(
         file_id = result.get("file_id")
 
         if not file_id:
-            kb_item.parsing_status = "failed"
+            kb_item.parsing_status = ParsingStatus.FAILED if hasattr(ParsingStatus, 'FAILED') else "failed"
             kb_item.save(update_fields=["parsing_status"])
             raise URLProcessingError("URL processing did not return a file_id")
 
@@ -421,7 +428,7 @@ def parse_url_task(
         kb_item.refresh_from_db()
 
         # Mark as done if processing completed successfully
-        kb_item.parsing_status = "done"
+        kb_item.parsing_status = ParsingStatus.DONE
         kb_item.save(update_fields=["parsing_status"])
 
         logger.info(f"Successfully parsed URL to KB item {file_id}")
@@ -437,7 +444,7 @@ def parse_url_task(
         # Mark KB item as failed if it exists
         try:
             if "kb_item" in locals():
-                kb_item.parsing_status = "failed"
+                kb_item.parsing_status = ParsingStatus.FAILED if hasattr(ParsingStatus, 'FAILED') else "failed"
                 kb_item.metadata = kb_item.metadata or {}
                 kb_item.metadata["error"] = str(e)
                 kb_item.save(update_fields=["parsing_status", "metadata"])
@@ -483,8 +490,8 @@ def parse_url_with_media_task(
             kb_item = KnowledgeBaseItem.objects.create(
                 notebook=notebook,
                 title=f"Processing with media: {url[:100]}",
-                content_type="webpage",
-                parsing_status="queueing",
+                content_type=ContentType.WEBPAGE,
+                parsing_status=ParsingStatus.QUEUEING,
                 notes=f"URL with media: {url}",
                 tags=[],
                 metadata={
@@ -496,7 +503,7 @@ def parse_url_with_media_task(
             logger.info(f"Created KB item {kb_item.id} for URL with media: {url}")
 
         # Update status to parsing
-        kb_item.parsing_status = "parsing"
+        kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
         # Process the URL with media
@@ -517,7 +524,7 @@ def parse_url_with_media_task(
         file_id = result.get("file_id")
 
         if not file_id:
-            kb_item.parsing_status = "failed"
+            kb_item.parsing_status = ParsingStatus.FAILED if hasattr(ParsingStatus, 'FAILED') else "failed"
             kb_item.save(update_fields=["parsing_status"])
             raise URLProcessingError("URL processing did not return a file_id")
 
@@ -525,7 +532,7 @@ def parse_url_with_media_task(
         kb_item.refresh_from_db()
 
         # Mark as done
-        kb_item.parsing_status = "done"
+        kb_item.parsing_status = ParsingStatus.DONE
         kb_item.save(update_fields=["parsing_status"])
 
         logger.info(f"Successfully parsed URL with media to KB item {file_id}")
@@ -541,7 +548,7 @@ def parse_url_with_media_task(
         # Mark KB item as failed if it exists
         try:
             if "kb_item" in locals():
-                kb_item.parsing_status = "failed"
+                kb_item.parsing_status = ParsingStatus.FAILED if hasattr(ParsingStatus, 'FAILED') else "failed"
                 kb_item.metadata = kb_item.metadata or {}
                 kb_item.metadata["error"] = str(e)
                 kb_item.save(update_fields=["parsing_status", "metadata"])
@@ -585,8 +592,8 @@ def parse_document_url_task(
             kb_item = KnowledgeBaseItem.objects.create(
                 notebook=notebook,
                 title=f"Processing document: {url[:100]}",
-                content_type="document",
-                parsing_status="queueing",
+                content_type=ContentType.DOCUMENT,
+                parsing_status=ParsingStatus.QUEUEING,
                 notes=f"Document URL: {url}",
                 tags=[],
                 metadata={
@@ -598,7 +605,7 @@ def parse_document_url_task(
             logger.info(f"Created KB item {kb_item.id} for document URL: {url}")
 
         # Update status to parsing
-        kb_item.parsing_status = "parsing"
+        kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
         # Process the document URL
@@ -619,7 +626,7 @@ def parse_document_url_task(
         file_id = result.get("file_id")
 
         if not file_id:
-            kb_item.parsing_status = "failed"
+            kb_item.parsing_status = ParsingStatus.FAILED if hasattr(ParsingStatus, 'FAILED') else "failed"
             kb_item.save(update_fields=["parsing_status"])
             raise URLProcessingError("URL processing did not return a file_id")
 
@@ -627,7 +634,7 @@ def parse_document_url_task(
         kb_item.refresh_from_db()
 
         # Mark as done
-        kb_item.parsing_status = "done"
+        kb_item.parsing_status = ParsingStatus.DONE
         kb_item.save(update_fields=["parsing_status"])
 
         logger.info(f"Successfully parsed document URL to KB item {file_id}")
@@ -643,7 +650,7 @@ def parse_document_url_task(
         # Mark KB item as failed if it exists
         try:
             if "kb_item" in locals():
-                kb_item.parsing_status = "failed"
+                kb_item.parsing_status = ParsingStatus.FAILED if hasattr(ParsingStatus, 'FAILED') else "failed"
                 kb_item.metadata = kb_item.metadata or {}
                 kb_item.metadata["error"] = str(e)
                 kb_item.save(update_fields=["parsing_status", "metadata"])
@@ -666,7 +673,7 @@ def _handle_task_completion(
     Caption generation and other post-processing run independently.
     """
     # Mark parsing as done immediately - file is ready for use
-    kb_item.parsing_status = "done"
+    kb_item.parsing_status = ParsingStatus.DONE
     kb_item.save(update_fields=["parsing_status", "updated_at"])
 
     logger.info(f"KB item {kb_item.id} marked as 'done' - ready for frontend use")
@@ -694,7 +701,7 @@ def _handle_task_completion(
         ).count()
 
         if image_count > 0:
-            kb_item.captioning_status = "pending"
+            kb_item.captioning_status = CaptioningStatus.PENDING
             kb_item.save(update_fields=["captioning_status", "updated_at"])
 
             generate_image_captions_task.delay(str(kb_item.id))
@@ -702,7 +709,7 @@ def _handle_task_completion(
                 f"Scheduled caption generation for KB item {kb_item.id} with {image_count} images"
             )
         else:
-            kb_item.captioning_status = "not_required"
+            kb_item.captioning_status = CaptioningStatus.NOT_REQUIRED
             kb_item.save(update_fields=["captioning_status", "updated_at"])
             logger.info(f"No images for KB item {kb_item.id} - captioning not required")
     except Exception as caption_error:
@@ -730,7 +737,7 @@ def _handle_task_error(
     """Handle common task error logic."""
     # Update KB item status
     if kb_item:
-        kb_item.parsing_status = "done"
+        kb_item.parsing_status = ParsingStatus.DONE
         kb_item.metadata = kb_item.metadata or {}
         kb_item.metadata["error_message"] = str(error)
         kb_item.save(update_fields=["parsing_status", "metadata"])
@@ -795,7 +802,7 @@ def process_url_task(
             kb_item.save()
 
         # Update status to parsing
-        kb_item.parsing_status = "parsing"
+        kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
         # Publish STARTED event via SSE
@@ -881,8 +888,8 @@ def process_url_media_task(
         kb_item = KnowledgeBaseItem(
             notebook=notebook,
             title=clean_title(url),
-            content_type="document",
-            parsing_status="queueing",
+            content_type=ContentType.DOCUMENT,
+            parsing_status=ParsingStatus.QUEUEING,
             notes=f"Processing URL with media: {url}",
             tags=[],
             metadata={},
@@ -890,7 +897,7 @@ def process_url_media_task(
         kb_item.save()
 
         # Update status to parsing
-        kb_item.parsing_status = "parsing"
+        kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
         # Publish STARTED event via SSE
@@ -963,8 +970,8 @@ def process_url_document_task(
         kb_item = KnowledgeBaseItem(
             notebook=notebook,
             title=clean_title(url),
-            content_type="document",
-            parsing_status="queueing",
+            content_type=ContentType.DOCUMENT,
+            parsing_status=ParsingStatus.QUEUEING,
             notes=f"Processing document URL: {url}",
             tags=[],
             metadata={},
@@ -972,7 +979,7 @@ def process_url_document_task(
         kb_item.save()
 
         # Update status to parsing
-        kb_item.parsing_status = "parsing"
+        kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
         # Publish STARTED event via SSE
@@ -1065,7 +1072,7 @@ def process_file_upload_task(
             kb_item.save()
 
         # Update status to parsing
-        kb_item.parsing_status = "parsing"
+        kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
         # Publish STARTED event via SSE
@@ -1128,7 +1135,7 @@ def generate_image_captions_task(self, kb_item_id: str):
         kb_item = get_object_or_404(KnowledgeBaseItem, id=kb_item_id)
 
         # Set to in_progress (don't touch parsing_status)
-        kb_item.captioning_status = "in_progress"
+        kb_item.captioning_status = CaptioningStatus.IN_PROGRESS
         kb_item.save(update_fields=["captioning_status", "updated_at"])
 
         # Import caption generator utility lazily
@@ -1141,7 +1148,7 @@ def generate_image_captions_task(self, kb_item_id: str):
 
         if result.get("success"):
             logger.info(f"Successfully generated captions for KB item {kb_item_id}")
-            kb_item.captioning_status = "completed"
+            kb_item.captioning_status = CaptioningStatus.COMPLETED
             kb_item.save(update_fields=["captioning_status", "updated_at"])
             return {
                 "success": True,
@@ -1161,7 +1168,7 @@ def generate_image_captions_task(self, kb_item_id: str):
     except Exception as e:
         logger.error(f"Error generating captions for KB item {kb_item_id}: {e}")
         if kb_item:
-            kb_item.captioning_status = "failed"
+            kb_item.captioning_status = CaptioningStatus.FAILED
             kb_item.metadata = kb_item.metadata or {}
             kb_item.metadata["caption_error"] = str(e)
             kb_item.save(update_fields=["captioning_status", "metadata", "updated_at"])

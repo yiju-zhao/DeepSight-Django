@@ -25,6 +25,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     activeSessionId,
     activeSession,
     currentMessages,
+    suggestions, // New state
     isLoading,
     isCreatingSession,
     error,
@@ -157,6 +158,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
               <SessionChatWindow
                 session={activeSession}
                 messages={currentMessages}
+                suggestions={suggestions} // Pass suggestions
                 isLoading={isLoading}
                 onSendMessage={handleSendMessage}
                 notebookId={notebookId}

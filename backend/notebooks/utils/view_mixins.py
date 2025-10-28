@@ -3,7 +3,7 @@ Common view mixins and utilities for notebooks app.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from django.shortcuts import get_object_or_404
 from rest_framework import authentication, permissions, status
@@ -11,6 +11,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from ..models import KnowledgeBaseItem, Notebook
+from ..constants import DEFAULT_SIGNED_URL_EXPIRES
 
 logger = logging.getLogger(__name__)
 
@@ -176,3 +177,73 @@ class FileListResponseMixin(FileMetadataExtractorMixin):
         }
 
         return file_data
+
+
+class ETagCacheMixin:
+    """Reusable helpers for setting ETag/Cache headers and handling conditional requests.
+
+    Views can call `build_inline_file_response` with a content resolver to get a
+    properly cached response (or 304 if client cache is fresh).
+    """
+
+    def _compute_storage_etag(self, storage, object_key: str) -> Optional[str]:
+        try:
+            meta = storage.get_file_metadata(object_key)
+            if isinstance(meta, dict):
+                etag = meta.get("etag") or meta.get("ETag")
+                if etag:
+                    return str(etag).strip('"')
+        except Exception:
+            return None
+        return None
+
+    def _client_etag_matches(self, request, etag: Optional[str]) -> bool:
+        if not etag:
+            return False
+        client_etag = request.META.get("HTTP_IF_NONE_MATCH")
+        if not client_etag:
+            return False
+        # Support weak/strong etags and quoted values
+        client_etag = client_etag.strip().strip('W/').strip('"')
+        return client_etag == etag
+
+    def build_file_response(
+        self,
+        request,
+        *,
+        filename: str,
+        content_type: str,
+        content_bytes: bytes,
+        etag: Optional[str] = None,
+        max_age: int = 3600,
+        disposition: str = "inline",
+    ) -> HttpResponse:
+        """Return HttpResponse with proper caching headers or 304 if ETag matches.
+
+        disposition: "inline" or "attachment".
+        """
+        from django.http import HttpResponse
+
+        if self._client_etag_matches(request, etag):
+            resp = HttpResponse(status=304)
+            resp["ETag"] = f'"{etag}"'
+            resp["Cache-Control"] = f"private, max-age={max_age}"
+            resp["X-Content-Type-Options"] = "nosniff"
+            return resp
+
+        resp = HttpResponse(content_bytes, content_type=content_type)
+        if disposition not in {"inline", "attachment"}:
+            disposition = "inline"
+        resp["Content-Disposition"] = f'{disposition}; filename="{filename}"'
+        resp["X-Content-Type-Options"] = "nosniff"
+        if etag:
+            resp["ETag"] = f'"{etag}"'
+        resp["Cache-Control"] = f"private, max-age={max_age}"
+        return resp
+
+    def get_signed_url_expires(self, request) -> int:
+        try:
+            expires = int(request.GET.get("expires", "0"))
+            return expires if expires > 0 else DEFAULT_SIGNED_URL_EXPIRES
+        except Exception:
+            return DEFAULT_SIGNED_URL_EXPIRES
