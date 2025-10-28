@@ -27,7 +27,6 @@ export { useSessionChat } from './chat/useSessionChat';
 export { useFileUpload } from './file/useFileUpload';
 export { useFileSelection } from './file/useFileSelection';
 export { useFileStatusSSE } from './file/useFileStatusSSE';
-export { useFileUploadStatus } from './file/useFileUploadStatus';
 
 // Generation and job management (legacy hooks removed - use useGenerationManager from ./studio/)
 

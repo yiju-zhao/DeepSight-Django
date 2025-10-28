@@ -8,8 +8,6 @@ interface SourcesListRef {
   getSelectedSources: () => any[];
   clearSelection: () => void;
   refreshSources: () => Promise<void>;
-  startUploadTracking: (uploadFileId: string) => void;
-  onProcessingComplete: (completedUploadId?: string) => void;
 }
 
 // Forward the ref so parent components (e.g., NotebookLayout) can access

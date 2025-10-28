@@ -10,7 +10,6 @@ import { PANEL_HEADERS, COLORS } from "@/features/notebook/config/uiConfig";
 import { FileIcons } from "@/shared/types";
 import { Source, SourcesListProps } from "@/features/notebook/type";
 import { FileMetadata } from "@/shared/types";
-import { useFileUploadStatus } from "@/features/notebook/hooks/file/useFileUploadStatus";
 import { useFileSelection } from "@/features/notebook/hooks/file/useFileSelection";
 import { useParsedFiles, sourceKeys } from "@/features/notebook/hooks/sources/useSources";
 import { useNotebookJobStream } from "@/shared/hooks/useNotebookJobStream";
@@ -46,8 +45,6 @@ interface SourcesListRef {
   getSelectedSources: () => Source[];
   clearSelection: () => void;
   refreshSources: () => Promise<void>;
-  startUploadTracking: (uploadFileId: string) => void;
-  onProcessingComplete: (completedUploadId?: string) => void;
 }
 
 // Helper function to get principle file icon with visual indicator
@@ -93,8 +90,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   // Group state
   const [isGrouped, setIsGrouped] = useState(false);
 
-  // Simple file upload status tracking with completion detection (for new uploads)
-  const fileUploadStatus = useFileUploadStatus();
   // Keep a minimal local map of in-flight items; render as normal SourceItem and update in-place
   const [localUploads, setLocalUploads] = useState<Record<string, Source>>({});
 
@@ -115,21 +110,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         const uploadId = event.payload?.upload_file_id || event.payload?.upload_url_id;
 
         if (event.status === 'SUCCESS' || event.status === 'COMPLETED') {
-          // On success, refetch the list from the server first.
-          refetchFiles().then(() => {
-            // After the server data is updated, remove the local placeholder.
-            if (uploadId) {
-              console.log('[SourcesList] Stopping tracking for completed upload:', uploadId);
-              try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
-              setLocalUploads(prev => {
-                const key = `upload-${uploadId}`;
-                if (!(key in prev)) return prev;
-                const next = { ...prev } as Record<string, Source>;
-                delete next[key];
-                return next;
-              });
-            }
-          });
+          // Delegate to unified completion handler
+          handleProcessingComplete(uploadId);
         } else {
           // For other events (like FAILURE or intermediate progress), update the local item directly
           // and also trigger a background refetch without waiting for it.
@@ -142,7 +124,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             // Stop tracking placeholder on failure
             if (uploadId) {
               console.log('[SourcesList] Stopping tracking for failed upload:', uploadId);
-              try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
               // Mark local upload item as failed (keep visible if server doesn't return an item)
               setLocalUploads(prev => {
                 const key = `upload-${uploadId}`;
@@ -181,15 +162,9 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   
   // Set notebook ID for upload tracking
   useEffect(() => {
-    fileUploadStatus.setNotebookId(notebookId);
-    // Ensure any completion (including caption generation completion events) triggers a refresh
-    fileUploadStatus.setOnAnyFileComplete(() => {
-      refetchFiles(); // ✅ Use TanStack Query refetch
-      if (onSelectionChange) {
-        setTimeout(() => onSelectionChange(), 100);
-      }
-    });
-  }, [notebookId, refetchFiles, onSelectionChange]);
+    // Sync list on mount and when notebook changes
+    refetchFiles();
+  }, [notebookId, refetchFiles]);
 
   // Get original filename from metadata
   const getOriginalFilename = (metadata: FileMetadata) => {
@@ -375,19 +350,22 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   // Handle backend completion signals
   const handleProcessingComplete = useCallback((completedUploadId?: string) => {
     if (completedUploadId) {
-      fileUploadStatus.stopTracking(completedUploadId);
-      // Remove local item; rely on server list to show the final item
-      setLocalUploads(prev => {
-        const key = `upload-${completedUploadId}`;
-        if (!(key in prev)) return prev;
-        const next = { ...prev } as Record<string, Source>;
-        delete next[key];
-        return next;
+      // Refetch first to get the final item from the server
+      refetchFiles().then(() => {
+        // Then, remove the local placeholder
+        setLocalUploads(prev => {
+          const key = `upload-${completedUploadId}`;
+          if (!(key in prev)) return prev;
+          const next = { ...prev } as Record<string, Source>;
+          delete next[key];
+          return next;
+        });
       });
+    } else {
+      // If no ID, just refetch
+      refetchFiles();
     }
-
-    refetchFiles();
-  }, [refetchFiles, fileUploadStatus]);
+  }, [refetchFiles]);
 
   // Expose methods to parent components
   useImperativeHandle(ref, (): SourcesListRef => ({
@@ -404,11 +382,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       setSelectedIds(new Set());  // ✅ Clear Set
       setTimeout(() => updateSelectedFiles(), 0);
     },
-    refreshSources: async () => { await refetchFiles(); },
-    startUploadTracking: (uploadFileId: string) => {
-      fileUploadStatus.startTracking(uploadFileId, notebookId);
-    },
-    onProcessingComplete: handleProcessingComplete
+    refreshSources: async () => { await refetchFiles(); }
   }));
 
   // ✅ Toggle selection using Set
@@ -437,7 +411,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     return undefined;
   }, [selectedIdsString, onSelectionChange]);
 
-  // ✅ Simplified delete with TanStack Query handling state
+  // ✅ Optimistic delete for selected sources
   const handleDeleteSelected = async (): Promise<void> => {
     const selectedSources = sources.filter((source: Source) => source.selected);
 
@@ -447,47 +421,90 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
     // Clear selection immediately
     setSelectedIds(new Set());
-
     if (onSelectionChange) {
       setTimeout(() => onSelectionChange(), 0);
     }
 
-    // Perform deletion
-    const failedSources: Source[] = [];
+    // Build a set of IDs to delete
+    const idsToDelete = new Set(
+      selectedSources
+        .map((s) => s?.metadata?.knowledge_item_id)
+        .filter((id): id is string => Boolean(id))
+    );
 
-    for (const source of selectedSources) {
-      try {
-        if (source.metadata?.knowledge_item_id) {
-          const result = await sourceService.deleteParsedFile(source.metadata.knowledge_item_id, notebookId);
-          const isSuccess = result?.success === true || (result && typeof result === 'object' && !result.error);
-
-          if (!isSuccess) {
-            failedSources.push(source);
-          }
-        } else {
-          console.warn('Source has no valid knowledge_item_id for deletion:', source);
-          failedSources.push(source);
-        }
-      } catch (error) {
-        console.error(`Error deleting file ${source.title}:`, error);
-        failedSources.push(source);
-      }
+    if (idsToDelete.size === 0) {
+      return;
     }
 
-    // Show error for failed deletions
-    if (failedSources.length > 0) {
-      setError(`Failed to delete ${failedSources.length} file(s): ${failedSources.map(f => f.title).join(', ')}`);
+    // Optimistically update cache
+    const queryKey = sourceKeys.parsedFiles(notebookId);
+    const previous = queryClient.getQueryData(queryKey) as any;
 
-      // Re-select failed items
-      setSelectedIds(new Set(failedSources.map(f => String(f.id))));
+    queryClient.setQueryData(queryKey, (old: any) => {
+      if (!old) return old;
+      const oldResults = Array.isArray(old.results) ? old.results : [];
+      const filtered = oldResults.filter((item: any) => !idsToDelete.has(String(item?.id)));
 
+      // Try to maintain pagination count if present
+      let next: any = { ...old, results: filtered };
+      const prevCount = old?.meta?.pagination?.count ?? old?.count;
+      if (typeof prevCount === 'number') {
+        const delta = oldResults.length - filtered.length;
+        if (old?.meta?.pagination) {
+          next = {
+            ...next,
+            meta: {
+              ...old.meta,
+              pagination: { ...old.meta.pagination, count: Math.max(0, prevCount - delta) },
+            },
+          };
+        } else {
+          next = { ...next, count: Math.max(0, prevCount - delta) };
+        }
+      }
+      return next;
+    });
+
+    try {
+      // Execute deletions in parallel
+      const results = await Promise.allSettled(
+        Array.from(idsToDelete).map((id) => sourceService.deleteParsedFile(id, notebookId))
+      );
+
+      const failed: Source[] = [];
+      results.forEach((res, idx) => {
+        if (res.status === 'rejected') {
+          failed.push(selectedSources[idx]);
+        } else {
+          const value: any = res.value;
+          const ok = value?.success === true || (value && typeof value === 'object' && !value.error);
+          if (!ok) {
+            failed.push(selectedSources[idx]);
+          }
+        }
+      });
+
+      if (failed.length > 0) {
+        // Rollback optimistic update and surface error
+        queryClient.setQueryData(queryKey, previous);
+        setError(`Failed to delete ${failed.length} file(s): ${failed.map((f) => f.title).join(', ')}`);
+        setSelectedIds(new Set(failed.map((f) => String(f.id))));
+        if (onSelectionChange) {
+          setTimeout(() => onSelectionChange(), 100);
+        }
+      } else {
+        // Keep optimistic state but refetch to sync
+        queryClient.invalidateQueries({ queryKey });
+      }
+    } catch (e) {
+      // Generic rollback on unexpected error
+      queryClient.setQueryData(queryKey, previous);
+      setError('Failed to delete selected files');
+      setSelectedIds(new Set(selectedSources.map((f) => String(f.id))));
       if (onSelectionChange) {
         setTimeout(() => onSelectionChange(), 100);
       }
     }
-
-    // ✅ TanStack Query will auto-update the list
-    refetchFiles();
   };
 
 
@@ -505,17 +522,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             }
           }}
           onUploadStarted={(uploadFileId: string, _filename: string, _fileType: string, oldUploadFileId?: string) => {
-            // Start tracking for upload status
-            if (oldUploadFileId) {
-              fileUploadStatus.stopTracking(oldUploadFileId);
-            }
-            fileUploadStatus.startTracking(
-              uploadFileId,
-              notebookId,
-              () => { handleProcessingComplete(uploadFileId); },
-              _filename,
-              _fileType
-            );
+            // Record local upload placeholder
             // Initialize a simple source item for this upload and keep updating its render by status
             setLocalUploads(prev => {
               const newKey = `upload-${uploadFileId}`;
