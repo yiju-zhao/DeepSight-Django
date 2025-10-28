@@ -14,6 +14,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
+import QuestionSuggestions from './QuestionSuggestions';
 import type { SessionChatWindowProps } from '@/features/notebook/type';
 
 // Memoized markdown content component
@@ -69,6 +70,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -77,6 +79,14 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  useEffect(() => {
+    if (!isLoading && messages.length > 0 && messages[messages.length - 1].sender === 'assistant') {
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [messages, isLoading]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -87,13 +97,14 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
     }
   }, [inputMessage]);
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || !session || isSending) return;
+  const handleSendMessage = async (message? : string) => {
+    const messageToSend = message || inputMessage.trim();
+    if (!messageToSend || !session || isSending) return;
 
-    const messageToSend = inputMessage.trim();
     setInputMessage('');
     setIsSending(true);
     setError(null);
+    setShowSuggestions(false);
 
     try {
       const success = await onSendMessage(messageToSend);
@@ -298,6 +309,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
 
       {/* Input Area */}
       <div className="flex-shrink-0 p-6 bg-white">
+        {showSuggestions && <QuestionSuggestions onSuggestionClick={(suggestion) => handleSendMessage(suggestion)} />}
         <div className="flex items-end space-x-3 bg-white rounded-2xl p-4 shadow-sm focus-within:ring-2 focus-within:ring-red-300">
           <div className="flex-1 min-h-[40px]">
             <Textarea
@@ -311,7 +323,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
             />
           </div>
           <Button
-            onClick={handleSendMessage}
+            onClick={() => handleSendMessage()}
             disabled={!inputMessage.trim() || isSending}
             size="sm"
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"

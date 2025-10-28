@@ -268,8 +268,7 @@ export const useFileStatusSSE = (
     return () => {
       disconnect(); // Cleanup on unmount
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fileId, notebookId]);
+  }, [fileId, notebookId, disconnect, connectEventSource]);
 
   return { status, ragflowStatus, isConnected, connectionError, disconnect };
 };

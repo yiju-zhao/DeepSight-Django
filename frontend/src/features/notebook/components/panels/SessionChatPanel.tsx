@@ -44,23 +44,16 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     return parsedFilesData && parsedFilesData.results && parsedFilesData.results.length > 0;
   }, [parsedFilesData]);
 
-  const handleCreateFirstSession = async () => {
-    if (!hasFiles) {
-      return; // Don't create session if no files are available
-    }
-    const newSession = await createSession('New Chat');
-    if (newSession) {
-      // The hook automatically handles opening the tab and switching to it
-    }
-  };
-
-  const handleCreateAdditionalSession = async () => {
-    const sessionCount = sessions.length + 1;
-    await createSession(`Chat ${sessionCount}`);
-  };
-
   const handleSendMessage = async (message: string): Promise<boolean> => {
     if (!activeSessionId) return false;
+
+    // If the session is new, update the title with the first message
+    if (activeSession?.title.startsWith('New Chat')) {
+      // Truncate message to a reasonable length for a title
+      const newTitle = message.substring(0, 50) + (message.length > 50 ? '...' : '');
+      await updateSessionTitle(activeSessionId, newTitle);
+    }
+
     return await sendMessage(activeSessionId, message);
   };
 
@@ -126,7 +119,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
         <SessionTabs
           sessions={sessions}
           activeSessionId={activeSessionId}
-          onCreateSession={handleCreateAdditionalSession}
+          onCreateSession={createSession}
           onSwitchSession={switchSession}
           onCloseSession={handleCloseSession}
           onUpdateTitle={handleUpdateTitle}
@@ -147,7 +140,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
               className="h-full"
             >
               <WelcomeScreen
-                onStartChat={handleCreateFirstSession}
+                onStartChat={createSession}
                 isCreating={isCreatingSession}
                 hasFiles={hasFiles}
               />

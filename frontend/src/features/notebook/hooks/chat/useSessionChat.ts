@@ -63,7 +63,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   // Mutation for creating new session
   const createSessionMutation = useMutation({
-    mutationFn: (title?: string) => sessionChatService.createSession(notebookId, { title }),
+    mutationFn: () => sessionChatService.createSession(notebookId, {}),
     onSuccess: async (response) => {
       // Update sessions list and wait for refetch to complete
       await queryClient.refetchQueries({ queryKey: sessionKeys.sessions(notebookId) });
@@ -172,9 +172,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   });
 
   // Session actions
-  const createSession = useCallback(async (title?: string): Promise<ChatSession | null> => {
+  const createSession = useCallback(async (): Promise<ChatSession | null> => {
     try {
-      const result = await createSessionMutation.mutateAsync(title);
+      const result = await createSessionMutation.mutateAsync();
       return result.session;
     } catch (error) {
       return null;
