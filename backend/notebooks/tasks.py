@@ -1069,11 +1069,23 @@ def process_file_upload_task(
         )
 
         if not kb_item_id:  # New item, save it
+            # Set upload_file_id in metadata for frontend tracking/matching
+            if upload_file_id:
+                kb_item.metadata = kb_item.metadata or {}
+                kb_item.metadata["upload_file_id"] = upload_file_id
             kb_item.save()
 
-        # Update status to parsing
+        # Update status to parsing (ensure metadata is preserved if already set)
         kb_item.parsing_status = ParsingStatus.PARSING
-        kb_item.save(update_fields=["parsing_status"])
+        # Also ensure upload_file_id is in metadata for existing items
+        if upload_file_id and kb_item.metadata:
+            if "upload_file_id" not in kb_item.metadata:
+                kb_item.metadata["upload_file_id"] = upload_file_id
+                kb_item.save(update_fields=["parsing_status", "metadata"])
+            else:
+                kb_item.save(update_fields=["parsing_status"])
+        else:
+            kb_item.save(update_fields=["parsing_status"])
 
         # Publish STARTED event via SSE
         publish_notebook_event(
