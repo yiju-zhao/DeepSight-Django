@@ -147,7 +147,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           }
         }
       }
-    }, [queryClient, notebookId, fileUploadStatus, toast, refetchFiles]),
+    }, [queryClient, notebookId, toast, refetchFiles]),
     onConnected: useCallback(() => {
       console.log('[SourcesList] SSE connected, syncing state');
       // Sync state when connection is established (handles missed events during disconnect)
