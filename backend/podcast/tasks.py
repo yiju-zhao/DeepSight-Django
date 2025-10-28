@@ -58,6 +58,7 @@ def process_podcast_generation(self, job_id: str):
                 entity_id=str(job.id),
                 status="STARTED",
             )
+
         # Get selected item IDs from job metadata
         selected_item_ids = job.source_file_ids or []
 

@@ -41,11 +41,17 @@ export const useFileUploadStatus = () => {
     setTrackedUploads(new Map());
   }, []);
 
+  // Derived flags and accessors
+  const hasTrackedUploads = trackedUploads.size > 0;
+  const listTrackedUploads = useCallback(() => Array.from(trackedUploads.values()), [trackedUploads]);
+
   return {
     startTracking,
     stopTracking,
     stopAllTracking,
     setNotebookId,
-    setOnAnyFileComplete
+    setOnAnyFileComplete,
+    hasTrackedUploads,
+    listTrackedUploads
   };
 };

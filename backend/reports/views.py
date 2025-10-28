@@ -1,5 +1,5 @@
 """
-Canonical report job views (SSE removed) following SOLID principles.
+Canonical report job views following SOLID principles.
 """
 
 import logging
@@ -917,5 +917,3 @@ class XinferenceModelsView(APIView):
                 {"detail": str(e), "models": []},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-    # SSE endpoint removed: use list/detail polling instead

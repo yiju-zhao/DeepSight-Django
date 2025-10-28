@@ -107,6 +107,32 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     });
   }, [notebookId, refetchFiles, onSelectionChange]);
 
+  // Detect completion of tracked uploads by inspecting the parsed files list
+  useEffect(() => {
+    const items: any[] = parsedFilesResponse?.results || [];
+    const tracked = fileUploadStatus.listTrackedUploads?.() || [];
+    if (!tracked.length || !items.length) return;
+
+    const isProcessing = (file: any) => {
+      const isParsingInProgress = file.parsing_status &&
+        ['queueing', 'uploading', 'parsing', 'captioning'].includes(file.parsing_status);
+      const isRagflowInProgress = file.ragflow_processing_status &&
+        ['pending', 'uploading', 'parsing'].includes(file.ragflow_processing_status);
+      const isCaptioningInProgress = file.captioning_status &&
+        ['pending', 'in_progress'].includes(file.captioning_status);
+      return isParsingInProgress || isRagflowInProgress || isCaptioningInProgress;
+    };
+
+    tracked.forEach((t: any) => {
+      const f = items.find((it: any) => String(it.id) === String(t.uploadFileId) || String(it.upload_file_id) === String(t.uploadFileId));
+      if (!f) return;
+      if (!isProcessing(f)) {
+        try { t.onComplete && t.onComplete(); } catch (e) { /* noop */ }
+        fileUploadStatus.stopTracking?.(t.uploadFileId);
+      }
+    });
+  }, [parsedFilesResponse, fileUploadStatus]);
+
   // Get original filename from metadata
   const getOriginalFilename = (metadata: FileMetadata) => {
     return metadata.original_filename ||

@@ -1,6 +1,6 @@
 import logging
 
-from django.http import HttpResponse, StreamingHttpResponse
+from django.http import StreamingHttpResponse
 from django.shortcuts import get_object_or_404
 from notebooks.models import Notebook
 from rest_framework import generics, permissions, status
@@ -238,8 +238,6 @@ class PodcastJobCancelView(APIView):
             job.error_message = "Job cancelled by user"
             job.save(update_fields=["status", "error_message", "updated_at"])
 
-            # Step 3: No Redis/SSE updates required
-
             # Log cancellation with details
             logger.info(
                 f"✓ Podcast generation cancelled successfully:\n"
@@ -270,11 +268,6 @@ class PodcastJobCancelView(APIView):
             )
 
 
-def podcast_job_status_stream(request, podcast_id):
-    # SSE removed. Kept stub for backwards-compatibility to avoid 404 if wired elsewhere.
-    return HttpResponse(status=410)
-
-
 # ==============================
 # Report-style views (no 'jobs')
 # ==============================
@@ -291,9 +284,6 @@ class PodcastDetailView(PodcastJobDetailView):
 class PodcastCancelView(PodcastJobCancelView):
     def post(self, request, podcast_id):
         return super().post(request, job_id=podcast_id)
-
-
-# Legacy streaming audio routes removed in favor of redirect gateway
 
 
 class PodcastAudioRedirectView(APIView):

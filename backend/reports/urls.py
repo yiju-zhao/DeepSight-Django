@@ -65,7 +65,6 @@ urlpatterns = [
         views.ReportJobImageInlineView.as_view(),
         name="report-image-inline",
     ),
-    # Stream endpoint removed: progress/SSE no longer supported
 ]
 
 # ========================================
@@ -91,7 +90,6 @@ Report Operations:
 - GET  /api/v1/reports/{report_id}/download/
 - GET  /api/v1/reports/{report_id}/download-pdf/
 - GET  /api/v1/reports/{report_id}/image/{image_id}/inline/
-  (stream endpoint removed)
 
 Note: Report images are stored as relative paths (images/filename.jpg) in the database.
       The backend replaces them with API proxy URLs when serving content.
