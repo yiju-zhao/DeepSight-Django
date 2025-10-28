@@ -51,7 +51,6 @@ export { useGenerationManager } from './studio/useGenerationManager';
 export {
   useParsedFiles,
   useKnowledgeBase,
-  useFileStatus,
   useParseFile,
   useParseUrl,
   useDeleteParsedFile,
