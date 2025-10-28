@@ -117,7 +117,7 @@ def _handle_task_error(
 
         # Publish FAILURE event via SSE
         if kb_item.notebook:
-            async_to_sync(publish_notebook_event)(
+            publish_notebook_event(
                 notebook_id=str(kb_item.notebook.id),
                 entity="source",
                 entity_id=str(kb_item.id),
@@ -499,7 +499,7 @@ def process_url_task(
         kb_item.save(update_fields=["parsing_status"])
 
         # Publish STARTED event via SSE
-        async_to_sync(publish_notebook_event)(
+        publish_notebook_event(
             notebook_id=str(notebook.id),
             entity="source",
             entity_id=str(kb_item.id),
@@ -590,7 +590,7 @@ def process_url_media_task(
         kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
-        async_to_sync(publish_notebook_event)(
+        publish_notebook_event(
             notebook_id=str(notebook.id),
             entity="source",
             entity_id=str(kb_item.id),
@@ -662,7 +662,7 @@ def process_url_document_task(
         kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
-        async_to_sync(publish_notebook_event)(
+        publish_notebook_event(
             notebook_id=str(notebook.id),
             entity="source",
             entity_id=str(kb_item.id),
@@ -760,7 +760,7 @@ def process_file_upload_task(
             kb_item.save(update_fields=["parsing_status"])
 
         # Publish STARTED event via SSE
-        async_to_sync(publish_notebook_event)(
+        publish_notebook_event(
             notebook_id=str(notebook.id),
             entity="source",
             entity_id=str(kb_item.id),

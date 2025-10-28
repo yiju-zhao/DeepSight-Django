@@ -145,7 +145,7 @@ def _handle_task_completion(
     """Handle successful task completion with SSE events and batch job updates."""
     try:
         # Publish SSE success event
-        async_to_sync(publish_notebook_event)(
+        publish_notebook_event(
             notebook_id=str(kb_item.notebook.id),
             entity="source",
             entity_id=str(kb_item.id),
@@ -187,7 +187,7 @@ def _handle_task_error(
 
     try:
         # Publish SSE failure event
-        async_to_sync(publish_notebook_event)(
+        publish_notebook_event(
             notebook_id=notebook_id,
             entity="source",
             entity_id=kb_item_id or "unknown",

@@ -267,7 +267,7 @@ def check_ragflow_status_task(self, kb_item_id: str):
             )
             try:
                 # Publish final SUCCESS for 'source' on RagFlow completion
-                async_to_sync(publish_notebook_event)(
+                publish_notebook_event(
                     notebook_id=str(kb_item.notebook.id),
                     entity="source",
                     entity_id=str(kb_item.id),
@@ -286,7 +286,7 @@ def check_ragflow_status_task(self, kb_item_id: str):
             kb_item.mark_ragflow_failed(error_message)
             logger.error(f"KB item {kb_item_id}: {error_message}")
             try:
-                async_to_sync(publish_notebook_event)(
+                publish_notebook_event(
                     notebook_id=str(kb_item.notebook.id),
                     entity="source",
                     entity_id=str(kb_item.id),
@@ -313,7 +313,7 @@ def check_ragflow_status_task(self, kb_item_id: str):
             kb_item = KnowledgeBaseItem.objects.get(id=kb_item_id)
             kb_item.mark_ragflow_failed(error_msg)
             try:
-                async_to_sync(publish_notebook_event)(
+                publish_notebook_event(
                     notebook_id=str(kb_item.notebook.id),
                     entity="source",
                     entity_id=str(kb_item.id),
