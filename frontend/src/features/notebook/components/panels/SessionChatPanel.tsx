@@ -36,8 +36,8 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     sendMessage,
   } = useSessionChat(notebookId);
 
-  // Get parsed files to check availability (reuse the main query from SourcesList)
-  const { data: parsedFilesData } = useParsedFiles(notebookId);
+  // Get parsed files to check availability without starting another polling timer
+  const { data: parsedFilesData } = useParsedFiles(notebookId, undefined, { polling: false });
 
   // Check if files are available for chat
   const hasFiles = React.useMemo(() => {

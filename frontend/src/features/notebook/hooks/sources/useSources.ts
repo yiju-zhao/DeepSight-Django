@@ -30,7 +30,12 @@ const sourceKeys = {
  * Hook to fetch parsed files with intelligent polling
  * Automatically polls when files are being processed
  */
-export const useParsedFiles = (notebookId: string, params?: { limit?: number; offset?: number }) => {
+export const useParsedFiles = (
+  notebookId: string,
+  params?: { limit?: number; offset?: number },
+  options?: { polling?: boolean }
+) => {
+  const enablePolling = options?.polling !== false;
   return useQuery({
     queryKey: sourceKeys.parsedFiles(notebookId, params),
     queryFn: () => sourceService.listParsedFiles(notebookId, params || {}),
@@ -38,7 +43,10 @@ export const useParsedFiles = (notebookId: string, params?: { limit?: number; of
     staleTime: 30 * 1000, // 30 seconds - files can change when processing completes
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     retry: 2,
+    refetchOnWindowFocus: false,
     refetchInterval: (query) => {
+      if (!enablePolling) return false;
+
       // Check if any files are being processed
       const data = query?.state?.data;
       if (!data?.results) return false;
