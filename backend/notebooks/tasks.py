@@ -12,6 +12,7 @@ from uuid import uuid4
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from celery.exceptions import Retry
+from core.utils.sse import publish_notebook_event
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.shortcuts import get_object_or_404
@@ -653,7 +654,11 @@ def parse_document_url_task(
 
 
 def _handle_task_completion(
-    kb_item: KnowledgeBaseItem, batch_item_id: str = None, batch_job_id: str = None
+    kb_item: KnowledgeBaseItem,
+    batch_item_id: str = None,
+    batch_job_id: str = None,
+    upload_file_id: str = None,
+    upload_url_id: str = None,
 ) -> dict[str, Any]:
     """Handle common task completion logic.
 
@@ -665,6 +670,21 @@ def _handle_task_completion(
     kb_item.save(update_fields=["parsing_status", "updated_at"])
 
     logger.info(f"KB item {kb_item.id} marked as 'done' - ready for frontend use")
+
+    # Publish SUCCESS event via SSE
+    if kb_item.notebook:
+        publish_notebook_event(
+            notebook_id=str(kb_item.notebook.id),
+            entity="source",
+            entity_id=str(kb_item.id),
+            status="SUCCESS",
+            payload={
+                "file_id": str(kb_item.id),
+                "title": kb_item.title,
+                "upload_file_id": upload_file_id,
+                "upload_url_id": upload_url_id,
+            },
+        )
 
     # Chain RagFlow upload task to ensure content is fully saved
     try:
@@ -716,6 +736,8 @@ def _handle_task_error(
     error: Exception,
     batch_item_id: str = None,
     batch_job_id: str = None,
+    upload_file_id: str = None,
+    upload_url_id: str = None,
 ) -> None:
     """Handle common task error logic."""
     # Update KB item status
@@ -724,6 +746,21 @@ def _handle_task_error(
         kb_item.metadata = kb_item.metadata or {}
         kb_item.metadata["error_message"] = str(error)
         kb_item.save(update_fields=["parsing_status", "metadata"])
+
+        # Publish FAILURE event via SSE
+        if kb_item.notebook:
+            publish_notebook_event(
+                notebook_id=str(kb_item.notebook.id),
+                entity="source",
+                entity_id=str(kb_item.id),
+                status="FAILURE",
+                payload={
+                    "error": str(error),
+                    "upload_file_id": upload_file_id,
+                    "upload_url_id": upload_url_id,
+                    "title": kb_item.title,
+                },
+            )
 
     # Update batch status
     _update_batch_item_status(batch_item_id, "failed", error_message=str(error))
@@ -773,6 +810,19 @@ def process_url_task(
         kb_item.parsing_status = "parsing"
         kb_item.save(update_fields=["parsing_status"])
 
+        # Publish STARTED event via SSE
+        publish_notebook_event(
+            notebook_id=str(notebook.id),
+            entity="source",
+            entity_id=str(kb_item.id),
+            status="STARTED",
+            payload={
+                "upload_url_id": upload_url_id,
+                "url": url,
+                "title": kb_item.title,
+            },
+        )
+
         # Process URL using URL extractor
         from .processors.url_extractor import URLExtractor
 
@@ -799,14 +849,18 @@ def process_url_task(
         result = async_to_sync(process_url_async)()
 
         # Handle completion
-        result = _handle_task_completion(kb_item, batch_item_id, batch_job_id)
+        result = _handle_task_completion(
+            kb_item, batch_item_id, batch_job_id, upload_url_id=upload_url_id
+        )
 
         logger.info(f"Successfully processed URL: {url}")
         return result
 
     except Exception as e:
         logger.error(f"Error processing URL {url}: {e}")
-        _handle_task_error(kb_item, e, batch_item_id, batch_job_id)
+        _handle_task_error(
+            kb_item, e, batch_item_id, batch_job_id, upload_url_id=upload_url_id
+        )
         raise URLProcessingError(f"Failed to process URL: {str(e)}")
 
 
@@ -851,6 +905,19 @@ def process_url_media_task(
         kb_item.parsing_status = "parsing"
         kb_item.save(update_fields=["parsing_status"])
 
+        # Publish STARTED event via SSE
+        publish_notebook_event(
+            notebook_id=str(notebook.id),
+            entity="source",
+            entity_id=str(kb_item.id),
+            status="STARTED",
+            payload={
+                "upload_url_id": upload_url_id,
+                "url": url,
+                "title": kb_item.title,
+            },
+        )
+
         # Process URL with media extraction
         from .processors.url_extractor import URLExtractor
 
@@ -864,14 +931,18 @@ def process_url_media_task(
         )
 
         # Handle completion
-        result = _handle_task_completion(kb_item, batch_item_id, batch_job_id)
+        result = _handle_task_completion(
+            kb_item, batch_item_id, batch_job_id, upload_url_id=upload_url_id
+        )
 
         logger.info(f"Successfully processed URL with media: {url}")
         return result
 
     except Exception as e:
         logger.error(f"Error processing URL with media {url}: {e}")
-        _handle_task_error(kb_item, e, batch_item_id, batch_job_id)
+        _handle_task_error(
+            kb_item, e, batch_item_id, batch_job_id, upload_url_id=upload_url_id
+        )
         raise URLProcessingError(f"Failed to process URL with media: {str(e)}")
 
 
@@ -916,6 +987,19 @@ def process_url_document_task(
         kb_item.parsing_status = "parsing"
         kb_item.save(update_fields=["parsing_status"])
 
+        # Publish STARTED event via SSE
+        publish_notebook_event(
+            notebook_id=str(notebook.id),
+            entity="source",
+            entity_id=str(kb_item.id),
+            status="STARTED",
+            payload={
+                "upload_url_id": upload_url_id,
+                "url": url,
+                "title": kb_item.title,
+            },
+        )
+
         # Process document URL
         from .processors.url_extractor import URLExtractor
 
@@ -929,14 +1013,18 @@ def process_url_document_task(
         )
 
         # Handle completion
-        result = _handle_task_completion(kb_item, batch_item_id, batch_job_id)
+        result = _handle_task_completion(
+            kb_item, batch_item_id, batch_job_id, upload_url_id=upload_url_id
+        )
 
         logger.info(f"Successfully processed document URL: {url}")
         return result
 
     except Exception as e:
         logger.error(f"Error processing document URL {url}: {e}")
-        _handle_task_error(kb_item, e, batch_item_id, batch_job_id)
+        _handle_task_error(
+            kb_item, e, batch_item_id, batch_job_id, upload_url_id=upload_url_id
+        )
         raise URLProcessingError(f"Failed to process document URL: {str(e)}")
 
 
@@ -992,6 +1080,18 @@ def process_file_upload_task(
         kb_item.parsing_status = "parsing"
         kb_item.save(update_fields=["parsing_status"])
 
+        # Publish STARTED event via SSE
+        publish_notebook_event(
+            notebook_id=str(notebook.id),
+            entity="source",
+            entity_id=str(kb_item.id),
+            status="STARTED",
+            payload={
+                "upload_file_id": upload_file_id,
+                "filename": filename,
+            },
+        )
+
         # Process file using upload processor
         from django.core.files.base import ContentFile
 
@@ -1009,7 +1109,9 @@ def process_file_upload_task(
         )
 
         # Handle completion
-        result = _handle_task_completion(kb_item, batch_item_id, batch_job_id)
+        result = _handle_task_completion(
+            kb_item, batch_item_id, batch_job_id, upload_file_id=upload_file_id
+        )
         result["file_id"] = kb_item.id  # Ensure correct file ID
 
         logger.info(f"Successfully processed file upload: {filename}")
@@ -1017,7 +1119,9 @@ def process_file_upload_task(
 
     except Exception as e:
         logger.error(f"Error processing file upload {filename}: {e}")
-        _handle_task_error(kb_item, e, batch_item_id, batch_job_id)
+        _handle_task_error(
+            kb_item, e, batch_item_id, batch_job_id, upload_file_id=upload_file_id
+        )
         raise FileProcessingError(f"Failed to process file upload: {str(e)}")
 
 

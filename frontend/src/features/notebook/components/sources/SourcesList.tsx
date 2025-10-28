@@ -1,6 +1,7 @@
 import React, { useState, useImperativeHandle, forwardRef, useEffect, useCallback, useMemo } from "react";
 import { Trash2, Plus, ChevronLeft, RefreshCw, AlertCircle, Upload, Group, File as FileIcon, FileText, Music, Video, Presentation, Database, Link2, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from "@/shared/components/ui/button";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Badge } from "@/shared/components/ui/badge";
@@ -11,7 +12,8 @@ import { Source, SourcesListProps } from "@/features/notebook/type";
 import { FileMetadata } from "@/shared/types";
 import { useFileUploadStatus } from "@/features/notebook/hooks/file/useFileUploadStatus";
 import { useFileSelection } from "@/features/notebook/hooks/file/useFileSelection";
-import { useParsedFiles } from "@/features/notebook/hooks/sources/useSources";
+import { useParsedFiles, sourceKeys } from "@/features/notebook/hooks/sources/useSources";
+import { useNotebookJobStream } from "@/shared/hooks/useNotebookJobStream";
 import AddSourceModal from "./AddSourceModal";
 import { renderFileStatus } from "@/features/notebook/utils/statusRenderers";
 import { SourceItem } from "./SourceItem";
@@ -79,6 +81,9 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     refetch: refetchFiles
   } = useParsedFiles(notebookId);
 
+  // Query client for manual invalidation
+  const queryClient = useQueryClient();
+
   // ✅ Use Set for efficient selection management
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -89,6 +94,25 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Simple file upload status tracking with completion detection (for new uploads)
   const fileUploadStatus = useFileUploadStatus();
+
+  // ✅ Real-time updates via SSE
+  useNotebookJobStream({
+    notebookId,
+    enabled: true, // Keep SSE connection active while list is mounted
+    onJobEvent: useCallback((event) => {
+      // Handle source events (file/URL processing updates)
+      if (event.entity === 'source') {
+        console.log('[SourcesList] Source event received:', event);
+        // Invalidate parsed files to trigger refetch
+        queryClient.invalidateQueries({ queryKey: sourceKeys.parsedFiles(notebookId) });
+      }
+    }, [queryClient, notebookId]),
+    onConnected: useCallback(() => {
+      console.log('[SourcesList] SSE connected, syncing state');
+      // Sync state when connection is established (handles missed events during disconnect)
+      refetchFiles();
+    }, [refetchFiles]),
+  });
 
   // Integrate file selection hook by passing the ref to this component
   const {

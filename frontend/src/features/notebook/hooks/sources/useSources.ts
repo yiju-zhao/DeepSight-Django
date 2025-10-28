@@ -27,15 +27,17 @@ const sourceKeys = {
 // ─── PARSED FILES ────────────────────────────────────────────────────────────
 
 /**
- * Hook to fetch parsed files with intelligent polling
- * Automatically polls when files are being processed
+ * Hook to fetch parsed files
+ *
+ * Polling is now disabled by default - real-time updates are handled via SSE.
+ * Set polling: true in options if you need to force polling behavior (fallback).
  */
 export const useParsedFiles = (
   notebookId: string,
   params?: { limit?: number; offset?: number },
   options?: { polling?: boolean }
 ) => {
-  const enablePolling = options?.polling !== false;
+  const enablePolling = options?.polling === true; // Default: false (SSE-driven)
   return useQuery({
     queryKey: sourceKeys.parsedFiles(notebookId, params),
     queryFn: () => sourceService.listParsedFiles(notebookId, params || {}),
@@ -44,9 +46,8 @@ export const useParsedFiles = (
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     retry: 2,
     refetchOnWindowFocus: false,
-    refetchInterval: (query) => {
-      if (!enablePolling) return false;
-
+    // Polling disabled by default (SSE handles real-time updates)
+    refetchInterval: enablePolling ? (query) => {
       // Check if any files are being processed
       const data = query?.state?.data;
       if (!data?.results) return false;
@@ -69,7 +70,7 @@ export const useParsedFiles = (
       }
 
       return false; // Stop polling when nothing is processing
-    },
+    } : false,
   });
 };
 

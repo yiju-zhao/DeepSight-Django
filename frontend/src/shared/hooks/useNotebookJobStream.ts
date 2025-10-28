@@ -18,7 +18,7 @@ import { studioKeys } from '@/features/notebook/hooks/studio/useStudio';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
 
 export interface JobEvent {
-  entity: 'podcast' | 'report';
+  entity: 'podcast' | 'report' | 'source';
   id: string;
   notebookId: string;
   status: 'STARTED' | 'SUCCESS' | 'FAILURE' | 'CANCELLED';
@@ -27,6 +27,11 @@ export interface JobEvent {
     pdf_object_key?: string;
     title?: string;
     error?: string;
+    file_id?: string;
+    filename?: string;
+    url?: string;
+    upload_file_id?: string;
+    upload_url_id?: string;
     [key: string]: any;
   };
   ts: string;
@@ -65,6 +70,9 @@ export function useNotebookJobStream({
 
   /**
    * Invalidate relevant queries based on job entity type
+   *
+   * Note: For 'source' events, invalidation should be handled by the
+   * onJobEvent callback in SourcesList to avoid cross-feature dependencies
    */
   const invalidateQueries = useCallback((event: JobEvent) => {
     const { entity, id, notebookId: nbId } = event;
@@ -84,6 +92,7 @@ export function useNotebookJobStream({
         queryClient.invalidateQueries({ queryKey: studioKeys.reportJobs(nbId) });
       }
     }
+    // Note: 'source' entity is handled by onJobEvent callback in SourcesList
   }, [queryClient]);
 
   /**
