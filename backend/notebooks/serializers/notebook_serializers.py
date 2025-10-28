@@ -8,10 +8,46 @@ from rest_framework import serializers
 from ..models import Notebook
 from ..constants import ParsingStatus
 
+
+class NotebookCountMixin:
+    """Mixin providing common computed count fields for notebooks."""
+
+    def get_source_count(self, obj):
+        return obj.knowledge_base_items.count()
+
+    def get_knowledge_item_count(self, obj):
+        return obj.knowledge_base_items.filter(parsing_status=ParsingStatus.DONE).count()
+
+
+class NotebookValidationMixin:
+    """Shared validation helpers for create/update serializers."""
+
+    def _validate_name_text(self, value: str) -> str:
+        if not value or not str(value).strip():
+            raise serializers.ValidationError("Notebook name cannot be empty.")
+        value = value.strip()
+        if len(value) < 2:
+            raise serializers.ValidationError(
+                "Notebook name must be at least 2 characters long."
+            )
+        if len(value) > 100:
+            raise serializers.ValidationError(
+                "Notebook name cannot exceed 100 characters."
+            )
+        return value
+
+    def _validate_description_text(self, value: str | None) -> str:
+        if not value:
+            return ""
+        value = value.strip()
+        if len(value) > 500:
+            raise serializers.ValidationError("Description cannot exceed 500 characters.")
+        return value
+
 User = get_user_model()
 
 
-class NotebookSerializer(serializers.ModelSerializer):
+class NotebookSerializer(NotebookCountMixin, serializers.ModelSerializer):
     """
     Serializer for Notebook model with comprehensive field handling.
 
@@ -49,14 +85,6 @@ class NotebookSerializer(serializers.ModelSerializer):
             "last_activity",
             "ragflow_dataset_info",
         ]
-
-    def get_source_count(self, obj):
-        """Get count of knowledge base items in the notebook."""
-        return obj.knowledge_base_items.count()
-
-    def get_knowledge_item_count(self, obj):
-        """Get count of processed knowledge base items."""
-        return obj.knowledge_base_items.filter(parsing_status=ParsingStatus.DONE).count()
 
     def get_chat_message_count(self, obj):
         """Get count of chat messages in the notebook (across all sessions)."""
@@ -122,7 +150,7 @@ class NotebookSerializer(serializers.ModelSerializer):
         return value.strip() if value else ""
 
 
-class NotebookListSerializer(serializers.ModelSerializer):
+class NotebookListSerializer(NotebookCountMixin, serializers.ModelSerializer):
     """
     Lightweight serializer for notebook listing with minimal fields.
 
@@ -151,16 +179,7 @@ class NotebookListSerializer(serializers.ModelSerializer):
             "knowledge_item_count",
         ]
 
-    def get_source_count(self, obj):
-        """Get total count of sources in the notebook."""
-        return obj.knowledge_base_items.count()
-
-    def get_knowledge_item_count(self, obj):
-        """Get count of processed items in the notebook."""
-        return obj.knowledge_base_items.filter(parsing_status=ParsingStatus.DONE).count()
-
-
-class NotebookCreateSerializer(serializers.ModelSerializer):
+class NotebookCreateSerializer(NotebookValidationMixin, serializers.ModelSerializer):
     """
     Serializer for notebook creation with specific validation rules.
     """
@@ -170,22 +189,7 @@ class NotebookCreateSerializer(serializers.ModelSerializer):
         fields = ["name", "description"]
 
     def validate_name(self, value):
-        """Validate notebook name for creation."""
-        if not value or not value.strip():
-            raise serializers.ValidationError("Notebook name is required.")
-
-        value = value.strip()
-
-        if len(value) < 2:
-            raise serializers.ValidationError(
-                "Notebook name must be at least 2 characters long."
-            )
-
-        if len(value) > 100:
-            raise serializers.ValidationError(
-                "Notebook name cannot exceed 100 characters."
-            )
-
+        value = self._validate_name_text(value)
         # Check for duplicate names for the user
         request = self.context.get("request")
         if request and hasattr(request, "user"):
@@ -193,7 +197,6 @@ class NotebookCreateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "A notebook with this name already exists."
                 )
-
         return value
 
     def create(self, validated_data):
@@ -205,7 +208,7 @@ class NotebookCreateSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class NotebookUpdateSerializer(serializers.ModelSerializer):
+class NotebookUpdateSerializer(NotebookValidationMixin, serializers.ModelSerializer):
     """
     Serializer for notebook updates with specific validation rules.
     """
@@ -215,22 +218,7 @@ class NotebookUpdateSerializer(serializers.ModelSerializer):
         fields = ["name", "description"]
 
     def validate_name(self, value):
-        """Validate notebook name for updates."""
-        if not value or not value.strip():
-            raise serializers.ValidationError("Notebook name cannot be empty.")
-
-        value = value.strip()
-
-        if len(value) < 2:
-            raise serializers.ValidationError(
-                "Notebook name must be at least 2 characters long."
-            )
-
-        if len(value) > 100:
-            raise serializers.ValidationError(
-                "Notebook name cannot exceed 100 characters."
-            )
-
+        value = self._validate_name_text(value)
         # Check for duplicate names for the user (excluding current notebook)
         request = self.context.get("request")
         if request and hasattr(request, "user") and self.instance:
@@ -242,5 +230,7 @@ class NotebookUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     "A notebook with this name already exists."
                 )
-
         return value
+
+    def validate_description(self, value):
+        return self._validate_description_text(value)

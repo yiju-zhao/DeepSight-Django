@@ -36,6 +36,13 @@ from rest_framework import (
 )
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from drf_spectacular.utils import (
+    extend_schema,
+    extend_schema_view,
+    OpenApiParameter,
+    OpenApiResponse,
+    OpenApiExample,
+)
 
 from .models import (
     BatchJob,
@@ -72,6 +79,41 @@ logger = logging.getLogger(__name__)
 # ----------------------------
 # Notebook CRUD and operations
 # ----------------------------
+@extend_schema_view(
+    list=extend_schema(
+        summary="List notebooks",
+        description="Get paginated list of notebooks for the authenticated user",
+        responses={200: NotebookListSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        summary="Get notebook details",
+        description="Retrieve detailed information about a specific notebook",
+        responses={200: NotebookSerializer},
+    ),
+    create=extend_schema(
+        summary="Create notebook",
+        description="Create a new notebook with RAGFlow knowledge base integration",
+        request=NotebookCreateSerializer,
+        responses={201: NotebookSerializer},
+    ),
+    update=extend_schema(
+        summary="Update notebook",
+        description="Update notebook details (full update)",
+        request=NotebookUpdateSerializer,
+        responses={200: NotebookSerializer},
+    ),
+    partial_update=extend_schema(
+        summary="Partially update notebook",
+        description="Update specific fields of a notebook",
+        request=NotebookUpdateSerializer,
+        responses={200: NotebookSerializer},
+    ),
+    destroy=extend_schema(
+        summary="Delete notebook",
+        description="Delete a notebook and cleanup associated RAGFlow resources",
+        responses={204: None},
+    ),
+)
 class NotebookViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsOwnerPermission]
     authentication_classes = [
@@ -147,6 +189,26 @@ class NotebookViewSet(viewsets.ModelViewSet):
             logger.exception(f"Failed to delete notebook {instance.id}: {e}")
             raise
 
+    @extend_schema(
+        summary="Get notebook statistics",
+        description="Retrieve statistics for a notebook including source counts and processing status",
+        responses={
+            200: OpenApiResponse(
+                description="Notebook statistics",
+                examples=[
+                    OpenApiExample(
+                        "Success",
+                        value={
+                            "total_sources": 10,
+                            "completed_sources": 8,
+                            "processing_sources": 2,
+                            "failed_sources": 0,
+                        },
+                    )
+                ],
+            )
+        },
+    )
     @action(detail=True, methods=["get"], url_path="stats")
     def stats(self, request, pk=None):
         notebook = self.get_object()
@@ -159,6 +221,15 @@ class NotebookViewSet(viewsets.ModelViewSet):
                 {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @extend_schema(
+        summary="Duplicate notebook",
+        description="Create a copy of an existing notebook with all its sources and settings",
+        request=None,
+        responses={
+            201: NotebookSerializer,
+            500: OpenApiResponse(description="Failed to duplicate notebook"),
+        },
+    )
     @action(detail=True, methods=["post"], url_path="duplicate")
     def duplicate(self, request, pk=None):
         notebook = self.get_object()
@@ -178,6 +249,61 @@ class NotebookViewSet(viewsets.ModelViewSet):
 # ----------------------------
 # File operations
 # ----------------------------
+@extend_schema_view(
+    list=extend_schema(
+        summary="List files in notebook",
+        description="Get paginated list of knowledge base items (files/sources) in a notebook",
+        parameters=[
+            OpenApiParameter(
+                name="include_incomplete",
+                type=str,
+                description="Include sources not yet completed in RAGFlow (1/true/yes)",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="parsing_status",
+                type=str,
+                description="Filter by parsing status",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="content_type",
+                type=str,
+                description="Filter by content type",
+                required=False,
+            ),
+        ],
+        responses={200: KnowledgeBaseItemSerializer(many=True)},
+    ),
+    retrieve=extend_schema(
+        summary="Get file details",
+        description="Retrieve details of a specific knowledge base item",
+        responses={200: KnowledgeBaseItemSerializer},
+    ),
+    create=extend_schema(
+        summary="Upload file",
+        description="Upload a single file to the notebook for processing",
+        request=BatchFileUploadSerializer,
+        responses={201: KnowledgeBaseItemSerializer},
+    ),
+    update=extend_schema(
+        summary="Update file",
+        description="Update file metadata and properties",
+        request=KnowledgeBaseItemSerializer,
+        responses={200: KnowledgeBaseItemSerializer},
+    ),
+    partial_update=extend_schema(
+        summary="Partially update file",
+        description="Update specific fields of a file",
+        request=KnowledgeBaseItemSerializer,
+        responses={200: KnowledgeBaseItemSerializer},
+    ),
+    destroy=extend_schema(
+        summary="Delete file",
+        description="Delete a file from the notebook",
+        responses={204: None},
+    ),
+)
 class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
     serializer_class = KnowledgeBaseItemSerializer
     permission_classes = [permissions.IsAuthenticated, IsNotebookOwner]
@@ -410,6 +536,15 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
             )
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        summary="Parse URL",
+        description="Parse a web URL and extract content for the knowledge base",
+        request=URLParseSerializer,
+        responses={
+            201: KnowledgeBaseItemSerializer,
+            400: OpenApiResponse(description="Invalid URL or parsing failed"),
+        },
+    )
     @action(detail=False, methods=["post"], url_path="parse_url")
     def parse_url(self, request, notebook_pk=None):
         serializer = URLParseSerializer(data=request.data)
@@ -438,6 +573,15 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
             logger.exception(f"Failed to parse URL: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        summary="Parse URL with media extraction",
+        description="Parse a web URL and extract both text content and media (images/videos)",
+        request=URLParseWithMediaSerializer,
+        responses={
+            201: KnowledgeBaseItemSerializer,
+            400: OpenApiResponse(description="Invalid URL or parsing failed"),
+        },
+    )
     @action(detail=False, methods=["post"], url_path="parse_url_with_media")
     def parse_url_with_media(self, request, notebook_pk=None):
         serializer = URLParseWithMediaSerializer(data=request.data)
@@ -466,6 +610,15 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
             logger.exception(f"Failed to parse URL with media: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @extend_schema(
+        summary="Parse document URL",
+        description="Parse a URL pointing to a document (PDF, DOC, etc.) and extract content",
+        request=URLParseDocumentSerializer,
+        responses={
+            201: KnowledgeBaseItemSerializer,
+            400: OpenApiResponse(description="Invalid document URL or parsing failed"),
+        },
+    )
     @action(detail=False, methods=["post"], url_path="parse_document_url")
     def parse_document_url(self, request, notebook_pk=None):
         serializer = URLParseDocumentSerializer(data=request.data)

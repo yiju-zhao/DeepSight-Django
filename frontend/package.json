@@ -16,6 +16,7 @@
     "type-check": "tsc --noEmit",
     "type-check:watch": "tsc --noEmit --watch",
     "storybook": "storybook dev -p 6006",
+    "gen:types": "openapi-typescript ${API_URL:-http://127.0.0.1:8000}/api/schema/ -o src/shared/types/api.generated.ts",
     "build-storybook": "storybook build"
   },
   "dependencies": {

@@ -114,14 +114,24 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         console.log('[SourcesList] Source event received:', event);
         // Invalidate parsed files to trigger refetch
         queryClient.invalidateQueries({ queryKey: sourceKeys.parsedFiles(notebookId) });
-        // Show toast on failure for better UX
-        if (event.status === 'FAILURE') {
+
+        // Get upload ID from event payload
+        const uploadId = event.payload?.upload_file_id || event.payload?.upload_url_id;
+
+        // Stop tracking placeholder on success or failure
+        if (event.status === 'SUCCESS' || event.status === 'COMPLETED') {
+          // Upload completed successfully - remove placeholder
+          if (uploadId) {
+            console.log('[SourcesList] Stopping tracking for completed upload:', uploadId);
+            try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
+          }
+        } else if (event.status === 'FAILURE') {
           const name = event.payload?.title || event.payload?.filename || 'Source';
           const description = event.payload?.error || 'Upload failed';
           toast({ title: `${name} failed`, description, variant: 'destructive' });
           // Stop tracking placeholder on failure
-          const uploadId = event.payload?.upload_file_id || event.payload?.upload_url_id;
           if (uploadId) {
+            console.log('[SourcesList] Stopping tracking for failed upload:', uploadId);
             try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
           }
         }
@@ -150,27 +160,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       }
     });
   }, [notebookId, refetchFiles, onSelectionChange]);
-
-  // We no longer inspect list items for in-progress states.
-  // Placeholders are removed via SSE source events on completion/failure.
-  // However, to reliably remove placeholders when the completed item appears
-  // (RagFlow-completed and included in the list), match upload IDs in metadata.
-  useEffect(() => {
-    const items: any[] = parsedFilesResponse?.results || [];
-    const tracked = fileUploadStatus.listTrackedUploads?.() || [];
-    if (!tracked.length || !items.length) return;
-
-    tracked.forEach((t: any) => {
-      const found = items.find((it: any) =>
-        String(it?.metadata?.upload_file_id || '') === String(t.uploadFileId) ||
-        String(it?.metadata?.upload_url_id || '') === String(t.uploadFileId)
-      );
-      if (found) {
-        try { t.onComplete && t.onComplete(); } catch { /* noop */ }
-        fileUploadStatus.stopTracking?.(t.uploadFileId);
-      }
-    });
-  }, [parsedFilesResponse, fileUploadStatus]);
 
   // Get original filename from metadata
   const getOriginalFilename = (metadata: FileMetadata) => {
@@ -680,61 +669,45 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       {/* Main Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto relative">
-        {/* Uploading placeholders rendered as minimal SourceItem rows with sweeping highlight */}
-        {trackedUploads.length > 0 && (
-          <>
-            {/* Skip placeholders if a server item with same upload id exists */}
-            {trackedUploads.map((u: any) => {
-              // Use raw server results to detect if the final item already exists,
-              // independent of grouping or client-side transforms.
-              const serverItems: any[] = (parsedFilesResponse?.results as any[]) || [];
-              const uploadIdsInServer = new Set(
-                serverItems
-                  .map((it: any) => it?.metadata?.upload_file_id || it?.metadata?.upload_url_id)
-                  .filter(Boolean)
-              );
-              if (uploadIdsInServer.has(u.uploadFileId)) {
-                return null; // Morph handled by server item using the same key
-              }
-              const deriveExt = () => {
-                if (u.fileType === 'url') return 'url';
-                if (u.name && typeof u.name === 'string') {
-                  const parts = u.name.split('.');
-                  if (parts.length > 1) return parts.pop()?.toLowerCase();
-                }
-                return undefined;
-              };
+        {/* Uploading placeholders - SSE events handle removal on success/failure */}
+        {trackedUploads.map((u: any) => {
+          const deriveExt = () => {
+            if (u.fileType === 'url') return 'url';
+            if (u.name && typeof u.name === 'string') {
+              const parts = u.name.split('.');
+              if (parts.length > 1) return parts.pop()?.toLowerCase();
+            }
+            return undefined;
+          };
 
-              const placeholderSource: Source = {
-                id: `upload-${u.uploadFileId}`,
-                title: u.name || 'Uploading…',
-                type: 'uploading',
-                selected: false,
-                parsing_status: 'uploading',
-                captioning_status: undefined,
-                ragflow_processing_status: 'uploading',
-                ext: deriveExt(),
-                metadata: {
-                  upload_file_id: u.uploadFileId,
-                  processing_method: u.fileType === 'url' ? 'url_extractor' : undefined,
-                  original_filename: u.name,
-                },
-              };
+          const placeholderSource: Source = {
+            id: `upload-${u.uploadFileId}`,
+            title: u.name || 'Uploading…',
+            type: 'uploading',
+            selected: false,
+            parsing_status: 'uploading',
+            captioning_status: undefined,
+            ragflow_processing_status: 'uploading',
+            ext: deriveExt(),
+            metadata: {
+              upload_file_id: u.uploadFileId,
+              processing_method: u.fileType === 'url' ? 'url_extractor' : undefined,
+              original_filename: u.name,
+            },
+          };
 
-              return (
-                <SourceItem
-                  key={keyForSource(placeholderSource)}
-                  source={placeholderSource}
-                  onToggle={() => { /* noop during upload */ }}
-                  onPreview={() => { /* disabled while uploading */ }}
-                  getSourceTooltip={() => 'Uploading…'}
-                  getPrincipleFileIcon={getPrincipleFileIcon}
-                  renderFileStatus={() => null}
-                />
-              );
-            })}
-          </>
-        )}
+          return (
+            <SourceItem
+              key={keyForSource(placeholderSource)}
+              source={placeholderSource}
+              onToggle={() => { /* noop during upload */ }}
+              onPreview={() => { /* disabled while uploading */ }}
+              getSourceTooltip={() => 'Uploading…'}
+              getPrincipleFileIcon={getPrincipleFileIcon}
+              renderFileStatus={() => null}
+            />
+          );
+        })}
         {isGrouped ? (
           // Grouped rendering with unified styling
           <div>

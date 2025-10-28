@@ -15,21 +15,11 @@ API Structure:
 """
 
 from django.contrib import admin
-from django.urls import include, path
-from drf_yasg import openapi
-from drf_yasg.views import get_schema_view
-from rest_framework import permissions
-
-# Create the schema view for API documentation
-schema_view = get_schema_view(
-    openapi.Info(
-        title="DeepSight API",
-        default_version="v1",
-        description="Interactive documentation for DeepSight backend with clean app-specific endpoints",
-        contact=openapi.Contact(email="you@yourdomain.com"),
-    ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
+from django.urls import include, path, re_path
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
 )
 
 urlpatterns = [
@@ -53,14 +43,18 @@ urlpatterns = [
     # ========================================
     # API Documentation
     # ========================================
-    # Swagger UI (interactive API explorer)
+    # OpenAPI schema and documentation (drf-spectacular)
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
-        "swagger/",
-        schema_view.with_ui("swagger", cache_timeout=0),
-        name="schema-swagger-ui",
+        "api/schema/swagger-ui/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
     ),
-    # ReDoc UI (alternative documentation format)
-    path("redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
+    path(
+        "api/schema/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc",
+    ),
 ]
 
 # ========================================
@@ -98,6 +92,7 @@ Conferences:
 - /api/v1/conferences/dashboard/overview/ -> Conferences overview
 
 Documentation:
-- /swagger/ -> Interactive API explorer
-- /redoc/ -> Alternative documentation format
+- /api/schema/ -> Raw OpenAPI schema (JSON)
+- /api/schema/swagger-ui/ -> Interactive API explorer
+- /api/schema/redoc/ -> Alternative documentation format
 """

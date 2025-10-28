@@ -1273,15 +1273,24 @@ def check_ragflow_status_task(self, kb_item_id: str):
             )
             try:
                 # Publish final SUCCESS for 'source' on RagFlow completion
+                # Include upload_file_id/upload_url_id from metadata for frontend tracking
+                payload = {
+                    "file_id": str(kb_item.id),
+                    "title": kb_item.title,
+                }
+                # Add upload IDs from metadata if available
+                if kb_item.metadata:
+                    if "upload_file_id" in kb_item.metadata:
+                        payload["upload_file_id"] = kb_item.metadata["upload_file_id"]
+                    if "upload_url_id" in kb_item.metadata:
+                        payload["upload_url_id"] = kb_item.metadata["upload_url_id"]
+
                 publish_notebook_event(
                     notebook_id=str(kb_item.notebook.id),
                     entity="source",
                     entity_id=str(kb_item.id),
                     status="SUCCESS",
-                    payload={
-                        "file_id": str(kb_item.id),
-                        "title": kb_item.title,
-                    },
+                    payload=payload,
                 )
             except Exception:
                 logger.warning("Failed to publish SSE event on RagFlow completion", exc_info=True)
