@@ -79,7 +79,12 @@ def delete_kb_files_on_pre_delete(sender, instance: KnowledgeBaseItem, using, **
     try:
         # STEP 1: Delete RagFlow document IMMEDIATELY (before DB deletion)
         # We need to do this now because we need the IDs before they're lost
-        if instance.ragflow_document_id and instance.notebook.ragflow_dataset_id:
+        # Skip if deletion already performed upstream (e.g., in viewset)
+        if getattr(instance, "_ragflow_deleted", False):
+            logger.info(
+                f"RagFlow document already deleted upstream for KB item {instance.id}; skipping in signal"
+            )
+        elif instance.ragflow_document_id and instance.notebook.ragflow_dataset_id:
             logger.info(
                 f"Deleting RagFlow document '{instance.title}' (ID: {instance.ragflow_document_id}) from dataset {instance.notebook.ragflow_dataset_id}"
             )

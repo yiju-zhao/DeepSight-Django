@@ -29,11 +29,14 @@ export const SourceItem = React.memo<SourceItemProps>(({
   const parsing = source.parsing_status;
   const rag = source.ragflow_processing_status;
   const caption = source.captioning_status;
+  const isCompleted = (parsing === 'done' || parsing === 'completed') || rag === 'completed' || caption === 'completed';
   const isWorking = !!(
     (parsing && ['uploading', 'queueing', 'parsing'].includes(parsing)) ||
     (rag && ['uploading', 'parsing'].includes(rag)) ||
     caption === 'in_progress'
   );
+  // Only show sweeping highlight for core parsing pipeline (not ragflow/captioning)
+  const isSweeping = !isCompleted && !!(parsing && ['uploading', 'queueing', 'parsing'].includes(parsing));
   const isContentReady = !isWorking;
   const isCaptionReady = caption === 'completed';
 
@@ -59,8 +62,8 @@ export const SourceItem = React.memo<SourceItemProps>(({
       onClick={supportsPreviewCheck ? handleItemClick : undefined}
       title={supportsPreviewCheck ? getSourceTooltip(source) : undefined}
     >
-      {/* Sweeping highlight effect only during active processing */}
-      {isWorking && (
+      {/* Sweeping highlight effect only during core parsing/uploading */}
+      {isSweeping && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div
             className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-100/40 to-transparent"

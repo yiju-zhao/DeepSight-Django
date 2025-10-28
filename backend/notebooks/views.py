@@ -709,6 +709,45 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
                 f"File deletion will clean up RagFlow document first, then MinIO storage{ragflow_doc_info}"
             )
 
+            # If the KB item is linked to RagFlow, attempt deletion up-front so we can fail fast
+            if instance.ragflow_document_id and instance.notebook.ragflow_dataset_id:
+                try:
+                    from infrastructure.ragflow.client import get_ragflow_client
+
+                    ragflow_client = get_ragflow_client()
+                    logger.info(
+                        f"[FileViewSet.perform_destroy] Deleting RagFlow document {instance.ragflow_document_id} from dataset {instance.notebook.ragflow_dataset_id}"
+                    )
+                    success = ragflow_client.delete_document(
+                        instance.notebook.ragflow_dataset_id,
+                        instance.ragflow_document_id,
+                    )
+                    if not success:
+                        from rest_framework.exceptions import ValidationError
+                        raise ValidationError({
+                            'detail': 'Failed to delete RagFlow document',
+                            'ragflow_document_id': instance.ragflow_document_id,
+                            'ragflow_dataset_id': instance.notebook.ragflow_dataset_id,
+                        })
+
+                    # Mark on the instance so the pre_delete signal skips duplicate deletion
+                    setattr(instance, "_ragflow_deleted", True)
+
+                    # Best-effort dataset update after document deletion
+                    try:
+                        ragflow_client.update_dataset(instance.notebook.ragflow_dataset_id)
+                    except Exception:
+                        logger.warning(
+                            f"[FileViewSet.perform_destroy] Dataset update failed for {instance.notebook.ragflow_dataset_id}",
+                            exc_info=True,
+                        )
+
+                except Exception as e:
+                    logger.exception(
+                        f"[FileViewSet.perform_destroy] Error deleting RagFlow document {instance.ragflow_document_id}: {e}"
+                    )
+                    raise
+
             # Delete the instance - signals will handle RAGFlow deletion first, then MinIO cleanup
             instance.delete()
 

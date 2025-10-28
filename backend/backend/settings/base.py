@@ -81,7 +81,7 @@ LOCAL_APPS = [
     "infrastructure",
     # Feature applications
     "users",
-    "notebooks",
+    "notebooks.apps.NotebooksConfig",
     "reports",
     "conferences",
     "podcast",
