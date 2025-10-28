@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2, Copy, RotateCcw, Sparkles, AlertCircle } from 'lucide-react';
+import { Send, User, Bot, Loader2, Sparkles, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/shared/components/ui/button';
 import { Textarea } from '@/shared/components/ui/textarea';
-import { Badge } from '@/shared/components/ui/badge';
+// import { Badge } from '@/shared/components/ui/badge';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { useToast } from '@/shared/components/ui/use-toast';
 import ReactMarkdown from 'react-markdown';
@@ -263,12 +263,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
         ) : (
           <div className="p-8 space-y-5 max-w-4xl mx-auto">
             <AnimatePresence>
-              {messages.map((message, index) => {
-                const isLastMessage = index === messages.length - 1;
-                const isAssistant = message.sender === 'assistant';
-                const shouldShowInlineSuggestions =
-                  showSuggestions && isLastMessage && isAssistant && suggestions && suggestions.length > 0;
-                const inlineSuggestions = (suggestions || []).slice(0, 2);
+              {messages.map((message) => {
                 return (
                   <motion.div
                     key={message.id}
@@ -300,24 +295,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                         ) : (
                           <div className="px-4 py-3 rounded-2xl bg-white">
                             <MarkdownContent content={message.message} />
-
-                            {shouldShowInlineSuggestions && (
-                              <div className="mt-3 pt-3 border-t border-gray-100">
-                                <div className="flex flex-wrap gap-2">
-                                  {inlineSuggestions.map((sugg, i) => (
-                                    <Button
-                                      key={`${i}-${sugg}`}
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleSendMessage(sugg)}
-                                      className="h-7 rounded-full px-3 text-xs"
-                                    >
-                                      {sugg}
-                                    </Button>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
                           </div>
                         )}
                       </div>
@@ -326,11 +303,33 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                 );
               })}
             </AnimatePresence>
-            
             <div ref={messagesEndRef} />
           </div>
         )}
       </div>
+
+      {/* Suggestions bubble above chat box */}
+      {showSuggestions && suggestions && suggestions.length > 0 && (
+        <div className="flex-shrink-0 px-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="inline-block px-4 py-3 rounded-2xl bg-white border border-gray-200 shadow-sm">
+              <div className="flex flex-wrap gap-2">
+                {(suggestions.slice(0, 2)).map((sugg, i) => (
+                  <Button
+                    key={`${i}-${sugg}`}
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSendMessage(sugg)}
+                    className="h-7 rounded-full px-3 text-xs"
+                  >
+                    {sugg}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Input Area */}
       <div className="flex-shrink-0 p-6 bg-white">

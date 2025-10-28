@@ -344,7 +344,7 @@ export interface UseSessionChatReturn {
   createSession: () => Promise<ChatSession | null>;
   closeSession: (sessionId: string) => Promise<boolean>;
   switchSession: (sessionId: string) => void;
-  updateSessionTitle: (sessionId: string, title: string) => Promise<boolean>;
+  updateSessionTitle: (sessionId: string, title: string, options?: { silent?: boolean }) => Promise<boolean>;
   sendMessage: (sessionId: string, message: string) => Promise<boolean>;
   loadSessionMessages: (sessionId: string) => Promise<SessionChatMessage[]>;
 

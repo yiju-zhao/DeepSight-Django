@@ -52,7 +52,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     if (activeSession?.title.startsWith('New Chat')) {
       // Truncate message to a reasonable length for a title
       const newTitle = message.substring(0, 50) + (message.length > 50 ? '...' : '');
-      await updateSessionTitle(activeSessionId, newTitle);
+      await updateSessionTitle(activeSessionId, newTitle, { silent: true });
     }
 
     return await sendMessage(activeSessionId, message);

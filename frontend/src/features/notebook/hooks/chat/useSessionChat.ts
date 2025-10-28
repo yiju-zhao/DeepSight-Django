@@ -145,7 +145,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   // Mutation for updating session title
   const updateTitleMutation = useMutation({
-    mutationFn: ({ sessionId, title }: { sessionId: string; title: string }) =>
+    mutationFn: ({ sessionId, title, silent }: { sessionId: string; title: string; silent?: boolean }) =>
       sessionChatService.updateSessionTitle(notebookId, sessionId, { title }),
     onSuccess: (_, variables) => {
       // Update sessions list
@@ -156,10 +156,12 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
         queryKey: sessionKeys.session(notebookId, variables.sessionId)
       });
 
-      toast({
-        title: 'Title Updated',
-        description: 'Session title has been updated',
-      });
+      if (!variables.silent) {
+        toast({
+          title: 'Title Updated',
+          description: 'Session title has been updated',
+        });
+      }
     },
     onError: (error) => {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update title';
@@ -196,9 +198,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     }
   }, [closeSessionMutation]);
 
-  const updateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<boolean> => {
+  const updateSessionTitle = useCallback(async (sessionId: string, title: string, options?: { silent?: boolean }): Promise<boolean> => {
     try {
-      await updateTitleMutation.mutateAsync({ sessionId, title });
+      await updateTitleMutation.mutateAsync({ sessionId, title, silent: options?.silent });
       return true;
     } catch (error) {
       return false;

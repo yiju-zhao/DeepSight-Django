@@ -112,58 +112,61 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       // Handle source events (file/URL processing updates)
       if (event.entity === 'source') {
         console.log('[SourcesList] Source event received:', event);
-        // Invalidate parsed files to trigger refetch
-        queryClient.invalidateQueries({ queryKey: sourceKeys.parsedFiles(notebookId) });
-
-        // Get upload ID from event payload
         const uploadId = event.payload?.upload_file_id || event.payload?.upload_url_id;
 
-        // Stop tracking placeholder on success or failure
         if (event.status === 'SUCCESS' || event.status === 'COMPLETED') {
-          // Upload completed successfully - remove placeholder
-          if (uploadId) {
-            console.log('[SourcesList] Stopping tracking for completed upload:', uploadId);
-            try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
-            // Remove the local upload item; final item will come from server list
-            setLocalUploads(prev => {
-              const key = `upload-${uploadId}`;
-              if (!(key in prev)) return prev;
-              const next = { ...prev } as Record<string, Source>;
-              delete next[key];
-              return next;
-            });
-          }
-        } else if (event.status === 'FAILURE') {
-          const name = event.payload?.title || event.payload?.filename || 'Source';
-          const description = event.payload?.error || 'Upload failed';
-          toast({ title: `${name} failed`, description, variant: 'destructive' });
-          // Stop tracking placeholder on failure
-          if (uploadId) {
-            console.log('[SourcesList] Stopping tracking for failed upload:', uploadId);
-            try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
-            // Mark local upload item as failed (keep visible if server doesn't return an item)
-            setLocalUploads(prev => {
-              const key = `upload-${uploadId}`;
-              const existing = prev[key];
-              if (!existing) return prev;
-              return { ...prev, [key]: { ...existing, parsing_status: 'failed' } };
-            });
-          }
+          // On success, refetch the list from the server first.
+          refetchFiles().then(() => {
+            // After the server data is updated, remove the local placeholder.
+            if (uploadId) {
+              console.log('[SourcesList] Stopping tracking for completed upload:', uploadId);
+              try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
+              setLocalUploads(prev => {
+                const key = `upload-${uploadId}`;
+                if (!(key in prev)) return prev;
+                const next = { ...prev } as Record<string, Source>;
+                delete next[key];
+                return next;
+              });
+            }
+          });
         } else {
-          // Intermediate updates: propagate parsing_status if present
-          if (uploadId && event.payload?.parsing_status) {
-            const status = event.payload.parsing_status;
-            setLocalUploads(prev => {
-              const key = `upload-${uploadId}`;
-              const existing = prev[key];
-              if (!existing) return prev;
-              if (existing.parsing_status === status) return prev;
-              return { ...prev, [key]: { ...existing, parsing_status: status } };
-            });
+          // For other events (like FAILURE or intermediate progress), update the local item directly
+          // and also trigger a background refetch without waiting for it.
+          queryClient.invalidateQueries({ queryKey: sourceKeys.parsedFiles(notebookId) });
+
+          if (event.status === 'FAILURE') {
+            const name = event.payload?.title || event.payload?.filename || 'Source';
+            const description = event.payload?.error || 'Upload failed';
+            toast({ title: `${name} failed`, description, variant: 'destructive' });
+            // Stop tracking placeholder on failure
+            if (uploadId) {
+              console.log('[SourcesList] Stopping tracking for failed upload:', uploadId);
+              try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
+              // Mark local upload item as failed (keep visible if server doesn't return an item)
+              setLocalUploads(prev => {
+                const key = `upload-${uploadId}`;
+                const existing = prev[key];
+                if (!existing) return prev;
+                return { ...prev, [key]: { ...existing, parsing_status: 'failed' } };
+              });
+            }
+          } else {
+            // Intermediate updates: propagate parsing_status if present
+            if (uploadId && event.payload?.parsing_status) {
+              const status = event.payload.parsing_status;
+              setLocalUploads(prev => {
+                const key = `upload-${uploadId}`;
+                const existing = prev[key];
+                if (!existing) return prev;
+                if (existing.parsing_status === status) return prev;
+                return { ...prev, [key]: { ...existing, parsing_status: status } };
+              });
+            }
           }
         }
       }
-    }, [queryClient, notebookId, fileUploadStatus, toast]),
+    }, [queryClient, notebookId, fileUploadStatus, toast, refetchFiles]),
     onConnected: useCallback(() => {
       console.log('[SourcesList] SSE connected, syncing state');
       // Sync state when connection is established (handles missed events during disconnect)
