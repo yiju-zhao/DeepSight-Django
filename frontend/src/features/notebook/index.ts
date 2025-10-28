@@ -13,8 +13,7 @@ export { default as StudioPanel } from './components/panels/StudioPanel';
 
 // UI Components
 export { default as CreateNotebookForm } from './components/CreateNotebookForm';
-export { default as NotebookGrid } from './components/NotebookGrid';
-export { default as NotebookList } from './components/NotebookList';
+export { NotebookGrid } from './components/modern/NotebookGrid';
 export { default as FilePreview } from './components/shared/FilePreview';
 
 // Individual Panel Components (for direct access if needed)
@@ -61,4 +60,3 @@ export {
 
 // Types
 export * from './type';
-

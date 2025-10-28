@@ -62,7 +62,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
         name: `Notebook ${new Date().toLocaleDateString()}`,
         description: 'New notebook',
       }) as Notebook;
-      navigate(`/notebook/${newNotebook.id}`);
+      navigate(`/deepdive/${newNotebook.id}`);
     } catch (error) {
       console.error('Failed to create notebook:', error);
     }
@@ -70,7 +70,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
 
   // Handle notebook click
   const handleNotebookClick = (notebook: Notebook) => {
-    navigate(`/notebook/${notebook.id}`);
+    navigate(`/deepdive/${notebook.id}`);
   };
 
   // Table columns definition
@@ -116,15 +116,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
         </span>
       ),
     },
-    {
-      id: 'status',
-      header: 'Status',
-      cell: ({ row }) => (
-        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-          Ready
-        </span>
-      ),
-    },
+    // status column removed per design update
   ], []);
 
   // Grid view component
@@ -148,7 +140,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
                   </p>
                 )}
               </div>
-              <div className="ml-3 flex-shrink-0 w-2 h-2 rounded-full bg-green-400" />
+              {/* status indicator removed as requested */}
             </div>
             
             <div className="mt-4 flex items-center justify-between text-sm text-gray-500">

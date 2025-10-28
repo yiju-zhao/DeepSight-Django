@@ -31,8 +31,6 @@ export { default as GallerySection } from './shared/GallerySection';
 // Modern components
 export { NotebookGrid } from './modern/NotebookGrid';
 
-// Notebook-specific components (for backward compatibility)
-export { default as NotebookList } from './NotebookList';
 export { default as CreateNotebookForm } from './CreateNotebookForm';
 
 // Types and utilities
