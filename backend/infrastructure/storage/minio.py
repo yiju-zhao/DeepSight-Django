@@ -52,7 +52,7 @@ class MinIOStorage(StorageInterface):
             # Ensure bucket exists
             self._ensure_bucket_exists()
 
-            self.logger.info(
+            self.logger.debug(
                 f"MinIO client initialized for bucket: {self._bucket_name}"
             )
 

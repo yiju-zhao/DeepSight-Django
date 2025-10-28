@@ -12,9 +12,13 @@ from .minio import MinIOStorage
 logger = logging.getLogger(__name__)
 
 
+# Global storage backend instance (singleton)
+_storage_backend_instance = None
+
+
 def get_storage_backend() -> StorageInterface:
     """
-    Get the configured storage backend instance.
+    Get the configured storage backend instance (singleton).
 
     Returns:
         Configured storage backend implementing StorageInterface
@@ -22,12 +26,18 @@ def get_storage_backend() -> StorageInterface:
     Raises:
         ValueError: If no valid storage backend is configured
     """
-    storage_type = getattr(settings, "DEFAULT_STORAGE_BACKEND", "minio")
+    global _storage_backend_instance
 
-    if storage_type.lower() == "minio":
-        return MinIOStorage()
-    else:
-        raise ValueError(f"Unsupported storage backend: {storage_type}")
+    if _storage_backend_instance is None:
+        storage_type = getattr(settings, "DEFAULT_STORAGE_BACKEND", "minio")
+
+        if storage_type.lower() == "minio":
+            _storage_backend_instance = MinIOStorage()
+            logger.info(f"MinIO backend initialized with bucket: {getattr(settings, 'MINIO_BUCKET_NAME', 'deepsight-users')}")
+        else:
+            raise ValueError(f"Unsupported storage backend: {storage_type}")
+
+    return _storage_backend_instance
 
 
 class StorageAdapter:
