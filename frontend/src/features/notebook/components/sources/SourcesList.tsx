@@ -674,34 +674,47 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       {/* Main Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto relative">
-        {/* Uploading placeholders */}
+        {/* Uploading placeholders rendered as minimal SourceItem rows with sweeping highlight */}
         {trackedUploads.length > 0 && (
-          <div className="px-4 py-2">
-            {trackedUploads.map((u: any) => (
-              <div
-                key={`upload-placeholder-${u.uploadFileId}`}
-                className="mb-2 p-3 rounded-lg bg-white border border-gray-200 overflow-hidden relative"
-              >
-                {/* simple pulse overlay to suggest activity */}
-                <div className="absolute inset-0 bg-gray-50 animate-pulse opacity-60 pointer-events-none" />
-                <div className="flex items-center">
-                  <div className="w-8 h-8 mr-3 bg-gray-100 rounded-md flex items-center justify-center">
-                    <Upload className="h-4 w-4 text-gray-400" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="text-sm text-gray-800 truncate">
-                      {u.name || 'Uploading source...'}
-                    </div>
-                    <div className="text-xs text-gray-500">{u.fileType || 'file/url'} • {u.uploadFileId}</div>
-                  </div>
-                  <div className="ml-3">
-                    <div className="h-2 w-20 bg-gray-200 rounded overflow-hidden">
-                      <div className="h-full w-1/2 bg-gray-300 animate-pulse" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+          <div className="px-4 py-2 space-y-2">
+            {trackedUploads.map((u: any) => {
+              const deriveExt = () => {
+                if (u.fileType === 'url') return 'url';
+                if (u.name && typeof u.name === 'string') {
+                  const parts = u.name.split('.');
+                  if (parts.length > 1) return parts.pop()?.toLowerCase();
+                }
+                return undefined;
+              };
+
+              const placeholderSource: Source = {
+                id: `upload-${u.uploadFileId}`,
+                title: u.name || 'Uploading…',
+                type: 'uploading',
+                selected: false,
+                parsing_status: 'uploading',
+                captioning_status: undefined,
+                ragflow_processing_status: 'uploading',
+                ext: deriveExt(),
+                metadata: {
+                  upload_file_id: u.uploadFileId,
+                  processing_method: u.fileType === 'url' ? 'url_extractor' : undefined,
+                  original_filename: u.name,
+                },
+              };
+
+              return (
+                <SourceItem
+                  key={`upload-item-${u.uploadFileId}`}
+                  source={placeholderSource}
+                  onToggle={() => { /* noop during upload */ }}
+                  onPreview={() => { /* disabled while uploading */ }}
+                  getSourceTooltip={() => 'Uploading…'}
+                  getPrincipleFileIcon={getPrincipleFileIcon}
+                  renderFileStatus={() => null}
+                />
+              );
+            })}
           </div>
         )}
         {isGrouped ? (
