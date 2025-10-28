@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import authentication, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.http import HttpResponse
 
 from ..models import KnowledgeBaseItem, Notebook
 from ..constants import DEFAULT_SIGNED_URL_EXPIRES
@@ -222,7 +223,6 @@ class ETagCacheMixin:
 
         disposition: "inline" or "attachment".
         """
-        from django.http import HttpResponse
 
         if self._client_etag_matches(request, etag):
             resp = HttpResponse(status=304)
