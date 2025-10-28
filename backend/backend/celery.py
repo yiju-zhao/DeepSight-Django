@@ -26,6 +26,15 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
+# Explicitly include notebooks tasks package modules (after refactoring to package structure)
+app.autodiscover_tasks(
+    [
+        "notebooks.tasks.processing_tasks",
+        "notebooks.tasks.ragflow_tasks",
+        "notebooks.tasks.maintenance_tasks",
+    ]
+)
+
 # Fix for macOS fork() issues with Metal Performance Shaders
 if sys.platform == "darwin":  # macOS
     import multiprocessing
@@ -42,21 +51,21 @@ app.conf.update(
         "reports.tasks.process_report_generation": {"queue": "reports"},
         "reports.tasks.cleanup_old_reports": {"queue": "maintenance"},
         "reports.tasks.validate_report_configuration": {"queue": "validation"},
-        "notebooks.tasks.parse_url_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.parse_url_with_media_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.parse_document_url_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.process_url_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.process_url_media_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.process_url_document_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.process_file_upload_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.upload_to_ragflow_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.generate_image_captions_task": {
-            "queue": "notebook_processing"
-        },
-        "notebooks.tasks.test_caption_generation_task": {
-            "queue": "notebook_processing"
-        },
-        "notebooks.tasks.check_ragflow_status_task": {"queue": "notebook_processing"},
+        # Notebooks processing tasks (after refactoring to package structure)
+        "notebooks.tasks.processing_tasks.parse_url_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.processing_tasks.parse_url_with_media_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.processing_tasks.parse_document_url_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.processing_tasks.process_url_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.processing_tasks.process_url_media_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.processing_tasks.process_url_document_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.processing_tasks.process_file_upload_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.processing_tasks.generate_image_captions_task": {"queue": "notebook_processing"},
+        # Notebooks RAGFlow tasks
+        "notebooks.tasks.ragflow_tasks.upload_to_ragflow_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.ragflow_tasks.check_ragflow_status_task": {"queue": "notebook_processing"},
+        # Notebooks maintenance tasks
+        "notebooks.tasks.maintenance_tasks.test_caption_generation_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.maintenance_tasks.cleanup_old_batch_jobs": {"queue": "maintenance"},
     },
     # Task settings
     task_serializer="json",
