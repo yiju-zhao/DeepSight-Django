@@ -96,6 +96,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Simple file upload status tracking with completion detection (for new uploads)
   const fileUploadStatus = useFileUploadStatus();
+  const trackedUploads = fileUploadStatus.listTrackedUploads?.() || [];
 
   // ✅ Real-time updates via SSE
   useNotebookJobStream({
@@ -352,7 +353,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     },
     refreshSources: async () => { await refetchFiles(); },
     startUploadTracking: (uploadFileId: string) => {
-      fileUploadStatus.startTracking(uploadFileId);
+      fileUploadStatus.startTracking(uploadFileId, notebookId);
     },
     onProcessingComplete: handleProcessingComplete
   }));
@@ -455,9 +456,13 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             if (oldUploadFileId) {
               fileUploadStatus.stopTracking(oldUploadFileId);
             }
-            fileUploadStatus.startTracking(uploadFileId, notebookId, () => {
-              handleProcessingComplete(uploadFileId);
-            });
+            fileUploadStatus.startTracking(
+              uploadFileId,
+              notebookId,
+              () => { handleProcessingComplete(uploadFileId); },
+              _filename,
+              _fileType
+            );
             // ✅ No need for temp sources - SSE will notify when file is ready
             refetchFiles();
           }}
@@ -669,6 +674,36 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       {/* Main Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto relative">
+        {/* Uploading placeholders */}
+        {trackedUploads.length > 0 && (
+          <div className="px-4 py-2">
+            {trackedUploads.map((u: any) => (
+              <div
+                key={`upload-placeholder-${u.uploadFileId}`}
+                className="mb-2 p-3 rounded-lg bg-white border border-gray-200 overflow-hidden relative"
+              >
+                {/* simple pulse overlay to suggest activity */}
+                <div className="absolute inset-0 bg-gray-50 animate-pulse opacity-60 pointer-events-none" />
+                <div className="flex items-center">
+                  <div className="w-8 h-8 mr-3 bg-gray-100 rounded-md flex items-center justify-center">
+                    <Upload className="h-4 w-4 text-gray-400" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="text-sm text-gray-800 truncate">
+                      {u.name || 'Uploading source...'}
+                    </div>
+                    <div className="text-xs text-gray-500">{u.fileType || 'file/url'} • {u.uploadFileId}</div>
+                  </div>
+                  <div className="ml-3">
+                    <div className="h-2 w-20 bg-gray-200 rounded overflow-hidden">
+                      <div className="h-full w-1/2 bg-gray-300 animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {isGrouped ? (
           // Grouped rendering with unified styling
           <div>

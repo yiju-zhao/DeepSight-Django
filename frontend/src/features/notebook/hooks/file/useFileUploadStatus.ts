@@ -4,6 +4,9 @@ import { config } from "@/config";
 interface UploadTracker {
   uploadFileId: string;
   notebookId: string;
+  name?: string;
+  fileType?: string;
+  startedAt?: number;
   onComplete?: () => void;
 }
 
@@ -16,13 +19,20 @@ export const useFileUploadStatus = () => {
     onAnyFileCompleteRef.current = cb || null;
   }, []);
 
-  const startTracking = useCallback((uploadFileId: string, notebookId?: string, onComplete?: () => void) => {
-    if (notebookId && onComplete) {
-      setTrackedUploads(prev => new Map(prev).set(uploadFileId, {
-        uploadFileId,
-        notebookId,
-        onComplete
-      }));
+  const startTracking = useCallback((uploadFileId: string, notebookId?: string, onComplete?: () => void, name?: string, fileType?: string) => {
+    if (notebookId) {
+      setTrackedUploads(prev => {
+        const next = new Map(prev);
+        next.set(uploadFileId, {
+          uploadFileId,
+          notebookId,
+          name,
+          fileType,
+          startedAt: Date.now(),
+          onComplete,
+        });
+        return next;
+      });
     }
   }, []);
 

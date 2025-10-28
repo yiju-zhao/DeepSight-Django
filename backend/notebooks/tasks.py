@@ -671,23 +671,8 @@ def _handle_task_completion(
 
     logger.info(f"KB item {kb_item.id} marked as 'done' - ready for frontend use")
 
-    # Note: For simplified UX, final display is gated by RagFlow completion.
-    # We still publish a SUCCESS here to keep consumers informed, but the
-    # frontend list filters to RagFlow-completed items, so this event alone
-    # won't surface the item prematurely.
-    if kb_item.notebook:
-        publish_notebook_event(
-            notebook_id=str(kb_item.notebook.id),
-            entity="source",
-            entity_id=str(kb_item.id),
-            status="SUCCESS",
-            payload={
-                "file_id": str(kb_item.id),
-                "title": kb_item.title,
-                "upload_file_id": upload_file_id,
-                "upload_url_id": upload_url_id,
-            },
-        )
+    # Note: Final display is gated by RagFlow completion; avoid publishing
+    # a premature SUCCESS here to reduce noise and duplicate events.
 
     # Chain RagFlow upload task to ensure content is fully saved
     try:

@@ -995,6 +995,7 @@ class NotebookJobsSSEView(View):
 
             start_time = time.time()
             last_heartbeat = start_time
+            last_event_data = None
 
             # Listen for messages with timeout
             while True:
@@ -1011,10 +1012,12 @@ class NotebookJobsSSEView(View):
                 message = pubsub.get_message(timeout=1.0)
 
                 if message and message["type"] == "message":
-                    # Forward the event to client
+                    # Forward the event to client, but avoid duplicate sends of identical payloads
                     event_data = message["data"]
-                    yield f"data: {event_data}\n\n"
-                    logger.debug(f"Forwarded event: {event_data}")
+                    if event_data != last_event_data:
+                        yield f"data: {event_data}\n\n"
+                        last_event_data = event_data
+                        logger.debug(f"Forwarded event: {event_data}")
                     last_heartbeat = time.time()
 
                 # Send heartbeat if idle
