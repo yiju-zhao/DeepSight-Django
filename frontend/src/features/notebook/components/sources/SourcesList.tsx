@@ -98,6 +98,12 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   const fileUploadStatus = useFileUploadStatus();
   const trackedUploads = fileUploadStatus.listTrackedUploads?.() || [];
 
+  // Helper to build a stable key that morphs placeholder -> final item in place
+  const keyForSource = useCallback((s: Source) => {
+    const uploadId = s?.metadata?.upload_file_id || s?.metadata?.upload_url_id;
+    return uploadId ? `upload-${uploadId}` : `source-${s.id}`;
+  }, []);
+
   // ✅ Real-time updates via SSE
   useNotebookJobStream({
     notebookId,
@@ -677,7 +683,16 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         {/* Uploading placeholders rendered as minimal SourceItem rows with sweeping highlight */}
         {trackedUploads.length > 0 && (
           <div className="px-4 py-2 space-y-2">
+            {/* Skip placeholders if a server item with same upload id exists */}
             {trackedUploads.map((u: any) => {
+              const uploadIdsInServer = new Set(
+                (Array.isArray(processedSources) ? (processedSources as Source[]) : [])
+                  .map((it: any) => it?.metadata?.upload_file_id || it?.metadata?.upload_url_id)
+                  .filter(Boolean)
+              );
+              if (uploadIdsInServer.has(u.uploadFileId)) {
+                return null; // Morph handled by server item using the same key
+              }
               const deriveExt = () => {
                 if (u.fileType === 'url') return 'url';
                 if (u.name && typeof u.name === 'string') {
@@ -705,7 +720,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
               return (
                 <SourceItem
-                  key={`upload-item-${u.uploadFileId}`}
+                  key={keyForSource(placeholderSource)}
                   source={placeholderSource}
                   onToggle={() => { /* noop during upload */ }}
                   onPreview={() => { /* disabled while uploading */ }}
@@ -739,7 +754,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 </div>
                 {groupSources.map((source: Source) => (
                   <SourceItem
-                    key={`source-${source.id}-${source.file_id || source.upload_file_id}`}
+                    key={keyForSource(source)}
                     source={source}
                     onToggle={toggleSource}
                     onPreview={() => handlePreviewFile(source)}
@@ -756,7 +771,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           <div>
             {(processedSources as Source[]).map((source: Source) => (
               <SourceItem
-                key={`source-${source.id}-${source.file_id || source.upload_file_id}`}
+                key={keyForSource(source)}
                 source={source}
                 onToggle={() => toggleSource(source.id)}
                 onPreview={() => handlePreviewFile(source)}
