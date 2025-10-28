@@ -480,14 +480,15 @@ class FileStorageService:
         self.service_name = "file_storage"
         self.logger = logging.getLogger(f"{__name__}.file_storage")
 
-        # Initialize MinIO backend lazily
+        # Initialize MinIO backend lazily (singleton via get_minio_backend)
         self._minio_backend = None
 
     @property
     def minio_backend(self):
         """Lazy initialization of MinIO backend."""
         if self._minio_backend is None:
-            self._minio_backend = MinIOBackend()
+            # Reuse a shared singleton instance to avoid per-request reinitialization
+            self._minio_backend = get_minio_backend()
         return self._minio_backend
 
     def log_operation(self, operation: str, details: str = "", level: str = "info"):
@@ -1084,6 +1085,13 @@ def get_storage_adapter() -> StorageAdapter:
 
 
 # Factory function for getting MinIO backend
+# Maintain a module-level singleton to prevent repeated initialization/logging
+_minio_backend_singleton: MinIOBackend | None = None
+
+
 def get_minio_backend() -> MinIOBackend:
-    """Get MinIO backend instance."""
-    return MinIOBackend()
+    """Get a shared MinIO backend instance (singleton)."""
+    global _minio_backend_singleton
+    if _minio_backend_singleton is None:
+        _minio_backend_singleton = MinIOBackend()
+    return _minio_backend_singleton

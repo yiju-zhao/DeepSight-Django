@@ -519,6 +519,9 @@ class FileViewSet(viewsets.ModelViewSet):
         """
         Handle file deletion with proper cleanup of storage and RagFlow documents.
 
+        Only allows deletion of files in 'done' or 'failed' status to prevent
+        deletion of files currently being processed.
+
         Order of operations (handled by Django signals):
         1. Delete RagFlow document immediately (while IDs are still available)
         2. Delete the database record
@@ -527,8 +530,19 @@ class FileViewSet(viewsets.ModelViewSet):
         The actual cleanup is handled by Django signals (delete_kb_files_on_pre_delete).
         """
         try:
+            # Validate file status before deletion
+            processing_statuses = ['queueing', 'parsing', 'captioning']
+            if instance.parsing_status in processing_statuses:
+                from rest_framework.exceptions import ValidationError
+                raise ValidationError({
+                    'detail': f'Cannot delete file while it is being processed. Current status: {instance.parsing_status}',
+                    'parsing_status': instance.parsing_status,
+                    'file_id': str(instance.id),
+                    'file_title': instance.title
+                })
+
             logger.info(
-                f"Deleting file '{instance.title}' (ID: {instance.id}) from notebook {instance.notebook.id}"
+                f"Deleting file '{instance.title}' (ID: {instance.id}, status: {instance.parsing_status}) from notebook {instance.notebook.id}"
             )
 
             # Log the deletion for audit purposes
