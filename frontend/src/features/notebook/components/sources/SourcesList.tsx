@@ -685,8 +685,11 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           <>
             {/* Skip placeholders if a server item with same upload id exists */}
             {trackedUploads.map((u: any) => {
+              // Use raw server results to detect if the final item already exists,
+              // independent of grouping or client-side transforms.
+              const serverItems: any[] = (parsedFilesResponse?.results as any[]) || [];
               const uploadIdsInServer = new Set(
-                (Array.isArray(processedSources) ? (processedSources as Source[]) : [])
+                serverItems
                   .map((it: any) => it?.metadata?.upload_file_id || it?.metadata?.upload_url_id)
                   .filter(Boolean)
               );
