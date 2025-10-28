@@ -682,7 +682,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       <div className="flex-1 min-h-0 overflow-y-auto relative">
         {/* Uploading placeholders rendered as minimal SourceItem rows with sweeping highlight */}
         {trackedUploads.length > 0 && (
-          <div className="px-4 py-2 space-y-2">
+          <>
             {/* Skip placeholders if a server item with same upload id exists */}
             {trackedUploads.map((u: any) => {
               const uploadIdsInServer = new Set(
@@ -730,7 +730,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 />
               );
             })}
-          </div>
+          </>
         )}
         {isGrouped ? (
           // Grouped rendering with unified styling
