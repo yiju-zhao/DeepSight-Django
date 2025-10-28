@@ -10,18 +10,14 @@ import sourceService from '@/features/notebook/services/SourceService';
 const sourceKeys = {
   all: ['sources'] as const,
   notebook: (notebookId: string) => [...sourceKeys.all, 'notebook', notebookId] as const,
-  
+
   // Parsed files
-  parsedFiles: (notebookId: string, params?: any) => 
+  parsedFiles: (notebookId: string, params?: any) =>
     [...sourceKeys.notebook(notebookId), 'parsed-files', params] as const,
-  
+
   // Knowledge base
-  knowledgeBase: (notebookId: string, params?: any) => 
+  knowledgeBase: (notebookId: string, params?: any) =>
     [...sourceKeys.notebook(notebookId), 'knowledge-base', params] as const,
-  
-  // File status
-  fileStatus: (notebookId: string, fileId: string) => 
-    [...sourceKeys.notebook(notebookId), 'file-status', fileId] as const,
 };
 
 // ─── PARSED FILES ────────────────────────────────────────────────────────────
@@ -29,48 +25,21 @@ const sourceKeys = {
 /**
  * Hook to fetch parsed files
  *
- * Polling is now disabled by default - real-time updates are handled via SSE.
- * Set polling: true in options if you need to force polling behavior (fallback).
+ * Real-time updates are handled via SSE in SourcesList component.
+ * No polling - updates happen instantly when backend events are received.
  */
 export const useParsedFiles = (
   notebookId: string,
-  params?: { limit?: number; offset?: number },
-  options?: { polling?: boolean }
+  params?: { limit?: number; offset?: number }
 ) => {
-  const enablePolling = options?.polling === true; // Default: false (SSE-driven)
   return useQuery({
     queryKey: sourceKeys.parsedFiles(notebookId, params),
     queryFn: () => sourceService.listParsedFiles(notebookId, params || {}),
     enabled: !!notebookId,
-    staleTime: 30 * 1000, // 30 seconds - files can change when processing completes
+    staleTime: 30 * 1000, // 30 seconds
     gcTime: 5 * 60 * 1000, // 5 minutes cache
     retry: 2,
     refetchOnWindowFocus: false,
-    // Polling disabled by default (SSE handles real-time updates)
-    refetchInterval: enablePolling ? (query) => {
-      // Check if any files are being processed
-      const data = query?.state?.data;
-      if (!data?.results) return false;
-
-      const hasProcessingFiles = data.results.some((file: any) => {
-        const isParsingInProgress = file.parsing_status &&
-          ['queueing', 'uploading', 'parsing', 'captioning'].includes(file.parsing_status);
-        const isRagflowInProgress = file.ragflow_processing_status &&
-          ['pending', 'uploading', 'parsing'].includes(file.ragflow_processing_status);
-        const isCaptioningInProgress = file.captioning_status &&
-          ['pending', 'in_progress'].includes(file.captioning_status);
-
-        return isParsingInProgress || isRagflowInProgress || isCaptioningInProgress;
-      });
-
-      // Use exponential backoff: 3s initially, then 5s, then stop when nothing is processing
-      if (hasProcessingFiles) {
-        const attemptIndex = query?.state?.fetchFailureCount || 0;
-        return attemptIndex < 5 ? 3000 : 5000;
-      }
-
-      return false; // Stop polling when nothing is processing
-    } : false,
   });
 };
 
@@ -88,51 +57,8 @@ export const useKnowledgeBase = (notebookId: string, params?: { limit?: number; 
 };
 
 // ─── FILE STATUS ─────────────────────────────────────────────────────────────
-
-/**
- * Hook to fetch individual file status with intelligent polling
- * Uses exponential backoff and stops when processing is complete
- */
-export const useFileStatus = (notebookId: string, fileId: string, enabled: boolean = true) => {
-  return useQuery({
-    queryKey: sourceKeys.fileStatus(notebookId, fileId),
-    queryFn: () => sourceService.getStatus(fileId, notebookId),
-    enabled: !!notebookId && !!fileId && enabled,
-    staleTime: 5 * 1000, // 5 seconds - status changes frequently during processing
-    gcTime: 60 * 1000, // 1 minute cache
-    retry: 3,
-    refetchInterval: (query) => {
-      const data = query?.state?.data;
-      if (!data) return false;
-
-      // Check if any processing is happening
-      const isParsingInProgress = data.parsing_status &&
-        ['queueing', 'uploading', 'parsing', 'captioning'].includes(data.parsing_status);
-      const isRagflowInProgress = data.ragflow_processing_status &&
-        ['pending', 'uploading', 'parsing'].includes(data.ragflow_processing_status);
-      const isCaptioningInProgress = data.captioning_status &&
-        ['pending', 'in_progress'].includes(data.captioning_status);
-
-      // Stop polling if everything is done or failed
-      if (!isParsingInProgress && !isRagflowInProgress && !isCaptioningInProgress) {
-        return false;
-      }
-
-      // Use exponential backoff: start at 2s, then 3s, then 5s
-      const dataUpdatedAt = query?.state?.dataUpdatedAt || 0;
-      const now = Date.now();
-      const timeSinceLastUpdate = now - dataUpdatedAt;
-
-      if (timeSinceLastUpdate < 10000) {
-        return 2000; // First 10 seconds: poll every 2s
-      } else if (timeSinceLastUpdate < 30000) {
-        return 3000; // 10-30 seconds: poll every 3s
-      } else {
-        return 5000; // After 30 seconds: poll every 5s
-      }
-    }
-  });
-};
+// Note: Individual file status monitoring is now handled by useFileStatusSSE hook
+// which uses SSE for real-time updates instead of polling
 
 // ─── MUTATIONS ───────────────────────────────────────────────────────────────
 

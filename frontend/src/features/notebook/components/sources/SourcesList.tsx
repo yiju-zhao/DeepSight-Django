@@ -429,7 +429,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   };
 
 
-  // ✅ Simplified - TanStack Query polling handles new files
+  // ✅ Simplified - SSE handles real-time updates for new files
   const handleAddSource = (): void => {
     if (onOpenModal) {
       const modalContent = (
@@ -450,7 +450,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             fileUploadStatus.startTracking(uploadFileId, notebookId, () => {
               handleProcessingComplete(uploadFileId);
             });
-            // ✅ No need for temp sources - polling will fetch the file
+            // ✅ No need for temp sources - SSE will notify when file is ready
             refetchFiles();
           }}
           onKnowledgeBaseItemsDeleted={() => {
