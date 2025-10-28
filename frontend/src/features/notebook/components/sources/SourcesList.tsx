@@ -124,12 +124,13 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           if (uploadId) {
             console.log('[SourcesList] Stopping tracking for completed upload:', uploadId);
             try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
-            // Mark local upload item as done
+            // Remove the local upload item; final item will come from server list
             setLocalUploads(prev => {
               const key = `upload-${uploadId}`;
-              const existing = prev[key];
-              if (!existing) return prev;
-              return { ...prev, [key]: { ...existing, parsing_status: 'done' } };
+              if (!(key in prev)) return prev;
+              const next = { ...prev } as Record<string, Source>;
+              delete next[key];
+              return next;
             });
           }
         } else if (event.status === 'FAILURE') {
@@ -140,7 +141,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           if (uploadId) {
             console.log('[SourcesList] Stopping tracking for failed upload:', uploadId);
             try { fileUploadStatus.stopTracking?.(uploadId); } catch { /* noop */ }
-            // Mark local upload item as failed
+            // Mark local upload item as failed (keep visible if server doesn't return an item)
             setLocalUploads(prev => {
               const key = `upload-${uploadId}`;
               const existing = prev[key];
@@ -308,51 +309,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     }));
   }, [parsedFilesResponse, selectedIds]);
 
-  // When server returns the final item for an upload, enrich the local upload item instead of creating a new entry
-  useEffect(() => {
-    setLocalUploads(prev => {
-      let changed = false;
-      const next: Record<string, Source> = { ...prev };
-      const serverList = sources as Source[];
-      // Index server items by upload id for quick lookup
-      const byUploadId = new Map<string, Source>();
-      for (const s of serverList) {
-        const uid = s.metadata?.upload_file_id || s.metadata?.upload_url_id;
-        if (uid) byUploadId.set(String(uid), s);
-      }
-      for (const [key, item] of Object.entries(prev)) {
-        const uid = item.metadata?.upload_file_id || item.metadata?.upload_url_id;
-        if (!uid) continue;
-        const server = byUploadId.get(String(uid));
-        if (!server) continue;
-        // Merge essential fields into the local item while keeping the same key/id
-        const merged: Source = {
-          ...item,
-          title: server.title || item.title,
-          ext: server.ext || item.ext,
-          parsing_status: server.parsing_status || item.parsing_status,
-          captioning_status: server.captioning_status ?? item.captioning_status,
-          ragflow_processing_status: server.ragflow_processing_status ?? item.ragflow_processing_status,
-          file_id: server.file_id || item.file_id,
-          metadata: { ...(item.metadata || {}), ...(server.metadata || {}) },
-        };
-        // Detect change shallowly
-        const changedNow = (
-          merged.title !== item.title ||
-          merged.ext !== item.ext ||
-          merged.parsing_status !== item.parsing_status ||
-          merged.captioning_status !== item.captioning_status ||
-          merged.ragflow_processing_status !== item.ragflow_processing_status ||
-          merged.file_id !== item.file_id
-        );
-        if (changedNow) {
-          next[key] = merged;
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [sources]);
+  // No enrichment merge: local upload items are removed on success to avoid duplicates
 
   // Calculate selected count
   const selectedCount = sources.filter((source: Source) => source.selected).length;
@@ -383,9 +340,20 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   const processedSources = useMemo(() => {
     const localItems = Object.values(localUploads);
     const uploadIds = new Set(localItems.map((s) => s.metadata?.upload_file_id || s.metadata?.upload_url_id));
+    const localFilenames = new Set(
+      localItems
+        .map((s) => s.metadata?.original_filename || s.title)
+        .filter(Boolean)
+        .map(String)
+    );
     const serverItems = (sources as Source[]).filter((s) => {
       const sid = s.metadata?.upload_file_id || s.metadata?.upload_url_id;
-      return !sid || !uploadIds.has(sid);
+      if (sid && uploadIds.has(sid)) return false;
+      // Also drop server-side uploading duplicates by original filename when a local upload exists
+      const isServerUploading = s.parsing_status === 'uploading' || s.ragflow_processing_status === 'uploading';
+      const serverName = s.metadata?.original_filename || s.title;
+      if (isServerUploading && serverName && localFilenames.has(String(serverName))) return false;
+      return true;
     });
     const flatList = [...localItems, ...serverItems];
     if (isGrouped) {
@@ -405,12 +373,13 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   const handleProcessingComplete = useCallback((completedUploadId?: string) => {
     if (completedUploadId) {
       fileUploadStatus.stopTracking(completedUploadId);
-      // Mark local upload item as done
+      // Remove local item; rely on server list to show the final item
       setLocalUploads(prev => {
         const key = `upload-${completedUploadId}`;
-        const existing = prev[key];
-        if (!existing) return prev;
-        return { ...prev, [key]: { ...existing, parsing_status: 'done' } };
+        if (!(key in prev)) return prev;
+        const next = { ...prev } as Record<string, Source>;
+        delete next[key];
+        return next;
       });
     }
 
@@ -546,7 +515,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             );
             // Initialize a simple source item for this upload and keep updating its render by status
             setLocalUploads(prev => {
-              const key = `upload-${uploadFileId}`;
+              const newKey = `upload-${uploadFileId}`;
+              const oldKey = oldUploadFileId ? `upload-${oldUploadFileId}` : undefined;
               // Derive ext
               const deriveExt = () => {
                 if (_fileType === 'url') return 'url';
@@ -556,20 +526,41 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 }
                 return undefined;
               };
-              const next: Source = {
-                id: key,
-                title: _filename || 'Uploading…',
-                type: 'uploading',
-                selected: false,
-                parsing_status: 'uploading',
-                ext: deriveExt(),
-                metadata: {
-                  upload_file_id: uploadFileId,
-                  processing_method: _fileType === 'url' ? 'url_extractor' : undefined,
-                  original_filename: _filename,
-                },
-              } as Source;
-              return { ...prev, [key]: next };
+              const next = { ...prev } as Record<string, Source>;
+              if (oldKey && prev[oldKey]) {
+                // Rename existing local item to new key, preserving state
+                const existing = prev[oldKey];
+                delete next[oldKey];
+                next[newKey] = {
+                  ...existing,
+                  id: newKey,
+                  title: _filename || existing.title,
+                  parsing_status: 'uploading',
+                  ext: deriveExt() || existing.ext,
+                  metadata: {
+                    ...(existing.metadata || {}),
+                    upload_file_id: uploadFileId,
+                    processing_method: _fileType === 'url' ? 'url_extractor' : existing.metadata?.processing_method,
+                    original_filename: _filename || existing.metadata?.original_filename,
+                  },
+                };
+              } else {
+                // Create new local item
+                next[newKey] = {
+                  id: newKey,
+                  title: _filename || 'Uploading…',
+                  type: 'uploading',
+                  selected: false,
+                  parsing_status: 'uploading',
+                  ext: deriveExt(),
+                  metadata: {
+                    upload_file_id: uploadFileId,
+                    processing_method: _fileType === 'url' ? 'url_extractor' : undefined,
+                    original_filename: _filename,
+                  },
+                } as Source;
+              }
+              return next;
             });
             // ✅ No need for temp sources - SSE will notify when file is ready
             refetchFiles();
