@@ -212,7 +212,6 @@ export interface SourceItemProps {
   onPreview: (source: Source) => void;
   getSourceTooltip: (source: Source) => string;
   getPrincipleFileIcon: (source: Source) => React.ComponentType<any>;
-  renderFileStatus: (source: Source) => React.ReactNode;
 }
 
 // Re-export global types that are used in notebook feature

@@ -15,7 +15,6 @@ import { useFileSelection } from "@/features/notebook/hooks/file/useFileSelectio
 import { useParsedFiles, sourceKeys } from "@/features/notebook/hooks/sources/useSources";
 import { useNotebookJobStream } from "@/shared/hooks/useNotebookJobStream";
 import AddSourceModal from "./AddSourceModal";
-import { renderFileStatus } from "@/features/notebook/utils/statusRenderers";
 import { SourceItem } from "./SourceItem";
 import { useToast } from "@/shared/components/ui/use-toast";
 
@@ -97,6 +96,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   // Simple file upload status tracking with completion detection (for new uploads)
   const fileUploadStatus = useFileUploadStatus();
   const trackedUploads = fileUploadStatus.listTrackedUploads?.() || [];
+  // Maintain a stable item order so placeholders morph in-place
+  const [itemOrder, setItemOrder] = useState<string[]>([]);
 
   // Helper to build a stable key that morphs placeholder -> final item in place
   const keyForSource = useCallback((s: Source) => {
@@ -307,14 +308,93 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     return sortedGroups;
   }, []);
 
-  // Get processed sources (grouped or not)
+  // Build upload placeholders
+  const uploadPlaceholders: Source[] = useMemo(() => {
+    return trackedUploads.map((u: any) => {
+      const deriveExt = () => {
+        if (u.fileType === 'url') return 'url';
+        if (u.name && typeof u.name === 'string') {
+          const parts = u.name.split('.');
+          if (parts.length > 1) return parts.pop()?.toLowerCase();
+        }
+        return undefined;
+      };
+      return {
+        id: `upload-${u.uploadFileId}`,
+        title: u.name || 'Uploading…',
+        type: 'uploading',
+        selected: false,
+        parsing_status: 'uploading',
+        captioning_status: undefined,
+        ragflow_processing_status: 'uploading',
+        ext: deriveExt(),
+        metadata: {
+          upload_file_id: u.uploadFileId,
+          processing_method: u.fileType === 'url' ? 'url_extractor' : undefined,
+          original_filename: u.name,
+        },
+      } as Source;
+    });
+  }, [trackedUploads]);
+
+  // Build a merged map of items keyed by stable key
+  const itemsByKey = useMemo(() => {
+    const map = new Map<string, Source>();
+    // Insert parsed sources
+    for (const s of sources) {
+      map.set(keyForSource(s), s);
+    }
+    // Overlay placeholders (prefer placeholder while uploading)
+    for (const p of uploadPlaceholders) {
+      map.set(keyForSource(p), p);
+    }
+    return map;
+  }, [sources, uploadPlaceholders, keyForSource]);
+
+  // Keep a stable order: existing keys keep their relative positions; new uploads prepend; new parsed append
+  useEffect(() => {
+    const existing = new Set(itemOrder);
+    const allKeys = Array.from(itemsByKey.keys());
+
+    // Start with previous order but drop missing keys
+    let nextOrder = itemOrder.filter(k => itemsByKey.has(k));
+
+    // Determine upload keys (placeholders) in display order from trackedUploads
+    const uploadKeysInOrder = uploadPlaceholders.map(p => keyForSource(p));
+    for (const k of uploadKeysInOrder) {
+      if (!existing.has(k) && itemsByKey.has(k)) {
+        nextOrder = [k, ...nextOrder];
+      }
+    }
+
+    // Append new parsed keys (that are not uploads) in the order from `sources`
+    const sourceKeysInOrder = sources.map(s => keyForSource(s));
+    for (const k of sourceKeysInOrder) {
+      if (!nextOrder.includes(k) && itemsByKey.has(k)) {
+        nextOrder.push(k);
+      }
+    }
+
+    // If order was empty initially (first load), fill with all keys maintaining upload first then sources
+    if (itemOrder.length === 0) {
+      nextOrder = [...uploadKeysInOrder.filter(k => itemsByKey.has(k)), ...sourceKeysInOrder.filter(k => itemsByKey.has(k))];
+    }
+
+    // Remove any stray keys not present (already handled) and set
+    setItemOrder(nextOrder);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemsByKey, uploadPlaceholders, sources]);
+
+  const combinedSources: Source[] = useMemo(() => itemOrder.map(k => itemsByKey.get(k)).filter(Boolean) as Source[], [itemOrder, itemsByKey]);
+
+  // Get processed sources (grouped or not) based on combined list
   const processedSources = useMemo(() => {
     if (isGrouped) {
-      const grouped = groupSources(sources);
+      const grouped = groupSources(combinedSources);
       return grouped || {};
     }
-    return sources;
-  }, [sources, isGrouped, groupSources]);
+    return combinedSources;
+  }, [combinedSources, isGrouped, groupSources]);
 
   // Handle group toggle
   const handleGroupToggle = () => {
@@ -472,6 +552,9 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Get tooltip text for source items
   const getSourceTooltip = (source: Source): string => {
+    if (source.type === 'uploading' || source.parsing_status === 'uploading') {
+      return 'Uploading…';
+    }
     const isUrl = source.metadata?.source_url ||
                   source.metadata?.extraction_type === 'url_extractor' ||
                   source.metadata?.processing_method === 'media' ||
@@ -669,45 +752,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       {/* Main Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto relative">
-        {/* Uploading placeholders - SSE events handle removal on success/failure */}
-        {trackedUploads.map((u: any) => {
-          const deriveExt = () => {
-            if (u.fileType === 'url') return 'url';
-            if (u.name && typeof u.name === 'string') {
-              const parts = u.name.split('.');
-              if (parts.length > 1) return parts.pop()?.toLowerCase();
-            }
-            return undefined;
-          };
-
-          const placeholderSource: Source = {
-            id: `upload-${u.uploadFileId}`,
-            title: u.name || 'Uploading…',
-            type: 'uploading',
-            selected: false,
-            parsing_status: 'uploading',
-            captioning_status: undefined,
-            ragflow_processing_status: 'uploading',
-            ext: deriveExt(),
-            metadata: {
-              upload_file_id: u.uploadFileId,
-              processing_method: u.fileType === 'url' ? 'url_extractor' : undefined,
-              original_filename: u.name,
-            },
-          };
-
-          return (
-            <SourceItem
-              key={keyForSource(placeholderSource)}
-              source={placeholderSource}
-              onToggle={() => { /* noop during upload */ }}
-              onPreview={() => { /* disabled while uploading */ }}
-              getSourceTooltip={() => 'Uploading…'}
-              getPrincipleFileIcon={getPrincipleFileIcon}
-              renderFileStatus={renderFileStatus}
-            />
-          );
-        })}
         {isGrouped ? (
           // Grouped rendering with unified styling
           <div>
@@ -736,7 +780,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                     onPreview={() => handlePreviewFile(source)}
                     getSourceTooltip={getSourceTooltip}
                     getPrincipleFileIcon={getPrincipleFileIcon}
-                    renderFileStatus={renderFileStatus}
                   />
                 ))}
               </div>
@@ -753,7 +796,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 onPreview={() => handlePreviewFile(source)}
                 getSourceTooltip={getSourceTooltip}
                 getPrincipleFileIcon={getPrincipleFileIcon}
-                renderFileStatus={renderFileStatus}
               />
             ))}
           </div>

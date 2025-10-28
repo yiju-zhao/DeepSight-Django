@@ -14,7 +14,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
-import QuestionSuggestions from './QuestionSuggestions';
+// import QuestionSuggestions from './QuestionSuggestions';
 import type { SessionChatWindowProps } from '@/features/notebook/type';
 
 // Memoized markdown content component
@@ -263,47 +263,70 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
         ) : (
           <div className="p-8 space-y-5 max-w-4xl mx-auto">
             <AnimatePresence>
-              {messages.map((message) => (
-                <motion.div
-                  key={message.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`flex space-x-4 ${message.sender === 'user' ? 'max-w-[80%] flex-row-reverse space-x-reverse' : 'w-full'}`}>
-                    {/* Avatar */}
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      message.sender === 'user'
-                        ? 'bg-gradient-to-br from-gray-700 to-gray-800 text-white'
-                        : 'bg-white border-2 border-gray-200 text-gray-600'
-                    }`}>
-                      {message.sender === 'user' ? (
-                        <User className="h-4 w-4" />
-                      ) : (
-                        <Bot className="h-4 w-4" />
-                      )}
-                    </div>
+              {messages.map((message, index) => {
+                const isLastMessage = index === messages.length - 1;
+                const isAssistant = message.sender === 'assistant';
+                const shouldShowInlineSuggestions =
+                  showSuggestions && isLastMessage && isAssistant && suggestions && suggestions.length > 0;
+                const inlineSuggestions = (suggestions || []).slice(0, 2);
+                return (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`flex space-x-4 ${message.sender === 'user' ? 'max-w-[80%] flex-row-reverse space-x-reverse' : 'w-full'}`}>
+                      {/* Avatar */}
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        message.sender === 'user'
+                          ? 'bg-gradient-to-br from-gray-700 to-gray-800 text-white'
+                          : 'bg-white border-2 border-gray-200 text-gray-600'
+                      }`}>
+                        {message.sender === 'user' ? (
+                          <User className="h-4 w-4" />
+                        ) : (
+                          <Bot className="h-4 w-4" />
+                        )}
+                      </div>
 
-                    {/* Message Content */}
-                    <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
-                      {message.sender === 'user' ? (
-                        <div className="px-4 py-2.5 rounded-2xl bg-white text-gray-900">
-                          <p className="text-xs leading-5">{message.message}</p>
-                        </div>
-                      ) : (
-                        <div className="px-4 py-3 rounded-2xl bg-white">
-                          <MarkdownContent content={message.message} />
-                        </div>
-                      )}
+                      {/* Message Content */}
+                      <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
+                        {message.sender === 'user' ? (
+                          <div className="px-4 py-2.5 rounded-2xl bg-white text-gray-900">
+                            <p className="text-xs leading-5">{message.message}</p>
+                          </div>
+                        ) : (
+                          <div className="px-4 py-3 rounded-2xl bg-white">
+                            <MarkdownContent content={message.message} />
+
+                            {shouldShowInlineSuggestions && (
+                              <div className="mt-3 pt-3 border-t border-gray-100">
+                                <div className="flex flex-wrap gap-2">
+                                  {inlineSuggestions.map((sugg, i) => (
+                                    <Button
+                                      key={`${i}-${sugg}`}
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleSendMessage(sugg)}
+                                      className="h-7 rounded-full px-3 text-xs"
+                                    >
+                                      {sugg}
+                                    </Button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </AnimatePresence>
-
-            {showSuggestions && <QuestionSuggestions suggestions={suggestions} onSuggestionClick={(suggestion) => handleSendMessage(suggestion)} />}
-
+            
             <div ref={messagesEndRef} />
           </div>
         )}

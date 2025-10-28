@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { ImageIcon } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 import { supportsPreview } from '@/features/notebook/utils/filePreview';
 import { Source } from '@/features/notebook/type';
 
@@ -10,7 +10,6 @@ interface SourceItemProps {
   onPreview: (source: Source) => void;
   getSourceTooltip: (source: Source) => string;
   getPrincipleFileIcon: (source: Source) => React.ComponentType<any>;
-  renderFileStatus: (source: Source) => React.ReactNode;
 }
 
 /**
@@ -22,37 +21,55 @@ export const SourceItem = React.memo<SourceItemProps>(({
   onToggle,
   onPreview,
   getSourceTooltip,
-  getPrincipleFileIcon,
-  renderFileStatus
+  getPrincipleFileIcon
 }) => {
-  // Unified working/ready state across parsing/ragflow/captioning
-  const parsing = source.parsing_status;
-  const rag = source.ragflow_processing_status;
-  const caption = source.captioning_status;
-  const isCompleted = (parsing === 'done' || parsing === 'completed') || rag === 'completed' || caption === 'completed';
-  const isWorking = !!(
-    (parsing && ['uploading', 'queueing', 'parsing'].includes(parsing)) ||
-    (rag && ['uploading', 'parsing'].includes(rag)) ||
-    caption === 'in_progress'
-  );
-  // Only show sweeping highlight for core parsing pipeline (not ragflow/captioning)
-  const isSweeping = !isCompleted && !!(parsing && ['uploading', 'queueing', 'parsing'].includes(parsing));
-  const isContentReady = !isWorking;
-  const isCaptionReady = caption === 'completed';
+  // Derive a minimal tri-state: processing | failed | done
+  const deriveStatus = (s: Source): 'processing' | 'failed' | 'done' => {
+    const p = s.parsing_status;
+    const r = s.ragflow_processing_status;
+    const c = s.captioning_status;
+    // Failed has priority
+    if (
+      (p && ['failed', 'error', 'cancelled', 'unsupported'].includes(p)) ||
+      r === 'failed' ||
+      c === 'failed'
+    ) {
+      return 'failed';
+    }
+    // Processing: uploading/queueing/parsing/captioning/in_progress or explicit uploading placeholder
+    if (
+      (p && ['uploading', 'queueing', 'parsing', 'captioning'].includes(p)) ||
+      (r && ['uploading', 'parsing'].includes(r)) ||
+      c === 'in_progress' ||
+      s.type === 'uploading'
+    ) {
+      return 'processing';
+    }
+    // Done: parsing has no 'completed', only 'done'; others may have 'completed'.
+    // For UI, treat absence of failure/processing as done.
+    return 'done';
+  };
+
+  const status = deriveStatus(source);
+  const isProcessing = status === 'processing';
+  const isFailed = status === 'failed';
+  const isDone = status === 'done';
+  const isSweeping = isProcessing; // sweep only when processing
+  const isContentReady = isDone; // only final items are interactive/selectable
 
   const handleItemClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only allow preview when not working
-    if (!isWorking && supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {})) {
+    // Only allow preview for final items
+    if (isDone && supportsPreview(source.metadata?.file_extension || source.ext || '', source.metadata || {})) {
       onPreview(source);
     }
-  }, [onPreview, source, isWorking]);
+  }, [onPreview, source, isDone]);
 
   const supportsPreviewCheck = supportsPreview(
     source.metadata?.file_extension || source.ext || '',
     source.metadata || {}
-  ) && !isWorking;
+  ) && isDone;
 
   return (
     <div
@@ -78,25 +95,27 @@ export const SourceItem = React.memo<SourceItemProps>(({
       <div className="flex items-center space-x-3 relative z-10">
         <div className="flex-shrink-0 flex items-center">
           <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
-            {React.createElement(getPrincipleFileIcon(source), {
-              className: "h-4 w-4 text-gray-600"
-            })}
+            {isProcessing ? (
+              <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
+            ) : (
+              React.createElement(getPrincipleFileIcon(source), {
+                className: "h-4 w-4 text-gray-600"
+              })
+            )}
           </div>
         </div>
 
         <div className="min-w-0 flex-1 flex items-center space-x-2">
           <h4 className="text-sm font-medium text-gray-900 truncate">{source.title}</h4>
-          {renderFileStatus(source)}
+          {isFailed && (
+            <div className="flex items-center space-x-1" title="Failed">
+              <AlertCircle className="h-3 w-3 text-red-500" />
+              <span className="text-xs text-red-500">Failed</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center space-x-2 flex-shrink-0">
-          {/* Show image icon when caption is ready */}
-          {isCaptionReady && (
-            <div title="Caption ready">
-              <ImageIcon className="h-4 w-4 text-green-600" />
-            </div>
-          )}
-
           {/* Only show checkbox when content is ready */}
           {isContentReady && (
             <div
