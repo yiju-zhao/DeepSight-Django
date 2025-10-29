@@ -93,7 +93,7 @@ export const SourceItem = React.memo<SourceItemProps>(({
           : 'bg-white'
       } ${
         supportsPreviewCheck ? 'cursor-pointer hover:shadow-sm' : ''
-      } ${source.selected ? 'shadow-sm ring-2 ring-blue-500 ring-opacity-50' : ''}`}
+      } ${source.selected ? 'border-b-2 border-blue-500' : ''}`}
       onClick={supportsPreviewCheck ? handleItemClick : undefined}
       title={supportsPreviewCheck ? getSourceTooltip(source) : undefined}
     >
