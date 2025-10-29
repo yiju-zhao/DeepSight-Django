@@ -92,6 +92,7 @@ class URLExtractor:
                 "quiet": True,
                 "no_warnings": True,
                 "nocheckcertificate": True,
+                "nocookies": True,  # Explicitly disable cookies
             }
 
             # Extract information to see what's available
@@ -316,6 +317,7 @@ class URLExtractor:
                 "outtmpl": output_path,
                 "format": "bestvideo+bestaudio/best",
                 "nocheckcertificate": True,
+                "nocookies": True,  # Explicitly disable cookies
             }
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -352,6 +354,7 @@ class URLExtractor:
                 "outtmpl": output_path,
                 "format": "bestaudio/best",
                 "nocheckcertificate": True,
+                "nocookies": True,  # Explicitly disable cookies
                 "postprocessors": [
                     {
                         "key": "FFmpegExtractAudio",
