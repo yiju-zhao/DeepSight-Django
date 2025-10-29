@@ -11,6 +11,7 @@ import { LoadingSpinner, NotebookGridSkeleton } from "@/shared/components/ui/Loa
 import { Button } from "@/shared/components/ui/button";
 import { DataTable } from "@/shared/components/ui/DataTable";
 import { useDeferredSearch, useSmartLoading } from "@/shared/hooks/useConcurrentFeatures";
+import CreateNotebookForm from "@/features/notebook/components/CreateNotebookForm";
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Notebook } from "@/shared/api";
 import { cn } from "@/shared/utils/utils";
@@ -22,7 +23,8 @@ interface NotebookGridProps {
 export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
   // Use React 18 concurrent features for search
   const {
     query: searchQuery,
@@ -55,16 +57,22 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
     return Array.isArray(notebooksResponse) ? notebooksResponse : (notebooksResponse as any)?.data || [];
   }, [notebooksResponse]);
 
-  // Handle create notebook
-  const handleCreateNotebook = async () => {
+  // Handle create notebook submission
+  const handleCreateNotebook = async (name: string, description: string) => {
     try {
       const newNotebook = await createNotebook.mutateAsync({
-        name: `Notebook ${new Date().toLocaleDateString()}`,
-        description: 'New notebook',
+        name,
+        description,
       }) as Notebook;
+      setShowCreateForm(false);
       navigate(`/deepdive/${newNotebook.id}`);
+      return { success: true };
     } catch (error) {
       console.error('Failed to create notebook:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to create notebook'
+      };
     }
   };
 
@@ -183,19 +191,25 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
           
           <div className="flex items-center space-x-3">
             <Button
-              onClick={handleCreateNotebook}
+              onClick={() => setShowCreateForm(true)}
               disabled={createNotebook.isPending}
               className="inline-flex items-center"
             >
-              {createNotebook.isPending ? (
-                <LoadingSpinner size="sm" color="white" className="mr-2" />
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
+              <Plus className="w-4 h-4 mr-2" />
               New Notebook
             </Button>
           </div>
         </div>
+
+        {/* Create Notebook Form */}
+        {showCreateForm && (
+          <CreateNotebookForm
+            onSubmit={handleCreateNotebook}
+            onCancel={() => setShowCreateForm(false)}
+            loading={createNotebook.isPending}
+            error={createNotebook.error?.message}
+          />
+        )}
 
         {/* Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -258,7 +272,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
                   <p className="text-gray-500 mb-6">
                     Get started by creating your first notebook to organize your research and knowledge.
                   </p>
-                  <Button onClick={handleCreateNotebook}>
+                  <Button onClick={() => setShowCreateForm(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Create Your First Notebook
                   </Button>

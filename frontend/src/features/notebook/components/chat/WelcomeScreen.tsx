@@ -20,42 +20,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           transition={{ duration: 0.6 }}
           className="text-center"
         >
-          {/* Icon - Minimalist design */}
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="inline-flex items-center justify-center mb-8"
-          >
-            <div className="relative">
-              <div className="w-24 h-24 bg-white border-2 border-gray-200 rounded-2xl flex items-center justify-center">
-                <MessageCircle className="h-12 w-12 text-red-600" strokeWidth={1.5} />
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-red-600 rounded-full flex items-center justify-center">
-                <div className="w-2 h-2 bg-white rounded-full" />
-              </div>
-            </div>
-          </motion.div>
 
-          {/* Title */}
-          <motion.h1
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-3xl font-semibold text-gray-900 mb-3"
-          >
-            Start Your Conversation
-          </motion.h1>
-
-          {/* Subtitle */}
-          <motion.p
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.25 }}
-            className="text-base text-gray-500 mb-8 leading-relaxed"
-          >
-            Begin an intelligent dialogue with your knowledge base
-          </motion.p>
 
           {/* Source Requirement Alert */}
           {!hasFiles && (
