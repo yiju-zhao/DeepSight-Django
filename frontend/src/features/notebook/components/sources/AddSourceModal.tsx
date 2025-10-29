@@ -9,7 +9,7 @@ interface AddSourceModalProps {
   onClose: () => void;
   notebookId: string;
   onSourcesAdded: () => void;
-  onUploadStarted?: (uploadFileId: string, filename: string, fileType: string, oldUploadFileId?: string) => void;
+  onUploadStarted?: (fileId: string, filename: string, fileType: string) => void;
   onKnowledgeBaseItemsDeleted?: () => void;
 }
 
@@ -63,21 +63,20 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
     setIsUploading(true);
       try {
       const uploadFileId = `upload_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-          // Notify parent component that upload started IMMEDIATELY
-      // This makes the item show up in processing state right away (like URLs do)
-      if (onUploadStarted) {
-        onUploadStarted(uploadFileId, file.name, validation.extension);
-      }
-          const response = await sourceService.parseFile(file, uploadFileId, notebookId);
-          if (response.success) {
-        // Update temp source with real file_id from API for proper tracking
-        if (onUploadStarted && response.file_id && response.file_id !== uploadFileId) {
-          console.log(`Updating file tracking from upload_id ${uploadFileId} to real file_id ${response.file_id}`);
-          // Call onUploadStarted again with the real file_id to update the temp source
-          onUploadStarted(response.file_id, file.name, validation.extension, uploadFileId);
-        } else {
-          console.log(`File upload response:`, response, `uploadFileId: ${uploadFileId}`);
+
+      // Send API request first to get the real file_id
+      const response = await sourceService.parseFile(file, uploadFileId, notebookId);
+
+      if (response.success) {
+        // Use the REAL file_id from API response (database primary key)
+        const realFileId = response.file_id || uploadFileId;
+        console.log(`File uploaded successfully with file_id: ${realFileId}`);
+
+        // Notify parent with the real file_id (ONLY ONCE)
+        if (onUploadStarted) {
+          onUploadStarted(realFileId, file.name, validation.extension);
         }
+
         // Close modal and refresh sources list on success
         handleClose();
         onSourcesAdded();
@@ -118,12 +117,8 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
           // Get display name for URL
       const urlDomain = linkUrl.replace(/^https?:\/\//, '').split('/')[0];
       const displayName = `${urlDomain} - ${urlProcessingType || 'website'}`;
-          
-      // Show temp processing item BEFORE API call
-      if (onUploadStarted) {
-        onUploadStarted(uploadFileId, displayName, 'url');
-      }
-      
+
+      // Send API request to get the real file_id
       let response;
       if (urlProcessingType === 'media') {
         response = await sourceService.parseUrlWithMedia(linkUrl, notebookId, 'cosine', uploadFileId);
@@ -132,19 +127,19 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
       } else {
         response = await sourceService.parseUrl(linkUrl, notebookId, 'cosine', uploadFileId);
       }
-          if (response.success) {
-        // Update temp source with real file_id from API for proper tracking
-        if (onUploadStarted && response.file_id && response.file_id !== uploadFileId) {
-          // Call onUploadStarted again with the real file_id to update the temp source
-          onUploadStarted(response.file_id, displayName, 'url', uploadFileId);
+
+      if (response.success) {
+        // Use the REAL file_id from API response
+        const realFileId = response.file_id || uploadFileId;
+        console.log(`URL added successfully with file_id: ${realFileId}`);
+
+        // Notify parent with the real file_id (ONLY ONCE)
+        if (onUploadStarted) {
+          onUploadStarted(realFileId, displayName, 'url');
         }
-        // Close modal - DON'T refresh sources list immediately
-        // The URL will be processed asynchronously and appear when ready
+
+        // Close modal
         handleClose();
-        // Note: We don't call onSourcesAdded() here because:
-        // 1. We already called onUploadStarted() to show the processing item
-        // 2. The URL processing happens asynchronously via Celery
-        // 3. Real-time updates will show when processing is complete
       } else {
         throw new Error(response.error || 'URL parsing failed');
       }
@@ -189,20 +184,21 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
           const filename = words.length > 0 ? `${words.join('_').toLowerCase()}.md` : 'pasted_text.md';
           const blob = new Blob([pasteText], { type: 'text/markdown' });
       const file = new File([blob], filename, { type: 'text/markdown' });
-          
-      // Notify parent component that upload started IMMEDIATELY
-      if (onUploadStarted) {
-        onUploadStarted(uploadFileId, filename, 'md');
-      }
-      
-          const response = await sourceService.parseFile(file, uploadFileId, notebookId);
-          if (response.success) {
-        // Update temp source with real file_id from API for proper tracking
-        if (onUploadStarted && response.file_id && response.file_id !== uploadFileId) {
-          // Call onUploadStarted again with the real file_id to update the temp source
-          onUploadStarted(response.file_id, filename, 'md', uploadFileId);
+
+      // Send API request to get the real file_id
+      const response = await sourceService.parseFile(file, uploadFileId, notebookId);
+
+      if (response.success) {
+        // Use the REAL file_id from API response
+        const realFileId = response.file_id || uploadFileId;
+        console.log(`Text uploaded successfully with file_id: ${realFileId}`);
+
+        // Notify parent with the real file_id (ONLY ONCE)
+        if (onUploadStarted) {
+          onUploadStarted(realFileId, filename, 'md');
         }
-              // Close modal and refresh sources list
+
+        // Close modal and refresh sources list
         handleClose();
         onSourcesAdded();
       } else {
