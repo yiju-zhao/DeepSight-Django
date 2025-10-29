@@ -87,10 +87,10 @@ export const SourceItem = React.memo<SourceItemProps>(({
     <div
       className={`relative px-3 py-2.5 overflow-hidden transition-all duration-300 ${
         isProcessing
-          ? 'bg-blue-50/50 border-t border-b border-blue-100'
+          ? 'bg-blue-50/50'
           : isFailed
-          ? 'bg-red-50/50 border-t border-b border-red-100'
-          : 'bg-white border-t border-b border-transparent'
+          ? 'bg-red-50/50'
+          : 'bg-white'
       } ${
         supportsPreviewCheck ? 'cursor-pointer hover:shadow-sm' : ''
       } ${source.selected ? 'shadow-sm ring-2 ring-blue-500 ring-opacity-50' : ''}`}
