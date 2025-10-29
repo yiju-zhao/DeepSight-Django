@@ -6,6 +6,7 @@ and generating image captions.
 """
 
 import logging
+import os
 from typing import Any
 from uuid import uuid4
 
@@ -17,6 +18,7 @@ from django.shortcuts import get_object_or_404
 
 from ..constants import CaptioningStatus, ContentType, ParsingStatus
 from ..exceptions import FileProcessingError, URLProcessingError, ValidationError
+from ..ingestion import IngestionOrchestrator
 from ..models import KnowledgeBaseImage, KnowledgeBaseItem
 from ._helpers import (
     _check_batch_completion,
@@ -27,6 +29,21 @@ from ._helpers import (
 from .ragflow_tasks import upload_to_ragflow_task
 
 logger = logging.getLogger(__name__)
+
+
+# Initialize ingestion orchestrator
+def _get_ingestion_orchestrator() -> IngestionOrchestrator:
+    """Get configured ingestion orchestrator instance."""
+    mineru_base_url = os.getenv("MINERU_BASE_URL", "http://localhost:8008")
+    xinference_url = os.getenv("XINFERENCE_URL", "http://localhost:9997")
+    model_uid = os.getenv("XINFERENCE_WHISPER_MODEL_UID", "Bella-whisper-large-v3-zh")
+
+    return IngestionOrchestrator(
+        mineru_base_url=mineru_base_url,
+        xinference_url=xinference_url,
+        model_uid=model_uid,
+        logger=logger,
+    )
 
 
 # ============================================================================
@@ -191,22 +208,20 @@ def parse_url_task(
         kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
-        # Process the URL
-        from ..processors.url_extractor import URLExtractor
+        # Process the URL using new ingestion orchestrator
+        orchestrator = _get_ingestion_orchestrator()
 
-        url_extractor = URLExtractor()
-
-        # Pass kb_item_id to update existing item instead of creating new one
-        result = async_to_sync(url_extractor.process_url)(
+        # Use async_to_sync to run the async method
+        result = async_to_sync(orchestrator.ingest_url)(
             url=url,
-            upload_url_id=upload_url_id,
-            user_id=user_id,
+            user_pk=user_id,
             notebook_id=notebook_id,
+            mode="webpage",  # Default to webpage mode
             kb_item_id=str(kb_item.id),
         )
 
         # Get the file_id from result (should be same as kb_item.id)
-        file_id = result.get("file_id")
+        file_id = result.file_id
 
         if not file_id:
             kb_item.parsing_status = ParsingStatus.FAILED
@@ -295,22 +310,20 @@ def parse_url_with_media_task(
         kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
-        # Process the URL with media
-        from ..processors.url_extractor import URLExtractor
+        # Process the URL with media using new ingestion orchestrator
+        orchestrator = _get_ingestion_orchestrator()
 
-        url_extractor = URLExtractor()
-
-        # Pass kb_item_id to update existing item instead of creating new one
-        result = async_to_sync(url_extractor.process_url_with_media)(
+        # Use async_to_sync to run the async method
+        result = async_to_sync(orchestrator.ingest_url)(
             url=url,
-            upload_url_id=upload_url_id,
-            user_id=user_id,
+            user_pk=user_id,
             notebook_id=notebook_id,
+            mode="media",  # Media mode for audio/video
             kb_item_id=str(kb_item.id),
         )
 
         # Get the file_id from result
-        file_id = result.get("file_id")
+        file_id = result.file_id
 
         if not file_id:
             kb_item.parsing_status = ParsingStatus.FAILED
@@ -397,22 +410,20 @@ def parse_document_url_task(
         kb_item.parsing_status = ParsingStatus.PARSING
         kb_item.save(update_fields=["parsing_status"])
 
-        # Process the document URL
-        from ..processors.url_extractor import URLExtractor
+        # Process the document URL using new ingestion orchestrator
+        orchestrator = _get_ingestion_orchestrator()
 
-        url_extractor = URLExtractor()
-
-        # Pass kb_item_id to update existing item instead of creating new one
-        result = async_to_sync(url_extractor.process_url_document_only)(
+        # Use async_to_sync to run the async method
+        result = async_to_sync(orchestrator.ingest_url)(
             url=url,
-            upload_url_id=upload_url_id,
-            user_id=user_id,
+            user_pk=user_id,
             notebook_id=notebook_id,
+            mode="document",  # Document mode for PDF/PPTX
             kb_item_id=str(kb_item.id),
         )
 
         # Get the file_id from result
-        file_id = result.get("file_id")
+        file_id = result.file_id
 
         if not file_id:
             kb_item.parsing_status = ParsingStatus.FAILED
@@ -511,30 +522,17 @@ def process_url_task(
             },
         )
 
-        # Process URL using URL extractor
-        from ..processors.url_extractor import URLExtractor
-
-        url_extractor = URLExtractor()
-
-        async def process_url_async():
-            if kb_item_id:
-                return await url_extractor.process_url_update_existing(
-                    url=url,
-                    kb_item_id=str(kb_item.id),
-                    upload_url_id=upload_url_id or uuid4().hex,
-                    user_id=user.pk,
-                    notebook_id=str(notebook.id),
-                )
-            else:
-                return await url_extractor.process_url(
-                    url=url,
-                    upload_url_id=upload_url_id or uuid4().hex,
-                    user_id=user.pk,
-                    notebook_id=str(notebook.id),
-                )
+        # Process URL using new ingestion orchestrator
+        orchestrator = _get_ingestion_orchestrator()
 
         # Execute URL processing
-        result = async_to_sync(process_url_async)()
+        result = async_to_sync(orchestrator.ingest_url)(
+            url=url,
+            user_pk=user.pk,
+            notebook_id=str(notebook.id),
+            mode="webpage",  # Default to webpage mode
+            kb_item_id=str(kb_item.id),
+        )
 
         # Handle completion
         result = _handle_task_completion(
@@ -598,14 +596,13 @@ def process_url_media_task(
             payload={"upload_url_id": upload_url_id, "url": url, "title": kb_item.title},
         )
 
-        from ..processors.url_extractor import URLExtractor
-
-        url_extractor = URLExtractor()
-        result = async_to_sync(url_extractor.process_url_with_media)(
+        # Process URL with media using new ingestion orchestrator
+        orchestrator = _get_ingestion_orchestrator()
+        result = async_to_sync(orchestrator.ingest_url)(
             url=url,
-            upload_url_id=upload_url_id or uuid4().hex,
-            user_id=user.pk,
+            user_pk=user.pk,
             notebook_id=str(notebook.id),
+            mode="media",  # Media mode for audio/video
             kb_item_id=str(kb_item.id),
         )
 
@@ -670,14 +667,13 @@ def process_url_document_task(
             payload={"upload_url_id": upload_url_id, "url": url, "title": kb_item.title},
         )
 
-        from ..processors.url_extractor import URLExtractor
-
-        url_extractor = URLExtractor()
-        result = async_to_sync(url_extractor.process_url_document_only)(
+        # Process document URL using new ingestion orchestrator
+        orchestrator = _get_ingestion_orchestrator()
+        result = async_to_sync(orchestrator.ingest_url)(
             url=url,
-            upload_url_id=upload_url_id or uuid4().hex,
-            user_id=user.pk,
+            user_pk=user.pk,
             notebook_id=str(notebook.id),
+            mode="document",  # Document mode for PDF/PPTX
             kb_item_id=str(kb_item.id),
         )
 

@@ -28,10 +28,8 @@ except ImportError:
     settings = None
     clean_title = None
 
-# Import refactored services
-from .device_manager import DeviceManager
-from .file_type_processors import FileTypeProcessors
-from .minio_post_processor import MinIOPostProcessor
+# Import new ingestion module
+from ..ingestion import IngestionOrchestrator
 
 
 class UploadProcessor:
@@ -47,19 +45,6 @@ class UploadProcessor:
             ContentIndexingService() if ContentIndexingService else None
         )
         self.validator = FileValidator() if FileValidator else None
-
-        # Initialize service components
-        self.device_manager = DeviceManager(self.logger)
-        self.file_type_processors = None  # Lazy initialization
-        self.minio_post_processor = None  # Lazy initialization
-
-        # Initialize Xinference settings
-        self.xinference_url = os.getenv("XINFERENCE_URL", "http://localhost:9997")
-        self.model_uid = os.getenv(
-            "XINFERENCE_WHISPER_MODEL_UID", "whisper-large-v3-turbo"
-        )
-        self._xinference_client = None
-        self._xinference_model = None
 
         # MinerU API configuration - use Django settings if available
         if mineru_base_url is None:
@@ -79,29 +64,22 @@ class UploadProcessor:
             mineru_base_url = f"http://{mineru_base_url}"
 
         self.mineru_base_url = mineru_base_url.rstrip("/")
-        self.mineru_parse_endpoint = f"{self.mineru_base_url}/file_parse"
+
+        # Initialize new ingestion orchestrator
+        xinference_url = os.getenv("XINFERENCE_URL", "http://localhost:9997")
+        model_uid = os.getenv(
+            "XINFERENCE_WHISPER_MODEL_UID", "Bella-whisper-large-v3-zh"
+        )
+
+        self.ingestion_orchestrator = IngestionOrchestrator(
+            mineru_base_url=self.mineru_base_url,
+            xinference_url=xinference_url,
+            model_uid=model_uid,
+            logger=self.logger,
+        )
 
         # Track upload statuses in memory (in production, use Redis or database)
         self._upload_statuses = {}
-
-    def _init_file_type_processors(self):
-        """Lazy initialization of file type processors."""
-        if self.file_type_processors is None:
-            self.file_type_processors = FileTypeProcessors(
-                mineru_base_url=self.mineru_base_url,
-                xinference_url=self.xinference_url,
-                model_uid=self.model_uid,
-                logger=self.logger,
-            )
-        return self.file_type_processors
-
-    def _init_minio_post_processor(self):
-        """Lazy initialization of MinIO post processor."""
-        if self.minio_post_processor is None:
-            self.minio_post_processor = MinIOPostProcessor(
-                file_storage_service=self.file_storage, logger=self.logger
-            )
-        return self.minio_post_processor
 
     def log_operation(self, operation: str, details: str = "", level: str = "info"):
         """Log service operations with consistent formatting."""
@@ -110,53 +88,6 @@ class UploadProcessor:
             message += f": {details}"
 
         getattr(self.logger, level)(message)
-
-    def check_mineru_health(self) -> bool:
-        """Check if MinerU API is available."""
-        processor = self._init_file_type_processors()
-        return processor.check_mineru_health()
-
-    def _get_xinference_client(self):
-        """Get or create Xinference client."""
-        if not self._xinference_client:
-            try:
-                from xinference.client import Client
-
-                self._xinference_client = Client(self.xinference_url)
-                self.log_operation(
-                    "xinference_client_connected",
-                    f"Connected to Xinference at {self.xinference_url}",
-                )
-            except Exception as e:
-                self.log_operation(
-                    "xinference_client_error",
-                    f"Failed to connect to Xinference: {e}",
-                    "error",
-                )
-                self._xinference_client = False
-        return self._xinference_client
-
-    def _get_xinference_model(self):
-        """Get or create Xinference model."""
-        if not self._xinference_model:
-            try:
-                client = self._get_xinference_client()
-                if client:
-                    self._xinference_model = client.get_model(self.model_uid)
-                    self.log_operation(
-                        "xinference_model_loaded",
-                        f"Loaded Xinference model {self.model_uid}",
-                    )
-                else:
-                    self._xinference_model = False
-            except Exception as e:
-                self.log_operation(
-                    "xinference_model_error",
-                    f"Failed to load Xinference model: {e}",
-                    "error",
-                )
-                self._xinference_model = False
-        return self._xinference_model
 
     def get_upload_status(
         self, upload_file_id: str, user_pk: int = None
@@ -311,73 +242,35 @@ class UploadProcessor:
             if hasattr(file, "_source_url") and file._source_url:
                 file_metadata["source_url"] = file._source_url
 
-            # Process based on file type
-            processor = self._init_file_type_processors()
-            processing_result = await processor.process_file_by_type(
-                temp_path, file_metadata
-            )
-
-            # Update file metadata with parsing status
-            file_metadata["parsing_status"] = "completed"
-
             # Store result with user isolation using MinIO storage
             if user_pk is None:
                 raise ValueError("user_pk is required for file storage")
             if notebook_id is None:
                 raise ValueError("notebook_id is required for file storage")
 
-            # For media files, use transcript filename instead of default extracted_content.md
-            processing_result_for_storage = processing_result.copy()
-            if processing_result.get("transcript_filename"):
-                processing_result_for_storage["content_filename"] = processing_result[
-                    "transcript_filename"
-                ]
-
-            # Run synchronous file storage in executor
-            # Use thread_sensitive=False to run in thread pool where sync ORM calls are allowed
-            from asgiref.sync import sync_to_async
-
-            if not self.file_storage:
-                raise Exception("MinIO file storage service not available")
-
-            # Use source URL as identifier for duplicate detection if available, otherwise use filename
-            source_identifier = getattr(file, "_source_url", None) or file.name
-
-            store_file_sync = sync_to_async(
-                self.file_storage.store_processed_file, thread_sensitive=False
-            )
-            file_id = await store_file_sync(
-                content=processing_result["content"],
-                metadata=file_metadata,
-                processing_result=processing_result_for_storage,
-                user_id=user_pk,
+            # Use new ingestion orchestrator for processing
+            ingestion_result = await self.ingestion_orchestrator.ingest_file(
+                file_path=temp_path,
+                user_pk=user_pk,
                 notebook_id=notebook_id,
-                original_file_path=temp_path,
-                source_identifier=source_identifier,  # Use URL for duplicate detection if available
-                kb_item_id=kb_item_id,  # Pass the pre-created KB item ID
+                metadata=file_metadata,
+                kb_item_id=kb_item_id,
             )
+
+            file_id = ingestion_result.file_id
 
             # Run synchronous content indexing in executor
             if self.content_indexing:
+                from asgiref.sync import sync_to_async
+
                 index_content_sync = sync_to_async(
                     self.content_indexing.index_content, thread_sensitive=False
                 )
                 await index_content_sync(
                     file_id=file_id,
-                    content=processing_result["content"],
+                    content=ingestion_result.content_preview,
                     metadata=file_metadata,
                     processing_stage="immediate",
-                )
-
-            # Handle mineru extraction post-processing if needed
-            if "marker_extraction_result" in processing_result:
-                post_processor = self._init_minio_post_processor()
-                post_process_sync = sync_to_async(
-                    post_processor.post_process_mineru_extraction,
-                    thread_sensitive=False,
-                )
-                await post_process_sync(
-                    file_id, processing_result["marker_extraction_result"]
                 )
 
             # Handle RagFlow upload if requested
@@ -404,14 +297,12 @@ class UploadProcessor:
 
             return {
                 "file_id": file_id,
-                "status": "completed",
-                "parsing_status": "completed",
-                "content_preview": processing_result["content"][:500] + "..."
-                if len(processing_result["content"]) > 500
-                else processing_result["content"],
+                "status": ingestion_result.status,
+                "parsing_status": ingestion_result.parsing_status,
+                "content_preview": ingestion_result.content_preview,
                 "processing_type": "immediate",
-                "features_available": processing_result.get("features_available", []),
-                "metadata": processing_result.get("metadata", {}),
+                "features_available": ingestion_result.features_available,
+                "metadata": ingestion_result.metadata,
                 "filename": file.name,
                 "file_size": file_size,
                 "upload_file_id": upload_file_id,

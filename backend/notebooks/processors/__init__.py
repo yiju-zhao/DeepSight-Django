@@ -1,16 +1,12 @@
 """
 Processors package for the notebooks module.
 
-This package contains all processing logic for different types of content:
-- media_processors.py: Media processing utilities
+This package contains processing logic:
 - upload_processor.py: Main upload processor with comprehensive file handling
-- url_extractor.py: URL extractor (moved from utils)
+- minio_post_processor.py: MinIO post-processing for MinerU extractions
 """
 
-# Media processors
-from .media_processors import MediaProcessor
-
-# Main upload processor (refactored and cleaned)
+# Main upload processor
 try:
     from .upload_processor import UploadProcessor
 except ImportError:
@@ -18,31 +14,11 @@ except ImportError:
 
 # Supporting service modules
 try:
-    from .caption_service import CaptionService
-    from .device_manager import DeviceManager
-    from .file_type_processors import FileTypeProcessors
     from .minio_post_processor import MinIOPostProcessor
-    from .transcription_service import TranscriptionService
 except ImportError:
-    FileTypeProcessors = None
-    DeviceManager = None
-    TranscriptionService = None
-    CaptionService = None
     MinIOPostProcessor = None
 
-# Legacy processors (moved from utils)
-try:
-    from .url_extractor import URLExtractor
-except ImportError:
-    URLExtractor = None
-
 __all__ = [
-    "MediaProcessor",
     "UploadProcessor",
-    "FileTypeProcessors",
-    "DeviceManager",
-    "TranscriptionService",
-    "CaptionService",
     "MinIOPostProcessor",
-    "URLExtractor",
 ]

@@ -61,19 +61,6 @@ try:
 except ImportError:
     UploadProcessor = None
 
-try:
-    from ..processors.url_extractor import URLExtractor
-except ImportError:
-    URLExtractor = None
-
-try:
-    from ..processors.media_processors import MediaProcessor
-except ImportError:
-    MediaProcessor = None
-
-# Legacy Milvus RAG import removed - now using RagFlow integration
-ExternalRAGChatbot = None
-
 __all__ = [
     # Configuration
     "config",
@@ -116,7 +103,4 @@ __all__ = [
     "AsyncResponseMixin",
     # Legacy processors (may be None if not available)
     "UploadProcessor",
-    "URLExtractor",
-    "MediaProcessor",
-    "ExternalRAGChatbot",
 ]
