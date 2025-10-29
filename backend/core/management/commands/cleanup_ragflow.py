@@ -46,9 +46,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.WARNING(
-                "\n" + "=" * 70 + "\n"
-                "  RagFlow Cleanup Utility\n"
-                + "=" * 70 + "\n"
+                "\n" + "=" * 70 + "\n  RagFlow Cleanup Utility\n" + "=" * 70 + "\n"
             )
         )
 
@@ -69,7 +67,9 @@ class Command(BaseCommand):
         # Collect all RagFlow resources
         self.stdout.write(self.style.NOTICE("Collecting RagFlow resources...\n"))
 
-        datasets, chat_assistants, chat_sessions = self._collect_resources(ragflow_client)
+        datasets, chat_assistants, chat_sessions = self._collect_resources(
+            ragflow_client
+        )
 
         # Display summary
         self._display_summary(datasets, chat_assistants, chat_sessions)
@@ -182,13 +182,15 @@ class Command(BaseCommand):
         self.stdout.write(f"  Datasets: {len(datasets)}")
         if datasets and len(datasets) <= 10:
             for dataset in datasets:
-                self.stdout.write(f"    - {dataset['name']} (ID: {dataset['id'][:8]}...)")
+                self.stdout.write(
+                    f"    - {dataset['name']} (ID: {dataset['id'][:8]}...)"
+                )
         elif datasets:
-            self.stdout.write(
-                f"    (showing first 5 of {len(datasets)})"
-            )
+            self.stdout.write(f"    (showing first 5 of {len(datasets)})")
             for dataset in datasets[:5]:
-                self.stdout.write(f"    - {dataset['name']} (ID: {dataset['id'][:8]}...)")
+                self.stdout.write(
+                    f"    - {dataset['name']} (ID: {dataset['id'][:8]}...)"
+                )
 
         # Chat Assistants
         self.stdout.write(f"\n  Chat Assistants: {len(chat_assistants)}")
@@ -196,9 +198,7 @@ class Command(BaseCommand):
             for chat in chat_assistants:
                 self.stdout.write(f"    - {chat['name']} (ID: {chat['id'][:8]}...)")
         elif chat_assistants:
-            self.stdout.write(
-                f"    (showing first 5 of {len(chat_assistants)})"
-            )
+            self.stdout.write(f"    (showing first 5 of {len(chat_assistants)})")
             for chat in chat_assistants[:5]:
                 self.stdout.write(f"    - {chat['name']} (ID: {chat['id'][:8]}...)")
 
@@ -210,9 +210,7 @@ class Command(BaseCommand):
                     f"    - {session.get('name', session['id'][:8])}... ({session['chat_name']})"
                 )
         elif chat_sessions:
-            self.stdout.write(
-                f"    (showing first 5 of {len(chat_sessions)})"
-            )
+            self.stdout.write(f"    (showing first 5 of {len(chat_sessions)})")
             for session in chat_sessions[:5]:
                 self.stdout.write(
                     f"    - {session.get('name', session['id'][:8])}... ({session['chat_name']})"
@@ -236,7 +234,7 @@ class Command(BaseCommand):
             if chat_id not in sessions_by_chat:
                 sessions_by_chat[chat_id] = {
                     "chat_name": session["chat_name"],
-                    "sessions": []
+                    "sessions": [],
                 }
             sessions_by_chat[chat_id]["sessions"].append(session["id"])
 
@@ -325,11 +323,15 @@ class Command(BaseCommand):
             try:
                 if not dry_run:
                     client.delete_dataset(dataset["id"])
-                self.stdout.write(self.style.SUCCESS(f"  ✓ Deleted dataset: {dataset['name']}"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"  ✓ Deleted dataset: {dataset['name']}")
+                )
                 deleted_count += 1
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f"  ✗ Failed to delete dataset {dataset['name']}: {e}")
+                    self.style.ERROR(
+                        f"  ✗ Failed to delete dataset {dataset['name']}: {e}"
+                    )
                 )
                 success = False
 

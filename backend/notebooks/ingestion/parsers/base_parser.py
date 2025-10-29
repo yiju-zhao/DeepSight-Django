@@ -10,6 +10,7 @@ from typing import Any, Literal, Optional
 @dataclass
 class ParseResult:
     """Unified parsing result."""
+
     content: str
     metadata: dict[str, Any] = field(default_factory=dict)
     features_available: list[str] = field(default_factory=list)

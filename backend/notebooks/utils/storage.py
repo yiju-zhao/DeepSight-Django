@@ -57,7 +57,11 @@ class MinIOBackend:
         endpoint = parsed.netloc if parsed.netloc else endpoint_url
 
         # Determine if secure based on scheme or MINIO_USE_SSL setting
-        secure = parsed.scheme == "https" if parsed.scheme else getattr(settings, "MINIO_USE_SSL", False)
+        secure = (
+            parsed.scheme == "https"
+            if parsed.scheme
+            else getattr(settings, "MINIO_USE_SSL", False)
+        )
 
         access_key = getattr(settings, "MINIO_ACCESS_KEY", "minioadmin")
         secret_key = getattr(settings, "MINIO_SECRET_KEY", "minioadmin")

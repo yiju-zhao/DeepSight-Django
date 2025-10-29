@@ -941,9 +941,7 @@ class KnowledgeBaseService(NotebookBaseService):
                 # Get filename from metadata or generate from title
                 filename = kb_item.title
                 if kb_item.metadata and isinstance(kb_item.metadata, dict):
-                    filename = kb_item.metadata.get(
-                        "original_filename", kb_item.title
-                    )
+                    filename = kb_item.metadata.get("original_filename", kb_item.title)
 
                 # Ensure filename has proper extension
                 if "." not in filename and kb_item.metadata:
@@ -955,9 +953,7 @@ class KnowledgeBaseService(NotebookBaseService):
                 # Determine content type
                 content_type = "application/octet-stream"  # Default fallback
                 if kb_item.metadata and isinstance(kb_item.metadata, dict):
-                    content_type = kb_item.metadata.get(
-                        "content_type", content_type
-                    )
+                    content_type = kb_item.metadata.get("content_type", content_type)
 
                 return {
                     "data": file_data,

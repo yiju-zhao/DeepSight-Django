@@ -112,7 +112,6 @@ class KnowledgeBaseItem(BaseModel):
         help_text="MinIO object key for original file",
     )
 
-
     # RagFlow integration fields
     ragflow_document_id = models.CharField(
         max_length=255,
@@ -176,8 +175,6 @@ class KnowledgeBaseItem(BaseModel):
         if self.metadata is not None and not isinstance(self.metadata, dict):
             raise ValidationError("Metadata must be a dictionary")
 
-
-
     def save(self, *args, **kwargs):
         """Override save to ensure validation."""
         self.full_clean()
@@ -222,12 +219,14 @@ class KnowledgeBaseItem(BaseModel):
     def mark_parsing_complete(self):
         """Mark item as parsing complete."""
         from ..constants import ParsingStatus as _PS
+
         self.parsing_status = _PS.DONE
         self.save(update_fields=["parsing_status", "updated_at"])
 
     def mark_parsing_started(self):
         """Mark item as currently parsing."""
         from ..constants import ParsingStatus as _PS
+
         self.parsing_status = _PS.PARSING
         self.save(update_fields=["parsing_status", "updated_at"])
 

@@ -53,7 +53,9 @@ class PdfParser(BaseParser):
             try:
                 return await self._parse_with_mineru(file_path, metadata)
             except Exception as e:
-                self.logger.warning(f"MinerU parsing failed: {e}, falling back to PyMuPDF")
+                self.logger.warning(
+                    f"MinerU parsing failed: {e}, falling back to PyMuPDF"
+                )
 
         # Fallback to PyMuPDF
         return await self._parse_with_pymupdf(file_path, metadata)
@@ -76,7 +78,11 @@ class PdfParser(BaseParser):
 
         # Generate clean filename
         original_filename = metadata.get("filename", "document.pdf")
-        base_title = original_filename.rsplit(".", 1)[0] if "." in original_filename else original_filename
+        base_title = (
+            original_filename.rsplit(".", 1)[0]
+            if "." in original_filename
+            else original_filename
+        )
         clean_pdf_title = clean_title(base_title)
 
         # Call MinerU API

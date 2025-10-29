@@ -42,7 +42,18 @@ class MediaParser(BaseParser):
 
         # Determine if audio or video
         audio_extensions = [".mp3", ".wav", ".m4a"]
-        video_extensions = [".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv", ".3gp", ".ogv", ".m4v"]
+        video_extensions = [
+            ".mp4",
+            ".avi",
+            ".mov",
+            ".mkv",
+            ".webm",
+            ".flv",
+            ".wmv",
+            ".3gp",
+            ".ogv",
+            ".m4v",
+        ]
 
         if file_extension in audio_extensions:
             return await self._parse_audio(file_path, metadata)
@@ -68,10 +79,12 @@ class MediaParser(BaseParser):
 
             # Get audio metadata
             audio_metadata = self._get_audio_metadata(file_path)
-            audio_metadata.update({
-                "transcript_filename": transcript_filename,
-                "has_transcript": True,
-            })
+            audio_metadata.update(
+                {
+                    "transcript_filename": transcript_filename,
+                    "has_transcript": True,
+                }
+            )
 
             return ParseResult(
                 content=transcript_content,
@@ -106,11 +119,15 @@ class MediaParser(BaseParser):
 
         cmd = [
             "ffmpeg",
-            "-i", file_path,
+            "-i",
+            file_path,
             "-vn",
-            "-acodec", "pcm_s16le",
-            "-ar", "16000",
-            "-ac", "1",
+            "-acodec",
+            "pcm_s16le",
+            "-ar",
+            "16000",
+            "-ac",
+            "1",
             "-y",
             audio_path,
         ]
@@ -129,14 +146,15 @@ class MediaParser(BaseParser):
         # Try transcription if audio extraction succeeded
         if result.returncode == 0 and os.path.exists(audio_path):
             try:
-                transcript_content = await self.transcription_client.transcribe(audio_path)
+                transcript_content = await self.transcription_client.transcribe(
+                    audio_path
+                )
                 content_parts.append(f"# Transcription\n\n{transcript_content}")
                 has_transcript = True
             except TranscriptionError as e:
                 self.logger.warning(f"Video transcription failed: {e}")
                 content_parts.append(
-                    f"# Video: {metadata['filename']}\n\n"
-                    f"Transcription failed: {e}"
+                    f"# Video: {metadata['filename']}\n\nTranscription failed: {e}"
                 )
             finally:
                 # Clean up extracted audio
@@ -157,11 +175,13 @@ class MediaParser(BaseParser):
 
         # Get video metadata
         video_metadata = self._get_video_metadata(file_path)
-        video_metadata.update({
-            "transcript_filename": transcript_filename,
-            "has_transcript": has_transcript,
-            "has_audio": result.returncode == 0,
-        })
+        video_metadata.update(
+            {
+                "transcript_filename": transcript_filename,
+                "has_transcript": has_transcript,
+                "has_audio": result.returncode == 0,
+            }
+        )
 
         # Combine content
         final_content = "\n\n".join(content_parts)
@@ -182,8 +202,10 @@ class MediaParser(BaseParser):
         try:
             cmd = [
                 "ffprobe",
-                "-v", "quiet",
-                "-print_format", "json",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
                 "-show_format",
                 file_path,
             ]
@@ -207,8 +229,10 @@ class MediaParser(BaseParser):
         try:
             cmd = [
                 "ffprobe",
-                "-v", "quiet",
-                "-print_format", "json",
+                "-v",
+                "quiet",
+                "-print_format",
+                "json",
                 "-show_streams",
                 "-show_format",
                 file_path,

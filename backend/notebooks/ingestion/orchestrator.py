@@ -23,6 +23,7 @@ from .url_fetcher import UrlFetcher
 @dataclass
 class IngestionResult:
     """Result of ingestion operation."""
+
     file_id: str
     status: str
     parsing_status: str
@@ -132,9 +133,13 @@ class IngestionOrchestrator:
                 }
 
                 if extension == ".pdf":
-                    parse_result = await self.pdf_parser.parse(fetch_result.local_path, metadata)
+                    parse_result = await self.pdf_parser.parse(
+                        fetch_result.local_path, metadata
+                    )
                 elif extension in [".ppt", ".pptx"]:
-                    parse_result = await self.text_parser.parse(fetch_result.local_path, metadata)
+                    parse_result = await self.text_parser.parse(
+                        fetch_result.local_path, metadata
+                    )
                 else:
                     raise ParseError(f"Unsupported document extension: {extension}")
 
@@ -150,7 +155,9 @@ class IngestionOrchestrator:
                     **fetch_result.metadata,
                 }
 
-                parse_result = await self.media_parser.parse(fetch_result.local_path, metadata)
+                parse_result = await self.media_parser.parse(
+                    fetch_result.local_path, metadata
+                )
 
             else:
                 raise IngestionError(f"Unknown fetch type: {fetch_result.fetch_type}")
@@ -168,7 +175,9 @@ class IngestionOrchestrator:
 
             # Step 4: Post-process MinerU extractions
             if parse_result.marker_extraction_result:
-                await self._post_process_mineru(file_id, parse_result.marker_extraction_result)
+                await self._post_process_mineru(
+                    file_id, parse_result.marker_extraction_result
+                )
 
             # Step 5: Clean up temp files
             self._cleanup_temp_files(temp_files, temp_dirs)
@@ -179,7 +188,9 @@ class IngestionOrchestrator:
                 parsing_status="completed",
                 features_available=parse_result.features_available,
                 metadata=parse_result.metadata,
-                content_preview=parse_result.content[:500] if parse_result.content else "",
+                content_preview=parse_result.content[:500]
+                if parse_result.content
+                else "",
             )
 
         except (SourceError, ParseError, StorageError) as e:
@@ -222,7 +233,21 @@ class IngestionOrchestrator:
 
             if extension == ".pdf":
                 parse_result = await self.pdf_parser.parse(file_path, metadata)
-            elif extension in [".mp3", ".wav", ".m4a", ".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv", ".3gp", ".ogv", ".m4v"]:
+            elif extension in [
+                ".mp3",
+                ".wav",
+                ".m4a",
+                ".mp4",
+                ".avi",
+                ".mov",
+                ".mkv",
+                ".webm",
+                ".flv",
+                ".wmv",
+                ".3gp",
+                ".ogv",
+                ".m4v",
+            ]:
                 parse_result = await self.media_parser.parse(file_path, metadata)
             elif extension in [".md", ".txt", ".doc", ".docx", ".ppt", ".pptx"]:
                 parse_result = await self.text_parser.parse(file_path, metadata)
@@ -242,7 +267,9 @@ class IngestionOrchestrator:
 
             # Post-process MinerU extractions
             if parse_result.marker_extraction_result:
-                await self._post_process_mineru(file_id, parse_result.marker_extraction_result)
+                await self._post_process_mineru(
+                    file_id, parse_result.marker_extraction_result
+                )
 
             return IngestionResult(
                 file_id=file_id,
@@ -250,7 +277,9 @@ class IngestionOrchestrator:
                 parsing_status="completed",
                 features_available=parse_result.features_available,
                 metadata=parse_result.metadata,
-                content_preview=parse_result.content[:500] if parse_result.content else "",
+                content_preview=parse_result.content[:500]
+                if parse_result.content
+                else "",
             )
 
         except (ParseError, StorageError) as e:
@@ -279,7 +308,9 @@ class IngestionOrchestrator:
                 "original_filename": metadata.get("filename", "Untitled"),
                 "file_extension": metadata.get("file_extension", ""),
                 "content_type": metadata.get("content_type", ""),
-                "file_size": metadata.get("file_size", len(parse_result.content.encode("utf-8"))),
+                "file_size": metadata.get(
+                    "file_size", len(parse_result.content.encode("utf-8"))
+                ),
                 "source_url": metadata.get("source_url"),
                 "upload_timestamp": datetime.now(UTC).isoformat(),
                 "parsing_status": "completed",
@@ -295,7 +326,9 @@ class IngestionOrchestrator:
             # For MinerU PDFs, skip content file
             if parse_result.marker_extraction_result:
                 processing_result["skip_content_file"] = True
-                processing_result["content_filename"] = f"{parse_result.marker_extraction_result['clean_title']}.md"
+                processing_result["content_filename"] = (
+                    f"{parse_result.marker_extraction_result['clean_title']}.md"
+                )
 
             # Call storage in executor
             store_sync = sync_to_async(

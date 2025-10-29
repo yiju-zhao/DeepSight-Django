@@ -96,7 +96,9 @@ class TextParser(BaseParser):
                     continue
 
             if content is None:
-                raise ParseError("Could not decode text file with any supported encoding")
+                raise ParseError(
+                    "Could not decode text file with any supported encoding"
+                )
 
         text_metadata = {
             "word_count": len(content.split()),
@@ -124,7 +126,9 @@ class TextParser(BaseParser):
                     from docx import Document
 
                     doc = Document(file_path)
-                    content = "\n\n".join([para.text for para in doc.paragraphs if para.text])
+                    content = "\n\n".join(
+                        [para.text for para in doc.paragraphs if para.text]
+                    )
 
                     doc_metadata = {
                         "processing_method": "python_docx",
@@ -138,7 +142,9 @@ class TextParser(BaseParser):
                         features_available=["text_extraction", "document_structure"],
                     )
                 except ImportError:
-                    self.logger.warning("python-docx not available, falling back to simple message")
+                    self.logger.warning(
+                        "python-docx not available, falling back to simple message"
+                    )
                     pass
 
             # Fallback: return a message that file is uploaded but needs processing
@@ -192,7 +198,9 @@ class TextParser(BaseParser):
                 )
 
             except ImportError:
-                self.logger.warning("python-pptx not available, falling back to simple message")
+                self.logger.warning(
+                    "python-pptx not available, falling back to simple message"
+                )
                 # Fallback
                 content = (
                     f"Presentation '{metadata['filename']}' uploaded successfully. "

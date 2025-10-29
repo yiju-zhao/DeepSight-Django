@@ -962,10 +962,12 @@ class RagFlowClient:
             dataset_list = []
 
             for dataset in datasets:
-                dataset_list.append({
-                    "id": dataset.id,
-                    "name": dataset.name,
-                })
+                dataset_list.append(
+                    {
+                        "id": dataset.id,
+                        "name": dataset.name,
+                    }
+                )
 
             logger.info(f"Listed {len(dataset_list)} datasets")
             return dataset_list
@@ -986,10 +988,12 @@ class RagFlowClient:
             chat_list = []
 
             for chat in chats:
-                chat_list.append({
-                    "id": chat.id,
-                    "name": chat.name,
-                })
+                chat_list.append(
+                    {
+                        "id": chat.id,
+                        "name": chat.name,
+                    }
+                )
 
             logger.info(f"Listed {len(chat_list)} chat assistants")
             return chat_list
@@ -1019,10 +1023,12 @@ class RagFlowClient:
             session_list = []
 
             for session in sessions:
-                session_list.append({
-                    "id": session.id,
-                    "name": getattr(session, "name", ""),
-                })
+                session_list.append(
+                    {
+                        "id": session.id,
+                        "name": getattr(session, "name", ""),
+                    }
+                )
 
             logger.info(f"Listed {len(session_list)} sessions for chat {chat_id}")
             return session_list

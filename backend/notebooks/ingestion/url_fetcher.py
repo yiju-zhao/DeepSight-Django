@@ -23,6 +23,7 @@ from .exceptions import SourceError
 @dataclass
 class UrlFetchResult:
     """Unified URL fetch result."""
+
     fetch_type: Literal["webpage", "document", "media"]
     content: Optional[str] = None  # For webpage content
     local_path: Optional[str] = None  # For downloaded files
@@ -39,9 +40,7 @@ class UrlFetcher:
         self._crawl4ai = None
 
     async def fetch(
-        self,
-        url: str,
-        mode: Literal["webpage", "document", "media"]
+        self, url: str, mode: Literal["webpage", "document", "media"]
     ) -> UrlFetchResult:
         """
         Fetch URL content based on mode.
@@ -83,7 +82,9 @@ class UrlFetcher:
         await self._load_crawl4ai()
 
         if not self._crawl4ai_loaded:
-            raise SourceError("crawl4ai not available - please ensure crawl4ai is properly installed")
+            raise SourceError(
+                "crawl4ai not available - please ensure crawl4ai is properly installed"
+            )
 
         try:
             async with self._crawl4ai(verbose=False) as crawler:
@@ -108,7 +109,9 @@ class UrlFetcher:
 
                 # Extract content and metadata
                 title = result.metadata.get("title", "") if result.metadata else ""
-                description = result.metadata.get("description", "") if result.metadata else ""
+                description = (
+                    result.metadata.get("description", "") if result.metadata else ""
+                )
                 content = result.markdown or result.cleaned_html or ""
 
                 # Clean content
@@ -176,7 +179,9 @@ class UrlFetcher:
         media_info = await self._check_media_availability(url)
 
         if not media_info.get("has_media"):
-            error_message = media_info.get("error", "No downloadable media found at the URL.")
+            error_message = media_info.get(
+                "error", "No downloadable media found at the URL."
+            )
             raise SourceError(f"Media not available: {error_message}")
 
         # Download media
@@ -194,9 +199,13 @@ class UrlFetcher:
 
             # Download based on media type
             if media_info.get("has_video"):
-                downloaded_path = await self._download_video(url, temp_dir, base_filename)
+                downloaded_path = await self._download_video(
+                    url, temp_dir, base_filename
+                )
             elif media_info.get("has_audio"):
-                downloaded_path = await self._download_audio(url, temp_dir, base_filename)
+                downloaded_path = await self._download_audio(
+                    url, temp_dir, base_filename
+                )
             else:
                 raise SourceError("Media has neither video nor audio streams")
 
@@ -238,7 +247,9 @@ class UrlFetcher:
                             await temp_file.write(chunk)
 
             # Fix extension based on content
-            corrected_path = await self._fix_file_extension(temp_file_path, content_type)
+            corrected_path = await self._fix_file_extension(
+                temp_file_path, content_type
+            )
 
             self.logger.info(
                 f"Downloaded {os.path.getsize(corrected_path)} bytes to {corrected_path}"
@@ -261,9 +272,13 @@ class UrlFetcher:
             correct_extension = None
             if mime_type == "application/pdf" or "application/pdf" in content_type:
                 correct_extension = ".pdf"
-            elif mime_type in [
-                "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-            ] or "powerpoint" in content_type.lower():
+            elif (
+                mime_type
+                in [
+                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+                ]
+                or "powerpoint" in content_type.lower()
+            ):
                 correct_extension = ".pptx"
             elif mime_type == "application/vnd.ms-powerpoint":
                 correct_extension = ".ppt"
@@ -276,19 +291,31 @@ class UrlFetcher:
                 if not current_extension or current_extension != correct_extension:
                     original_name = current_path.name
                     known_extensions = {
-                        ".pdf", ".ppt", ".pptx", ".doc", ".docx", ".txt", ".md",
-                        ".html", ".htm", ".zip", ".tar", ".gz",
+                        ".pdf",
+                        ".ppt",
+                        ".pptx",
+                        ".doc",
+                        ".docx",
+                        ".txt",
+                        ".md",
+                        ".html",
+                        ".htm",
+                        ".zip",
+                        ".tar",
+                        ".gz",
                     }
 
                     if current_extension and current_extension in known_extensions:
-                        original_name = original_name[:-len(current_extension)]
+                        original_name = original_name[: -len(current_extension)]
 
                     clean_base_name = clean_title(original_name)
                     new_filename = clean_base_name + correct_extension
                     new_path = current_path.parent / new_filename
 
                     shutil.move(str(current_path), str(new_path))
-                    self.logger.info(f"Fixed extension: {current_extension} -> {correct_extension}")
+                    self.logger.info(
+                        f"Fixed extension: {current_extension} -> {correct_extension}"
+                    )
                     return str(new_path)
 
             return file_path
@@ -307,14 +334,19 @@ class UrlFetcher:
             mime_type = magic.from_file(file_path, mime=True)
             file_type = magic.from_file(file_path)
 
-            self.logger.info(f"Validating: {filename}, MIME: {mime_type}, Type: {file_type}")
+            self.logger.info(
+                f"Validating: {filename}, MIME: {mime_type}, Type: {file_type}"
+            )
 
             # Check if valid
             is_pdf = mime_type == "application/pdf" or "PDF" in file_type
             is_pptx = (
-                mime_type in [
+                mime_type
+                in [
                     "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                ] or "PowerPoint" in file_type or "Microsoft Office" in file_type
+                ]
+                or "PowerPoint" in file_type
+                or "Microsoft Office" in file_type
             )
 
             is_valid = is_pdf or is_pptx
@@ -358,7 +390,10 @@ class UrlFetcher:
                 info = ydl.extract_info(url, download=False)
 
             if not info:
-                return {"has_media": False, "error": "Could not retrieve media information"}
+                return {
+                    "has_media": False,
+                    "error": "Could not retrieve media information",
+                }
 
             # Check formats
             formats = info.get("formats", [])
@@ -383,7 +418,9 @@ class UrlFetcher:
             self.logger.error(f"Media check error: {e}")
             return {"has_media": False, "error": str(e)}
 
-    async def _download_video(self, url: str, temp_dir: str, base_filename: str) -> Optional[str]:
+    async def _download_video(
+        self, url: str, temp_dir: str, base_filename: str
+    ) -> Optional[str]:
         """Download video using yt-dlp."""
         try:
             import yt_dlp
@@ -414,7 +451,9 @@ class UrlFetcher:
             self.logger.error(f"Video download error: {e}")
             return None
 
-    async def _download_audio(self, url: str, temp_dir: str, base_filename: str) -> Optional[str]:
+    async def _download_audio(
+        self, url: str, temp_dir: str, base_filename: str
+    ) -> Optional[str]:
         """Download audio using yt-dlp."""
         try:
             import yt_dlp

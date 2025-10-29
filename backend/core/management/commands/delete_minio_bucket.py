@@ -50,8 +50,7 @@ class Command(BaseCommand):
         self.stdout.write(
             self.style.WARNING(
                 "\n" + "=" * 70 + "\n"
-                "  MinIO Bucket Deletion Utility\n"
-                + "=" * 70 + "\n"
+                "  MinIO Bucket Deletion Utility\n" + "=" * 70 + "\n"
             )
         )
 
@@ -135,7 +134,9 @@ class Command(BaseCommand):
                     f"and all {object_count} objects ({total_size_mb:.2f} MB)."
                 )
             )
-            confirm = input("\nDo you want to proceed? This cannot be undone. (yes/no): ")
+            confirm = input(
+                "\nDo you want to proceed? This cannot be undone. (yes/no): "
+            )
             if confirm.lower() not in ["yes", "y"]:
                 self.stdout.write(self.style.WARNING("Deletion cancelled."))
                 return
@@ -149,7 +150,9 @@ class Command(BaseCommand):
             )
         else:
             self.stdout.write(
-                self.style.NOTICE("\n" + "-" * 70 + "\nStarting deletion...\n" + "-" * 70)
+                self.style.NOTICE(
+                    "\n" + "-" * 70 + "\nStarting deletion...\n" + "-" * 70
+                )
             )
 
             try:
@@ -184,7 +187,9 @@ class Command(BaseCommand):
                 error_code = e.response.get("Error", {}).get("Code", "")
                 error_msg = e.response.get("Error", {}).get("Message", str(e))
                 self.stdout.write(
-                    self.style.ERROR(f"\n✗ Error deleting bucket: [{error_code}] {error_msg}")
+                    self.style.ERROR(
+                        f"\n✗ Error deleting bucket: [{error_code}] {error_msg}"
+                    )
                 )
                 raise CommandError(f"Bucket deletion failed: {error_msg}")
             except Exception as e:

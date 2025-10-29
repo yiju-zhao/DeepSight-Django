@@ -166,9 +166,7 @@ def _handle_task_completion(
             )
             _check_batch_completion(batch_job_id)
 
-        logger.info(
-            f"Task completion handled successfully for KB item {kb_item.id}"
-        )
+        logger.info(f"Task completion handled successfully for KB item {kb_item.id}")
     except Exception as e:
         logger.exception(f"Error in task completion handler: {e}")
 

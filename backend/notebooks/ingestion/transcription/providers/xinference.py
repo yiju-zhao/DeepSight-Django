@@ -51,12 +51,12 @@ class XinferenceProvider(TranscriptionClient):
 
             # Run transcription in executor (sync method)
             loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(
-                None, model.transcriptions, audio_bytes
-            )
+            result = await loop.run_in_executor(None, model.transcriptions, audio_bytes)
 
             # Extract text from result
-            transcript = result.get("text", "") if isinstance(result, dict) else str(result)
+            transcript = (
+                result.get("text", "") if isinstance(result, dict) else str(result)
+            )
 
             self.logger.info(f"Completed Xinference transcription for {file_path}")
             return transcript

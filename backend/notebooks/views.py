@@ -171,7 +171,9 @@ class NotebookViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError({"detail": str(e)})
         except Exception as e:
             logger.exception(f"Failed to create notebook: {e}")
-            raise serializers.ValidationError({"detail": f"Failed to create notebook: {str(e)}"})
+            raise serializers.ValidationError(
+                {"detail": f"Failed to create notebook: {str(e)}"}
+            )
 
     def create(self, request, *args, **kwargs):
         """Override create to return full notebook data with NotebookSerializer."""
@@ -182,7 +184,9 @@ class NotebookViewSet(viewsets.ModelViewSet):
         # Use NotebookSerializer for response to include all fields (id, created_at, etc.)
         response_serializer = NotebookSerializer(serializer.instance)
         headers = self.get_success_headers(response_serializer.data)
-        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(
+            response_serializer.data, status=status.HTTP_201_CREATED, headers=headers
+        )
 
     def perform_destroy(self, instance):
         """
@@ -344,9 +348,7 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
         notebook = get_object_or_404(
             Notebook.objects.filter(user=self.request.user), pk=notebook_id
         )
-        qs = KnowledgeBaseItem.objects.filter(notebook=notebook).order_by(
-            "-created_at"
-        )
+        qs = KnowledgeBaseItem.objects.filter(notebook=notebook).order_by("-created_at")
 
         # By default, only show sources that have completed RagFlow processing.
         # Allow opt-out via query param ?include_incomplete=1 for internal/debug usage.
@@ -441,6 +443,7 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
         try:
             file_obj = self.kb_service.get_raw_file(item, request.user.id)
             from infrastructure.storage.adapters import get_storage_adapter
+
             storage = get_storage_adapter()
             etag_value = None
             object_key = item.original_file_object_key or item.file_object_key
@@ -470,6 +473,7 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
         try:
             file_obj = self.kb_service.get_raw_file(item, request.user.id)
             from infrastructure.storage.adapters import get_storage_adapter
+
             storage = get_storage_adapter()
             etag_value = None
             object_key = item.original_file_object_key or item.file_object_key
@@ -700,12 +704,15 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
             ]
             if instance.parsing_status in processing_statuses:
                 from rest_framework.exceptions import ValidationError
-                raise ValidationError({
-                    'detail': f'Cannot delete file while it is being processed. Current status: {instance.parsing_status}',
-                    'parsing_status': instance.parsing_status,
-                    'file_id': str(instance.id),
-                    'file_title': instance.title
-                })
+
+                raise ValidationError(
+                    {
+                        "detail": f"Cannot delete file while it is being processed. Current status: {instance.parsing_status}",
+                        "parsing_status": instance.parsing_status,
+                        "file_id": str(instance.id),
+                        "file_title": instance.title,
+                    }
+                )
 
             logger.info(
                 f"Deleting file '{instance.title}' (ID: {instance.id}, status: {instance.parsing_status}) from notebook {instance.notebook.id}"
@@ -735,18 +742,23 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
                     )
                     if not success:
                         from rest_framework.exceptions import ValidationError
-                        raise ValidationError({
-                            'detail': 'Failed to delete RagFlow document',
-                            'ragflow_document_id': instance.ragflow_document_id,
-                            'ragflow_dataset_id': instance.notebook.ragflow_dataset_id,
-                        })
+
+                        raise ValidationError(
+                            {
+                                "detail": "Failed to delete RagFlow document",
+                                "ragflow_document_id": instance.ragflow_document_id,
+                                "ragflow_dataset_id": instance.notebook.ragflow_dataset_id,
+                            }
+                        )
 
                     # Mark on the instance so the pre_delete signal skips duplicate deletion
                     setattr(instance, "_ragflow_deleted", True)
 
                     # Best-effort dataset update after document deletion
                     try:
-                        ragflow_client.update_dataset(instance.notebook.ragflow_dataset_id)
+                        ragflow_client.update_dataset(
+                            instance.notebook.ragflow_dataset_id
+                        )
                     except Exception:
                         logger.warning(
                             f"[FileViewSet.perform_destroy] Dataset update failed for {instance.notebook.ragflow_dataset_id}",

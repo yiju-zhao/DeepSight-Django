@@ -17,6 +17,7 @@ class NotebooksConfig(AppConfig):
         except Exception as e:
             # Log import issues rather than crashing app startup
             import logging
+
             logging.getLogger(__name__).exception(
                 f"Failed to load notebooks signal handlers: {e}"
             )

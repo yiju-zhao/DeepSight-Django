@@ -38,7 +38,11 @@ class MinIOStorage(StorageInterface):
             endpoint = parsed.netloc if parsed.netloc else endpoint_url
 
             # Determine if secure based on scheme or MINIO_USE_SSL setting
-            secure = parsed.scheme == "https" if parsed.scheme else getattr(settings, "MINIO_USE_SSL", False)
+            secure = (
+                parsed.scheme == "https"
+                if parsed.scheme
+                else getattr(settings, "MINIO_USE_SSL", False)
+            )
 
             self._client = Minio(
                 endpoint=endpoint,
@@ -47,7 +51,9 @@ class MinIOStorage(StorageInterface):
                 secure=secure,
             )
 
-            self._bucket_name = getattr(settings, "MINIO_BUCKET_NAME", "deepsight-users")
+            self._bucket_name = getattr(
+                settings, "MINIO_BUCKET_NAME", "deepsight-users"
+            )
 
             # Ensure bucket exists
             self._ensure_bucket_exists()

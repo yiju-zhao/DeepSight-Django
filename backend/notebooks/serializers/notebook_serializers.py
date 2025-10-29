@@ -16,7 +16,9 @@ class NotebookCountMixin:
         return obj.knowledge_base_items.count()
 
     def get_knowledge_item_count(self, obj):
-        return obj.knowledge_base_items.filter(parsing_status=ParsingStatus.DONE).count()
+        return obj.knowledge_base_items.filter(
+            parsing_status=ParsingStatus.DONE
+        ).count()
 
 
 class NotebookValidationMixin:
@@ -41,8 +43,11 @@ class NotebookValidationMixin:
             return ""
         value = value.strip()
         if len(value) > 500:
-            raise serializers.ValidationError("Description cannot exceed 500 characters.")
+            raise serializers.ValidationError(
+                "Description cannot exceed 500 characters."
+            )
         return value
+
 
 User = get_user_model()
 
@@ -178,6 +183,7 @@ class NotebookListSerializer(NotebookCountMixin, serializers.ModelSerializer):
             "source_count",
             "knowledge_item_count",
         ]
+
 
 class NotebookCreateSerializer(NotebookValidationMixin, serializers.ModelSerializer):
     """

@@ -33,7 +33,9 @@ def get_storage_backend() -> StorageInterface:
 
         if storage_type.lower() == "minio":
             _storage_backend_instance = MinIOStorage()
-            logger.info(f"MinIO backend initialized with bucket: {getattr(settings, 'MINIO_BUCKET_NAME', 'deepsight-users')}")
+            logger.info(
+                f"MinIO backend initialized with bucket: {getattr(settings, 'MINIO_BUCKET_NAME', 'deepsight-users')}"
+            )
         else:
             raise ValueError(f"Unsupported storage backend: {storage_type}")
 

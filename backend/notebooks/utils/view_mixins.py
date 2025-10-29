@@ -205,7 +205,7 @@ class ETagCacheMixin:
         if not client_etag:
             return False
         # Support weak/strong etags and quoted values
-        client_etag = client_etag.strip().strip('W/').strip('"')
+        client_etag = client_etag.strip().strip("W/").strip('"')
         return client_etag == etag
 
     def build_file_response(

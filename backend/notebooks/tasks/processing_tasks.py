@@ -582,7 +582,11 @@ def process_url_media_task(
                 parsing_status=ParsingStatus.QUEUEING,
                 notes=f"URL with media: {url}",
                 tags=[],
-                metadata={"url": url, "upload_url_id": upload_url_id, "extract_media": True},
+                metadata={
+                    "url": url,
+                    "upload_url_id": upload_url_id,
+                    "extract_media": True,
+                },
             )
 
         kb_item.parsing_status = ParsingStatus.PARSING
@@ -593,7 +597,11 @@ def process_url_media_task(
             entity="source",
             entity_id=str(kb_item.id),
             status="STARTED",
-            payload={"upload_url_id": upload_url_id, "url": url, "title": kb_item.title},
+            payload={
+                "upload_url_id": upload_url_id,
+                "url": url,
+                "title": kb_item.title,
+            },
         )
 
         # Process URL with media using new ingestion orchestrator
@@ -653,7 +661,11 @@ def process_url_document_task(
                 parsing_status=ParsingStatus.QUEUEING,
                 notes=f"Document URL: {url}",
                 tags=[],
-                metadata={"url": url, "upload_url_id": upload_url_id, "document_only": True},
+                metadata={
+                    "url": url,
+                    "upload_url_id": upload_url_id,
+                    "document_only": True,
+                },
             )
 
         kb_item.parsing_status = ParsingStatus.PARSING
@@ -664,7 +676,11 @@ def process_url_document_task(
             entity="source",
             entity_id=str(kb_item.id),
             status="STARTED",
-            payload={"upload_url_id": upload_url_id, "url": url, "title": kb_item.title},
+            payload={
+                "upload_url_id": upload_url_id,
+                "url": url,
+                "title": kb_item.title,
+            },
         )
 
         # Process document URL using new ingestion orchestrator

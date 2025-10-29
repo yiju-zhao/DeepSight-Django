@@ -52,20 +52,44 @@ app.conf.update(
         "reports.tasks.cleanup_old_reports": {"queue": "maintenance"},
         "reports.tasks.validate_report_configuration": {"queue": "validation"},
         # Notebooks processing tasks (after refactoring to package structure)
-        "notebooks.tasks.processing_tasks.parse_url_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.processing_tasks.parse_url_with_media_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.processing_tasks.parse_document_url_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.processing_tasks.process_url_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.processing_tasks.process_url_media_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.processing_tasks.process_url_document_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.processing_tasks.process_file_upload_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.processing_tasks.generate_image_captions_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.processing_tasks.parse_url_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.processing_tasks.parse_url_with_media_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.processing_tasks.parse_document_url_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.processing_tasks.process_url_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.processing_tasks.process_url_media_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.processing_tasks.process_url_document_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.processing_tasks.process_file_upload_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.processing_tasks.generate_image_captions_task": {
+            "queue": "notebook_processing"
+        },
         # Notebooks RAGFlow tasks
-        "notebooks.tasks.ragflow_tasks.upload_to_ragflow_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.ragflow_tasks.check_ragflow_status_task": {"queue": "notebook_processing"},
+        "notebooks.tasks.ragflow_tasks.upload_to_ragflow_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.ragflow_tasks.check_ragflow_status_task": {
+            "queue": "notebook_processing"
+        },
         # Notebooks maintenance tasks
-        "notebooks.tasks.maintenance_tasks.test_caption_generation_task": {"queue": "notebook_processing"},
-        "notebooks.tasks.maintenance_tasks.cleanup_old_batch_jobs": {"queue": "maintenance"},
+        "notebooks.tasks.maintenance_tasks.test_caption_generation_task": {
+            "queue": "notebook_processing"
+        },
+        "notebooks.tasks.maintenance_tasks.cleanup_old_batch_jobs": {
+            "queue": "maintenance"
+        },
     },
     # Task settings
     task_serializer="json",

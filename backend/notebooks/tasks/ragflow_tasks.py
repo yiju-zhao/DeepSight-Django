@@ -278,7 +278,9 @@ def check_ragflow_status_task(self, kb_item_id: str):
                     },
                 )
             except Exception:
-                logger.warning("Failed to publish SSE event on RagFlow completion", exc_info=True)
+                logger.warning(
+                    "Failed to publish SSE event on RagFlow completion", exc_info=True
+                )
             return {"success": True, "status": "completed"}
 
         if ragflow_status in ["FAIL", "CANCEL"]:
@@ -294,7 +296,9 @@ def check_ragflow_status_task(self, kb_item_id: str):
                     payload={"error": error_message},
                 )
             except Exception:
-                logger.warning("Failed to publish SSE event on RagFlow failure", exc_info=True)
+                logger.warning(
+                    "Failed to publish SSE event on RagFlow failure", exc_info=True
+                )
             return {"success": False, "status": ragflow_status.lower()}
 
         # Still processing, retry with a fixed interval.
@@ -321,7 +325,9 @@ def check_ragflow_status_task(self, kb_item_id: str):
                     payload={"error": error_msg},
                 )
             except Exception:
-                logger.warning("Failed to publish SSE event on RagFlow timeout", exc_info=True)
+                logger.warning(
+                    "Failed to publish SSE event on RagFlow timeout", exc_info=True
+                )
         except KnowledgeBaseItem.DoesNotExist:
             logger.error(
                 f"KB item {kb_item_id} not found when trying to mark as failed after max retries."
