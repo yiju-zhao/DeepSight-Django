@@ -182,6 +182,9 @@ class NotebookListSerializer(NotebookCountMixin, serializers.ModelSerializer):
 class NotebookCreateSerializer(NotebookValidationMixin, serializers.ModelSerializer):
     """
     Serializer for notebook creation with specific validation rules.
+
+    Note: Creation is handled by NotebookViewSet.perform_create() via NotebookService
+    to ensure proper RAGFlow integration. This serializer only validates input.
     """
 
     class Meta:
@@ -198,14 +201,6 @@ class NotebookCreateSerializer(NotebookValidationMixin, serializers.ModelSeriali
                     "A notebook with this name already exists."
                 )
         return value
-
-    def create(self, validated_data):
-        """Create notebook with user from request context."""
-        request = self.context.get("request")
-        if request and hasattr(request, "user"):
-            validated_data["user"] = request.user
-
-        return super().create(validated_data)
 
 
 class NotebookUpdateSerializer(NotebookValidationMixin, serializers.ModelSerializer):

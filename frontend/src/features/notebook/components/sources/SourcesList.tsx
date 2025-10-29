@@ -95,7 +95,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
   // Helper to build a stable key that morphs placeholder -> final item in place
   const keyForSource = useCallback((s: Source) => {
-    const uploadId = s?.metadata?.upload_file_id || s?.metadata?.upload_url_id;
+    // Check top-level upload_file_id first, then metadata
+    const uploadId = s?.upload_file_id || s?.metadata?.upload_file_id || s?.metadata?.upload_url_id;
     return uploadId ? `upload-${uploadId}` : `source-${s.id}`;
   }, []);
 
@@ -317,7 +318,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   // Get processed sources (grouped or not); render local uploading items first, then server sources excluding duplicates
   const processedSources = useMemo(() => {
     const localItems = Object.values(localUploads);
-    const uploadIds = new Set(localItems.map((s) => s.metadata?.upload_file_id || s.metadata?.upload_url_id));
+    const uploadIds = new Set(localItems.map((s) => s.upload_file_id || s.metadata?.upload_file_id || s.metadata?.upload_url_id));
     const localFilenames = new Set(
       localItems
         .map((s) => s.metadata?.original_filename || s.title)
@@ -325,7 +326,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         .map(String)
     );
     const serverItems = (sources as Source[]).filter((s) => {
-      const sid = s.metadata?.upload_file_id || s.metadata?.upload_url_id;
+      // Check top-level upload_file_id first, then metadata
+      const sid = s.upload_file_id || s.metadata?.upload_file_id || s.metadata?.upload_url_id;
       if (sid && uploadIds.has(sid)) return false;
       // Also drop server-side uploading duplicates by original filename when a local upload exists
       const isServerUploading = s.parsing_status === 'uploading' || s.ragflow_processing_status === 'uploading';

@@ -159,19 +159,19 @@ class NotebookViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         try:
             # Use the service layer to create notebook with RAGFlow integration
-            validated_data = serializer.validated_data
             notebook = self.notebook_service.create_notebook(
                 user=self.request.user,
-                name=validated_data["name"],
-                description=validated_data.get("description", ""),
+                name=serializer.validated_data["name"],
+                description=serializer.validated_data.get("description", ""),
             )
-
-            # Update the serializer's instance with the created notebook
+            # Set the instance so DRF can return it properly
             serializer.instance = notebook
-
+        except ValidationError as e:
+            # Re-raise validation errors as DRF ValidationError
+            raise serializers.ValidationError({"detail": str(e)})
         except Exception as e:
             logger.exception(f"Failed to create notebook: {e}")
-            raise
+            raise serializers.ValidationError({"detail": f"Failed to create notebook: {str(e)}"})
 
     def perform_destroy(self, instance):
         """
