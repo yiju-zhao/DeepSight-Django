@@ -121,15 +121,6 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
       ),
     },
     {
-      accessorKey: 'knowledge_item_count',
-      header: 'Items',
-      cell: ({ row }) => (
-        <span className="text-sm text-gray-600">
-          {row.original.knowledge_item_count} items
-        </span>
-      ),
-    },
-    {
       accessorKey: 'updated_at',
       header: 'Last Updated',
       cell: ({ row }) => (
@@ -162,7 +153,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
       {notebooks.map((notebook: Notebook) => (
         <div
           key={notebook.id}
-          className="group bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer relative"
+          className="group bg-white rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer relative"
           onClick={() => handleNotebookClick(notebook)}
         >
           <div className="p-6">
@@ -188,11 +179,10 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
-            
+
             <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
               <div className="flex items-center space-x-4">
                 <span>{notebook.source_count} sources</span>
-                <span>{notebook.knowledge_item_count} items</span>
               </div>
               <span>
                 {new Date(notebook.updated_at).toLocaleDateString()}
