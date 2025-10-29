@@ -100,6 +100,31 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     return uploadId ? `upload-${uploadId}` : `source-${s.id}`;
   }, []);
 
+  // Handle backend completion signals - MUST be defined before SSE hook
+  const handleProcessingComplete = useCallback((completedUploadId?: string) => {
+    console.log('[SourcesList] handleProcessingComplete called with uploadId:', completedUploadId);
+
+    if (completedUploadId) {
+      // CRITICAL FIX: Remove local placeholder FIRST, then refetch
+      // This prevents duplicate rendering during the window between refetch completing and state update
+      setLocalUploads(prev => {
+        const key = `upload-${completedUploadId}`;
+        console.log('[SourcesList] Removing local upload:', key, 'exists:', key in prev);
+        if (!(key in prev)) return prev;
+        const next = { ...prev } as Record<string, Source>;
+        delete next[key];
+        return next;
+      });
+
+      // Now refetch to get the completed item from server
+      // There might be a brief moment where the item disappears, but this is better than duplicates
+      refetchFiles();
+    } else {
+      // If no ID, just refetch
+      refetchFiles();
+    }
+  }, [refetchFiles]);
+
   // ✅ Real-time updates via SSE
   useNotebookJobStream({
     notebookId,
@@ -148,7 +173,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           }
         }
       }
-    }, [queryClient, notebookId, toast, refetchFiles]),
+    }, [queryClient, notebookId, toast, handleProcessingComplete]),
     onConnected: useCallback(() => {
       console.log('[SourcesList] SSE connected, syncing state');
       // Sync state when connection is established (handles missed events during disconnect)
@@ -325,16 +350,72 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         .filter(Boolean)
         .map(String)
     );
+
+    // Debug logging
+    if (localItems.length > 0) {
+      console.log('[SourcesList] Deduplication check:', {
+        localItemCount: localItems.length,
+        localUploadIds: Array.from(uploadIds),
+        localFilenames: Array.from(localFilenames),
+        serverItemCount: sources.length,
+      });
+    }
+
     const serverItems = (sources as Source[]).filter((s) => {
       // Check top-level upload_file_id first, then metadata
       const sid = s.upload_file_id || s.metadata?.upload_file_id || s.metadata?.upload_url_id;
+
+      // Debug: Log each server item being checked
+      if (localItems.length > 0 && sid) {
+        const matched = uploadIds.has(sid);
+        console.log('[SourcesList] Checking server item:', {
+          title: s.title,
+          id: s.id,
+          upload_file_id_top: s.upload_file_id,
+          upload_file_id_meta: s.metadata?.upload_file_id,
+          sid,
+          matched,
+          ragflow_status: s.ragflow_processing_status,
+          parsing_status: s.parsing_status,
+        });
+        if (matched) {
+          console.log('[SourcesList] 🔴 Server item FILTERED OUT due to upload_file_id match');
+          return false;
+        }
+      }
+
       if (sid && uploadIds.has(sid)) return false;
-      // Also drop server-side uploading duplicates by original filename when a local upload exists
-      const isServerUploading = s.parsing_status === 'uploading' || s.ragflow_processing_status === 'uploading';
+
+      // Also drop server-side duplicates by original filename when a local upload exists
+      // This is a backup deduplication mechanism in case upload_file_id matching fails
       const serverName = s.metadata?.original_filename || s.title;
-      if (isServerUploading && serverName && localFilenames.has(String(serverName))) return false;
+      if (serverName && localFilenames.has(String(serverName))) {
+        // Only filter if the server item is still processing OR recently completed
+        // (to avoid filtering out legitimately added items with same name later)
+        const isRecentlyProcessed =
+          s.parsing_status === 'uploading' ||
+          s.parsing_status === 'queueing' ||
+          s.parsing_status === 'parsing' ||
+          s.ragflow_processing_status === 'uploading' ||
+          s.ragflow_processing_status === 'parsing' ||
+          s.ragflow_processing_status === 'pending';
+
+        if (isRecentlyProcessed) {
+          console.log('[SourcesList] 🔴 Server item FILTERED OUT due to filename match (processing/pending)');
+          return false;
+        }
+      }
       return true;
     });
+
+    if (localItems.length > 0) {
+      console.log('[SourcesList] After deduplication:', {
+        localItemsRendered: localItems.length,
+        serverItemsRendered: serverItems.length,
+        totalRendered: localItems.length + serverItems.length,
+      });
+    }
+
     const flatList = [...localItems, ...serverItems];
     if (isGrouped) {
       const grouped = groupSources(flatList);
@@ -347,27 +428,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   const handleGroupToggle = () => {
     setIsGrouped(prev => !prev);
   };
-
-
-  // Handle backend completion signals
-  const handleProcessingComplete = useCallback((completedUploadId?: string) => {
-    if (completedUploadId) {
-      // Refetch first to get the final item from the server
-      refetchFiles().then(() => {
-        // Then, remove the local placeholder
-        setLocalUploads(prev => {
-          const key = `upload-${completedUploadId}`;
-          if (!(key in prev)) return prev;
-          const next = { ...prev } as Record<string, Source>;
-          delete next[key];
-          return next;
-        });
-      });
-    } else {
-      // If no ID, just refetch
-      refetchFiles();
-    }
-  }, [refetchFiles]);
 
   // Expose methods to parent components
   useImperativeHandle(ref, (): SourcesListRef => ({
@@ -546,6 +606,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 next[newKey] = {
                   ...existing,
                   id: newKey,
+                  upload_file_id: uploadFileId,  // ← Add top-level for consistency
                   title: _filename || existing.title,
                   parsing_status: 'uploading',
                   ext: deriveExt() || existing.ext,
@@ -560,6 +621,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 // Create new local item
                 next[newKey] = {
                   id: newKey,
+                  upload_file_id: uploadFileId,  // ← Add top-level for consistency
                   title: _filename || 'Uploading…',
                   type: 'uploading',
                   selected: false,
