@@ -24,10 +24,12 @@ export const SourceItem = React.memo<SourceItemProps>(({
   getPrincipleFileIcon
 }) => {
   // Derive a minimal tri-state: processing | failed | done
+  // CRITICAL: Only show as 'done' when ragflow_processing_status === 'completed'
   const deriveStatus = (s: Source): 'processing' | 'failed' | 'done' => {
     const p = s.parsing_status;
     const r = s.ragflow_processing_status;
     const c = s.captioning_status;
+
     // Failed has priority
     if (
       (p && ['failed', 'error', 'cancelled', 'unsupported'].includes(p)) ||
@@ -36,18 +38,27 @@ export const SourceItem = React.memo<SourceItemProps>(({
     ) {
       return 'failed';
     }
-    // Processing: uploading/queueing/parsing/captioning/in_progress or explicit uploading placeholder
+
+    // Processing: any state before RAGFlow completion
+    // This includes: uploading, queueing, parsing, captioning, pending, etc.
     if (
+      s.type === 'uploading' ||
       (p && ['uploading', 'queueing', 'parsing', 'captioning'].includes(p)) ||
-      (r && ['uploading', 'parsing'].includes(r)) ||
+      (r && ['pending', 'uploading', 'parsing'].includes(r)) ||
       c === 'in_progress' ||
-      s.type === 'uploading'
+      !r || // No RAGFlow status yet means still processing
+      r === 'pending'
     ) {
       return 'processing';
     }
-    // Done: parsing has no 'completed', only 'done'; others may have 'completed'.
-    // For UI, treat absence of failure/processing as done.
-    return 'done';
+
+    // Done: ONLY when RAGFlow processing is completed
+    if (r === 'completed') {
+      return 'done';
+    }
+
+    // Default to processing for any unclear state
+    return 'processing';
   };
 
   const status = deriveStatus(source);
@@ -74,17 +85,23 @@ export const SourceItem = React.memo<SourceItemProps>(({
 
   return (
     <div
-      className={`relative px-3 py-2.5 overflow-hidden rounded-lg bg-white transition-shadow ${
-        supportsPreviewCheck ? 'cursor-pointer hover:shadow-sm' : ''
-      } ${source.selected ? 'shadow-sm' : ''}`}
+      className={`relative px-3 py-2.5 overflow-hidden rounded-lg transition-all duration-300 ${
+        isProcessing
+          ? 'bg-blue-50/50 border border-blue-100'
+          : isFailed
+          ? 'bg-red-50/50 border border-red-100'
+          : 'bg-white border border-transparent'
+      } ${
+        supportsPreviewCheck ? 'cursor-pointer hover:shadow-sm hover:border-gray-200' : ''
+      } ${source.selected ? 'shadow-sm ring-2 ring-blue-500 ring-opacity-50' : ''}`}
       onClick={supportsPreviewCheck ? handleItemClick : undefined}
       title={supportsPreviewCheck ? getSourceTooltip(source) : undefined}
     >
-      {/* Sweeping highlight effect only during core parsing/uploading */}
+      {/* Sweeping highlight effect only during processing */}
       {isSweeping && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div
-            className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-100/40 to-transparent"
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/50 to-transparent"
             style={{
               animation: 'sweepAnimation 2s ease-in-out infinite',
               transform: 'translateX(-100%)'
@@ -95,19 +112,27 @@ export const SourceItem = React.memo<SourceItemProps>(({
 
       <div className="flex items-center space-x-3 relative z-10">
         <div className="flex-shrink-0 flex items-center">
-          <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300 ${
+            isProcessing ? 'bg-blue-100' : 'bg-white'
+          }`}>
             {isProcessing ? (
               <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
             ) : (
               React.createElement(getPrincipleFileIcon(source), {
-                className: "h-4 w-4 text-gray-600"
+                className: `h-4 w-4 transition-colors duration-300 ${
+                  isDone ? 'text-gray-700' : 'text-gray-600'
+                }`
               })
             )}
           </div>
         </div>
 
         <div className="min-w-0 flex-1 flex items-center space-x-2">
-          <h4 className="text-sm font-medium text-gray-900 truncate">{source.title}</h4>
+          <h4 className={`text-sm font-medium truncate transition-colors duration-300 ${
+            isProcessing ? 'text-gray-600' : 'text-gray-900'
+          }`}>
+            {source.title}
+          </h4>
           {isFailed && (
             <div className="flex items-center space-x-1" title="Failed">
               <AlertCircle className="h-3 w-3 text-red-500" />
@@ -127,7 +152,7 @@ export const SourceItem = React.memo<SourceItemProps>(({
           {/* Only show checkbox when content is ready */}
           {isContentReady && (
             <div
-              className="flex items-center cursor-pointer"
+              className="flex items-center cursor-pointer animate-in fade-in slide-in-from-right-2 duration-300"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
