@@ -4,8 +4,8 @@
 
 import React, { useMemo, useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Grid, List } from 'lucide-react';
-import { useNotebooks, useCreateNotebook } from "@/features/notebook/queries";
+import { Plus, Search, Grid, List, Trash2 } from 'lucide-react';
+import { useNotebooks, useCreateNotebook, useDeleteNotebook } from "@/features/notebook/queries";
 import { ErrorBoundary } from "@/shared/components/ui/ErrorBoundary";
 import { LoadingSpinner, NotebookGridSkeleton } from "@/shared/components/ui/LoadingSpinner";
 import { Button } from "@/shared/components/ui/button";
@@ -24,6 +24,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [showCreateForm, setShowCreateForm] = useState(false);
+  const [notebookToDelete, setNotebookToDelete] = useState<Notebook | null>(null);
 
   // Use React 18 concurrent features for search
   const {
@@ -50,6 +51,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
   const { shouldShowLoading } = useSmartLoading(isLoading, 300);
 
   const createNotebook = useCreateNotebook();
+  const deleteNotebook = useDeleteNotebook();
 
   // Memoized notebooks data
   const notebooks = useMemo(() => {
@@ -79,6 +81,18 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
   // Handle notebook click
   const handleNotebookClick = (notebook: Notebook) => {
     navigate(`/deepdive/${notebook.id}`);
+  };
+
+  // Handle delete notebook
+  const handleDeleteNotebook = async () => {
+    if (!notebookToDelete) return;
+
+    try {
+      await deleteNotebook.mutateAsync(notebookToDelete.id);
+      setNotebookToDelete(null);
+    } catch (error) {
+      console.error('Failed to delete notebook:', error);
+    }
   };
 
   // Table columns definition
@@ -124,7 +138,22 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
         </span>
       ),
     },
-    // status column removed per design update
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: ({ row }) => (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setNotebookToDelete(row.original);
+          }}
+          className="text-red-600 hover:text-red-800 transition-colors p-2"
+          title="Delete notebook"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      ),
+    },
   ], []);
 
   // Grid view component
@@ -133,7 +162,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
       {notebooks.map((notebook: Notebook) => (
         <div
           key={notebook.id}
-          className="group bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer"
+          className="group bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer relative"
           onClick={() => handleNotebookClick(notebook)}
         >
           <div className="p-6">
@@ -148,7 +177,16 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
                   </p>
                 )}
               </div>
-              {/* status indicator removed as requested */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNotebookToDelete(notebook);
+                }}
+                className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50"
+                title="Delete notebook"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
             
             <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
@@ -294,6 +332,55 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
               />
             )}
           </Suspense>
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        {notebookToDelete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+              <div className="flex items-start mb-4">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+                <div className="ml-4 flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Delete Notebook
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-600">
+                    Are you sure you want to delete "<span className="font-medium">{notebookToDelete.name}</span>"?
+                    This action cannot be undone and will permanently delete all sources, knowledge items, and chat history.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setNotebookToDelete(null)}
+                  disabled={deleteNotebook.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleDeleteNotebook}
+                  disabled={deleteNotebook.isPending}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  {deleteNotebook.isPending ? (
+                    <>
+                      <LoadingSpinner size="sm" color="white" className="mr-2" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4 mr-2" />
+                      Delete Notebook
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </ErrorBoundary>
