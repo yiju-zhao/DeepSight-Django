@@ -619,37 +619,28 @@ class URLExtractor:
             original_file_path = None
             features = {}  # Initialize features to avoid UnboundLocalError
 
-            if media_info.get("has_media"):
-                # Download and transcribe media
-                media_result = await self._download_and_transcribe_media(
-                    url, media_info
-                )
-                content = media_result.get("content", "")
-                transcript_filename = media_result.get("transcript_filename")
-                original_file_path = media_result.get(
-                    "original_file_path"
-                )  # Get the downloaded file path
-                processing_type = "media"
-                # For media content, create basic features dict
-                features = {
-                    "title": media_info.get("title", url),
-                    "url": url,
-                    "extraction_method": "media_transcription",
-                }
-            else:
-                # Fall back to regular web scraping
-                options = {
-                    "extract_links": True,
-                    "extract_images": True,
-                    "extract_metadata": True,
-                    "wait_for_js": 2,
-                    "timeout": 30,
-                }
-                if extraction_options:
-                    options.update(extraction_options)
+            if not media_info.get("has_media"):
+                # If media check fails, raise an explicit error instead of silently falling back.
+                # The user clicked "Video", so they expect video processing.
+                error_message = media_info.get("error", "No downloadable media found at the URL.")
+                raise Exception(f"Media processing failed: {error_message}")
 
-                features = await self._extract_with_crawl4ai(url, options)
-                content = features.get("content", "")
+            # Download and transcribe media
+            media_result = await self._download_and_transcribe_media(
+                url, media_info
+            )
+            content = media_result.get("content", "")
+            transcript_filename = media_result.get("transcript_filename")
+            original_file_path = media_result.get(
+                "original_file_path"
+            )  # Get the downloaded file path
+            processing_type = "media"
+            # For media content, create basic features dict
+            features = {
+                "title": media_info.get("title", url),
+                "url": url,
+                "extraction_method": "media_transcription",
+            }
 
             # Clean markdown content
             cleaned_content = self._clean_markdown_content(content, features)
