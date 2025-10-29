@@ -233,8 +233,10 @@ class URLExtractor:
                         "file_size": os.path.getsize(video_path),
                     }
 
+                    file_type_processor = self.upload_processor._init_file_type_processors()
+
                     processing_result = (
-                        await self.upload_processor._process_video_immediate(
+                        await file_type_processor.process_video_immediate(
                             video_path, file_metadata
                         )
                     )
@@ -259,8 +261,10 @@ class URLExtractor:
                         "file_size": os.path.getsize(audio_path),
                     }
 
+                    file_type_processor = self.upload_processor._init_file_type_processors()
+
                     processing_result = (
-                        await self.upload_processor._process_audio_immediate(
+                        await file_type_processor.process_audio_immediate(
                             audio_path, file_metadata
                         )
                     )
