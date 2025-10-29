@@ -12,7 +12,7 @@ import type {
   CreateSourceRequest,
   ProcessUrlRequest,
   AddTextRequest,
-} from './api';
+} from '@/shared/types/notebook';
 
 // Query Keys Factory
 export const notebookQueries = {

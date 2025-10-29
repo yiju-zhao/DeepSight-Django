@@ -12,7 +12,7 @@ import { Source, SourcesListProps } from "@/features/notebook/type";
 import { FileMetadata } from "@/shared/types";
 import { useFileSelection } from "@/features/notebook/hooks/file/useFileSelection";
 import { useParsedFiles, sourceKeys } from "@/features/notebook/hooks/sources/useSources";
-import { useNotebookJobStream } from "@/shared/hooks/useNotebookJobStream";
+import { useNotebookJobStream, JobEvent } from "@/shared/hooks/useNotebookJobStream";
 import AddSourceModal from "./AddSourceModal";
 import { SourceItem } from "./SourceItem";
 import { useToast } from "@/shared/components/ui/use-toast";
@@ -103,13 +103,13 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   useNotebookJobStream({
     notebookId,
     enabled: true, // Keep SSE connection active while list is mounted
-    onJobEvent: useCallback((event) => {
+    onJobEvent: useCallback((event: JobEvent) => {
       // Handle source events (file/URL processing updates)
       if (event.entity === 'source') {
         console.log('[SourcesList] Source event received:', event);
         const uploadId = event.payload?.upload_file_id || event.payload?.upload_url_id;
 
-        if (event.status === 'SUCCESS' || event.status === 'COMPLETED') {
+        if (event.status === 'SUCCESS') {
           // Delegate to unified completion handler
           handleProcessingComplete(uploadId);
         } else {
@@ -426,10 +426,10 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     }
 
     // Build a set of IDs to delete
-    const idsToDelete = new Set(
+    const idsToDelete = new Set<string>(
       selectedSources
-        .map((s) => s?.metadata?.knowledge_item_id)
-        .filter((id): id is string => Boolean(id))
+        .map((s: Source) => s?.metadata?.knowledge_item_id)
+        .filter((id: any): id is string => Boolean(id))
     );
 
     if (idsToDelete.size === 0) {
@@ -468,7 +468,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     try {
       // Execute deletions in parallel
       const results = await Promise.allSettled(
-        Array.from(idsToDelete).map((id) => sourceService.deleteParsedFile(id, notebookId))
+        Array.from(idsToDelete).map((id: string) => sourceService.deleteParsedFile(id, notebookId))
       );
 
       const failed: Source[] = [];
@@ -500,7 +500,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       // Generic rollback on unexpected error
       queryClient.setQueryData(queryKey, previous);
       setError('Failed to delete selected files');
-      setSelectedIds(new Set(selectedSources.map((f) => String(f.id))));
+      setSelectedIds(new Set(selectedSources.map((f: Source) => String(f.id))));
       if (onSelectionChange) {
         setTimeout(() => onSelectionChange(), 100);
       }

@@ -82,7 +82,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
   }, [messages]);
 
   useEffect(() => {
-    if (!isLoading && messages.length > 0 && messages[messages.length - 1].sender === 'assistant') {
+    if (!isLoading && messages.length > 0 && messages[messages.length - 1]?.sender === 'assistant') {
       setShowSuggestions(true);
     } else {
       setShowSuggestions(false);
