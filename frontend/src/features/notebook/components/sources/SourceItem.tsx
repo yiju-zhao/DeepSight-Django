@@ -85,14 +85,14 @@ export const SourceItem = React.memo<SourceItemProps>(({
 
   return (
     <div
-      className={`relative px-3 py-2.5 overflow-hidden rounded-lg transition-all duration-300 ${
+      className={`relative px-3 py-2.5 overflow-hidden transition-all duration-300 ${
         isProcessing
-          ? 'bg-blue-50/50 border border-blue-100'
+          ? 'bg-blue-50/50 border-t border-b border-blue-100'
           : isFailed
-          ? 'bg-red-50/50 border border-red-100'
-          : 'bg-white border border-transparent'
+          ? 'bg-red-50/50 border-t border-b border-red-100'
+          : 'bg-white border-t border-b border-transparent'
       } ${
-        supportsPreviewCheck ? 'cursor-pointer hover:shadow-sm hover:border-gray-200' : ''
+        supportsPreviewCheck ? 'cursor-pointer hover:shadow-sm' : ''
       } ${source.selected ? 'shadow-sm ring-2 ring-blue-500 ring-opacity-50' : ''}`}
       onClick={supportsPreviewCheck ? handleItemClick : undefined}
       title={supportsPreviewCheck ? getSourceTooltip(source) : undefined}
@@ -112,9 +112,7 @@ export const SourceItem = React.memo<SourceItemProps>(({
 
       <div className="flex items-center space-x-3 relative z-10">
         <div className="flex-shrink-0 flex items-center">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-300 ${
-            isProcessing ? 'bg-blue-100' : 'bg-white'
-          }`}>
+          <div className="w-8 h-8 flex items-center justify-center">
             {isProcessing ? (
               <Loader2 className="h-4 w-4 text-blue-600 animate-spin" />
             ) : (
