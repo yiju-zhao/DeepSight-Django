@@ -173,6 +173,17 @@ class NotebookViewSet(viewsets.ModelViewSet):
             logger.exception(f"Failed to create notebook: {e}")
             raise serializers.ValidationError({"detail": f"Failed to create notebook: {str(e)}"})
 
+    def create(self, request, *args, **kwargs):
+        """Override create to return full notebook data with NotebookSerializer."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+
+        # Use NotebookSerializer for response to include all fields (id, created_at, etc.)
+        response_serializer = NotebookSerializer(serializer.instance)
+        headers = self.get_success_headers(response_serializer.data)
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+
     def perform_destroy(self, instance):
         """
         Use the service layer to delete notebook with RAGFlow cleanup.
