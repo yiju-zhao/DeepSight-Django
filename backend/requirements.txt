@@ -65,3 +65,4 @@ pydantic
 ffmpeg-python
 aiohttp
 ragflow-sdk
+yt-dlp

@@ -92,55 +92,11 @@ class URLExtractor:
                 "quiet": True,
                 "no_warnings": True,
                 "nocheckcertificate": True,
-                "cookiesfrombrowser": (
-                    "chrome",
-                    None,
-                    None,
-                    None,
-                ),  # Use Chrome cookies by default
             }
 
             # Extract information to see what's available
             with yt_dlp.YoutubeDL(probe_opts) as ydl:
-                try:
-                    info = ydl.extract_info(url, download=False)
-                except Exception as e:
-                    # If extraction fails due to authentication, try without cookies first
-                    if (
-                        "Sign in to confirm" in str(e)
-                        or "bot" in str(e).lower()
-                        or "authentication" in str(e).lower()
-                    ):
-                        self.log_operation(
-                            "youtube_auth_with_cookies_failed",
-                            f"YouTube auth failed with Chrome cookies for URL: {url}",
-                            "warning",
-                        )
-
-                        # Try without cookies as fallback
-                        fallback_opts = probe_opts.copy()
-                        fallback_opts.pop("cookiesfrombrowser", None)
-
-                        try:
-                            with yt_dlp.YoutubeDL(fallback_opts) as fallback_ydl:
-                                info = fallback_ydl.extract_info(url, download=False)
-                                self.log_operation(
-                                    "youtube_fallback_success",
-                                    f"Successfully accessed without cookies: {url}",
-                                )
-                        except Exception:
-                            self.log_operation(
-                                "youtube_auth_required",
-                                f"YouTube requires authentication for URL: {url}",
-                                "warning",
-                            )
-                            return {
-                                "has_media": False,
-                                "error": "YouTube authentication required. Please ensure you're logged into Chrome or the content is publicly accessible.",
-                                "auth_required": True,
-                            }
-                    else:
-                        raise e
+                info = ydl.extract_info(url, download=False)
 
             if not info:
                 return {
@@ -360,36 +316,10 @@ class URLExtractor:
                 "outtmpl": output_path,
                 "format": "bestvideo+bestaudio/best",
                 "nocheckcertificate": True,
-                "cookiesfrombrowser": (
-                    "chrome",
-                    None,
-                    None,
-                    None,
-                ),  # Use Chrome cookies by default
             }
 
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([url])
-            except Exception as e:
-                # If download fails with cookies, try without cookies
-                if (
-                    "Sign in" in str(e)
-                    or "authentication" in str(e).lower()
-                    or "bot" in str(e).lower()
-                ):
-                    self.log_operation(
-                        "video_download_cookies_failed",
-                        f"Video download with Chrome cookies failed, trying without cookies: {url}",
-                        "warning",
-                    )
-                    fallback_opts = ydl_opts.copy()
-                    fallback_opts.pop("cookiesfrombrowser", None)
-
-                    with yt_dlp.YoutubeDL(fallback_opts) as ydl:
-                        ydl.download([url])
-                else:
-                    raise e
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
 
             # Find the downloaded file
             for file_path in Path(temp_dir).iterdir():
@@ -422,12 +352,6 @@ class URLExtractor:
                 "outtmpl": output_path,
                 "format": "bestaudio/best",
                 "nocheckcertificate": True,
-                "cookiesfrombrowser": (
-                    "chrome",
-                    None,
-                    None,
-                    None,
-                ),  # Use Chrome cookies by default
                 "postprocessors": [
                     {
                         "key": "FFmpegExtractAudio",
@@ -437,28 +361,8 @@ class URLExtractor:
                 ],
             }
 
-            try:
-                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                    ydl.download([url])
-            except Exception as e:
-                # If download fails with cookies, try without cookies
-                if (
-                    "Sign in" in str(e)
-                    or "authentication" in str(e).lower()
-                    or "bot" in str(e).lower()
-                ):
-                    self.log_operation(
-                        "audio_download_cookies_failed",
-                        f"Audio download with Chrome cookies failed, trying without cookies: {url}",
-                        "warning",
-                    )
-                    fallback_opts = ydl_opts.copy()
-                    fallback_opts.pop("cookiesfrombrowser", None)
-
-                    with yt_dlp.YoutubeDL(fallback_opts) as ydl:
-                        ydl.download([url])
-                else:
-                    raise e
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([url])
 
             # Find the downloaded file
             for file_path in Path(temp_dir).iterdir():
