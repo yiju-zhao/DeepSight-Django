@@ -1,3 +1,7 @@
 CLAUDE.md
 GEMINI.md
 AGENTS.md
+.vscode/
+.idea/
+.DS_Store
+.claude

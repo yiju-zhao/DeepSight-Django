@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, User, Bot, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { Send, User, Bot, Loader2, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/shared/components/ui/button';
 import { Textarea } from '@/shared/components/ui/textarea';
@@ -220,35 +220,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
         {messages.length === 0 && !isLoading ? (
           <div className="h-full flex items-center justify-center p-8">
             <div className="text-center max-w-lg">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5 }}
-                className="inline-flex items-center justify-center mb-6"
-              >
-                <div className="relative">
-                  <div className="w-20 h-20 bg-white border-2 border-gray-200 rounded-2xl flex items-center justify-center">
-                    <Sparkles className="h-10 w-10 text-red-600" strokeWidth={1.5} />
-                  </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white" />
-                </div>
-              </motion.div>
-              <motion.h3
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="text-xl font-semibold text-gray-900 mb-2"
-              >
-                Ready to Chat
-              </motion.h3>
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="text-sm text-gray-500 leading-relaxed mb-6"
-              >
-                This is the beginning of your conversation in <span className="font-medium text-gray-700">"{session.title}"</span>
-              </motion.p>
+              
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
