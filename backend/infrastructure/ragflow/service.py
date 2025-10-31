@@ -509,11 +509,11 @@ class RagflowService:
             if embedding_model:
                 payload["embedding_model"] = embedding_model
             else:
-                # Use default from settings
+                # Use default from settings or fallback to OpenAI
                 payload["embedding_model"] = getattr(
                     settings,
                     "RAGFLOW_DEFAULT_EMBEDDING_MODEL",
-                    "BAAI/bge-large-zh-v1.5@BAAI",
+                    "text-embedding-3-large@OpenAI",
                 )
 
             if chunk_method:
