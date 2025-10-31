@@ -328,7 +328,7 @@ class Document(BaseModel):
     create_time: int | None = Field(None, alias="create_time", description="Creation timestamp (ms)")
     create_date: str | None = Field(None, alias="create_date", description="Creation date string")
     update_time: int | None = Field(None, alias="update_time", description="Update timestamp (ms)")
-    process_begin_at: int | None = Field(None, alias="process_begin_at", description="Processing start timestamp")
+    process_begin_at: str | None = Field(None, alias="process_begin_at", description="Processing start time (GMT string)")
     process_duration: float | None = Field(None, alias="process_duration", description="Processing duration (seconds)")
 
     model_config = {"populate_by_name": True}
