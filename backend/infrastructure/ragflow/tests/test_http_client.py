@@ -235,8 +235,8 @@ class TestRagFlowHttpClientStreaming:
         """Test stream_json method."""
         # Mock streaming response
         mock_lines = [
-            "data:{"code":0,"data":{"answer":"Test"}}",
-            "data:{"code":0,"data":true}",
+            'data:{"code":0,"data":{"answer":"Test"}}',
+            'data:{"code":0,"data":true}',
         ]
 
         with patch.object(http_client, "stream", return_value=iter(mock_lines)):
