@@ -730,13 +730,13 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
             # If the KB item is linked to RagFlow, attempt deletion up-front so we can fail fast
             if instance.ragflow_document_id and instance.notebook.ragflow_dataset_id:
                 try:
-                    from infrastructure.ragflow.client import get_ragflow_client
+                    from infrastructure.ragflow.service import get_ragflow_service
 
-                    ragflow_client = get_ragflow_client()
+                    ragflow_service = get_ragflow_service()
                     logger.info(
                         f"[FileViewSet.perform_destroy] Deleting RagFlow document {instance.ragflow_document_id} from dataset {instance.notebook.ragflow_dataset_id}"
                     )
-                    success = ragflow_client.delete_document(
+                    success = ragflow_service.delete_document(
                         instance.notebook.ragflow_dataset_id,
                         instance.ragflow_document_id,
                     )
@@ -756,7 +756,7 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
 
                     # Best-effort dataset update after document deletion
                     try:
-                        ragflow_client.update_dataset(
+                        ragflow_service.update_dataset(
                             instance.notebook.ragflow_dataset_id
                         )
                     except Exception:

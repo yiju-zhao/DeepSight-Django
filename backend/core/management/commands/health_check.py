@@ -239,13 +239,13 @@ class Command(BaseCommand):
     def _check_vectordb(self, timeout: int) -> dict:
         """Check vector database connectivity - now using RagFlow."""
         try:
-            from infrastructure.ragflow.client import get_ragflow_client
+            from infrastructure.ragflow.service import get_ragflow_service
 
             start_time = time.time()
 
             # Test RagFlow connection
-            ragflow_client = get_ragflow_client()
-            ragflow_healthy = ragflow_client.health_check()
+            ragflow_service = get_ragflow_service()
+            ragflow_healthy = ragflow_service.health_check()
 
             response_time = time.time() - start_time
 

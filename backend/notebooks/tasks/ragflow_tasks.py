@@ -49,10 +49,10 @@ def upload_to_ragflow_task(self, kb_item_id: str):
             kb_item.mark_ragflow_failed("No processed file available for upload")
             return {"success": False, "error": "No processed file available for upload"}
 
-        from infrastructure.ragflow.client import get_ragflow_client
+        from infrastructure.ragflow.service import get_ragflow_service
         from infrastructure.storage.adapters import get_storage_adapter
 
-        ragflow_client = get_ragflow_client()
+        ragflow_service = get_ragflow_service()
         storage_adapter = get_storage_adapter()
 
         # Upload to RagFlow - we need the notebook's RagFlow dataset ID
@@ -88,12 +88,35 @@ def upload_to_ragflow_task(self, kb_item_id: str):
         logger.info(
             f"Uploading file '{filename}' to RagFlow dataset {kb_item.notebook.ragflow_dataset_id}"
         )
-        upload_result = ragflow_client.upload_document_file(
-            dataset_id=kb_item.notebook.ragflow_dataset_id,
-            file_content=file_content,
-            filename=filename,
-        )
-        logger.info(f"RagFlow upload result: {upload_result}")
+
+        # Use temporary file approach for new service
+        import tempfile
+        import os
+
+        try:
+            # Write content to temporary file
+            with tempfile.NamedTemporaryFile(mode='wb', suffix='.md', delete=False) as tmp_file:
+                tmp_file.write(file_content if isinstance(file_content, bytes) else file_content.encode('utf-8'))
+                tmp_path = tmp_file.name
+
+            # Upload using new service
+            documents = ragflow_service.upload_document_file(
+                dataset_id=kb_item.notebook.ragflow_dataset_id,
+                file_path=tmp_path,
+                display_name=filename,
+            )
+
+            # Clean up temporary file
+            os.unlink(tmp_path)
+
+            # Extract document ID from response
+            upload_result = {"id": documents[0].id} if documents else {}
+            logger.info(f"RagFlow upload result: {upload_result}")
+        except Exception as e:
+            logger.error(f"Failed to upload document: {e}")
+            if 'tmp_path' in locals() and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
 
         if upload_result and upload_result.get("id"):
             document_id = upload_result.get("id")
@@ -138,7 +161,7 @@ def upload_to_ragflow_task(self, kb_item_id: str):
 
             # Trigger dataset update to refresh embeddings and settings
             try:
-                ragflow_client.update_dataset(kb_item.notebook.ragflow_dataset_id)
+                ragflow_service.update_dataset(kb_item.notebook.ragflow_dataset_id)
                 logger.info(
                     f"Successfully updated RagFlow dataset {kb_item.notebook.ragflow_dataset_id} after file upload"
                 )
@@ -150,7 +173,7 @@ def upload_to_ragflow_task(self, kb_item_id: str):
 
             # Trigger document parsing after successful upload
             try:
-                parse_result = ragflow_client.parse_documents(
+                parse_result = ragflow_service.parse_documents(
                     dataset_id=kb_item.notebook.ragflow_dataset_id,
                     document_ids=[document_id],
                 )
@@ -244,17 +267,17 @@ def check_ragflow_status_task(self, kb_item_id: str):
             )
             return {"success": False, "error": "Missing RagFlow document or dataset ID"}
 
-        from infrastructure.ragflow.client import get_ragflow_client
+        from infrastructure.ragflow.service import get_ragflow_service
 
-        ragflow_client = get_ragflow_client()
+        ragflow_service = get_ragflow_service()
 
-        doc_status = ragflow_client.get_document_status(
+        doc = ragflow_service.get_document_status(
             dataset_id=kb_item.notebook.ragflow_dataset_id,
             document_id=kb_item.ragflow_document_id,
         )
 
         ragflow_status = (
-            doc_status.get("status", "unknown").upper() if doc_status else "UNKNOWN"
+            doc.processing_status.upper() if doc else "UNKNOWN"
         )
         logger.info(
             f"RagFlow document {kb_item.ragflow_document_id} status: {ragflow_status}"

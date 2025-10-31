@@ -15,7 +15,8 @@ from typing import List, Tuple
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from infrastructure.ragflow.client import RagFlowClient, RagFlowClientError
+from infrastructure.ragflow.service import get_ragflow_service
+from infrastructure.ragflow.exceptions import RagFlowError
 from notebooks.models import ChatSession, Notebook
 
 logger = logging.getLogger(__name__)
@@ -55,20 +56,20 @@ class Command(BaseCommand):
                 self.style.NOTICE("Running in DRY RUN mode - no changes will be made\n")
             )
 
-        # Initialize RagFlow client
+        # Initialize RagFlow service
         try:
-            ragflow_client = RagFlowClient()
+            ragflow_service = get_ragflow_service()
             self.stdout.write(
                 self.style.SUCCESS("✓ Connected to RagFlow successfully\n")
             )
-        except RagFlowClientError as e:
+        except RagFlowError as e:
             raise CommandError(f"Failed to connect to RagFlow: {e}")
 
         # Collect all RagFlow resources
         self.stdout.write(self.style.NOTICE("Collecting RagFlow resources...\n"))
 
         datasets, chat_assistants, chat_sessions = self._collect_resources(
-            ragflow_client
+            ragflow_service
         )
 
         # Display summary
@@ -93,18 +94,18 @@ class Command(BaseCommand):
         # 1. Delete chat sessions from RagFlow
         if chat_sessions:
             success &= self._cleanup_chat_sessions(
-                ragflow_client, chat_sessions, dry_run
+                ragflow_service, chat_sessions, dry_run
             )
 
         # 2. Delete chat assistants from RagFlow
         if chat_assistants:
             success &= self._cleanup_chat_assistants(
-                ragflow_client, chat_assistants, dry_run
+                ragflow_service, chat_assistants, dry_run
             )
 
         # 3. Delete datasets from RagFlow
         if datasets:
-            success &= self._cleanup_datasets(ragflow_client, datasets, dry_run)
+            success &= self._cleanup_datasets(ragflow_service, datasets, dry_run)
 
         # 4. Clear database IDs
         if not dry_run:
@@ -136,35 +137,45 @@ class Command(BaseCommand):
         self.stdout.write("=" * 70 + "\n")
 
     def _collect_resources(
-        self, client: RagFlowClient
+        self, service
     ) -> Tuple[List[dict], List[dict], List[dict]]:
         """
         Collect all RagFlow resources directly from RagFlow API.
 
         Args:
-            client: RagFlow client instance
+            service: RagFlow service instance
 
         Returns:
             Tuple of (datasets, chat_assistants, chat_sessions)
             Each is a list of dictionaries with 'id' and 'name' keys
         """
         self.stdout.write("  Listing datasets from RagFlow...")
-        datasets = client.list_all_datasets()
+        # Fetch all datasets (may need pagination handling)
+        dataset_objects = service.list_datasets(page_size=1000).items
+        datasets = [{"id": ds.id, "name": ds.name} for ds in dataset_objects]
         self.stdout.write(f"    Found {len(datasets)} datasets")
 
         self.stdout.write("  Listing chat assistants from RagFlow...")
-        chat_assistants = client.list_all_chats()
+        # Fetch all chat assistants (may need pagination handling)
+        chat_objects = service.list_chats(page_size=1000)
+        chat_assistants = [{"id": chat.id, "name": chat.name} for chat in chat_objects]
         self.stdout.write(f"    Found {len(chat_assistants)} chat assistants")
 
         self.stdout.write("  Listing sessions from all chat assistants...")
         all_sessions = []
-        for chat in chat_assistants:
-            sessions = client.list_all_sessions_for_chat(chat["id"])
-            for session in sessions:
+        for chat_dict in chat_assistants:
+            # List sessions for each chat
+            session_objects = service.list_chat_sessions(
+                chat_id=chat_dict["id"], page_size=1000
+            )
+            for session in session_objects:
                 # Add chat info to session for display
-                session["chat_id"] = chat["id"]
-                session["chat_name"] = chat["name"]
-                all_sessions.append(session)
+                all_sessions.append({
+                    "id": session.id,
+                    "name": session.name or session.id[:8],
+                    "chat_id": chat_dict["id"],
+                    "chat_name": chat_dict["name"],
+                })
         self.stdout.write(f"    Found {len(all_sessions)} total sessions")
 
         return datasets, chat_assistants, all_sessions
@@ -218,7 +229,7 @@ class Command(BaseCommand):
 
     def _cleanup_chat_sessions(
         self,
-        client: RagFlowClient,
+        service,
         chat_sessions: List[dict],
         dry_run: bool,
     ) -> bool:
@@ -247,7 +258,7 @@ class Command(BaseCommand):
 
             try:
                 if not dry_run:
-                    client.delete_chat_sessions(chat_id, session_ids)
+                    service.delete_chat_sessions(chat_id, session_ids)
                 self.stdout.write(
                     self.style.SUCCESS(
                         f"  ✓ Deleted {len(session_ids)} sessions from chat {chat_id[:8]}... ({chat_name})"
@@ -271,7 +282,7 @@ class Command(BaseCommand):
 
     def _cleanup_chat_assistants(
         self,
-        client: RagFlowClient,
+        service,
         chat_assistants: List[dict],
         dry_run: bool,
     ) -> bool:
@@ -288,7 +299,7 @@ class Command(BaseCommand):
         for chat in chat_assistants:
             try:
                 if not dry_run:
-                    client.delete_chat_assistant(chat["id"])
+                    service.delete_chat(chat["id"])
                 self.stdout.write(
                     self.style.SUCCESS(f"  ✓ Deleted chat assistant: {chat['name']}")
                 )
@@ -309,7 +320,7 @@ class Command(BaseCommand):
         return success
 
     def _cleanup_datasets(
-        self, client: RagFlowClient, datasets: List[dict], dry_run: bool
+        self, service, datasets: List[dict], dry_run: bool
     ) -> bool:
         """Delete all datasets from RagFlow."""
         self.stdout.write(
@@ -322,7 +333,7 @@ class Command(BaseCommand):
         for dataset in datasets:
             try:
                 if not dry_run:
-                    client.delete_dataset(dataset["id"])
+                    service.delete_dataset(dataset["id"])
                 self.stdout.write(
                     self.style.SUCCESS(f"  ✓ Deleted dataset: {dataset['name']}")
                 )

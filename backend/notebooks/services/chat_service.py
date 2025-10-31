@@ -11,10 +11,11 @@ from core.services import NotebookBaseService
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
-from infrastructure.ragflow.client import (
-    RagFlowClientError,
+from infrastructure.ragflow.service import get_ragflow_service
+from infrastructure.ragflow.exceptions import (
+    RagFlowError,
+    RagFlowChatError,
     RagFlowSessionError,
-    get_ragflow_client,
 )
 from rest_framework import status
 
@@ -31,7 +32,7 @@ class ChatService(NotebookBaseService):
 
     def __init__(self):
         super().__init__()
-        self.ragflow_client = get_ragflow_client()
+        self.ragflow_service = get_ragflow_service()
         self._agent_cache_timeout = 300  # 5 minutes
         self._session_cache_timeout = 1800  # 30 minutes
 
@@ -90,7 +91,7 @@ class ChatService(NotebookBaseService):
                 }
 
             # Check if dataset exists and get info from RagFlow
-            dataset_info = self.ragflow_client.get_dataset(notebook.ragflow_dataset_id)
+            dataset_info = self.ragflow_service.get_dataset(notebook.ragflow_dataset_id)
             if not dataset_info:
                 return {
                     "error": "Knowledge base dataset not found in RagFlow",
@@ -204,7 +205,7 @@ class ChatService(NotebookBaseService):
 
             # Generate related questions using RagFlow API
             try:
-                questions = self.ragflow_client.generate_related_questions(
+                questions = self.ragflow_service.related_questions(
                     question=base_question, industry=industry
                 )
 
@@ -220,7 +221,7 @@ class ChatService(NotebookBaseService):
                     "suggestions": questions[:5],  # Limit to 5 suggestions
                 }
 
-            except RagFlowClientError as e:
+            except RagFlowError as e:
                 error_msg = str(e)
                 if "Login token" in error_msg:
                     logger.warning(
@@ -266,7 +267,7 @@ class ChatService(NotebookBaseService):
 
             # Check if chat assistant already exists
             try:
-                existing_chats = self.ragflow_client.client.list_chats(name=chat_name)
+                existing_chats = self.ragflow_service.list_chats(name=chat_name)
                 if existing_chats:
                     chat_id = existing_chats[0].id
                     logger.info(
@@ -283,7 +284,7 @@ class ChatService(NotebookBaseService):
             # Create new chat assistant
             logger.info(f"Creating chat assistant for dataset {dataset_id}")
 
-            chat = self.ragflow_client.client.create_chat(
+            chat = self.ragflow_service.create_chat(
                 name=chat_name, dataset_ids=[dataset_id]
             )
 
@@ -336,7 +337,7 @@ class ChatService(NotebookBaseService):
             chat_id = chat_result["chat_id"]
 
             # Get the chat assistant object
-            chats = self.ragflow_client.client.list_chats(id=chat_id)
+            chats = self.ragflow_service.list_chats(chat_id=chat_id)
             if not chats:
                 return {
                     "error": "Chat assistant not found",
@@ -386,7 +387,7 @@ class ChatService(NotebookBaseService):
                 "ragflow_session_id": ragflow_session.id,
             }
 
-        except (RagFlowClientError, RagFlowSessionError) as e:
+        except (RagFlowError, RagFlowChatError, RagFlowSessionError) as e:
             logger.exception(
                 f"RagFlow error creating session for notebook {notebook.id}: {e}"
             )
@@ -510,7 +511,7 @@ class ChatService(NotebookBaseService):
                 and session.ragflow_agent_id
             ):
                 try:
-                    self.ragflow_client.delete_chat_sessions(
+                    self.ragflow_service.delete_chat_sessions(
                         chat_id=session.ragflow_agent_id,
                         session_ids=[session.ragflow_session_id],
                     )
@@ -731,7 +732,7 @@ class ChatService(NotebookBaseService):
 
                 # Use new conversation API
                 try:
-                    response_stream = self.ragflow_client.conversation(
+                    response_stream = self.ragflow_service.conversation(
                         chat_id=chat_id,
                         session_id=ragflow_session_id,
                         question=question,

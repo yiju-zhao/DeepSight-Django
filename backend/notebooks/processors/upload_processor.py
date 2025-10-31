@@ -395,43 +395,44 @@ class UploadProcessor:
                 return
 
             # Upload to RagFlow
-            from infrastructure.ragflow.client import get_ragflow_client
+            from infrastructure.ragflow.service import get_ragflow_service
 
-            ragflow_client_sync = sync_to_async(
-                get_ragflow_client, thread_sensitive=False
+            ragflow_service_sync = sync_to_async(
+                get_ragflow_service, thread_sensitive=False
             )
-            ragflow_client = await ragflow_client_sync()
+            ragflow_service = await ragflow_service_sync()
 
             # Prepare display name from metadata
             display_name = (
                 file_metadata.get("original_filename") or kb_item.title or "document.md"
             )
 
+            # Use upload_document_text for text content
             upload_document_sync = sync_to_async(
-                ragflow_client.upload_document, thread_sensitive=False
+                ragflow_service.upload_document_text, thread_sensitive=False
             )
-            upload_result = await upload_document_sync(
+            documents = await upload_document_sync(
                 dataset_id=dataset_id,
                 content=kb_item.content,
                 display_name=display_name,
             )
 
-            if upload_result and upload_result.get("id"):
+            if documents and len(documents) > 0:
                 # Store RagFlow document ID in KB item model field
-                kb_item.ragflow_document_id = upload_result.get("id")
+                kb_item.ragflow_document_id = documents[0].id
 
                 save_kb_item_sync = sync_to_async(kb_item.save, thread_sensitive=False)
                 await save_kb_item_sync(update_fields=["ragflow_document_id"])
 
                 self.log_operation(
                     "ragflow_upload_success",
-                    f"Uploaded KB item {file_id} to RagFlow: {upload_result.get('id')}",
+                    f"Uploaded KB item {file_id} to RagFlow: {documents[0].id}",
                 )
 
                 # Trigger dataset update to refresh embeddings and settings
                 try:
                     update_dataset_sync = sync_to_async(
-                        ragflow_client.update_dataset, thread_sensitive=False
+                        ragflow_service.update_dataset, thread_sensitive=False
                     )
                     await update_dataset_sync(dataset_id)
                     self.log_operation(

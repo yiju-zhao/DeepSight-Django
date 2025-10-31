@@ -296,21 +296,52 @@ class Dataset(BaseModel):
 
 
 class Document(BaseModel):
-    """Document entity (placeholder for SDK replacement)."""
+    """Document entity."""
 
     id: str = Field(..., description="Document ID")
     name: str = Field(..., description="Document name")
-    dataset_id: str = Field(..., description="Associated dataset ID")
     location: str = Field(..., description="Document location/path")
-    size: int = Field(..., description="Document size in bytes")
-    type: str = Field(..., description="Document type")
+    size: int = Field(default=0, description="Document size in bytes")
+    type: str = Field(default="", description="Document type")
+    chunk_count: int = Field(default=0, alias="chunk_count", description="Number of chunks")
+
+    # Dataset references (API uses both dataset_id and knowledgebase_id)
+    dataset_id: str | None = Field(None, alias="dataset_id", description="Dataset ID")
+    knowledgebase_id: str | None = Field(None, alias="knowledgebase_id", description="Knowledge base ID (alias)")
+
+    # Processing status and progress
+    run: str | None = Field(None, description="Processing status (UNSTART, RUNNING, DONE, etc.)")
+    status: str | None = Field(None, description="Processing status (alias for run)")
+    progress: float = Field(default=0.0, description="Processing progress (0-1)")
+    progress_msg: str = Field(default="", alias="progress_msg", description="Progress message")
+
+    # Configuration
+    chunk_method: str | None = Field(None, alias="chunk_method", description="Chunking method")
+    parser_config: dict[str, Any] | None = Field(None, alias="parser_config", description="Parser configuration")
+
+    # Metadata
     source_type: str = Field(default="local", description="Source type")
-    chunk_count: int = Field(0, description="Number of chunks")
-    status: str = Field(..., description="Processing status")
-    progress: float = Field(0.0, description="Processing progress (0-1)")
-    progress_msg: str = Field(default="", description="Progress message")
-    create_time: int | None = Field(None, description="Creation timestamp (ms)")
-    update_time: int | None = Field(None, description="Update timestamp (ms)")
+    created_by: str | None = Field(None, alias="created_by", description="Creator user ID")
+    thumbnail: str | None = Field(None, description="Thumbnail URL")
+
+    # Timestamps
+    create_time: int | None = Field(None, alias="create_time", description="Creation timestamp (ms)")
+    create_date: str | None = Field(None, alias="create_date", description="Creation date string")
+    update_time: int | None = Field(None, alias="update_time", description="Update timestamp (ms)")
+    process_begin_at: int | None = Field(None, alias="process_begin_at", description="Processing start timestamp")
+    process_duration: float | None = Field(None, alias="process_duration", description="Processing duration (seconds)")
+
+    model_config = {"populate_by_name": True}
+
+    @property
+    def processing_status(self) -> str:
+        """Get processing status (prefers run field, falls back to status)."""
+        return self.run or self.status or "UNKNOWN"
+
+    @property
+    def get_dataset_id(self) -> str | None:
+        """Get dataset ID (handles both dataset_id and knowledgebase_id fields)."""
+        return self.dataset_id or self.knowledgebase_id
 
 
 class DocumentUploadResponse(BaseModel):
@@ -321,24 +352,87 @@ class DocumentUploadResponse(BaseModel):
     )
 
 
-# --- Chat Models (Placeholders for Phase 3) ---
+# --- Chat Models ---
+
+
+class LLMConfig(BaseModel):
+    """LLM configuration for chat assistant."""
+
+    model_name: str | None = Field(None, alias="model_name", description="LLM model name")
+    temperature: float = Field(default=0.1, description="Temperature for LLM")
+    top_p: float = Field(default=0.3, alias="top_p", description="Top-p sampling")
+    presence_penalty: float = Field(default=0.4, alias="presence_penalty", description="Presence penalty")
+    frequency_penalty: float = Field(default=0.7, alias="frequency_penalty", description="Frequency penalty")
+    max_tokens: int | None = Field(None, alias="max_tokens", description="Maximum tokens")
+
+    model_config = {"populate_by_name": True}
+
+
+class PromptVariable(BaseModel):
+    """Variable in prompt configuration."""
+
+    key: str = Field(..., description="Variable key")
+    optional: bool = Field(default=True, description="Whether variable is optional")
+
+
+class PromptConfig(BaseModel):
+    """Prompt configuration for chat assistant."""
+
+    similarity_threshold: float = Field(default=0.2, alias="similarity_threshold", description="Similarity threshold")
+    keywords_similarity_weight: float = Field(default=0.7, alias="keywords_similarity_weight", description="Keywords similarity weight")
+    top_n: int = Field(default=6, alias="top_n", description="Number of top chunks")
+    variables: list[PromptVariable] = Field(
+        default_factory=lambda: [{"key": "knowledge", "optional": True}],
+        description="Prompt variables"
+    )
+    rerank_model: str = Field(default="", alias="rerank_model", description="Rerank model name")
+    empty_response: str = Field(default="", alias="empty_response", description="Response when no results")
+    opener: str = Field(default="Hi! I am your assistant, can I help you?", description="Opening greeting")
+    show_quote: bool = Field(default=True, alias="show_quote", description="Show quote sources")
+    prompt: str = Field(default="", description="Prompt text content")
+    top_k: int = Field(default=1024, alias="top_k", description="Top-k for reranking")
+
+    model_config = {"populate_by_name": True}
 
 
 class Chat(BaseModel):
-    """Chat assistant entity (placeholder for SDK replacement)."""
+    """Chat assistant entity."""
 
     id: str = Field(..., description="Chat ID")
     name: str = Field(..., description="Chat name")
-    description: str = Field(default="", description="Chat description")
+    avatar: str = Field(default="", description="Avatar (base64 or URL)")
+    description: str = Field(default="A helpful Assistant", description="Chat description")
     language: str = Field(default="English", description="Chat language")
+
+    # Dataset associations
     dataset_ids: list[str] = Field(
-        default_factory=list, description="Associated dataset IDs"
+        default_factory=list, alias="dataset_ids", description="Associated dataset IDs"
     )
-    llm_id: str | None = Field(None, description="LLM model ID")
-    prompt: str = Field(default="", description="System prompt")
-    create_time: int | None = Field(None, description="Creation timestamp (ms)")
-    update_time: int | None = Field(None, description="Update timestamp (ms)")
-    created_by: str | None = Field(None, description="Creator user ID")
+    knowledgebase_ids: list[str] | None = Field(
+        None, alias="knowledgebase_ids", description="Knowledge base IDs (alias)"
+    )
+
+    # Configuration
+    llm: LLMConfig | None = Field(None, description="LLM configuration")
+    prompt: PromptConfig | None = Field(None, description="Prompt configuration")
+
+    # Metadata
+    do_refer: str = Field(default="1", alias="do_refer", description="Reference flag")
+    prompt_type: str = Field(default="simple", alias="prompt_type", description="Prompt type")
+    status: str = Field(default="1", description="Chat status")
+    top_k: int = Field(default=1024, alias="top_k", description="Top-k for retrieval")
+
+    # User and tenant
+    tenant_id: str | None = Field(None, alias="tenant_id", description="Tenant ID")
+    created_by: str | None = Field(None, alias="created_by", description="Creator user ID")
+
+    # Timestamps
+    create_time: int | None = Field(None, alias="create_time", description="Creation timestamp (ms)")
+    create_date: str | None = Field(None, alias="create_date", description="Creation date string")
+    update_time: int | None = Field(None, alias="update_time", description="Update timestamp (ms)")
+    update_date: str | None = Field(None, alias="update_date", description="Update date string")
+
+    model_config = {"populate_by_name": True}
 
 
 # --- Related Questions Models ---

@@ -144,19 +144,19 @@ class NotebookService(ModelService):
 
         # Create RagFlow dataset for the notebook
         try:
-            from infrastructure.ragflow.client import get_ragflow_client
+            from infrastructure.ragflow.service import get_ragflow_service
 
-            ragflow_client = get_ragflow_client()
+            ragflow_service = get_ragflow_service()
 
             # Create dataset
-            dataset_result = ragflow_client.create_dataset(
+            dataset = ragflow_service.create_dataset(
                 name=f"notebook_{notebook.id}_{notebook.name}",
                 description=notebook.description
                 or f"Dataset for notebook '{notebook.name}'",
             )
 
             # Update notebook with RagFlow dataset ID
-            notebook.ragflow_dataset_id = dataset_result["id"]
+            notebook.ragflow_dataset_id = dataset.id
             notebook.save()
 
             self.log_operation(
@@ -164,7 +164,7 @@ class NotebookService(ModelService):
                 notebook_id=str(notebook.id),
                 user_id=user.id,
                 name=notebook.name,
-                ragflow_dataset_id=dataset_result["id"],
+                ragflow_dataset_id=dataset.id,
             )
 
         except ValidationError:
@@ -479,9 +479,9 @@ class NotebookService(ModelService):
             notebook: Notebook instance to clean up
         """
         try:
-            from infrastructure.ragflow.client import get_ragflow_client
+            from infrastructure.ragflow.service import get_ragflow_service
 
-            ragflow_client = get_ragflow_client()
+            ragflow_service = get_ragflow_service()
 
             # Delete chat assistant and its sessions
             # Note: ragflow_agent_id actually stores chat_id (naming kept for backward compat)
@@ -497,7 +497,7 @@ class NotebookService(ModelService):
             for chat_id in chat_ids_to_delete:
                 try:
                     # Delete all sessions for this chat assistant
-                    ragflow_client.delete_chat_sessions(
+                    ragflow_service.delete_chat_sessions(
                         chat_id=chat_id, session_ids=None
                     )
                     self.logger.info(
@@ -510,7 +510,7 @@ class NotebookService(ModelService):
 
                 try:
                     # Delete the chat assistant
-                    ragflow_client.delete_chat_assistant(chat_id)
+                    ragflow_service.delete_chat(chat_id)
                     self.logger.info(f"Deleted chat assistant: {chat_id}")
                 except Exception as e:
                     self.logger.warning(
@@ -520,7 +520,7 @@ class NotebookService(ModelService):
             # Delete dataset (includes all documents)
             if notebook.ragflow_dataset_id:
                 try:
-                    ragflow_client.delete_dataset(notebook.ragflow_dataset_id)
+                    ragflow_service.delete_dataset(notebook.ragflow_dataset_id)
                     self.logger.info(
                         f"Deleted RagFlow dataset: {notebook.ragflow_dataset_id}"
                     )

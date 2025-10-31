@@ -89,11 +89,11 @@ def delete_kb_files_on_pre_delete(sender, instance: KnowledgeBaseItem, using, **
                 f"Deleting RagFlow document '{instance.title}' (ID: {instance.ragflow_document_id}) from dataset {instance.notebook.ragflow_dataset_id}"
             )
             try:
-                from infrastructure.ragflow.client import get_ragflow_client
+                from infrastructure.ragflow.service import get_ragflow_service
 
-                ragflow_client = get_ragflow_client()
+                ragflow_service = get_ragflow_service()
 
-                success = ragflow_client.delete_document(
+                success = ragflow_service.delete_document(
                     instance.notebook.ragflow_dataset_id, instance.ragflow_document_id
                 )
                 if success:
@@ -103,7 +103,7 @@ def delete_kb_files_on_pre_delete(sender, instance: KnowledgeBaseItem, using, **
 
                     # Trigger dataset update to refresh embeddings after document deletion
                     try:
-                        ragflow_client.update_dataset(
+                        ragflow_service.update_dataset(
                             instance.notebook.ragflow_dataset_id
                         )
                         logger.info(
