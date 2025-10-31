@@ -673,20 +673,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           </div>
           <div className={PANEL_HEADERS.actionsContainer}>
             <Button
-              variant="default"
-              size="sm"
-              className="h-7 px-3 bg-red-600 hover:bg-red-700 text-white text-xs"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddSource();
-              }}
-              disabled={isLoading}
-            >
-              <Plus className="h-3 w-3 mr-1" />
-              Add
-            </Button>
-            <Button
               variant="ghost"
               size="sm"
               className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
@@ -743,6 +729,29 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Floating Action Button */}
+      <motion.div
+        className="absolute bottom-4 right-4 z-10"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      >
+        <Button
+          variant="default"
+          size="lg"
+          className="h-14 w-14 rounded-full bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transition-all duration-200 p-0 flex items-center justify-center group"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleAddSource();
+          }}
+          disabled={isLoading}
+          title="Add Source"
+        >
+          <Plus className="h-6 w-6 text-white group-hover:scale-110 transition-transform" />
+        </Button>
+      </motion.div>
 
       {/* Simple Selection Bar */}
       {sources.length > 0 && (
