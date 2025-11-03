@@ -29,6 +29,7 @@ litellm
 xinference
 langid
 jieba
+whisperx
 
 # Search and Retrieval
 tavily-python
