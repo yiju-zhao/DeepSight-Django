@@ -35,37 +35,13 @@ logger = logging.getLogger(__name__)
 def _get_ingestion_orchestrator() -> IngestionOrchestrator:
     """Get configured ingestion orchestrator instance."""
     mineru_base_url = os.getenv("MINERU_BASE_URL", "http://localhost:8008")
-
-    # Transcription provider configuration
-    transcription_provider = os.getenv("TRANSCRIPTION_PROVIDER", "whisperx")
-
-    # WhisperX configuration
-    whisperx_model_name = os.getenv("WHISPERX_MODEL_NAME", "large-v2")
-    whisperx_device = os.getenv("WHISPERX_DEVICE", "auto")
-    whisperx_compute_type = os.getenv("WHISPERX_COMPUTE_TYPE")
-    whisperx_batch_size = int(os.getenv("WHISPERX_BATCH_SIZE", "16"))
-    whisperx_language = os.getenv("WHISPERX_LANGUAGE")
-    whisperx_use_vad = os.getenv("WHISPERX_VAD", "0") == "1"
-    whisperx_cache_dir = os.getenv("WHISPERX_CACHE_DIR")
-
-    # Xinference configuration (fallback)
     xinference_url = os.getenv("XINFERENCE_URL", "http://localhost:9997")
-    xinference_model_uid = os.getenv(
-        "XINFERENCE_WHISPER_MODEL_UID", "Bella-whisper-large-v3-zh"
-    )
+    model_uid = os.getenv("XINFERENCE_WHISPER_MODEL_UID", "Bella-whisper-large-v3-zh")
 
     return IngestionOrchestrator(
         mineru_base_url=mineru_base_url,
-        transcription_provider=transcription_provider,
-        whisperx_model_name=whisperx_model_name,
-        whisperx_device=whisperx_device,
-        whisperx_compute_type=whisperx_compute_type,
-        whisperx_batch_size=whisperx_batch_size,
-        whisperx_language=whisperx_language,
-        whisperx_use_vad=whisperx_use_vad,
-        whisperx_cache_dir=whisperx_cache_dir,
         xinference_url=xinference_url,
-        xinference_model_uid=xinference_model_uid,
+        model_uid=model_uid,
         logger=logger,
     )
 
