@@ -65,36 +65,16 @@ class UploadProcessor:
 
         self.mineru_base_url = mineru_base_url.rstrip("/")
 
-        # Initialize new ingestion orchestrator with transcription configuration
-        transcription_provider = os.getenv("TRANSCRIPTION_PROVIDER", "whisperx")
-
-        # WhisperX configuration
-        whisperx_model_name = os.getenv("WHISPERX_MODEL_NAME", "large-v3")
-        whisperx_device = os.getenv("WHISPERX_DEVICE", "auto")
-        whisperx_compute_type = os.getenv("WHISPERX_COMPUTE_TYPE")  # None means auto
-        whisperx_batch_size = int(os.getenv("WHISPERX_BATCH_SIZE", "16"))
-        whisperx_language = os.getenv("WHISPERX_LANGUAGE")  # None means auto-detect
-        whisperx_use_vad = os.getenv("WHISPERX_VAD", "0") == "1"
-        whisperx_cache_dir = os.getenv("WHISPERX_CACHE_DIR")  # None means default
-
-        # Xinference configuration (fallback)
+        # Initialize new ingestion orchestrator
         xinference_url = os.getenv("XINFERENCE_URL", "http://localhost:9997")
-        xinference_model_uid = os.getenv(
+        model_uid = os.getenv(
             "XINFERENCE_WHISPER_MODEL_UID", "Bella-whisper-large-v3-zh"
         )
 
         self.ingestion_orchestrator = IngestionOrchestrator(
             mineru_base_url=self.mineru_base_url,
-            transcription_provider=transcription_provider,
-            whisperx_model_name=whisperx_model_name,
-            whisperx_device=whisperx_device,
-            whisperx_compute_type=whisperx_compute_type,
-            whisperx_batch_size=whisperx_batch_size,
-            whisperx_language=whisperx_language,
-            whisperx_use_vad=whisperx_use_vad,
-            whisperx_cache_dir=whisperx_cache_dir,
             xinference_url=xinference_url,
-            xinference_model_uid=xinference_model_uid,
+            model_uid=model_uid,
             logger=self.logger,
         )
 

@@ -16,7 +16,7 @@ from ..utils.helpers import clean_title
 from ..utils.storage import FileStorageService
 from .exceptions import IngestionError, ParseError, SourceError, StorageError
 from .parsers import MediaParser, PdfParser, ParseResult, TextParser
-from .transcription import WhisperXProvider, XinferenceProvider
+from .transcription import XinferenceProvider
 from .url_fetcher import UrlFetcher
 
 
@@ -41,18 +41,8 @@ class IngestionOrchestrator:
     def __init__(
         self,
         mineru_base_url: str = "http://localhost:8008",
-        transcription_provider: str = "whisperx",
-        # WhisperX configuration
-        whisperx_model_name: str = "large-v3",
-        whisperx_device: str = "auto",
-        whisperx_compute_type: Optional[str] = None,
-        whisperx_batch_size: int = 16,
-        whisperx_language: Optional[str] = None,
-        whisperx_use_vad: bool = False,
-        whisperx_cache_dir: Optional[str] = None,
-        # Xinference configuration (fallback)
         xinference_url: str = "http://localhost:9997",
-        xinference_model_uid: str = "Bella-whisper-large-v3-zh",
+        model_uid: str = "Bella-whisper-large-v3-zh",
         logger: Optional[logging.Logger] = None,
     ):
         self.logger = logger or logging.getLogger(__name__)
@@ -60,18 +50,11 @@ class IngestionOrchestrator:
         # Initialize components
         self.url_fetcher = UrlFetcher(logger=self.logger)
 
-        # Initialize transcription client based on provider
-        transcription_client = self._initialize_transcription_client(
-            provider=transcription_provider,
-            whisperx_model_name=whisperx_model_name,
-            whisperx_device=whisperx_device,
-            whisperx_compute_type=whisperx_compute_type,
-            whisperx_batch_size=whisperx_batch_size,
-            whisperx_language=whisperx_language,
-            whisperx_use_vad=whisperx_use_vad,
-            whisperx_cache_dir=whisperx_cache_dir,
+        # Initialize parsers
+        transcription_client = XinferenceProvider(
             xinference_url=xinference_url,
-            xinference_model_uid=xinference_model_uid,
+            model_uid=model_uid,
+            logger=self.logger,
         )
 
         self.pdf_parser = PdfParser(
@@ -94,85 +77,6 @@ class IngestionOrchestrator:
         )
 
         self.logger.info("IngestionOrchestrator initialized")
-
-    def _initialize_transcription_client(
-        self,
-        provider: str,
-        whisperx_model_name: str,
-        whisperx_device: str,
-        whisperx_compute_type: Optional[str],
-        whisperx_batch_size: int,
-        whisperx_language: Optional[str],
-        whisperx_use_vad: bool,
-        whisperx_cache_dir: Optional[str],
-        xinference_url: str,
-        xinference_model_uid: str,
-    ):
-        """
-        Initialize transcription client based on provider configuration.
-
-        Args:
-            provider: Provider name ('whisperx', 'xinference', or 'auto')
-            ... (other args for configuration)
-
-        Returns:
-            TranscriptionClient instance
-        """
-        provider = provider.lower()
-
-        if provider == "whisperx":
-            try:
-                self.logger.info("Initializing WhisperX transcription provider")
-                return WhisperXProvider(
-                    model_name=whisperx_model_name,
-                    device=whisperx_device,
-                    compute_type=whisperx_compute_type,
-                    batch_size=whisperx_batch_size,
-                    language=whisperx_language,
-                    use_vad=whisperx_use_vad,
-                    hf_cache_dir=whisperx_cache_dir,
-                    logger=self.logger,
-                )
-            except Exception as e:
-                self.logger.error(f"Failed to initialize WhisperX: {e}")
-                raise
-
-        elif provider == "xinference":
-            self.logger.info("Initializing Xinference transcription provider")
-            return XinferenceProvider(
-                xinference_url=xinference_url,
-                model_uid=xinference_model_uid,
-                logger=self.logger,
-            )
-
-        elif provider == "auto":
-            # Try WhisperX first, fall back to Xinference
-            self.logger.info("Auto-selecting transcription provider (trying WhisperX first)")
-            try:
-                return WhisperXProvider(
-                    model_name=whisperx_model_name,
-                    device=whisperx_device,
-                    compute_type=whisperx_compute_type,
-                    batch_size=whisperx_batch_size,
-                    language=whisperx_language,
-                    use_vad=whisperx_use_vad,
-                    hf_cache_dir=whisperx_cache_dir,
-                    logger=self.logger,
-                )
-            except Exception as e:
-                self.logger.warning(
-                    f"WhisperX initialization failed: {e}. Falling back to Xinference."
-                )
-                return XinferenceProvider(
-                    xinference_url=xinference_url,
-                    model_uid=xinference_model_uid,
-                    logger=self.logger,
-                )
-        else:
-            raise ValueError(
-                f"Unknown transcription provider: {provider}. "
-                "Must be 'whisperx', 'xinference', or 'auto'."
-            )
 
     async def ingest_url(
         self,
