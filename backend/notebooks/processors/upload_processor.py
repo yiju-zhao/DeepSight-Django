@@ -69,7 +69,7 @@ class UploadProcessor:
         transcription_provider = os.getenv("TRANSCRIPTION_PROVIDER", "whisperx")
 
         # WhisperX configuration
-        whisperx_model_name = os.getenv("WHISPERX_MODEL_NAME", "large-v3")
+        whisperx_model_name = os.getenv("WHISPERX_MODEL_NAME", "large-v2")
         whisperx_device = os.getenv("WHISPERX_DEVICE", "auto")
         whisperx_compute_type = os.getenv("WHISPERX_COMPUTE_TYPE")  # None means auto
         whisperx_batch_size = int(os.getenv("WHISPERX_BATCH_SIZE", "16"))
