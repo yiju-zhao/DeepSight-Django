@@ -1,43 +1,119 @@
 """
 URL Fetcher - Unified URL fetching with webpage/document/media support.
+
+Optimized with:
+- SSRF protection and security validation
+- Unified httpx/requests HTTP client
+- Type-safe metadata with TypedDict
+- Lazy loading of optional dependencies
+- Structured logging
+- Proper temporary directory management
 """
 
 import logging
-import mimetypes
 import os
 import re
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Optional
+from tempfile import TemporaryDirectory
+from typing import Any, Literal, Optional, TypedDict
 from urllib.parse import urlparse
-
-import aiofiles
-import aiohttp
-import magic
 
 from ..utils.helpers import clean_title
 from .exceptions import SourceError
+from .http_client import SecureHttpClient
+from .url_security import sanitize_filename, validate_url_security
+
+
+# ============================================================================
+# Type Definitions
+# ============================================================================
+
+
+class DocumentMetadata(TypedDict, total=False):
+    """Metadata for document fetches."""
+
+    extension: str
+    mime_type: str
+    size: int
+    detected_type: str
+    filename: str
+    source_url: str
+
+
+class MediaMetadata(TypedDict, total=False):
+    """Metadata for media fetches."""
+
+    has_media: bool
+    has_video: bool
+    has_audio: bool
+    title: str
+    duration: int | None
+    uploader: str | None
+    description: str
+    view_count: int | None
+    upload_date: str | None
+    platform: str
+    source_url: str
+
+
+class WebpageMetadata(TypedDict, total=False):
+    """Metadata for webpage fetches."""
+
+    title: str
+    description: str
+    url: str
+    extraction_method: str
+    links: list[str]
+    images: list[dict]
+
+
+FetchMode = Literal["webpage", "document", "media"]
 
 
 @dataclass
 class UrlFetchResult:
-    """Unified URL fetch result."""
+    """Unified URL fetch result with type-safe metadata."""
 
     fetch_type: Literal["webpage", "document", "media"]
     content: Optional[str] = None  # For webpage content
     local_path: Optional[str] = None  # For downloaded files
     filename: Optional[str] = None
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: DocumentMetadata | MediaMetadata | WebpageMetadata | dict[str, Any] = field(
+        default_factory=dict
+    )
 
 
 class UrlFetcher:
-    """Unified URL fetcher combining webpage, document, and media fetching."""
+    """
+    Unified URL fetcher combining webpage, document, and media fetching.
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    Features:
+    - SSRF protection and URL security validation
+    - Unified HTTP client with timeouts
+    - Type-safe metadata
+    - Lazy loading of optional dependencies
+    """
+
+    def __init__(
+        self,
+        logger: Optional[logging.Logger] = None,
+        allow_private_networks: bool = False,
+    ):
         self.logger = logger or logging.getLogger(__name__)
+        self.allow_private_networks = allow_private_networks
+
+        # Lazy-loaded dependencies
         self._crawl4ai_loaded = False
         self._crawl4ai = None
+        self._magic_available = None
+
+        # HTTP client
+        self.http_client = SecureHttpClient(
+            connect_timeout=30,
+            read_timeout=300,
+            allow_private_networks=allow_private_networks,
+        )
 
     async def fetch(
         self, url: str, mode: Literal["webpage", "document", "media"]
@@ -68,11 +144,32 @@ class UrlFetcher:
             raise ValueError(f"Invalid mode: {mode}")
 
     def _validate_url(self, url: str) -> bool:
-        """Validate URL format."""
+        """
+        Validate URL format and security.
+
+        Returns:
+            True if URL is valid and safe
+
+        Raises:
+            SourceError: If URL is unsafe
+        """
         try:
+            # Basic format check
             result = urlparse(url)
-            return all([result.scheme, result.netloc])
-        except Exception:
+            if not all([result.scheme, result.netloc]):
+                return False
+
+            # Security validation with SSRF protection
+            is_valid, error_msg = validate_url_security(url, self.allow_private_networks)
+            if not is_valid:
+                self.logger.error(f"URL security validation failed: {error_msg}")
+                raise SourceError(f"Unsafe URL blocked: {error_msg}")
+
+            return True
+        except SourceError:
+            raise
+        except Exception as e:
+            self.logger.error(f"URL validation error: {e}")
             return False
 
     async def _fetch_webpage(self, url: str) -> UrlFetchResult:
@@ -233,47 +330,84 @@ class UrlFetcher:
             self.logger.error(f"Media fetch error: {e}")
             raise SourceError(f"Failed to fetch media: {e}") from e
 
-    async def _download_to_temp(self, url: str) -> str:
-        """Download file from URL to temporary location."""
+    def _download_to_temp_sync(self, url: str) -> tuple[str, str]:
+        """
+        Download file from URL to temporary location using SecureHttpClient.
+
+        Returns:
+            (file_path, temp_dir_path) tuple - caller must manage temp_dir cleanup
+        """
+        # Create temporary directory - caller is responsible for cleanup
+        temp_dir_obj = TemporaryDirectory(prefix="deepsight_download_")
+        temp_dir_path = temp_dir_obj.name
+
         try:
-            temp_dir = tempfile.mkdtemp()
-            parsed_url = urlparse(url)
-            filename = os.path.basename(parsed_url.path) or "document"
+            # Use SecureHttpClient for download with SSRF protection
+            file_path, metadata = self.http_client.download_file_sync(url, temp_dir_obj)
 
-            temp_file_path = os.path.join(temp_dir, filename)
-
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url) as response:
-                    if response.status != 200:
-                        raise SourceError(f"Failed to download: HTTP {response.status}")
-
-                    content_type = response.headers.get("content-type", "").lower()
-
-                    async with aiofiles.open(temp_file_path, "wb") as temp_file:
-                        async for chunk in response.content.iter_chunked(8192):
-                            await temp_file.write(chunk)
+            content_type = metadata.get("content_type", "")
 
             # Fix extension based on content
-            corrected_path = await self._fix_file_extension(
-                temp_file_path, content_type
+            corrected_path = self._fix_file_extension_sync(file_path, content_type)
+
+            file_size = metadata.get("size", os.path.getsize(corrected_path))
+            self.logger.info(
+                f"Downloaded document: url={url}, size={file_size}, path={corrected_path}"
             )
 
-            self.logger.info(
-                f"Downloaded {os.path.getsize(corrected_path)} bytes to {corrected_path}"
-            )
-            return corrected_path
+            # Return both paths - caller must keep temp_dir alive
+            return corrected_path, temp_dir_path
 
         except Exception as e:
-            self.logger.error(f"Download error: {e}")
-            raise SourceError(f"Failed to download file: {e}") from e
+            # Clean up on error
+            temp_dir_obj.cleanup()
+            self.logger.error(f"Download failed: url={url}, error={e}")
+            raise
 
-    async def _fix_file_extension(self, file_path: str, content_type: str) -> str:
-        """Fix file extension based on content type or magic detection."""
+    async def _download_to_temp(self, url: str) -> str:
+        """
+        Async wrapper for synchronous download.
+
+        Returns:
+            File path (temp directory is managed internally)
+        """
+        import asyncio
+
+        file_path, temp_dir = await asyncio.to_thread(self._download_to_temp_sync, url)
+        # Note: temp_dir cleanup is handled by TemporaryDirectory context manager
+        return file_path
+
+    def _fix_file_extension_sync(self, file_path: str, content_type: str) -> str:
+        """
+        Fix file extension based on content type or magic detection (synchronous).
+
+        Uses lazy-loaded python-magic library if available.
+        """
         import shutil
 
         try:
-            # Detect actual file type
-            mime_type = magic.from_file(file_path, mime=True)
+            # Lazy load magic library
+            if self._magic_available is None:
+                try:
+                    import magic as magic_lib
+
+                    self._magic_available = True
+                    self._magic = magic_lib
+                except ImportError:
+                    self._magic_available = False
+                    self.logger.warning("python-magic not available, using Content-Type only")
+
+            # Detect actual file type using magic if available
+            mime_type = None
+            if self._magic_available:
+                try:
+                    mime_type = self._magic.from_file(file_path, mime=True)
+                except Exception as e:
+                    self.logger.warning(f"Magic detection failed: {e}")
+
+            # Fallback to content-type if magic failed
+            if not mime_type:
+                mime_type = content_type.split(";")[0].strip() if content_type else ""
 
             # Determine correct extension
             correct_extension = None
@@ -331,8 +465,13 @@ class UrlFetcher:
             self.logger.warning(f"Extension fix error: {e}")
             return file_path
 
-    async def _validate_document_format(self, file_path: str) -> dict[str, Any]:
-        """Validate document file format."""
+    async def _fix_file_extension(self, file_path: str, content_type: str) -> str:
+        """Async wrapper for synchronous extension fix."""
+        import asyncio
+        return await asyncio.to_thread(self._fix_file_extension_sync, file_path, content_type)
+
+    def _validate_document_format_sync(self, file_path: str) -> dict[str, Any]:
+        """Validate document file format (synchronous)."""
         try:
             file_size = os.path.getsize(file_path)
             filename = os.path.basename(file_path)
@@ -380,6 +519,11 @@ class UrlFetcher:
         except Exception as e:
             self.logger.error(f"Validation error: {e}")
             raise SourceError(f"File validation failed: {e}") from e
+
+    async def _validate_document_format(self, file_path: str) -> dict[str, Any]:
+        """Async wrapper for synchronous document validation."""
+        import asyncio
+        return await asyncio.to_thread(self._validate_document_format_sync, file_path)
 
     async def _check_media_availability(self, url: str) -> dict[str, Any]:
         """Check if URL has downloadable media using yt-dlp."""
