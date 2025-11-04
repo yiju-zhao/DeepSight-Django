@@ -81,13 +81,39 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Load suggestions from localStorage on mount
   useEffect(() => {
-    if (!isLoading && messages.length > 0 && messages[messages.length - 1]?.sender === 'assistant') {
-      setShowSuggestions(true);
-    } else {
-      setShowSuggestions(false);
+    if (session && notebookId) {
+      const storageKey = `chat_suggestions_${notebookId}_${session.id}`;
+      const savedSuggestions = localStorage.getItem(storageKey);
+      if (savedSuggestions) {
+        try {
+          const parsed = JSON.parse(savedSuggestions);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setShowSuggestions(true);
+          }
+        } catch (error) {
+          console.warn('Failed to parse saved suggestions:', error);
+        }
+      }
     }
-  }, [messages, isLoading]);
+  }, [session, notebookId]);
+
+  // Save suggestions to localStorage when they change
+  useEffect(() => {
+    if (session && notebookId && suggestions && suggestions.length > 0) {
+      const storageKey = `chat_suggestions_${notebookId}_${session.id}`;
+      localStorage.setItem(storageKey, JSON.stringify(suggestions));
+      setShowSuggestions(true);
+    }
+  }, [suggestions, session, notebookId]);
+
+  // Show suggestions when there are messages and suggestions available
+  useEffect(() => {
+    if (messages.length > 0 && suggestions && suggestions.length > 0) {
+      setShowSuggestions(true);
+    }
+  }, [messages, suggestions]);
 
   // Auto-resize textarea
   useEffect(() => {
@@ -280,55 +306,53 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
         )}
       </div>
 
-      {/* Suggestions bubble above chat box */}
-      {showSuggestions && suggestions && suggestions.length > 0 && (
-        <div className="flex-shrink-0 px-8">
-          <div className="max-w-4xl mx-auto">
-            <div className="inline-block px-4 py-3 rounded-2xl bg-white shadow-sm">
+      {/* Input Area */}
+      <div className="flex-shrink-0 p-6 bg-white">
+        <div className="bg-white rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-red-300">
+          {/* Suggestions as tags inside input area */}
+          {showSuggestions && suggestions && suggestions.length > 0 && (
+            <div className="px-4 pt-3 pb-2">
               <div className="flex flex-wrap gap-2">
-                {(suggestions.slice(0, 2)).map((sugg, i) => (
+                {(suggestions.slice(0, 3)).map((sugg, i) => (
                   <Button
                     key={`${i}-${sugg}`}
                     variant="outline"
                     size="sm"
                     onClick={() => handleSendMessage(sugg)}
-                    className="h-7 rounded-full px-3 text-xs"
+                    className="h-6 rounded-full px-2 py-1 text-xs bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700"
                   >
                     {sugg}
                   </Button>
                 ))}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
 
-      {/* Input Area */}
-      <div className="flex-shrink-0 p-6 bg-white">
-        <div className="flex items-end space-x-3 bg-white rounded-2xl p-4 shadow-sm focus-within:ring-2 focus-within:ring-red-300">
-          <div className="flex-1 min-h-[40px]">
-            <Textarea
-              ref={textareaRef}
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={handleKeyPress}
-              placeholder={`Message ${session.title}...`}
-              className="border-0 resize-none shadow-none focus-visible:ring-0 p-0 max-h-[120px] scrollbar-thin scrollbar-thumb-gray-300"
-              disabled={isSending}
-            />
+          <div className="flex items-end space-x-3 p-4">
+            <div className="flex-1 min-h-[40px]">
+              <Textarea
+                ref={textareaRef}
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={handleKeyPress}
+                placeholder={`Message ${session.title}...`}
+                className="border-0 resize-none shadow-none focus-visible:ring-0 p-0 max-h-[120px] scrollbar-thin scrollbar-thumb-gray-300"
+                disabled={isSending}
+              />
+            </div>
+            <Button
+              onClick={() => handleSendMessage()}
+              disabled={!inputMessage.trim() || isSending}
+              size="sm"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
           </div>
-          <Button
-            onClick={() => handleSendMessage()}
-            disabled={!inputMessage.trim() || isSending}
-            size="sm"
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
         </div>
       </div>
     </div>
