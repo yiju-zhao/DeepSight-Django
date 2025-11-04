@@ -19,18 +19,18 @@ import type { SessionChatWindowProps } from '@/features/notebook/type';
 
 // Memoized markdown content component
 const MarkdownContent = React.memo(({ content }: { content: string }) => (
-  <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
+  <div className="prose prose-base max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
       rehypePlugins={[rehypeKatex, rehypeHighlight, rehypeRaw]}
       components={{
-        h1: ({ children }) => <h1 className="text-base font-semibold text-gray-900 mb-2 mt-4">{children}</h1>,
-        h2: ({ children }) => <h2 className="text-sm font-semibold text-gray-900 mt-3 mb-1.5">{children}</h2>,
+        h1: ({ children }) => <h1 className="text-lg font-semibold text-gray-900 mb-2 mt-4">{children}</h1>,
+        h2: ({ children }) => <h2 className="text-base font-semibold text-gray-900 mt-3 mb-1.5">{children}</h2>,
         h3: ({ children }) => <h3 className="text-sm font-semibold text-gray-900 mt-2 mb-1.5">{children}</h3>,
-        p: ({ children }) => <p className="text-gray-800 leading-5 mb-2 text-xs">{children}</p>,
+        p: ({ children }) => <p className="text-gray-800 leading-6 mb-2 text-sm">{children}</p>,
         ul: ({ children }) => <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>,
         ol: ({ children }) => <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>,
-        li: ({ children }) => <li className="text-gray-800 text-xs leading-5">{children}</li>,
+        li: ({ children }) => <li className="text-gray-800 text-sm leading-6">{children}</li>,
         blockquote: ({ children }) => <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 italic text-gray-700 bg-white rounded-r">{children}</blockquote>,
         code: ({ children }) => <code className="bg-white px-1.5 py-0.5 rounded text-sm font-mono text-gray-900">{children}</code>,
         pre: ({ children }) => <pre className="bg-gray-950 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 text-sm shadow-sm">{children}</pre>,
@@ -288,7 +288,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
                       <div className={`group relative ${message.sender === 'user' ? '' : 'w-full'}`}>
                         {message.sender === 'user' ? (
                           <div className="px-4 py-2.5 rounded-2xl bg-white text-gray-900">
-                            <p className="text-xs leading-5">{message.message}</p>
+                            <p className="text-sm leading-6">{message.message}</p>
                           </div>
                         ) : (
                           <div className="px-4 py-3 rounded-2xl bg-white">
