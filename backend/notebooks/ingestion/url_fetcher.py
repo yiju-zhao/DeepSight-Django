@@ -22,7 +22,6 @@ from urllib.parse import urlparse
 
 from ..utils.helpers import clean_title
 from .exceptions import SourceError
-from .http_client import SecureHttpClient
 from .url_security import validate_url_security
 
 
@@ -108,13 +107,6 @@ class UrlFetcher:
         self._crawl4ai_loaded = False
         self._crawl4ai = None
         self._magic_available = None
-
-        # HTTP client
-        self.http_client = SecureHttpClient(
-            connect_timeout=30,
-            read_timeout=300,
-            allow_private_networks=allow_private_networks,
-        )
 
     async def fetch(
         self, url: str, mode: Literal["webpage", "document", "media"]
@@ -335,37 +327,87 @@ class UrlFetcher:
 
     def _download_to_temp_sync(self, url: str) -> tuple[str, str]:
         """
-        Download file from URL to temporary location using SecureHttpClient.
+        Download file from URL to temporary location using simple requests.
 
         Returns:
             (file_path, temp_dir_path) tuple - caller must manage temp_dir cleanup
         """
-        # Create temporary directory - caller is responsible for cleanup
-        temp_dir_obj = TemporaryDirectory(prefix="deepsight_download_")
-        temp_dir_path = temp_dir_obj.name
+        import requests
+
+        # Create temporary directory
+        temp_dir = tempfile.mkdtemp(prefix="deepsight_download_")
 
         try:
-            # Use SecureHttpClient for download with SSRF protection
-            file_path, metadata = self.http_client.download_file_sync(url, temp_dir_obj)
+            self.logger.info(f"Downloading document from: {url}")
 
-            content_type = metadata.get("content_type", "")
+            # Simple download with timeout
+            timeout = (30, 300)  # (connect, read) in seconds
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            }
 
-            # Fix extension based on content
+            response = requests.get(url, timeout=timeout, headers=headers)
+
+            if response.status_code != 200:
+                raise SourceError(f"Failed to download: HTTP {response.status_code}")
+
+            # Extract filename from URL or Content-Disposition
+            filename = self._extract_filename_from_response(url, response.headers)
+            file_path = os.path.join(temp_dir, filename)
+
+            # Save to file
+            with open(file_path, "wb") as f:
+                f.write(response.content)
+
+            # Fix extension based on content type
+            content_type = response.headers.get("content-type", "").lower()
             corrected_path = self._fix_file_extension_sync(file_path, content_type)
 
-            file_size = metadata.get("size", os.path.getsize(corrected_path))
-            self.logger.info(
-                f"Downloaded document: url={url}, size={file_size}, path={corrected_path}"
-            )
+            file_size = os.path.getsize(corrected_path)
+            self.logger.info(f"Downloaded: url={url}, size={file_size}, path={corrected_path}")
 
-            # Return both paths - caller must keep temp_dir alive
-            return corrected_path, temp_dir_path
+            return corrected_path, temp_dir
 
+        except requests.exceptions.Timeout as e:
+            # Clean up on error
+            if os.path.exists(temp_dir):
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            self.logger.error(f"Download timeout: url={url}, error={e}")
+            raise SourceError(f"Download timeout: {url}") from e
         except Exception as e:
             # Clean up on error
-            temp_dir_obj.cleanup()
+            if os.path.exists(temp_dir):
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
             self.logger.error(f"Download failed: url={url}, error={e}")
-            raise
+            raise SourceError(f"Failed to download file: {e}") from e
+
+    def _extract_filename_from_response(self, url: str, headers: dict) -> str:
+        """Extract filename from URL or Content-Disposition header."""
+        filename = None
+
+        # Try Content-Disposition first
+        content_disposition = headers.get("content-disposition", "")
+        if content_disposition:
+            import re
+
+            matches = re.findall(
+                r'filename[^;=\n]*=(["\']?)([^"\';]+)\1', content_disposition
+            )
+            if matches:
+                filename = matches[0][1]
+
+        # Fallback to URL path
+        if not filename:
+            parsed = urlparse(url)
+            filename = os.path.basename(parsed.path) or "document"
+
+        # Sanitize filename
+        filename = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", filename)
+        filename = filename[:100] if len(filename) > 100 else filename
+
+        return filename or "download"
 
     async def _download_to_temp(self, url: str) -> str:
         """

@@ -344,14 +344,14 @@ class ChatService(NotebookBaseService):
                     "status_code": status.HTTP_404_NOT_FOUND,
                 }
 
-            chat = chats[0]
-
-            # Create session with chat assistant
+            # Create session with chat assistant using the new service
             session_name = (
                 title
                 or f"Session {ChatSession.objects.filter(notebook=notebook).count() + 1}"
             )
-            ragflow_session = chat.create_session(name=session_name)
+            ragflow_session = self.ragflow_service.create_chat_session(
+                chat_id=chat_id, name=session_name
+            )
 
             # Create local session record
             chat_session = ChatSession.objects.create(
