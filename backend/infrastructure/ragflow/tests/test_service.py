@@ -246,26 +246,5 @@ class TestRagflowServiceHealthCheck:
         assert result is False
 
 
-class TestRagflowServiceNotImplemented:
-    """Test that Phase 3 methods raise NotImplementedError."""
-
-    def test_create_dataset_not_implemented(self, service):
-        """Test create_dataset raises NotImplementedError."""
-        with pytest.raises(NotImplementedError):
-            service.create_dataset(name="Test")
-
-    def test_create_chat_not_implemented(self, service):
-        """Test create_chat raises NotImplementedError."""
-        with pytest.raises(NotImplementedError):
-            service.create_chat(dataset_ids=["ds1"], name="Test")
-
-    def test_upload_document_not_implemented(self, service):
-        """Test upload_document_text raises NotImplementedError."""
-        with pytest.raises(NotImplementedError):
-            service.upload_document_text(
-                dataset_id="ds1", content="test", display_name="test.txt"
-            )
-
-
-# TODO: Add more comprehensive tests in Phase 5
+# TODO: Add more comprehensive tests in Phase 5 for Phase 3 methods (datasets, documents, chats)
 # TODO: Add integration tests with real HTTP calls (optional, for local testing)

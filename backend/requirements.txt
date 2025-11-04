@@ -38,7 +38,6 @@ langchain-openai
 langchain_milvus
 langchain_text_splitters
 duckduckgo_search
-ragflow-sdk
 
 # Document Processing
 PyPDF
@@ -64,6 +63,5 @@ celery
 pydantic
 ffmpeg-python
 aiohttp
-ragflow-sdk
 yt-dlp
 bilix

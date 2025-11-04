@@ -744,49 +744,32 @@ class ChatService(NotebookBaseService):
                         f"Successfully initiated streaming conversation for question: {question[:50]}..."
                     )
 
-                    # Process SSE stream from conversation API
-                    for line in response_stream:
-                        if not line or not line.strip():
+                    # Process stream - now returns CompletionStreamEvent Pydantic objects
+                    for event in response_stream:
+                        # Check for completion signal
+                        if event.is_final:
+                            logger.info("Received completion signal from RagFlow")
+                            break
+
+                        # Skip if not successful
+                        if not event.is_success:
+                            logger.warning(f"Non-success event: {event.message}")
                             continue
 
-                        # Parse SSE data line
-                        if line.startswith("data:"):
-                            data_str = line[5:].strip()  # Remove 'data:' prefix
-                            if not data_str:
-                                continue
-
-                            try:
-                                data = json.loads(data_str)
-
-                                # Check for completion signal
-                                if data.get("data") is True:
-                                    # Final completion message
-                                    logger.info(
-                                        "Received completion signal from RagFlow"
-                                    )
-                                    break
-
-                                # Extract answer delta
-                                if isinstance(data.get("data"), dict):
-                                    answer = data["data"].get("answer", "")
-                                    if answer:
-                                        # Calculate delta from accumulated content
-                                        new_content = answer[len(accumulated_content) :]
-                                        if new_content:
-                                            accumulated_content = answer
-                                            payload = json.dumps(
-                                                {"type": "token", "text": new_content}
-                                            )
-                                            yield f"data: {payload}\n\n"
-                                            logger.debug(
-                                                f"Yielded {len(new_content)} characters"
-                                            )
-
-                            except json.JSONDecodeError as json_err:
-                                logger.warning(
-                                    f"Failed to parse SSE data: {data_str[:200]}, error: {json_err}"
+                        # Extract answer from event
+                        answer = event.answer
+                        if answer:
+                            # Calculate delta from accumulated content
+                            new_content = answer[len(accumulated_content) :]
+                            if new_content:
+                                accumulated_content = answer
+                                payload = json.dumps(
+                                    {"type": "token", "text": new_content}
                                 )
-                                continue
+                                yield f"data: {payload}\n\n"
+                                logger.debug(
+                                    f"Yielded {len(new_content)} characters"
+                                )
 
                 except Exception as conversation_error:
                     logger.exception(
