@@ -17,7 +17,6 @@ from infrastructure.ragflow.models import (
     CompletionStreamEvent,
     Paginated,
     ReferenceChunk,
-    RelatedQuestionsData,
 )
 
 
@@ -194,19 +193,3 @@ class TestChunkModels:
         )
         assert len(data.chunks) == 1
         assert data.total == 1
-
-
-class TestRelatedQuestions:
-    """Test RelatedQuestionsData model."""
-
-    def test_related_questions(self):
-        """Test RelatedQuestionsData model."""
-        data = RelatedQuestionsData(
-            questions=["Question 1?", "Question 2?", "Question 3?"]
-        )
-        assert len(data.questions) == 3
-
-    def test_related_questions_empty(self):
-        """Test empty RelatedQuestionsData."""
-        data = RelatedQuestionsData(questions=[])
-        assert data.questions == []

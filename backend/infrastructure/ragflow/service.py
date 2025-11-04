@@ -32,7 +32,6 @@ from .models import (
     Document,
     DocumentUploadResponse,
     Paginated,
-    RelatedQuestionsData,
     SessionListData,
 )
 
@@ -376,10 +375,13 @@ class RagflowService:
             response = self.http_client.post(
                 path, json_data=payload, use_login_token=True
             )
-            api_response = APIResponse[RelatedQuestionsData](**response.json())
+
+            # API returns list[str] directly in data field
+            response_data = response.json()
+            api_response = APIResponse[list[str]](**response_data)
             api_response.raise_for_status()
 
-            questions = api_response.data.questions if api_response.data else []
+            questions = api_response.data if api_response.data else []
             logger.info(f"Generated {len(questions)} related questions")
 
             return questions

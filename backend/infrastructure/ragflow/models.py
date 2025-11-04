@@ -498,12 +498,6 @@ class Chat(BaseModel):
     model_config = {"populate_by_name": True}
 
 
-# --- Related Questions Models ---
-
-
-class RelatedQuestionsData(BaseModel):
-    """Related questions response data."""
-
-    questions: list[str] = Field(
-        default_factory=list, description="List of related questions"
-    )
+# --- Related Questions ---
+# Note: The related_questions API returns a list[str] directly in the 'data' field,
+# not wrapped in a model object. Use APIResponse[list[str]] to parse responses.
