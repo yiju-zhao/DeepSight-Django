@@ -28,10 +28,16 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const closingSessionRef = useRef<string | null>(null);
+  const activeSessionIdRef = useRef<string | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const streamingControllerRef = useRef<AbortController | null>(null);
+
+  // Sync activeSessionId to ref for safe boundary checks
+  useEffect(() => {
+    activeSessionIdRef.current = activeSessionId;
+  }, [activeSessionId]);
 
   // Query for sessions list
   const {
@@ -283,40 +289,58 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       }
 
       let assistantContent = '';
+      let animationFrameId: ReturnType<typeof requestAnimationFrame> | null = null;
+
+      // Extracted state update function with session validation
+      const updateMessageInState = () => {
+        if (activeSessionIdRef.current === sessionId) {
+          setCurrentMessages(prev => prev.map(m => m.id === assistantMessage.id ? { ...m, message: assistantContent } : m));
+        }
+        animationFrameId = null;
+      };
 
       // Process streaming response
-      await sessionChatService.parseSSEStream(
-        reader,
-        (token) => {
-          assistantContent += token;
-          if (activeSessionId === sessionId) {
-            setCurrentMessages(prev => prev.map(msg => 
-              msg.id === assistantMessage.id 
-                ? { ...msg, message: assistantContent }
-                : msg
-            ));
-          }
-        },
-        (error) => {
-          setError(error);
-          toast({
-            title: 'Message Error',
-            description: error,
-            variant: 'destructive',
-          });
-        },
-        (suggestions) => {
-          // Message complete
-          streamingControllerRef.current = null;
-          
-          // Update session list to refresh last activity
-          queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+      try {
+        await sessionChatService.parseSSEStream(
+          reader,
+          (token) => {
+            assistantContent += token;
+            if (!animationFrameId) {
+              animationFrameId = requestAnimationFrame(updateMessageInState);
+            }
+          },
+          (error) => {
+            if (animationFrameId) {
+              cancelAnimationFrame(animationFrameId);
+            }
+            streamingControllerRef.current = null;
+            setError(error);
+            toast({
+              title: 'Message Error',
+              description: error,
+              variant: 'destructive',
+            });
+          },
+          (suggestions) => {
+            if (animationFrameId) {
+              cancelAnimationFrame(animationFrameId);
+            }
+            updateMessageInState();
+            streamingControllerRef.current = null;
 
-          if (activeSessionId === sessionId) {
-            setSuggestions(suggestions);
+            // Update session list to refresh last activity
+            queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+
+            if (activeSessionIdRef.current === sessionId) {
+              setSuggestions(suggestions);
+            }
           }
+        );
+      } finally {
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
         }
-      );
+      }
 
       return true;
     } catch (error) {
