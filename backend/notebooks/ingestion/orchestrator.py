@@ -335,7 +335,7 @@ class IngestionOrchestrator:
                 processing_result["skip_content_file"] = True
                 mineru_clean_title = parse_result.marker_extraction_result.get("clean_title")
                 if mineru_clean_title:
-                    processing_result["content_filename"] = f"{mineru_clean_title}.md
+                    processing_result["content_filename"] = f"{mineru_clean_title}.md"
 
             # Call storage in executor
             store_sync = sync_to_async(
