@@ -503,27 +503,11 @@ class UrlFetcher:
         self.logger.info(f"Fetching Bilibili media: {url}")
 
         try:
-            # Get video info first
-            media_info = await self._get_bilibili_info(url)
-
-            if not media_info:
-                raise SourceError("Failed to retrieve Bilibili video information")
-
-            base_title = media_info.get("title", "bilibili_video")
-            base_filename = clean_title(base_title)
-
-            # Limit filename length
-            max_base_length = 100
-            if len(base_filename) > max_base_length:
-                base_filename = base_filename[:max_base_length].rstrip("_")
-
             # Create temp directory
             temp_dir = tempfile.mkdtemp(prefix="deepsight_bilibili_")
 
-            # Download video using bilix
-            downloaded_path = await self._download_bilibili_video(
-                url, temp_dir, base_filename
-            )
+            # Download video directly using bilix
+            downloaded_path = await self._download_bilibili_video(url, temp_dir)
 
             if not downloaded_path:
                 raise SourceError("Failed to download Bilibili video")
@@ -531,50 +515,28 @@ class UrlFetcher:
             # Get actual filename
             actual_filename = os.path.basename(downloaded_path)
 
+            # Basic metadata
+            metadata = {
+                "has_media": True,
+                "has_video": True,
+                "has_audio": True,
+                "platform": "bilibili",
+                "title": Path(downloaded_path).stem,
+            }
+
             return UrlFetchResult(
                 fetch_type="media",
                 local_path=downloaded_path,
                 filename=actual_filename,
-                metadata=media_info,
+                metadata=metadata,
             )
 
         except Exception as e:
             self.logger.error(f"Bilibili media fetch error: {e}")
             raise SourceError(f"Failed to fetch Bilibili media: {e}") from e
 
-    async def _get_bilibili_info(self, url: str) -> dict[str, Any]:
-        """Get Bilibili video information using bilix."""
-        try:
-            from bilix.sites.bilibili import InformerBilibili
-
-            async with InformerBilibili() as informer:
-                info = await informer.info_video(url)
-
-            if not info:
-                return {}
-
-            # Extract relevant information
-            return {
-                "has_media": True,
-                "has_video": True,
-                "has_audio": True,
-                "title": info.get("title", "bilibili_video"),
-                "duration": info.get("duration"),
-                "uploader": info.get("owner", {}).get("name") if isinstance(info.get("owner"), dict) else None,
-                "description": info.get("desc", ""),
-                "view_count": info.get("stat", {}).get("view") if isinstance(info.get("stat"), dict) else None,
-                "platform": "bilibili",
-            }
-
-        except ImportError:
-            self.logger.error("bilix not available")
-            raise SourceError("bilix library is required for Bilibili downloads")
-        except Exception as e:
-            self.logger.error(f"Bilibili info error: {e}")
-            return {}
-
     async def _download_bilibili_video(
-        self, url: str, temp_dir: str, base_filename: str
+        self, url: str, temp_dir: str
     ) -> Optional[str]:
         """Download Bilibili video using bilix."""
         try:
@@ -599,7 +561,7 @@ class UrlFetcher:
             raise SourceError("bilix library is required for Bilibili downloads")
         except Exception as e:
             self.logger.error(f"Bilibili video download error: {e}")
-            return None
+            raise
 
     async def _load_crawl4ai(self):
         """Lazy load crawl4ai."""
