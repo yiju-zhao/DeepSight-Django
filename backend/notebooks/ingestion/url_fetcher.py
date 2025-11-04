@@ -3,9 +3,9 @@ URL Fetcher - Unified URL fetching with webpage/document/media support.
 
 Optimized with:
 - SSRF protection and security validation
-- Unified httpx/requests HTTP client
+- Simple requests-based HTTP client with timeouts
 - Type-safe metadata with TypedDict
-- Lazy loading of optional dependencies
+- Lazy loading of optional dependencies (magic, crawl4ai, bilix, yt-dlp)
 - Structured logging
 - Proper temporary directory management
 """
@@ -16,7 +16,6 @@ import re
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from tempfile import TemporaryDirectory
 from typing import Any, Literal, Optional, TypedDict
 from urllib.parse import urlparse
 
@@ -90,9 +89,9 @@ class UrlFetcher:
 
     Features:
     - SSRF protection and URL security validation
-    - Unified HTTP client with timeouts
-    - Type-safe metadata
-    - Lazy loading of optional dependencies
+    - Simple requests-based downloads with timeouts (30s connect, 5min read)
+    - Type-safe metadata (DocumentMetadata, MediaMetadata, WebpageMetadata)
+    - Lazy loading of optional dependencies (magic, crawl4ai, bilix, yt-dlp)
     """
 
     def __init__(
@@ -419,7 +418,7 @@ class UrlFetcher:
         import asyncio
 
         file_path, _ = await asyncio.to_thread(self._download_to_temp_sync, url)
-        # Note: temp_dir cleanup is handled by TemporaryDirectory context manager
+        # Note: temp_dir cleanup is handled by orchestrator
         return file_path
 
     def _fix_file_extension_sync(self, file_path: str, content_type: str) -> str:
