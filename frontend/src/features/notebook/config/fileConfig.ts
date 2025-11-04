@@ -12,9 +12,11 @@ import {
 export const FILE_ICONS = {
   pdf: File,
   txt: FileText,
-  md: FileText, 
+  md: FileText,
   pptx: Presentation,
   docx: FileText,
+  xlsx: FileText,
+  xls: FileText,
   mp3: Music,
   mp4: Video,
   wav: Music,
@@ -77,8 +79,8 @@ export const STATUS_CONFIG = {
 // File validation configuration
 export const VALIDATION_CONFIG = {
   allowedExtensions: [
-    "pdf", "txt", "md", "pptx", "docx", 
-    "mp3", "mp4", "wav", "m4a", "avi", "mov", "mkv", 
+    "pdf", "txt", "md", "pptx", "docx", "xlsx", "xls",
+    "mp3", "mp4", "wav", "m4a", "avi", "mov", "mkv",
     "webm", "flv", "wmv", "3gp", "ogv", "m4v"
   ],
   maxSize: 100 * 1024 * 1024, // 100MB
@@ -89,6 +91,8 @@ export const VALIDATION_CONFIG = {
     "md": "text/markdown",
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "xls": "application/vnd.ms-excel",
     "mp3": "audio/mpeg",
     "mp4": "video/mp4",
     "wav": "audio/wav",
@@ -103,7 +107,7 @@ export const VALIDATION_CONFIG = {
     "ogv": "video/ogg",
     "m4v": "video/x-m4v"
   },
-  acceptString: ".pdf,.txt,.md,.pptx,.docx,.mp3,.mp4,.wav,.m4a,.avi,.mov,.mkv,.webm,.flv,.wmv,.3gp,.ogv,.m4v"
+  acceptString: ".pdf,.txt,.md,.pptx,.docx,.xlsx,.xls,.mp3,.mp4,.wav,.m4a,.avi,.mov,.mkv,.webm,.flv,.wmv,.3gp,.ogv,.m4v"
 };
 
 // Video format compatibility information

@@ -31,7 +31,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
 
   // File validation function
   const validateFile = (file: File) => {
-    const allowedExtensions = ["pdf", "txt", "md", "ppt", "pptx", "docx", "mp3", "mp4", "wav", "m4a", "avi", "mov", "mkv", "webm", "wmv", "m4v"];
+    const allowedExtensions = ["pdf", "txt", "md", "ppt", "pptx", "docx", "xlsx", "xls", "mp3", "mp4", "wav", "m4a", "avi", "mov", "mkv", "webm", "wmv", "m4v"];
     const extension = file.name.split(".").pop()?.toLowerCase() || "";
     const maxSize = 100 * 1024 * 1024; // 100MB
     const minSize = 100; // 100 bytes minimum
@@ -556,7 +556,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
           handleFileUpload(file);
         }}
         style={{ display: 'none' }}
-        accept=".pdf,.txt,.md,.ppt,.pptx,.docx,.mp3,.mp4,.wav,.m4a,.avi,.mov,.mkv,.webm,.wmv,.m4v"
+        accept=".pdf,.txt,.md,.ppt,.pptx,.docx,.xlsx,.xls,.mp3,.mp4,.wav,.m4a,.avi,.mov,.mkv,.webm,.wmv,.m4v"
       />
     </>
   );
