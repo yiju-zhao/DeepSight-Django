@@ -677,8 +677,9 @@ class ChatService(NotebookBaseService):
 
         def session_stream():
             accumulated_content = ""
-            saved_assistant = False
             session = None
+            assistant_message = None
+            update_counter = 0
 
             try:
                 # Send immediate connection confirmation to establish SSE connection
@@ -705,6 +706,15 @@ class ChatService(NotebookBaseService):
                 # Record user message
                 user_message = SessionChatMessage.objects.create(
                     session=session, notebook=notebook, sender="user", message=question
+                )
+
+                # ✨ 立即创建助手消息记录（空内容，状态为 generating）
+                assistant_message = SessionChatMessage.objects.create(
+                    session=session,
+                    notebook=notebook,
+                    sender="assistant",
+                    message="",
+                    metadata={"status": "generating", "started_at": user_message.timestamp.isoformat()}
                 )
 
                 self.log_notebook_operation(
@@ -777,6 +787,15 @@ class ChatService(NotebookBaseService):
                                     f"Yielded {len(new_content)} characters"
                                 )
 
+                                # ✨ 定期更新数据库中的消息（每10个token或每100字符）
+                                update_counter += 1
+                                if update_counter >= 10 or len(accumulated_content) % 100 < len(new_content):
+                                    if assistant_message:
+                                        assistant_message.message = accumulated_content
+                                        assistant_message.save(update_fields=["message", "updated_at"])
+                                        logger.debug(f"Updated message in DB: {len(accumulated_content)} chars")
+                                        update_counter = 0
+
                 except Exception as conversation_error:
                     logger.exception(
                         f"Failed during conversation: {conversation_error}"
@@ -794,6 +813,18 @@ class ChatService(NotebookBaseService):
                     f"Streaming completed, accumulated {len(accumulated_content)} characters"
                 )
 
+                # ✨ 最终更新消息内容并标记为完成
+                if assistant_message and accumulated_content:
+                    assistant_message.message = accumulated_content
+                    assistant_message.metadata = {
+                        "status": "completed",
+                        "started_at": assistant_message.metadata.get("started_at"),
+                        "completed_at": user_message.timestamp.isoformat(),
+                        "total_length": len(accumulated_content)
+                    }
+                    assistant_message.save(update_fields=["message", "metadata", "updated_at"])
+                    logger.info(f"Final message saved: {len(accumulated_content)} characters")
+
                 # Generate suggested questions
                 suggestions_result = self.generate_suggested_questions(
                     notebook=notebook, base_question=question
@@ -810,26 +841,31 @@ class ChatService(NotebookBaseService):
                 )
                 yield f"data: {completion_payload}\n\n"
 
-                # Save assistant response
-                if accumulated_content:
-                    SessionChatMessage.objects.create(
-                        session=session,
-                        notebook=notebook,
-                        sender="assistant",
-                        message=accumulated_content,
-                    )
-                    saved_assistant = True
-
-                    self.log_notebook_operation(
-                        "session_assistant_message_recorded",
-                        str(notebook.id),
-                        user_id,
-                        session_id=str(session.session_id),
-                        response_length=len(accumulated_content),
-                    )
+                self.log_notebook_operation(
+                    "session_assistant_message_recorded",
+                    str(notebook.id),
+                    user_id,
+                    session_id=str(session.session_id),
+                    response_length=len(accumulated_content),
+                )
 
             except Exception as e:
                 logger.exception(f"Error in session stream: {e}")
+
+                # ✨ 标记消息为错误状态
+                if assistant_message and accumulated_content:
+                    try:
+                        assistant_message.message = accumulated_content
+                        assistant_message.metadata = {
+                            "status": "error",
+                            "started_at": assistant_message.metadata.get("started_at"),
+                            "error": str(e),
+                            "partial_length": len(accumulated_content)
+                        }
+                        assistant_message.save(update_fields=["message", "metadata", "updated_at"])
+                    except Exception as save_error:
+                        logger.warning(f"Failed to save error state: {save_error}")
+
                 error_payload = json.dumps(
                     {
                         "type": "error",
@@ -838,22 +874,26 @@ class ChatService(NotebookBaseService):
                 )
                 yield f"data: {error_payload}\n\n"
             finally:
-                # Persist partial assistant response on early disconnect/errors
+                # ✨ 确保部分响应被持久化（用于断开连接等情况）
                 try:
-                    if (not saved_assistant) and accumulated_content and (session is not None):
-                        SessionChatMessage.objects.create(
-                            session=session,
-                            notebook=notebook,
-                            sender="assistant",
-                            message=accumulated_content,
-                        )
-                        self.log_notebook_operation(
-                            "session_assistant_message_recorded_partial",
-                            str(notebook.id),
-                            user_id,
-                            session_id=str(session.session_id),
-                            response_length=len(accumulated_content),
-                        )
+                    if assistant_message and accumulated_content:
+                        # 检查消息状态，如果还是 generating，标记为 interrupted
+                        if assistant_message.metadata.get("status") == "generating":
+                            assistant_message.message = accumulated_content
+                            assistant_message.metadata = {
+                                "status": "interrupted",
+                                "started_at": assistant_message.metadata.get("started_at"),
+                                "partial_length": len(accumulated_content)
+                            }
+                            assistant_message.save(update_fields=["message", "metadata", "updated_at"])
+
+                            self.log_notebook_operation(
+                                "session_assistant_message_interrupted",
+                                str(notebook.id),
+                                user_id,
+                                session_id=str(session.session_id) if session else session_id,
+                                response_length=len(accumulated_content),
+                            )
                 except Exception as persist_err:
                     logger.warning(f"Failed to persist partial assistant message for session {session_id}: {persist_err}")
 

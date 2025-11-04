@@ -29,6 +29,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const [error, setError] = useState<string | null>(null);
   const closingSessionRef = useRef<string | null>(null);
   const activeSessionIdRef = useRef<string | null>(null);
+  const isStreamingRef = useRef<boolean>(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -224,12 +225,40 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const loadSessionMessages = useCallback(async (sessionId: string): Promise<SessionChatMessage[]> => {
     try {
       const response = await sessionChatService.getSession(notebookId, sessionId);
-      const messages = response.session.messages || [];
-      
+      let messages = response.session.messages || [];
+
+      // ✨ 检查是否有缓存的流式消息（用于刷新后恢复）
+      const cacheKey = `streaming_${notebookId}_${sessionId}`;
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const { userMessage, assistantMessage, timestamp } = JSON.parse(cached);
+
+          // 只使用 5 分钟内的缓存
+          if (Date.now() - timestamp < 5 * 60 * 1000) {
+            console.log('[useSessionChat] Restoring streaming message from cache');
+
+            // 检查服务器消息是否已包含这些消息
+            const hasUserMsg = messages.some(m => m.message === userMessage.message && m.sender === 'user');
+            const hasAssistantMsg = messages.some(m => m.sender === 'assistant' && m.message === assistantMessage.message);
+
+            if (!hasUserMsg || !hasAssistantMsg) {
+              // 如果服务器还没有完整消息，使用缓存
+              messages = [...messages, userMessage, assistantMessage];
+            }
+          } else {
+            // 缓存过期，清除
+            sessionStorage.removeItem(cacheKey);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to restore streaming message from cache:', e);
+      }
+
       if (activeSessionId === sessionId) {
         setCurrentMessages(messages);
       }
-      
+
       return messages;
     } catch (error) {
       console.error('Failed to load session messages:', error);
@@ -245,6 +274,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       if (streamingControllerRef.current) {
         streamingControllerRef.current.abort();
       }
+
+      // ✨ 标记流式传输开始
+      isStreamingRef.current = true;
 
       // Add user message immediately
       const userMessage: SessionChatMessage = {
@@ -291,10 +323,24 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       let assistantContent = '';
       let animationFrameId: ReturnType<typeof requestAnimationFrame> | null = null;
 
+      // ✨ 缓存 key
+      const cacheKey = `streaming_${notebookId}_${sessionId}`;
+
       // Extracted state update function with session validation
       const updateMessageInState = () => {
         if (activeSessionIdRef.current === sessionId) {
           setCurrentMessages(prev => prev.map(m => m.id === assistantMessage.id ? { ...m, message: assistantContent } : m));
+
+          // ✨ 保存到 sessionStorage 支持刷新恢复
+          try {
+            sessionStorage.setItem(cacheKey, JSON.stringify({
+              userMessage,
+              assistantMessage: { ...assistantMessage, message: assistantContent },
+              timestamp: Date.now()
+            }));
+          } catch (e) {
+            console.warn('Failed to cache streaming message:', e);
+          }
         }
         animationFrameId = null;
       };
@@ -314,6 +360,10 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
               cancelAnimationFrame(animationFrameId);
             }
             streamingControllerRef.current = null;
+
+            // ✨ 重置流式传输状态
+            isStreamingRef.current = false;
+
             setError(error);
             toast({
               title: 'Message Error',
@@ -328,12 +378,27 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
             updateMessageInState();
             streamingControllerRef.current = null;
 
-            // Update session list to refresh last activity
-            queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+            // ✨ 重置流式传输状态并清除缓存
+            isStreamingRef.current = false;
+            try {
+              sessionStorage.removeItem(cacheKey);
+            } catch (e) {
+              console.warn('Failed to clear streaming cache:', e);
+            }
 
             if (activeSessionIdRef.current === sessionId) {
               setSuggestions(suggestions);
             }
+
+            // ✨ 流式完成后刷新 session 列表和消息
+            // 延迟一小段时间确保后端已保存
+            setTimeout(() => {
+              queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+              // 重新加载消息以获取真实的数据库记录
+              if (activeSessionIdRef.current === sessionId) {
+                loadSessionMessages(sessionId);
+              }
+            }, 200);
           }
         );
       } finally {
@@ -344,6 +409,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
       return true;
     } catch (error) {
+      // ✨ 重置流式传输状态
+      isStreamingRef.current = false;
+
       const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
       setError(errorMessage);
       toast({
@@ -353,7 +421,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       });
       return false;
     }
-  }, [notebookId, activeSessionId, toast, queryClient]);
+  }, [notebookId, activeSessionId, toast, queryClient, loadSessionMessages]);
 
   // Utility functions
   const refreshSessions = useCallback(async () => {
@@ -376,6 +444,12 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   // Load messages when active session changes
   useEffect(() => {
+    // ✨ 关键修复：流式传输期间不重新加载消息，防止覆盖
+    if (isStreamingRef.current) {
+      console.log('[useSessionChat] Skipping loadSessionMessages - streaming in progress');
+      return;
+    }
+
     if (activeSessionId) {
       // Only load messages if the session exists in the sessions list
       const sessionExists = sessions.some(s => s.id === activeSessionId);
