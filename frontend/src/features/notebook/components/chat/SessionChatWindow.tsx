@@ -284,7 +284,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
       {showSuggestions && suggestions && suggestions.length > 0 && (
         <div className="flex-shrink-0 px-8">
           <div className="max-w-4xl mx-auto">
-            <div className="inline-block px-4 py-3 rounded-2xl bg-white border border-gray-200 shadow-sm">
+            <div className="inline-block px-4 py-3 rounded-2xl bg-white shadow-sm">
               <div className="flex flex-wrap gap-2">
                 {(suggestions.slice(0, 2)).map((sugg, i) => (
                   <Button
