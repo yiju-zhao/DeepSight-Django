@@ -14,7 +14,7 @@ from .parsers import (
     BaseParser,
     MediaParser,
     ParseResult,
-    PdfParser,
+    DocuParser,
     TextParser,
 )
 from .transcription import TranscriptionClient, XinferenceProvider
@@ -33,7 +33,7 @@ __all__ = [
     # Parsers
     "BaseParser",
     "ParseResult",
-    "PdfParser",
+    "DocuParser",
     "MediaParser",
     "TextParser",
     # Transcription

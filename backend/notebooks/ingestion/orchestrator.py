@@ -15,7 +15,7 @@ from ..processors.minio_post_processor import MinIOPostProcessor
 from ..utils.helpers import clean_title
 from ..utils.storage import FileStorageService
 from .exceptions import IngestionError, ParseError, SourceError, StorageError
-from .parsers import MediaParser, PdfParser, ParseResult, TextParser
+from .parsers import MediaParser, DocuParser, ParseResult, TextParser
 from .transcription import XinferenceProvider
 from .url_fetcher import UrlFetcher
 
@@ -57,7 +57,7 @@ class IngestionOrchestrator:
             logger=self.logger,
         )
 
-        self.pdf_parser = PdfParser(
+        self.docu_parser = DocuParser(
             mineru_base_url=mineru_base_url,
             logger=self.logger,
         )
@@ -133,7 +133,7 @@ class IngestionOrchestrator:
                 }
 
                 if extension == ".pdf":
-                    parse_result = await self.pdf_parser.parse(
+                    parse_result = await self.docu_parser.parse(
                         fetch_result.local_path, metadata
                     )
                 elif extension in [".ppt", ".pptx"]:
@@ -231,8 +231,8 @@ class IngestionOrchestrator:
             # Determine parser based on extension
             extension = metadata.get("file_extension", "").lower()
 
-            if extension == ".pdf":
-                parse_result = await self.pdf_parser.parse(file_path, metadata)
+            if extension in [".pdf", ".xlsx", ".xls"]:
+                parse_result = await self.docu_parser.parse(file_path, metadata)
             elif extension in [
                 ".mp3",
                 ".wav",

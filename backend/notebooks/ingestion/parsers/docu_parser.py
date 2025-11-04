@@ -1,5 +1,5 @@
 """
-PDF parser using MinerU API with PyMuPDF fallback.
+Document parser using MinerU API for PDFs and Excel files, with PyMuPDF fallback for PDFs.
 """
 
 import base64
@@ -22,8 +22,8 @@ except ImportError:
     fitz = None
 
 
-class PdfParser(BaseParser):
-    """PDF parser with MinerU primary and PyMuPDF fallback."""
+class DocuParser(BaseParser):
+    """Document parser with MinerU primary for PDFs/Excel and PyMuPDF fallback for PDFs."""
 
     def __init__(
         self,
@@ -39,26 +39,38 @@ class PdfParser(BaseParser):
 
     async def parse(self, file_path: str, metadata: dict[str, Any]) -> ParseResult:
         """
-        Parse PDF file using MinerU, fallback to PyMuPDF on failure.
+        Parse document file (PDF or Excel) using MinerU, with PyMuPDF fallback for PDFs.
 
         Args:
-            file_path: Path to PDF file
+            file_path: Path to document file
             metadata: File metadata (filename, extension, etc.)
 
         Returns:
             ParseResult with content, metadata, and optional marker_extraction_result
         """
+        file_extension = metadata.get("file_extension", "").lower()
+        is_excel = file_extension in [".xlsx", ".xls"]
+
         # Try MinerU first
         if self._check_mineru_health():
             try:
                 return await self._parse_with_mineru(file_path, metadata)
             except Exception as e:
                 self.logger.warning(
-                    f"MinerU parsing failed: {e}, falling back to PyMuPDF"
+                    f"MinerU parsing failed: {e}"
                 )
+                # Only fall back to PyMuPDF for PDF files
+                if not is_excel:
+                    self.logger.info("Falling back to PyMuPDF for PDF")
+                else:
+                    # For Excel files, we don't have a fallback
+                    raise ParseError(f"MinerU parsing failed for Excel file: {e}")
 
-        # Fallback to PyMuPDF
-        return await self._parse_with_pymupdf(file_path, metadata)
+        # Fallback to PyMuPDF (PDF only)
+        if not is_excel:
+            return await self._parse_with_pymupdf(file_path, metadata)
+        else:
+            raise ParseError("MinerU service is unavailable and no fallback exists for Excel files")
 
     def _check_mineru_health(self) -> bool:
         """Check if MinerU API is available."""
@@ -72,12 +84,15 @@ class PdfParser(BaseParser):
     async def _parse_with_mineru(
         self, file_path: str, metadata: dict[str, Any]
     ) -> ParseResult:
-        """Parse PDF using MinerU API."""
-        self.logger.info(f"Starting MinerU parsing of {file_path}")
+        """Parse document (PDF or Excel) using MinerU API."""
+        file_extension = metadata.get("file_extension", "").lower()
+        file_type = "Excel" if file_extension in [".xlsx", ".xls"] else "PDF"
+        self.logger.info(f"Starting MinerU parsing of {file_type} file: {file_path}")
         start_time = time.time()
 
         # Generate clean filename
-        original_filename = metadata.get("filename", "document.pdf")
+        default_filename = f"document{file_extension}" if file_extension else "document.pdf"
+        original_filename = metadata.get("filename", default_filename)
         base_title = (
             original_filename.rsplit(".", 1)[0]
             if "." in original_filename
@@ -127,10 +142,11 @@ class PdfParser(BaseParser):
             f"{[os.path.basename(f) for f in [md_file_path] + image_files]}"
         )
 
-        # Get PDF metadata using PyMuPDF if available
-        pdf_metadata = self._extract_pdf_metadata(file_path, mineru_result)
-        pdf_metadata["has_mineru_extraction"] = True
-        pdf_metadata["has_markdown_content"] = bool(md_content)
+        # Get document metadata
+        doc_metadata = self._extract_document_metadata(file_path, metadata, mineru_result)
+        doc_metadata["has_mineru_extraction"] = True
+        doc_metadata["has_markdown_content"] = bool(md_content)
+        doc_metadata["file_type"] = file_type.lower()
 
         # Calculate features
         features_available = ["advanced_pdf_extraction", "markdown_conversion"]
@@ -148,7 +164,7 @@ class PdfParser(BaseParser):
         # Return result with marker extraction info
         return ParseResult(
             content="",  # Empty content since MinerU files contain everything
-            metadata=pdf_metadata,
+            metadata=doc_metadata,
             features_available=features_available,
             marker_extraction_result={
                 "success": True,
@@ -206,17 +222,26 @@ class PdfParser(BaseParser):
         )
 
     def _call_mineru_api(self, file_path: str) -> dict[str, Any]:
-        """Call MinerU API to parse PDF."""
+        """Call MinerU API to parse document (PDF or Excel)."""
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"PDF file not found: {file_path}")
+            raise FileNotFoundError(f"Document file not found: {file_path}")
 
         try:
+            # Detect file type and set appropriate MIME type
+            file_extension = os.path.splitext(file_path)[1].lower()
+            mime_type_map = {
+                ".pdf": "application/pdf",
+                ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                ".xls": "application/vnd.ms-excel",
+            }
+            mime_type = mime_type_map.get(file_extension, "application/octet-stream")
+
             # Prepare multipart form data
             files = {
                 "files": (
                     os.path.basename(file_path),
                     open(file_path, "rb"),
-                    "application/pdf",
+                    mime_type,
                 )
             }
 
@@ -259,35 +284,34 @@ class PdfParser(BaseParser):
             self.logger.error(f"Failed to parse MinerU API response: {e}")
             raise ParseError(f"Invalid JSON response from MinerU API: {e}") from e
 
-    def _extract_pdf_metadata(
-        self, file_path: str, mineru_result: dict[str, Any]
+    def _extract_document_metadata(
+        self, file_path: str, metadata: dict[str, Any], mineru_result: dict[str, Any]
     ) -> dict[str, Any]:
-        """Extract PDF metadata using PyMuPDF if available."""
-        try:
-            if fitz:
-                doc = fitz.open(file_path)
-                metadata = {
-                    "page_count": doc.page_count,
-                    "title": doc.metadata.get("title", ""),
-                    "author": doc.metadata.get("author", ""),
-                    "creation_date": doc.metadata.get("creationDate", ""),
-                    "modification_date": doc.metadata.get("modDate", ""),
-                    "processing_method": "mineru_api",
-                    "api_version": mineru_result.get("version", "unknown"),
-                    "backend": mineru_result.get("backend", "pipeline"),
-                }
-                doc.close()
-                return metadata
-            else:
-                return {
-                    "processing_method": "mineru_api",
-                    "api_version": mineru_result.get("version", "unknown"),
-                    "backend": mineru_result.get("backend", "pipeline"),
-                }
-        except Exception as e:
-            self.logger.warning(f"Could not extract PDF metadata: {e}")
-            return {
-                "processing_method": "mineru_api",
-                "api_version": mineru_result.get("version", "unknown"),
-                "metadata_error": str(e),
-            }
+        """Extract document metadata (PDF or Excel)."""
+        file_extension = metadata.get("file_extension", "").lower()
+        is_pdf = file_extension == ".pdf"
+
+        base_metadata = {
+            "processing_method": "mineru_api",
+            "api_version": mineru_result.get("version", "unknown"),
+            "backend": mineru_result.get("backend", "pipeline"),
+        }
+
+        # For PDF files, try to extract additional metadata using PyMuPDF
+        if is_pdf:
+            try:
+                if fitz:
+                    doc = fitz.open(file_path)
+                    base_metadata.update({
+                        "page_count": doc.page_count,
+                        "title": doc.metadata.get("title", ""),
+                        "author": doc.metadata.get("author", ""),
+                        "creation_date": doc.metadata.get("creationDate", ""),
+                        "modification_date": doc.metadata.get("modDate", ""),
+                    })
+                    doc.close()
+            except Exception as e:
+                self.logger.warning(f"Could not extract PDF metadata: {e}")
+                base_metadata["metadata_error"] = str(e)
+
+        return base_metadata
