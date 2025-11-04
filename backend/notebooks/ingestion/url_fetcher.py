@@ -13,6 +13,7 @@ Optimized with:
 import logging
 import os
 import re
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -22,7 +23,7 @@ from urllib.parse import urlparse
 from ..utils.helpers import clean_title
 from .exceptions import SourceError
 from .http_client import SecureHttpClient
-from .url_security import sanitize_filename, validate_url_security
+from .url_security import validate_url_security
 
 
 # ============================================================================
@@ -298,7 +299,7 @@ class UrlFetcher:
             if len(base_filename) > max_base_length:
                 base_filename = base_filename[:max_base_length].rstrip("_")
 
-            # Create temp directory
+            # Create temp directory (Note: cleanup is handled by orchestrator via temp_dirs list)
             temp_dir = tempfile.mkdtemp(prefix="deepsight_media_")
 
             # Download based on media type
@@ -373,7 +374,7 @@ class UrlFetcher:
         """
         import asyncio
 
-        file_path, temp_dir = await asyncio.to_thread(self._download_to_temp_sync, url)
+        file_path, _ = await asyncio.to_thread(self._download_to_temp_sync, url)
         # Note: temp_dir cleanup is handled by TemporaryDirectory context manager
         return file_path
 
@@ -476,23 +477,43 @@ class UrlFetcher:
             file_size = os.path.getsize(file_path)
             filename = os.path.basename(file_path)
 
-            # Detect file type
-            mime_type = magic.from_file(file_path, mime=True)
-            file_type = magic.from_file(file_path)
+            # Lazy load magic library if needed
+            if self._magic_available is None:
+                try:
+                    import magic as magic_lib
+
+                    self._magic_available = True
+                    self._magic = magic_lib
+                except ImportError:
+                    self._magic_available = False
+                    self.logger.warning("python-magic not available for file validation")
+
+            # Detect file type using magic if available
+            mime_type = ""
+            file_type = ""
+            if self._magic_available:
+                try:
+                    mime_type = self._magic.from_file(file_path, mime=True)
+                    file_type = self._magic.from_file(file_path)
+                except Exception as e:
+                    self.logger.warning(f"Magic detection failed: {e}")
 
             self.logger.info(
                 f"Validating: {filename}, MIME: {mime_type}, Type: {file_type}"
             )
 
-            # Check if valid
-            is_pdf = mime_type == "application/pdf" or "PDF" in file_type
+            # Check if valid (gracefully handle missing magic)
+            is_pdf = (
+                mime_type == "application/pdf"
+                or "PDF" in file_type
+                or filename.lower().endswith(".pdf")
+            )
             is_pptx = (
                 mime_type
-                in [
-                    "application/vnd.openxmlformats-officedocument.presentationml.presentation"
-                ]
+                == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
                 or "PowerPoint" in file_type
                 or "Microsoft Office" in file_type
+                or filename.lower().endswith((".ppt", ".pptx"))
             )
 
             is_valid = is_pdf or is_pptx
@@ -505,7 +526,7 @@ class UrlFetcher:
                 detected_type = "PowerPoint"
             else:
                 extension = ".unknown"
-                detected_type = f"Unknown ({mime_type})"
+                detected_type = f"Unknown ({mime_type if mime_type else 'no magic'})"
 
             return {
                 "is_valid": is_valid,
@@ -647,7 +668,7 @@ class UrlFetcher:
         self.logger.info(f"Fetching Bilibili media: {url}")
 
         try:
-            # Create temp directory
+            # Create temp directory (Note: cleanup is handled by orchestrator via temp_dirs list)
             temp_dir = tempfile.mkdtemp(prefix="deepsight_bilibili_")
 
             # Download video directly using bilix
