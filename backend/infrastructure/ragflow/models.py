@@ -72,7 +72,13 @@ class Paginated(BaseModel, Generic[T]):
 
 
 class ReferenceChunk(BaseModel):
-    """Reference chunk from knowledge base."""
+    """
+    Reference chunk from knowledge base.
+
+    API can return different formats:
+    - doc_type: "" (empty string) or [] (list) or ["type1", "type2"]
+    - positions: [""] (list of strings) or [[12, 11, ...]] (list of int lists)
+    """
 
     id: str = Field(..., description="Chunk ID")
     content: str = Field(..., description="Chunk content")
@@ -84,8 +90,13 @@ class ReferenceChunk(BaseModel):
     similarity: float = Field(..., description="Overall similarity score")
     vector_similarity: float = Field(default=0.0, description="Vector similarity score")
     term_similarity: float = Field(default=0.0, description="Term similarity score")
-    doc_type: list[str] = Field(default_factory=list, description="Document types")
-    positions: list[str] = Field(default_factory=list, description="Chunk positions")
+    doc_type: str | list[str] = Field(
+        default="", description="Document type(s) - can be string or list"
+    )
+    positions: list[Any] = Field(
+        default_factory=list,
+        description="Chunk positions - can be list of strings or list of int lists",
+    )
 
 
 class DocumentAggregation(BaseModel):
@@ -161,6 +172,24 @@ class CompletionStreamEvent(BaseModel):
     code: int = Field(..., description="Response code")
     message: str = Field(default="", description="Error message if any")
     data: CompletionData | bool = Field(..., description="Partial or final data")
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def validate_data(cls, v):
+        """Handle various data formats from the API."""
+        # If it's already a bool, return it
+        if isinstance(v, bool):
+            return v
+        # If it's a dict, try to parse as CompletionData
+        if isinstance(v, dict):
+            try:
+                return CompletionData(**v)
+            except Exception:
+                # If parsing fails, check if this is meant to be a final signal
+                # Some APIs might send the final complete data as a dict
+                # In that case, we'll try to parse it anyway and let it through
+                raise
+        return v
 
     @property
     def is_success(self) -> bool:
