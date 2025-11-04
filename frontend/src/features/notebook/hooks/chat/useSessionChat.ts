@@ -275,8 +275,8 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       }
 
       const reader = response.body.getReader();
-      
-      // Add placeholder for assistant message
+
+      // Add placeholder for assistant message immediately before streaming starts
       const assistantMessage: SessionChatMessage = {
         id: Date.now() + 1,
         sender: 'assistant',
@@ -381,7 +381,13 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       const sessionExists = sessions.some(s => s.id === activeSessionId);
       if (sessionExists) {
         loadSessionMessages(activeSessionId);
+      } else {
+        // Clear messages if session doesn't exist
+        setCurrentMessages([]);
       }
+    } else {
+      // Clear messages if no active session
+      setCurrentMessages([]);
     }
   }, [activeSessionId, sessions, loadSessionMessages]);
 

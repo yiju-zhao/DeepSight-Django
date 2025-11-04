@@ -677,13 +677,15 @@ class ChatService(NotebookBaseService):
 
         def session_stream():
             accumulated_content = ""
+            saved_assistant = False
+            session = None
 
             try:
-                # Send immediate keepalive to establish SSE connection
-                keepalive_payload = json.dumps(
+                # Send immediate connection confirmation to establish SSE connection
+                connection_payload = json.dumps(
                     {"type": "status", "message": "Connected"}
                 )
-                yield f"data: {keepalive_payload}\n\n"
+                yield f"data: {connection_payload}\n\n"
 
                 # Validate notebook access
                 self.validate_notebook_access(notebook, notebook.user)
@@ -729,6 +731,10 @@ class ChatService(NotebookBaseService):
                     f"Starting conversation for session {ragflow_session_id} with chat {chat_id}"
                 )
                 logger.info(f"User question: {question[:200]}")
+
+                # Send initial empty token to trigger frontend rendering
+                initial_payload = json.dumps({"type": "token", "text": ""})
+                yield f"data: {initial_payload}\n\n"
 
                 # Use new conversation API
                 try:
@@ -812,6 +818,7 @@ class ChatService(NotebookBaseService):
                         sender="assistant",
                         message=accumulated_content,
                     )
+                    saved_assistant = True
 
                     self.log_notebook_operation(
                         "session_assistant_message_recorded",
@@ -830,6 +837,25 @@ class ChatService(NotebookBaseService):
                     }
                 )
                 yield f"data: {error_payload}\n\n"
+            finally:
+                # Persist partial assistant response on early disconnect/errors
+                try:
+                    if (not saved_assistant) and accumulated_content and (session is not None):
+                        SessionChatMessage.objects.create(
+                            session=session,
+                            notebook=notebook,
+                            sender="assistant",
+                            message=accumulated_content,
+                        )
+                        self.log_notebook_operation(
+                            "session_assistant_message_recorded_partial",
+                            str(notebook.id),
+                            user_id,
+                            session_id=str(session.session_id),
+                            response_length=len(accumulated_content),
+                        )
+                except Exception as persist_err:
+                    logger.warning(f"Failed to persist partial assistant message for session {session_id}: {persist_err}")
 
         return session_stream()
 
