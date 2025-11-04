@@ -126,7 +126,9 @@ class RagFlowHttpClient:
             )
         return self._client
 
-    def _get_headers(self, use_login_token: bool = False, extra_headers: dict = None) -> dict:
+    def _get_headers(
+        self, use_login_token: bool = False, extra_headers: dict = None
+    ) -> dict:
         """
         Get request headers with authentication.
 
@@ -218,10 +220,7 @@ class RagFlowHttpClient:
         Returns:
             True if should retry
         """
-        return (
-            status_code in self.RETRY_STATUS_CODES
-            and attempt < self.max_retries
-        )
+        return status_code in self.RETRY_STATUS_CODES and attempt < self.max_retries
 
     def _calculate_retry_delay(self, attempt: int, base_delay: float = None) -> float:
         """
@@ -235,7 +234,7 @@ class RagFlowHttpClient:
             Delay in seconds
         """
         base = base_delay or self.DEFAULT_RETRY_DELAY
-        return base * (self.RETRY_BACKOFF_FACTOR ** attempt)
+        return base * (self.RETRY_BACKOFF_FACTOR**attempt)
 
     def request(
         self,
@@ -311,7 +310,9 @@ class RagFlowHttpClient:
                 )
 
                 # Check if we should retry based on status code
-                if not response.is_success and self._should_retry(response.status_code, attempt):
+                if not response.is_success and self._should_retry(
+                    response.status_code, attempt
+                ):
                     delay = self._calculate_retry_delay(attempt)
                     logger.warning(
                         f"Request failed with status {response.status_code}, "
@@ -602,13 +603,15 @@ class RagFlowHttpClient:
 
             # Strip data prefix if present
             if data_prefix and line.startswith(data_prefix):
-                line = line[len(data_prefix):].strip()
+                line = line[len(data_prefix) :].strip()
 
             # Try to parse JSON
             try:
                 data = json.loads(line)
                 yield data
             except json.JSONDecodeError as e:
-                logger.warning(f"Failed to parse JSON from stream: {line[:100]}... Error: {e}")
+                logger.warning(
+                    f"Failed to parse JSON from stream: {line[:100]}... Error: {e}"
+                )
                 # Don't raise, just skip malformed lines
                 continue

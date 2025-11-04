@@ -67,9 +67,7 @@ class TestRagFlowHttpClientInit:
 
     def test_init_strips_trailing_slash(self):
         """Test that trailing slash is stripped from base_url."""
-        client = RagFlowHttpClient(
-            base_url="http://test.com/", api_key="key123"
-        )
+        client = RagFlowHttpClient(base_url="http://test.com/", api_key="key123")
         assert client.base_url == "http://test.com"
         client.close()
 

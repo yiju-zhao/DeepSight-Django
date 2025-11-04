@@ -111,9 +111,7 @@ class TestCompletionModels:
         """Test CompletionResponse model."""
         response = CompletionResponse(
             code=0,
-            data=CompletionData(
-                answer="Test", session_id="sess123", reference={}
-            ),
+            data=CompletionData(answer="Test", session_id="sess123", reference={}),
         )
         assert response.is_success
         assert not response.is_final
@@ -127,9 +125,7 @@ class TestCompletionModels:
         """Test CompletionStreamEvent model."""
         event = CompletionStreamEvent(
             code=0,
-            data=CompletionData(
-                answer="Test", session_id="sess123", reference={}
-            ),
+            data=CompletionData(answer="Test", session_id="sess123", reference={}),
         )
         assert event.is_success
         assert event.answer == "Test"

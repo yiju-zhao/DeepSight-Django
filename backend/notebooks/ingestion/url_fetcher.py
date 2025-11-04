@@ -80,8 +80,8 @@ class UrlFetchResult:
     content: Optional[str] = None  # For webpage content
     local_path: Optional[str] = None  # For downloaded files
     filename: Optional[str] = None
-    metadata: DocumentMetadata | MediaMetadata | WebpageMetadata | dict[str, Any] = field(
-        default_factory=dict
+    metadata: DocumentMetadata | MediaMetadata | WebpageMetadata | dict[str, Any] = (
+        field(default_factory=dict)
     )
 
 
@@ -161,7 +161,9 @@ class UrlFetcher:
                 return False
 
             # Security validation with SSRF protection
-            is_valid, error_msg = validate_url_security(url, self.allow_private_networks)
+            is_valid, error_msg = validate_url_security(
+                url, self.allow_private_networks
+            )
             if not is_valid:
                 self.logger.error(f"URL security validation failed: {error_msg}")
                 raise SourceError(f"Unsafe URL blocked: {error_msg}")
@@ -396,7 +398,9 @@ class UrlFetcher:
                     self._magic = magic_lib
                 except ImportError:
                     self._magic_available = False
-                    self.logger.warning("python-magic not available, using Content-Type only")
+                    self.logger.warning(
+                        "python-magic not available, using Content-Type only"
+                    )
 
             # Detect actual file type using magic if available
             mime_type = None
@@ -469,7 +473,10 @@ class UrlFetcher:
     async def _fix_file_extension(self, file_path: str, content_type: str) -> str:
         """Async wrapper for synchronous extension fix."""
         import asyncio
-        return await asyncio.to_thread(self._fix_file_extension_sync, file_path, content_type)
+
+        return await asyncio.to_thread(
+            self._fix_file_extension_sync, file_path, content_type
+        )
 
     def _validate_document_format_sync(self, file_path: str) -> dict[str, Any]:
         """Validate document file format (synchronous)."""
@@ -486,7 +493,9 @@ class UrlFetcher:
                     self._magic = magic_lib
                 except ImportError:
                     self._magic_available = False
-                    self.logger.warning("python-magic not available for file validation")
+                    self.logger.warning(
+                        "python-magic not available for file validation"
+                    )
 
             # Detect file type using magic if available
             mime_type = ""
@@ -544,6 +553,7 @@ class UrlFetcher:
     async def _validate_document_format(self, file_path: str) -> dict[str, Any]:
         """Async wrapper for synchronous document validation."""
         import asyncio
+
         return await asyncio.to_thread(self._validate_document_format_sync, file_path)
 
     async def _check_media_availability(self, url: str) -> dict[str, Any]:
@@ -700,9 +710,7 @@ class UrlFetcher:
             self.logger.error(f"Bilibili media fetch error: {e}")
             raise SourceError(f"Failed to fetch Bilibili media: {e}") from e
 
-    async def _download_bilibili_video(
-        self, url: str, temp_dir: str
-    ) -> Optional[str]:
+    async def _download_bilibili_video(self, url: str, temp_dir: str) -> Optional[str]:
         """Download Bilibili video using bilix."""
         try:
             from bilix.sites.bilibili import DownloaderBilibili

@@ -95,8 +95,14 @@ def upload_to_ragflow_task(self, kb_item_id: str):
 
         try:
             # Write content to temporary file
-            with tempfile.NamedTemporaryFile(mode='wb', suffix='.md', delete=False) as tmp_file:
-                tmp_file.write(file_content if isinstance(file_content, bytes) else file_content.encode('utf-8'))
+            with tempfile.NamedTemporaryFile(
+                mode="wb", suffix=".md", delete=False
+            ) as tmp_file:
+                tmp_file.write(
+                    file_content
+                    if isinstance(file_content, bytes)
+                    else file_content.encode("utf-8")
+                )
                 tmp_path = tmp_file.name
 
             # Upload using new service
@@ -114,7 +120,7 @@ def upload_to_ragflow_task(self, kb_item_id: str):
             logger.info(f"RagFlow upload result: {upload_result}")
         except Exception as e:
             logger.error(f"Failed to upload document: {e}")
-            if 'tmp_path' in locals() and os.path.exists(tmp_path):
+            if "tmp_path" in locals() and os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             raise
 
@@ -276,9 +282,7 @@ def check_ragflow_status_task(self, kb_item_id: str):
             document_id=kb_item.ragflow_document_id,
         )
 
-        ragflow_status = (
-            doc.processing_status.upper() if doc else "UNKNOWN"
-        )
+        ragflow_status = doc.processing_status.upper() if doc else "UNKNOWN"
         logger.info(
             f"RagFlow document {kb_item.ragflow_document_id} status: {ragflow_status}"
         )

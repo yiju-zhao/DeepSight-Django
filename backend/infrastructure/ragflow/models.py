@@ -224,7 +224,9 @@ class Chunk(BaseModel):
     available: bool = Field(True, description="Whether chunk is available")
 
     # Optional fields that may be present in search results
-    similarity: float | None = Field(None, description="Similarity score if from search")
+    similarity: float | None = Field(
+        None, description="Similarity score if from search"
+    )
     vector_similarity: float | None = Field(
         None, description="Vector similarity if from search"
     )
@@ -303,33 +305,57 @@ class Document(BaseModel):
     location: str = Field(..., description="Document location/path")
     size: int = Field(default=0, description="Document size in bytes")
     type: str = Field(default="", description="Document type")
-    chunk_count: int = Field(default=0, alias="chunk_count", description="Number of chunks")
+    chunk_count: int = Field(
+        default=0, alias="chunk_count", description="Number of chunks"
+    )
 
     # Dataset references (API uses both dataset_id and knowledgebase_id)
     dataset_id: str | None = Field(None, alias="dataset_id", description="Dataset ID")
-    knowledgebase_id: str | None = Field(None, alias="knowledgebase_id", description="Knowledge base ID (alias)")
+    knowledgebase_id: str | None = Field(
+        None, alias="knowledgebase_id", description="Knowledge base ID (alias)"
+    )
 
     # Processing status and progress
-    run: str | None = Field(None, description="Processing status (UNSTART, RUNNING, DONE, etc.)")
+    run: str | None = Field(
+        None, description="Processing status (UNSTART, RUNNING, DONE, etc.)"
+    )
     status: str | None = Field(None, description="Processing status (alias for run)")
     progress: float = Field(default=0.0, description="Processing progress (0-1)")
-    progress_msg: str = Field(default="", alias="progress_msg", description="Progress message")
+    progress_msg: str = Field(
+        default="", alias="progress_msg", description="Progress message"
+    )
 
     # Configuration
-    chunk_method: str | None = Field(None, alias="chunk_method", description="Chunking method")
-    parser_config: dict[str, Any] | None = Field(None, alias="parser_config", description="Parser configuration")
+    chunk_method: str | None = Field(
+        None, alias="chunk_method", description="Chunking method"
+    )
+    parser_config: dict[str, Any] | None = Field(
+        None, alias="parser_config", description="Parser configuration"
+    )
 
     # Metadata
     source_type: str = Field(default="local", description="Source type")
-    created_by: str | None = Field(None, alias="created_by", description="Creator user ID")
+    created_by: str | None = Field(
+        None, alias="created_by", description="Creator user ID"
+    )
     thumbnail: str | None = Field(None, description="Thumbnail URL")
 
     # Timestamps
-    create_time: int | None = Field(None, alias="create_time", description="Creation timestamp (ms)")
-    create_date: str | None = Field(None, alias="create_date", description="Creation date string")
-    update_time: int | None = Field(None, alias="update_time", description="Update timestamp (ms)")
-    process_begin_at: str | None = Field(None, alias="process_begin_at", description="Processing start time (GMT string)")
-    process_duration: float | None = Field(None, alias="process_duration", description="Processing duration (seconds)")
+    create_time: int | None = Field(
+        None, alias="create_time", description="Creation timestamp (ms)"
+    )
+    create_date: str | None = Field(
+        None, alias="create_date", description="Creation date string"
+    )
+    update_time: int | None = Field(
+        None, alias="update_time", description="Update timestamp (ms)"
+    )
+    process_begin_at: str | None = Field(
+        None, alias="process_begin_at", description="Processing start time (GMT string)"
+    )
+    process_duration: float | None = Field(
+        None, alias="process_duration", description="Processing duration (seconds)"
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -358,12 +384,20 @@ class DocumentUploadResponse(BaseModel):
 class LLMConfig(BaseModel):
     """LLM configuration for chat assistant."""
 
-    model_name: str | None = Field(None, alias="model_name", description="LLM model name")
+    model_name: str | None = Field(
+        None, alias="model_name", description="LLM model name"
+    )
     temperature: float = Field(default=0.1, description="Temperature for LLM")
     top_p: float = Field(default=0.3, alias="top_p", description="Top-p sampling")
-    presence_penalty: float = Field(default=0.4, alias="presence_penalty", description="Presence penalty")
-    frequency_penalty: float = Field(default=0.7, alias="frequency_penalty", description="Frequency penalty")
-    max_tokens: int | None = Field(None, alias="max_tokens", description="Maximum tokens")
+    presence_penalty: float = Field(
+        default=0.4, alias="presence_penalty", description="Presence penalty"
+    )
+    frequency_penalty: float = Field(
+        default=0.7, alias="frequency_penalty", description="Frequency penalty"
+    )
+    max_tokens: int | None = Field(
+        None, alias="max_tokens", description="Maximum tokens"
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -378,17 +412,32 @@ class PromptVariable(BaseModel):
 class PromptConfig(BaseModel):
     """Prompt configuration for chat assistant."""
 
-    similarity_threshold: float = Field(default=0.2, alias="similarity_threshold", description="Similarity threshold")
-    keywords_similarity_weight: float = Field(default=0.7, alias="keywords_similarity_weight", description="Keywords similarity weight")
+    similarity_threshold: float = Field(
+        default=0.2, alias="similarity_threshold", description="Similarity threshold"
+    )
+    keywords_similarity_weight: float = Field(
+        default=0.7,
+        alias="keywords_similarity_weight",
+        description="Keywords similarity weight",
+    )
     top_n: int = Field(default=6, alias="top_n", description="Number of top chunks")
     variables: list[PromptVariable] = Field(
         default_factory=lambda: [{"key": "knowledge", "optional": True}],
-        description="Prompt variables"
+        description="Prompt variables",
     )
-    rerank_model: str = Field(default="", alias="rerank_model", description="Rerank model name")
-    empty_response: str = Field(default="", alias="empty_response", description="Response when no results")
-    opener: str = Field(default="Hi! I am your assistant, can I help you?", description="Opening greeting")
-    show_quote: bool = Field(default=True, alias="show_quote", description="Show quote sources")
+    rerank_model: str = Field(
+        default="", alias="rerank_model", description="Rerank model name"
+    )
+    empty_response: str = Field(
+        default="", alias="empty_response", description="Response when no results"
+    )
+    opener: str = Field(
+        default="Hi! I am your assistant, can I help you?",
+        description="Opening greeting",
+    )
+    show_quote: bool = Field(
+        default=True, alias="show_quote", description="Show quote sources"
+    )
     prompt: str = Field(default="", description="Prompt text content")
     top_k: int = Field(default=1024, alias="top_k", description="Top-k for reranking")
 
@@ -401,7 +450,9 @@ class Chat(BaseModel):
     id: str = Field(..., description="Chat ID")
     name: str = Field(..., description="Chat name")
     avatar: str = Field(default="", description="Avatar (base64 or URL)")
-    description: str = Field(default="A helpful Assistant", description="Chat description")
+    description: str = Field(
+        default="A helpful Assistant", description="Chat description"
+    )
     language: str = Field(default="English", description="Chat language")
 
     # Dataset associations
@@ -418,19 +469,31 @@ class Chat(BaseModel):
 
     # Metadata
     do_refer: str = Field(default="1", alias="do_refer", description="Reference flag")
-    prompt_type: str = Field(default="simple", alias="prompt_type", description="Prompt type")
+    prompt_type: str = Field(
+        default="simple", alias="prompt_type", description="Prompt type"
+    )
     status: str = Field(default="1", description="Chat status")
     top_k: int = Field(default=1024, alias="top_k", description="Top-k for retrieval")
 
     # User and tenant
     tenant_id: str | None = Field(None, alias="tenant_id", description="Tenant ID")
-    created_by: str | None = Field(None, alias="created_by", description="Creator user ID")
+    created_by: str | None = Field(
+        None, alias="created_by", description="Creator user ID"
+    )
 
     # Timestamps
-    create_time: int | None = Field(None, alias="create_time", description="Creation timestamp (ms)")
-    create_date: str | None = Field(None, alias="create_date", description="Creation date string")
-    update_time: int | None = Field(None, alias="update_time", description="Update timestamp (ms)")
-    update_date: str | None = Field(None, alias="update_date", description="Update date string")
+    create_time: int | None = Field(
+        None, alias="create_time", description="Creation timestamp (ms)"
+    )
+    create_date: str | None = Field(
+        None, alias="create_date", description="Creation date string"
+    )
+    update_time: int | None = Field(
+        None, alias="update_time", description="Update timestamp (ms)"
+    )
+    update_date: str | None = Field(
+        None, alias="update_date", description="Update date string"
+    )
 
     model_config = {"populate_by_name": True}
 

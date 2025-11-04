@@ -68,7 +68,10 @@ class TestRagflowServiceConversation:
         """Test streaming conversation."""
         # Mock streaming response
         stream_data = [
-            {"code": 0, "data": {"answer": "Test", "session_id": "sess123", "reference": {}}},
+            {
+                "code": 0,
+                "data": {"answer": "Test", "session_id": "sess123", "reference": {}},
+            },
             {"code": 0, "data": True},
         ]
         mock_http_client.stream_json.return_value = iter(stream_data)

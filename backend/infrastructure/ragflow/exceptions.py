@@ -81,7 +81,9 @@ class RagFlowDatasetError(RagFlowError):
         self.dataset_id = dataset_id
         error_details = {"dataset_id": dataset_id}
         if details:
-            error_details.update(details if isinstance(details, dict) else {"data": details})
+            error_details.update(
+                details if isinstance(details, dict) else {"data": details}
+            )
         super().__init__(message, error_details)
 
 
@@ -108,7 +110,9 @@ class RagFlowDocumentError(RagFlowError):
         self.dataset_id = dataset_id
         error_details = {"document_id": document_id, "dataset_id": dataset_id}
         if details:
-            error_details.update(details if isinstance(details, dict) else {"data": details})
+            error_details.update(
+                details if isinstance(details, dict) else {"data": details}
+            )
         super().__init__(message, error_details)
 
 
@@ -127,7 +131,9 @@ class RagFlowChatError(RagFlowError):
         self.chat_id = chat_id
         error_details = {"chat_id": chat_id}
         if details:
-            error_details.update(details if isinstance(details, dict) else {"data": details})
+            error_details.update(
+                details if isinstance(details, dict) else {"data": details}
+            )
         super().__init__(message, error_details)
 
 
@@ -154,7 +160,9 @@ class RagFlowSessionError(RagFlowError):
         self.chat_id = chat_id
         error_details = {"session_id": session_id, "chat_id": chat_id}
         if details:
-            error_details.update(details if isinstance(details, dict) else {"data": details})
+            error_details.update(
+                details if isinstance(details, dict) else {"data": details}
+            )
         super().__init__(message, error_details)
 
 

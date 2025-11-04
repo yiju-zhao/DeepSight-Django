@@ -307,9 +307,7 @@ class RagflowService:
                 details={"error": str(e)},
             ) from e
 
-    def delete_chat_sessions(
-        self, chat_id: str, session_ids: list[str] = None
-    ) -> bool:
+    def delete_chat_sessions(self, chat_id: str, session_ids: list[str] = None) -> bool:
         """
         Delete chat sessions.
 
@@ -351,9 +349,7 @@ class RagflowService:
 
     # --- Related Questions ---
 
-    def related_questions(
-        self, question: str, industry: str = None
-    ) -> list[str]:
+    def related_questions(self, question: str, industry: str = None) -> list[str]:
         """
         Generate related questions based on a given question.
 
@@ -475,7 +471,7 @@ class RagflowService:
         chunk_method: str = "naive",
         permission: str = "me",
         parser_config: dict = None,
-        **kwargs
+        **kwargs,
     ) -> Dataset:
         """
         Create a new dataset.
@@ -621,7 +617,7 @@ class RagflowService:
         chunk_method: str = None,
         permission: str = None,
         parser_config: dict = None,
-        **kwargs
+        **kwargs,
     ) -> bool:
         """
         Update dataset configuration.
@@ -770,20 +766,22 @@ class RagflowService:
         import io
 
         try:
-            logger.info(f"Uploading text document '{display_name}' to dataset {dataset_id}")
+            logger.info(
+                f"Uploading text document '{display_name}' to dataset {dataset_id}"
+            )
 
             # Create an in-memory file-like object
-            file_content = content.encode('utf-8')
+            file_content = content.encode("utf-8")
             file_obj = io.BytesIO(file_content)
 
             # Ensure display_name has .txt extension if not provided
-            if not display_name.endswith(('.txt', '.md', '.markdown')):
+            if not display_name.endswith((".txt", ".md", ".markdown")):
                 display_name = f"{display_name}.txt"
 
             path = f"/api/v1/datasets/{dataset_id}/documents"
 
             # Upload as multipart form-data
-            files = {'file': (display_name, file_obj, 'text/plain')}
+            files = {"file": (display_name, file_obj, "text/plain")}
             response = self.http_client.upload(path, files=files)
 
             # Parse response
@@ -849,8 +847,8 @@ class RagflowService:
             path = f"/api/v1/datasets/{dataset_id}/documents"
 
             # Use http_client.upload() for multipart upload
-            with open(file_path, 'rb') as f:
-                files = {'file': (file_name, f)}
+            with open(file_path, "rb") as f:
+                files = {"file": (file_name, f)}
                 response = self.http_client.upload(path, files=files)
 
             # Parse response
@@ -922,9 +920,7 @@ class RagflowService:
                 details={"error": str(e)},
             ) from e
 
-    def parse_documents(
-        self, dataset_id: str, document_ids: list[str]
-    ) -> bool:
+    def parse_documents(self, dataset_id: str, document_ids: list[str]) -> bool:
         """
         Trigger async parsing of documents.
 
@@ -939,7 +935,9 @@ class RagflowService:
             RagFlowDocumentError: If request fails
         """
         try:
-            logger.info(f"Parsing {len(document_ids)} documents in dataset {dataset_id}")
+            logger.info(
+                f"Parsing {len(document_ids)} documents in dataset {dataset_id}"
+            )
 
             if not document_ids:
                 raise RagFlowDocumentError(
@@ -1059,9 +1057,7 @@ class RagflowService:
                 details={"error": str(e)},
             ) from e
 
-    def get_document_status(
-        self, dataset_id: str, document_id: str
-    ) -> Document | None:
+    def get_document_status(self, dataset_id: str, document_id: str) -> Document | None:
         """
         Get document processing status.
 
@@ -1076,7 +1072,9 @@ class RagflowService:
             logger.info(f"Getting status for document {document_id}")
 
             # Use list_documents with id filter
-            result = self.list_documents(dataset_id=dataset_id, document_id=document_id, page_size=1)
+            result = self.list_documents(
+                dataset_id=dataset_id, document_id=document_id, page_size=1
+            )
 
             if result.items:
                 return result.items[0]
@@ -1095,7 +1093,7 @@ class RagflowService:
         avatar: str = None,
         llm: dict = None,
         prompt: dict = None,
-        **kwargs
+        **kwargs,
     ) -> Chat:
         """
         Create a new chat assistant.
@@ -1170,7 +1168,7 @@ class RagflowService:
         dataset_ids: list[str] = None,
         llm: dict = None,
         prompt: dict = None,
-        **kwargs
+        **kwargs,
     ) -> bool:
         """
         Update a chat assistant configuration.
@@ -1217,7 +1215,9 @@ class RagflowService:
                 return True
 
             # Make request
-            response = self.http_client.put(f"/api/v1/chats/{chat_id}", json_data=payload)
+            response = self.http_client.put(
+                f"/api/v1/chats/{chat_id}", json_data=payload
+            )
             data = response.json()
 
             if data.get("code") != 0:

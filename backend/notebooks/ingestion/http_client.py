@@ -80,7 +80,9 @@ class SecureHttpClient:
         if content_disposition:
             import re
 
-            matches = re.findall(r'filename[^;=\n]*=(["\']?)([^"\';]+)\1', content_disposition)
+            matches = re.findall(
+                r'filename[^;=\n]*=(["\']?)([^"\';]+)\1', content_disposition
+            )
             if matches:
                 filename = matches[0][1]
 
@@ -132,7 +134,9 @@ class SecureHttpClient:
                     pool=10,
                 )
 
-                with httpx.Client(timeout=timeout, headers=self.headers, follow_redirects=True) as client:
+                with httpx.Client(
+                    timeout=timeout, headers=self.headers, follow_redirects=True
+                ) as client:
                     with client.stream("GET", url) as response:
                         if response.status_code != 200:
                             raise SourceError(
@@ -167,7 +171,9 @@ class SecureHttpClient:
                 )
 
                 if response.status_code != 200:
-                    raise SourceError(f"Failed to download: HTTP {response.status_code}")
+                    raise SourceError(
+                        f"Failed to download: HTTP {response.status_code}"
+                    )
 
                 # Extract filename
                 filename = self.extract_filename_from_url(url, response.headers)

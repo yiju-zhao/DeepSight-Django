@@ -38,7 +38,10 @@ def validate_url_security(
 
         # Only allow http/https
         if parsed.scheme not in ("http", "https"):
-            return False, f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed."
+            return (
+                False,
+                f"Invalid URL scheme: {parsed.scheme}. Only http/https allowed.",
+            )
 
         # Require netloc (domain/IP)
         if not parsed.netloc:

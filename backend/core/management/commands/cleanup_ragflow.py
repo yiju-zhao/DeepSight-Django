@@ -136,9 +136,7 @@ class Command(BaseCommand):
             )
         self.stdout.write("=" * 70 + "\n")
 
-    def _collect_resources(
-        self, service
-    ) -> Tuple[List[dict], List[dict], List[dict]]:
+    def _collect_resources(self, service) -> Tuple[List[dict], List[dict], List[dict]]:
         """
         Collect all RagFlow resources directly from RagFlow API.
 
@@ -170,12 +168,14 @@ class Command(BaseCommand):
             )
             for session in session_objects:
                 # Add chat info to session for display
-                all_sessions.append({
-                    "id": session.id,
-                    "name": session.name or session.id[:8],
-                    "chat_id": chat_dict["id"],
-                    "chat_name": chat_dict["name"],
-                })
+                all_sessions.append(
+                    {
+                        "id": session.id,
+                        "name": session.name or session.id[:8],
+                        "chat_id": chat_dict["id"],
+                        "chat_name": chat_dict["name"],
+                    }
+                )
         self.stdout.write(f"    Found {len(all_sessions)} total sessions")
 
         return datasets, chat_assistants, all_sessions
@@ -319,9 +319,7 @@ class Command(BaseCommand):
         )
         return success
 
-    def _cleanup_datasets(
-        self, service, datasets: List[dict], dry_run: bool
-    ) -> bool:
+    def _cleanup_datasets(self, service, datasets: List[dict], dry_run: bool) -> bool:
         """Delete all datasets from RagFlow."""
         self.stdout.write(
             self.style.NOTICE(f"\n[3/3] Deleting {len(datasets)} datasets...")
