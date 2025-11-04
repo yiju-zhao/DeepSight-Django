@@ -247,6 +247,9 @@ class SessionChatService {
               case 'token':
                 onToken(data.text || '');
                 break;
+              case 'status':
+                // Ignore status/keepalive messages
+                break;
               case 'error':
                 onError(data.message || 'Unknown error');
                 return;
