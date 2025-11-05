@@ -20,6 +20,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@geist-ui/fonts": "^1.2.0",
     "@assistant-ui/react": "^0.11.37",
     "@headlessui/react": "^2.2.4",
     "@microsoft/fetch-event-source": "^2.0.1",
