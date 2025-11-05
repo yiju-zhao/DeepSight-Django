@@ -37,6 +37,282 @@ class DocuParser(BaseParser):
         self.mineru_parse_endpoint = f"{self.mineru_base_url}/file_parse"
         self.logger = logger or logging.getLogger(__name__)
 
+        # CSS for document conversion
+        self.pptx_css = """
+        @page {
+            size: A4 landscape;
+            margin: 1.5cm;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            break-inside: auto;
+            font-size: 10pt;
+        }
+        tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        td {
+            border: 0.75pt solid #000;
+            padding: 6pt;
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+            object-fit: contain;
+        }
+        """
+
+        self.docx_css = """
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        img {
+            max-width: 100%;
+            max-height: 25cm;
+            object-fit: contain;
+            margin: 12pt auto;
+        }
+        div, p {
+            max-width: 100%;
+            word-break: break-word;
+            font-size: 10pt;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            break-inside: auto;
+            font-size: 10pt;
+        }
+        tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        td {
+            border: 0.75pt solid #000;
+            padding: 6pt;
+        }
+        """
+
+    def _convert_pptx_to_pdf(self, filepath: str) -> str:
+        """Convert PPTX to PDF and return temp PDF path."""
+        import base64
+        from pptx import Presentation
+        from pptx.enum.shapes import MSO_SHAPE_TYPE, PP_PLACEHOLDER
+        from weasyprint import CSS, HTML
+
+        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        temp_pdf_path = temp_pdf.name
+        temp_pdf.close()
+
+        try:
+            pptx = Presentation(filepath)
+            html_parts = []
+
+            for slide_index, slide in enumerate(pptx.slides):
+                html_parts.append("<section>")
+
+                # Process shapes in the slide
+                for shape in slide.shapes:
+                    if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+                        html_parts.append(self._handle_pptx_group(shape))
+                        continue
+
+                    if shape.has_table:
+                        html_parts.append(self._handle_pptx_table(shape))
+                        continue
+
+                    if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                        html_parts.append(self._handle_pptx_image(shape))
+                        continue
+
+                    if hasattr(shape, "text") and shape.text is not None:
+                        if shape.has_text_frame:
+                            html_parts.append(self._handle_pptx_text(shape))
+                        else:
+                            html_parts.append(f"<p>{self._escape_html(shape.text)}</p>")
+
+                html_parts.append("</section>")
+
+            html = "\n".join(html_parts)
+            HTML(string=html).write_pdf(temp_pdf_path, stylesheets=[CSS(string=self.pptx_css)])
+
+            return temp_pdf_path
+
+        except Exception as e:
+            if os.path.exists(temp_pdf_path):
+                os.remove(temp_pdf_path)
+            raise ParseError(f"PPTX to PDF conversion failed: {e}") from e
+
+    def _convert_docx_to_pdf(self, filepath: str) -> str:
+        """Convert DOCX to PDF and return temp PDF path."""
+        import re
+        from io import BytesIO
+        import mammoth
+        from PIL import Image
+        from weasyprint import CSS, HTML
+
+        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+        temp_pdf_path = temp_pdf.name
+        temp_pdf.close()
+
+        try:
+            with open(filepath, "rb") as docx_file:
+                result = mammoth.convert_to_html(docx_file)
+                html = result.value
+                html = self._preprocess_base64_images(html)
+
+                HTML(string=html).write_pdf(temp_pdf_path, stylesheets=[CSS(string=self.docx_css)])
+
+            return temp_pdf_path
+
+        except Exception as e:
+            if os.path.exists(temp_pdf_path):
+                os.remove(temp_pdf_path)
+            raise ParseError(f"DOCX to PDF conversion failed: {e}") from e
+
+    def _handle_pptx_group(self, group_shape) -> str:
+        """Recursively handle shapes in a group."""
+        from pptx.enum.shapes import MSO_SHAPE_TYPE
+
+        group_parts = []
+        for shape in group_shape.shapes:
+            if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
+                group_parts.append(self._handle_pptx_group(shape))
+                continue
+
+            if shape.has_table:
+                group_parts.append(self._handle_pptx_table(shape))
+                continue
+
+            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                group_parts.append(self._handle_pptx_image(shape))
+                continue
+
+            if hasattr(shape, "text"):
+                if shape.has_text_frame:
+                    group_parts.append(self._handle_pptx_text(shape))
+                else:
+                    group_parts.append(f"<p>{self._escape_html(shape.text)}</p>")
+
+        return "".join(group_parts)
+
+    def _handle_pptx_text(self, shape) -> str:
+        """Process shape text including bullet/numbered lists."""
+        from pptx.enum.shapes import PP_PLACEHOLDER
+
+        label_html_tag = "p"
+        if shape.is_placeholder:
+            placeholder_type = shape.placeholder_format.type
+            if placeholder_type in [PP_PLACEHOLDER.TITLE, PP_PLACEHOLDER.CENTER_TITLE]:
+                label_html_tag = "h3"
+            elif placeholder_type == PP_PLACEHOLDER.SUBTITLE:
+                label_html_tag = "h4"
+
+        html_parts = []
+        list_open = False
+        list_type = None
+
+        for paragraph in shape.text_frame.paragraphs:
+            p_el = paragraph._element
+            bullet_char = p_el.find(".//a:buChar", namespaces=p_el.nsmap)
+            bullet_num = p_el.find(".//a:buAutoNum", namespaces=p_el.nsmap)
+
+            is_bullet = (bullet_char is not None) or (paragraph.level > 0)
+            is_numbered = bullet_num is not None
+
+            if is_bullet or is_numbered:
+                current_list_type = "ol" if is_numbered else "ul"
+                if not list_open:
+                    list_open = True
+                    list_type = current_list_type
+                    html_parts.append(f"<{list_type}>")
+                elif list_open and list_type != current_list_type:
+                    html_parts.append(f"</{list_type}>")
+                    list_type = current_list_type
+                    html_parts.append(f"<{list_type}>")
+
+                p_text = "".join(run.text for run in paragraph.runs)
+                if p_text:
+                    html_parts.append(f"<li>{self._escape_html(p_text)}</li>")
+            else:
+                if list_open:
+                    html_parts.append(f"</{list_type}>")
+                    list_open = False
+                    list_type = None
+
+                p_text = "".join(run.text for run in paragraph.runs)
+                if p_text:
+                    html_parts.append(f"<{label_html_tag}>{self._escape_html(p_text)}</{label_html_tag}>")
+
+        if list_open:
+            html_parts.append(f"</{list_type}>")
+
+        return "".join(html_parts)
+
+    def _handle_pptx_image(self, shape) -> str:
+        """Embed image as base64 in HTML."""
+        import base64
+
+        try:
+            image = shape.image
+            image_bytes = image.blob
+            img_str = base64.b64encode(image_bytes).decode("utf-8")
+            return f"<img src='data:{image.content_type};base64,{img_str}' />"
+        except Exception as e:
+            self.logger.warning(f"Warning: image cannot be loaded: {e}")
+            return ""
+
+    def _handle_pptx_table(self, shape) -> str:
+        """Render table as HTML."""
+        table_html = ["<table border='1'>"]
+
+        for row in shape.table.rows:
+            row_html = ["<tr>"]
+            for cell in row.cells:
+                row_html.append(f"<td>{self._escape_html(cell.text)}</td>")
+            row_html.append("</tr>")
+            table_html.append("".join(row_html))
+
+        table_html.append("</table>")
+        return "".join(table_html)
+
+    def _preprocess_base64_images(self, html_content: str) -> str:
+        """Preprocess base64 images in HTML."""
+        import re
+        import base64
+        from io import BytesIO
+        from PIL import Image
+
+        pattern = r'data:([^;]+);base64,([^"\'>\s]+)'
+
+        def convert_image(match):
+            try:
+                img_data = base64.b64decode(match.group(2))
+                with BytesIO(img_data) as bio:
+                    with Image.open(bio) as img:
+                        output = BytesIO()
+                        img.save(output, format=img.format)
+                        new_base64 = base64.b64encode(output.getvalue()).decode()
+                        return f"data:{match.group(1)};base64,{new_base64}"
+            except Exception as e:
+                self.logger.error(f"Failed to process image: {e}")
+                return ""
+
+        return re.sub(pattern, convert_image, html_content)
+
+    def _escape_html(self, text: str) -> str:
+        """Minimal escaping for HTML special characters."""
+        return (
+            text.replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace('"', "&quot;")
+            .replace("'", "&#39;")
+        )
+
     async def parse(self, file_path: str, metadata: dict[str, Any]) -> ParseResult:
         """
         Parse document file (PDF, Word, PowerPoint) using MinerU, with PyMuPDF fallback for PDFs.
@@ -108,88 +384,111 @@ class DocuParser(BaseParser):
         self.logger.info(f"Starting MinerU parsing of {file_type} file: {file_path}")
         start_time = time.time()
 
-        # Generate clean filename
-        default_filename = f"document{file_extension}" if file_extension else "document.pdf"
-        original_filename = metadata.get("filename", default_filename)
-        base_title = (
-            original_filename.rsplit(".", 1)[0]
-            if "." in original_filename
-            else original_filename
-        )
-        clean_pdf_title = clean_title(base_title)
+        # Convert PPTX/DOCX to PDF if needed
+        temp_pdf_path = None
+        actual_file_path = file_path
 
-        # Call MinerU API
-        mineru_result = self._call_mineru_api(file_path)
+        try:
+            if file_extension in [".pptx", ".ppt"]:
+                self.logger.info(f"Converting {file_type} to PDF for MinerU processing")
+                temp_pdf_path = self._convert_pptx_to_pdf(file_path)
+                actual_file_path = temp_pdf_path
+            elif file_extension in [".docx", ".doc"]:
+                self.logger.info(f"Converting {file_type} to PDF for MinerU processing")
+                temp_pdf_path = self._convert_docx_to_pdf(file_path)
+                actual_file_path = temp_pdf_path
 
-        # Extract results
-        results = mineru_result.get("results", {})
-        if not results:
-            raise ParseError("No results returned from MinerU API")
+            # Generate clean filename
+            default_filename = f"document{file_extension}" if file_extension else "document.pdf"
+            original_filename = metadata.get("filename", default_filename)
+            base_title = (
+                original_filename.rsplit(".", 1)[0]
+                if "." in original_filename
+                else original_filename
+            )
+            clean_pdf_title = clean_title(base_title)
 
-        # Get first document result
-        doc_key = next(iter(results.keys()))
-        doc_result = results[doc_key]
+            # Call MinerU API with the actual file (original PDF or converted PDF)
+            mineru_result = self._call_mineru_api(actual_file_path)
 
-        # Extract markdown content and images
-        md_content = doc_result.get("md_content", "")
-        images = doc_result.get("images", {})
+            # Extract results
+            results = mineru_result.get("results", {})
+            if not results:
+                raise ParseError("No results returned from MinerU API")
 
-        # Save to temporary directory
-        temp_dir = tempfile.mkdtemp(suffix="_mineru_output")
+            # Get first document result
+            doc_key = next(iter(results.keys()))
+            doc_result = results[doc_key]
 
-        # Save markdown content
-        md_file_path = os.path.join(temp_dir, f"{doc_key}.md")
-        with open(md_file_path, "w", encoding="utf-8") as f:
-            f.write(md_content)
+            # Extract markdown content and images
+            md_content = doc_result.get("md_content", "")
+            images = doc_result.get("images", {})
 
-        # Save images
-        image_files = []
-        for img_name, img_data in images.items():
-            if img_data.startswith("data:image/"):
-                # Decode base64 images
-                header, data = img_data.split(",", 1)
-                img_bytes = base64.b64decode(data)
+            # Save to temporary directory
+            temp_dir = tempfile.mkdtemp(suffix="_mineru_output")
 
-                img_path = os.path.join(temp_dir, img_name)
-                with open(img_path, "wb") as f:
-                    f.write(img_bytes)
-                image_files.append(img_path)
+            # Save markdown content
+            md_file_path = os.path.join(temp_dir, f"{doc_key}.md")
+            with open(md_file_path, "w", encoding="utf-8") as f:
+                f.write(md_content)
 
-        self.logger.info(
-            f"Created {len(os.listdir(temp_dir))} files: "
-            f"{[os.path.basename(f) for f in [md_file_path] + image_files]}"
-        )
+            # Save images
+            image_files = []
+            for img_name, img_data in images.items():
+                if img_data.startswith("data:image/"):
+                    # Decode base64 images
+                    header, data = img_data.split(",", 1)
+                    img_bytes = base64.b64decode(data)
 
-        # Get document metadata
-        doc_metadata = self._extract_document_metadata(file_path, metadata, mineru_result)
-        doc_metadata["has_mineru_extraction"] = True
-        doc_metadata["has_markdown_content"] = bool(md_content)
-        doc_metadata["file_type"] = file_type.lower()
+                    img_path = os.path.join(temp_dir, img_name)
+                    with open(img_path, "wb") as f:
+                        f.write(img_bytes)
+                    image_files.append(img_path)
 
-        # Calculate features
-        features_available = ["advanced_pdf_extraction", "markdown_conversion"]
-        if images:
-            features_available.append("image_extraction")
-        if "table" in md_content.lower() or "|" in md_content:
-            features_available.append("table_extraction")
-        if any(marker in md_content for marker in ["$$", "$", "\\("]):
-            features_available.append("formula_extraction")
-        features_available.append("layout_analysis")
+            self.logger.info(
+                f"Created {len(os.listdir(temp_dir))} files: "
+                f"{[os.path.basename(f) for f in [md_file_path] + image_files]}"
+            )
 
-        duration = time.time() - start_time
-        self.logger.info(f"MinerU parsing completed in {duration:.2f} seconds")
+            # Get document metadata
+            doc_metadata = self._extract_document_metadata(file_path, metadata, mineru_result)
+            doc_metadata["has_mineru_extraction"] = True
+            doc_metadata["has_markdown_content"] = bool(md_content)
+            doc_metadata["file_type"] = file_type.lower()
 
-        # Return result with marker extraction info
-        return ParseResult(
-            content="",  # Empty content since MinerU files contain everything
-            metadata=doc_metadata,
-            features_available=features_available,
-            marker_extraction_result={
-                "success": True,
-                "temp_marker_dir": temp_dir,
-                "clean_title": clean_pdf_title,
-            },
-        )
+            # Calculate features
+            features_available = ["advanced_pdf_extraction", "markdown_conversion"]
+            if images:
+                features_available.append("image_extraction")
+            if "table" in md_content.lower() or "|" in md_content:
+                features_available.append("table_extraction")
+            if any(marker in md_content for marker in ["$$", "$", "\\("]):
+                features_available.append("formula_extraction")
+            features_available.append("layout_analysis")
+
+            duration = time.time() - start_time
+            self.logger.info(f"MinerU parsing completed in {duration:.2f} seconds")
+
+            # Return result with marker extraction info
+            return ParseResult(
+                content="",  # Empty content since MinerU files contain everything
+                metadata=doc_metadata,
+                features_available=features_available,
+                marker_extraction_result={
+                    "success": True,
+                    "temp_marker_dir": temp_dir,
+                    "clean_title": clean_pdf_title,
+                },
+            )
+
+        finally:
+            # Clean up temporary PDF file if it was created
+            if temp_pdf_path and os.path.exists(temp_pdf_path):
+                try:
+                    os.remove(temp_pdf_path)
+                    self.logger.debug(f"Cleaned up temporary PDF: {temp_pdf_path}")
+                except Exception as e:
+                    self.logger.warning(f"Failed to clean up temporary PDF: {e}")
 
     async def _parse_with_pymupdf(
         self, file_path: str, metadata: dict[str, Any]
