@@ -44,10 +44,6 @@ PyPDF
 PyMuPDF
 python-magic
 markdown-pdf
-python-pptx
-python-docx
-weasyprint
-mammoth
 
 # Image Processing
 Pillow
