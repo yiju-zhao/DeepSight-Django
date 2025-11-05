@@ -100,10 +100,19 @@ class MinIOPostProcessor:
                                     for fig in figure_data:
                                         image_path = fig.get("image_path", "")
                                         if image_path:
-                                            # Extract just the filename from the path
-                                            referenced_images.add(
-                                                os.path.basename(image_path)
-                                            )
+                                            # Extract filename and add variations for matching
+                                            full_name = os.path.basename(image_path)
+                                            base_name = os.path.splitext(full_name)[0]
+
+                                            # Add both full filename and base name
+                                            referenced_images.add(full_name)
+                                            referenced_images.add(base_name)
+
+                                    self.log_operation(
+                                        "extract_figures_success",
+                                        f"Found {len(figure_data)} image references in markdown: "
+                                        f"{[fig.get('image_path', '') for fig in figure_data]}"
+                                    )
                                 except Exception as e:
                                     self.log_operation(
                                         "extract_figures_error",
@@ -134,17 +143,31 @@ class MinIOPostProcessor:
                             )
 
                         elif file.endswith((".jpg", ".jpeg", ".png", ".gif", ".svg")):
-                            # Only process images that are referenced in the markdown
-                            if file in referenced_images:
-                                image_files.append(
-                                    self._process_image_file(
+                            # Enhanced image matching: check full filename, base name, and partial matches
+                            file_base = os.path.splitext(file)[0]
+                            is_referenced = (
+                                file in referenced_images or  # Exact match
+                                file_base in referenced_images or  # Base name match
+                                any(ref in file or file in ref for ref in referenced_images if len(ref) > 3)  # Partial match (avoid short refs)
+                            )
+
+                            if is_referenced:
+                                try:
+                                    result = self._process_image_file(
                                         file, file_content, kb_item
                                     )
-                                )
+                                    image_files.append(result)
+                                except Exception as e:
+                                    self.log_operation(
+                                        "image_processing_error",
+                                        f"Failed to process image {file}: {str(e)}",
+                                        "error",
+                                    )
                             else:
                                 self.log_operation(
                                     "skip_unreferenced_image",
-                                    f"Skipping unreferenced image: {file}",
+                                    f"Skipping unreferenced image: {file} "
+                                    f"(not in {len(referenced_images)} referenced images)",
                                 )
 
                         else:
@@ -229,13 +252,15 @@ class MinIOPostProcessor:
         content_type, _ = mimetypes.guess_type(target_filename)
         content_type = content_type or "application/octet-stream"
 
-        # Create KnowledgeBaseImage record first to get ID
+        # Import KnowledgeBaseImage model
         from ..models import KnowledgeBaseImage
 
-        # Create a temporary record to get the ID
+        # Step 1: Create and save KnowledgeBaseImage record FIRST to get an ID
+        # Use a placeholder for minio_object_key temporarily
         kb_image = KnowledgeBaseImage(
             knowledge_base_item=kb_item,
             image_caption="",  # Will be filled later if caption data is available
+            minio_object_key="placeholder",  # Temporary value to satisfy constraint
             content_type=content_type,
             file_size=len(file_content),
             image_metadata={
@@ -248,28 +273,36 @@ class MinIOPostProcessor:
             },
         )
 
-        # Store in MinIO using file ID structure with images subfolder and UUID
-        object_key = self.file_storage.minio_backend.save_file_with_auto_key(
-            content=file_content,
-            filename=target_filename,
-            prefix="kb",
-            content_type=content_type,
-            metadata={
-                "kb_item_id": str(kb_item.id),
-                "user_id": str(kb_item.notebook.user.id),
-                "file_type": "mineru_image",
-                "original_file": file,
-            },
-            user_id=str(kb_item.notebook.user.id),
-            file_id=str(kb_item.id),
-            subfolder="images",
-            subfolder_uuid=str(kb_image.id),
-        )
-
-        # Now set the object key and save the record
         try:
-            kb_image.minio_object_key = object_key
+            # Save first to generate the ID
             kb_image.save()
+
+            # Step 2: Now use the generated ID for MinIO storage
+            object_key = self.file_storage.minio_backend.save_file_with_auto_key(
+                content=file_content,
+                filename=target_filename,
+                prefix="kb",
+                content_type=content_type,
+                metadata={
+                    "kb_item_id": str(kb_item.id),
+                    "kb_image_id": str(kb_image.id),  # Add the image ID for reference
+                    "user_id": str(kb_item.notebook.user.id),
+                    "file_type": "mineru_image",
+                    "original_file": file,
+                },
+                user_id=str(kb_item.notebook.user.id),
+                file_id=str(kb_item.id),
+                subfolder="images",
+                subfolder_uuid=str(kb_image.id),  # Now kb_image.id exists!
+            )
+
+            # Validate that we got a valid object key
+            if not object_key:
+                raise ValueError(f"MinIO returned empty object key for {target_filename}")
+
+            # Step 3: Update the record with the actual MinIO object key
+            kb_image.minio_object_key = object_key
+            kb_image.save(update_fields=["minio_object_key"])
 
             self.log_operation(
                 "mineru_image_db_created",
@@ -279,9 +312,24 @@ class MinIOPostProcessor:
         except Exception as e:
             self.log_operation(
                 "mineru_image_db_error",
-                f"Failed to create KnowledgeBaseImage record for {target_filename}: {str(e)}",
+                f"Failed to create KnowledgeBaseImage record for {target_filename}: {str(e)}\n"
+                f"  kb_item_id={kb_item.id}\n"
+                f"  file_size={len(file_content)}\n"
+                f"  content_type={content_type}",
                 "error",
             )
+            # Clean up the database record if MinIO save failed
+            if kb_image.id:
+                try:
+                    kb_image.delete()
+                    self.log_operation(
+                        "mineru_image_cleanup",
+                        f"Cleaned up failed KnowledgeBaseImage record: id={kb_image.id}",
+                    )
+                except Exception:
+                    pass
+            # Re-raise to prevent silent failures
+            raise
 
         return {
             "original_filename": file,

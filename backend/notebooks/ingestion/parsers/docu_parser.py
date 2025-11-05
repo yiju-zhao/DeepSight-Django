@@ -424,6 +424,23 @@ class DocuParser(BaseParser):
             md_content = doc_result.get("md_content", "")
             images = doc_result.get("images", {})
 
+            # Validate MinerU output
+            if not md_content:
+                self.logger.warning(
+                    f"MinerU returned no markdown content for {original_filename}"
+                )
+
+            if not images:
+                self.logger.info(
+                    f"MinerU extracted no images from {original_filename} "
+                    "(document may not contain images or images may not be extractable)"
+                )
+            else:
+                self.logger.info(
+                    f"MinerU extracted {len(images)} images from {original_filename}: "
+                    f"{list(images.keys())}"
+                )
+
             # Save to temporary directory
             temp_dir = tempfile.mkdtemp(suffix="_mineru_output")
 
@@ -434,20 +451,42 @@ class DocuParser(BaseParser):
 
             # Save images
             image_files = []
+            failed_images = []
             for img_name, img_data in images.items():
-                if img_data.startswith("data:image/"):
-                    # Decode base64 images
-                    header, data = img_data.split(",", 1)
-                    img_bytes = base64.b64decode(data)
+                try:
+                    if img_data.startswith("data:image/"):
+                        # Decode base64 images
+                        header, data = img_data.split(",", 1)
+                        img_bytes = base64.b64decode(data)
 
-                    img_path = os.path.join(temp_dir, img_name)
-                    with open(img_path, "wb") as f:
-                        f.write(img_bytes)
-                    image_files.append(img_path)
+                        img_path = os.path.join(temp_dir, img_name)
+                        with open(img_path, "wb") as f:
+                            f.write(img_bytes)
+                        image_files.append(img_path)
+                        self.logger.debug(
+                            f"Saved image {img_name}: {len(img_bytes)} bytes"
+                        )
+                    else:
+                        self.logger.warning(
+                            f"Skipping image {img_name}: invalid data format "
+                            f"(expected data:image/*, got: {img_data[:50]}...)"
+                        )
+                        failed_images.append(img_name)
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to decode/save image {img_name}: {str(e)}"
+                    )
+                    failed_images.append(img_name)
+
+            # Log summary
+            if failed_images:
+                self.logger.warning(
+                    f"Failed to save {len(failed_images)} images: {failed_images}"
+                )
 
             self.logger.info(
-                f"Created {len(os.listdir(temp_dir))} files: "
-                f"{[os.path.basename(f) for f in [md_file_path] + image_files]}"
+                f"Created {len(os.listdir(temp_dir))} files in temp directory: "
+                f"1 markdown file, {len(image_files)} images"
             )
 
             # Get document metadata
