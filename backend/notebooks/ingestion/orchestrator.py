@@ -176,9 +176,9 @@ class IngestionOrchestrator:
             )
 
             # Step 4: Post-process MinerU extractions
-            if parse_result.marker_extraction_result:
+            if parse_result.mineru_extraction_result:
                 await self._post_process_mineru(
-                    file_id, parse_result.marker_extraction_result
+                    file_id, parse_result.mineru_extraction_result
                 )
 
             # Step 5: Clean up temp files
@@ -270,9 +270,9 @@ class IngestionOrchestrator:
             )
 
             # Post-process MinerU extractions
-            if parse_result.marker_extraction_result:
+            if parse_result.mineru_extraction_result:
                 await self._post_process_mineru(
-                    file_id, parse_result.marker_extraction_result
+                    file_id, parse_result.mineru_extraction_result
                 )
 
             return IngestionResult(
@@ -335,9 +335,9 @@ class IngestionOrchestrator:
 
 
             # For MinerU PDFs, skip content file and potentially use a more specific title
-            if parse_result.marker_extraction_result:
+            if parse_result.mineru_extraction_result:
                 processing_result["skip_content_file"] = True
-                mineru_clean_title = parse_result.marker_extraction_result.get("clean_title")
+                mineru_clean_title = parse_result.mineru_extraction_result.get("clean_title")
                 if mineru_clean_title:
                     processing_result["content_filename"] = f"{mineru_clean_title}.md"
 
@@ -368,7 +368,7 @@ class IngestionOrchestrator:
     async def _post_process_mineru(
         self,
         file_id: str,
-        marker_extraction_result: dict[str, Any],
+        mineru_extraction_result: dict[str, Any],
     ):
         """Post-process MinerU extraction results."""
         try:
@@ -379,7 +379,7 @@ class IngestionOrchestrator:
                 thread_sensitive=False,
             )
 
-            await post_process_sync(file_id, marker_extraction_result)
+            await post_process_sync(file_id, mineru_extraction_result)
 
             self.logger.info(f"Completed MinerU post-processing for file {file_id}")
 

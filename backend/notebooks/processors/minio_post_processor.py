@@ -31,20 +31,44 @@ class MinIOPostProcessor:
             message += f": {details}"
         getattr(self.logger, level)(message)
 
+    def _should_filter_images(self, kb_item) -> bool:
+        """
+        Determine if images should be filtered based on markdown references.
+
+        Returns:
+            True: Filter images (only save referenced ones) - for PDFs
+            False: Save all images (no filtering) - for PowerPoint, Word
+        """
+        if not kb_item or not kb_item.metadata:
+            return True  # Default to filtering for safety
+
+        # Get file type from metadata
+        file_type = kb_item.metadata.get("file_type", "").lower()
+        file_extension = kb_item.metadata.get("file_extension", "").lower()
+
+        # PowerPoint and Word: save all images (no filtering)
+        if file_type in ["powerpoint", "word"]:
+            return False
+        if file_extension in [".ppt", ".pptx", ".doc", ".docx"]:
+            return False
+
+        # PDF: filter images (only save referenced ones)
+        return True
+
     def post_process_mineru_extraction(
-        self, file_id: str, marker_extraction_result: dict[str, Any]
+        self, file_id: str, mineru_extraction_result: dict[str, Any]
     ):
         """
-        Post-process MinerU PDF extraction results by storing them in MinIO.
+        Post-process MinerU extraction results by storing them in MinIO.
         This replaces the file system organization with MinIO object storage.
         """
         try:
-            if not marker_extraction_result.get("success"):
+            if not mineru_extraction_result.get("success"):
                 return
 
-            temp_marker_dir = marker_extraction_result.get("temp_marker_dir")
+            temp_mineru_dir = mineru_extraction_result.get("temp_mineru_dir")
 
-            if not temp_marker_dir or not os.path.exists(temp_marker_dir):
+            if not temp_mineru_dir or not os.path.exists(temp_mineru_dir):
                 return
 
             # Get the MinIO storage service
@@ -71,7 +95,16 @@ class MinIOPostProcessor:
                     return
 
                 # Get clean title for file organization
-                clean_title = marker_extraction_result.get("clean_title", "document")
+                clean_title = mineru_extraction_result.get("clean_title", "document")
+
+                # Determine image filtering strategy based on document type
+                should_filter = self._should_filter_images(kb_item)
+                file_type = kb_item.metadata.get("file_type", "unknown") if kb_item.metadata else "unknown"
+
+                self.log_operation(
+                    "image_processing_strategy",
+                    f"Document type: {file_type}, Image filtering: {'enabled (PDF)' if should_filter else 'disabled (PPT/Word - save all images)'}"
+                )
 
                 # Process files from temp directory and store in MinIO
                 content_files = []
@@ -79,8 +112,8 @@ class MinIOPostProcessor:
                 markdown_content = None
                 referenced_images = set()
 
-                # First pass: extract markdown and find referenced images
-                for root, _, files in os.walk(temp_marker_dir):
+                # First pass: extract markdown and find referenced images (only if filtering is enabled)
+                for root, _, files in os.walk(temp_mineru_dir):
                     for file in files:
                         if file.endswith(".md"):
                             source_file = os.path.join(root, file)
@@ -91,8 +124,8 @@ class MinIOPostProcessor:
                                 )
                                 kb_item.content = markdown_content
 
-                            # Extract referenced images from markdown
-                            if extract_figure_data_from_markdown:
+                            # Extract referenced images from markdown (only for PDFs)
+                            if should_filter and extract_figure_data_from_markdown:
                                 try:
                                     figure_data = extract_figure_data_from_markdown(
                                         source_file
@@ -110,7 +143,7 @@ class MinIOPostProcessor:
 
                                     self.log_operation(
                                         "extract_figures_success",
-                                        f"Found {len(figure_data)} image references in markdown: "
+                                        f"Found {len(figure_data)} image references in markdown (PDF filtering): "
                                         f"{[fig.get('image_path', '') for fig in figure_data]}"
                                     )
                                 except Exception as e:
@@ -122,7 +155,7 @@ class MinIOPostProcessor:
                             break
 
                 # Second pass: process files, filtering images by references
-                for root, _, files in os.walk(temp_marker_dir):
+                for root, _, files in os.walk(temp_mineru_dir):
                     for file in files:
                         source_file = os.path.join(root, file)
 
@@ -143,15 +176,23 @@ class MinIOPostProcessor:
                             )
 
                         elif file.endswith((".jpg", ".jpeg", ".png", ".gif", ".svg")):
-                            # Enhanced image matching: check full filename, base name, and partial matches
-                            file_base = os.path.splitext(file)[0]
-                            is_referenced = (
-                                file in referenced_images or  # Exact match
-                                file_base in referenced_images or  # Base name match
-                                any(ref in file or file in ref for ref in referenced_images if len(ref) > 3)  # Partial match (avoid short refs)
-                            )
+                            # Determine if image should be saved based on filtering strategy
+                            should_save_image = False
 
-                            if is_referenced:
+                            if not should_filter:
+                                # PPT/Word: Save all images
+                                should_save_image = True
+                            else:
+                                # PDF: Only save referenced images
+                                file_base = os.path.splitext(file)[0]
+                                is_referenced = (
+                                    file in referenced_images or  # Exact match
+                                    file_base in referenced_images or  # Base name match
+                                    any(ref in file or file in ref for ref in referenced_images if len(ref) > 3)  # Partial match (avoid short refs)
+                                )
+                                should_save_image = is_referenced
+
+                            if should_save_image:
                                 try:
                                     result = self._process_image_file(
                                         file, file_content, kb_item
@@ -167,7 +208,7 @@ class MinIOPostProcessor:
                                 self.log_operation(
                                     "skip_unreferenced_image",
                                     f"Skipping unreferenced image: {file} "
-                                    f"(not in {len(referenced_images)} referenced images)",
+                                    f"(PDF filtering: not in {len(referenced_images)} referenced images)",
                                 )
 
                         else:
@@ -182,7 +223,7 @@ class MinIOPostProcessor:
                 self._log_processing_summary(content_files, image_files)
 
                 # Clean up the temp directory
-                self._cleanup_temp_directory(temp_marker_dir)
+                self._cleanup_temp_directory(temp_mineru_dir)
 
             except Exception as e:
                 self.log_operation(
@@ -198,9 +239,9 @@ class MinIOPostProcessor:
                 "error",
             )
             # Clean up temp directory if it still exists
-            temp_marker_dir = marker_extraction_result.get("temp_marker_dir")
-            if temp_marker_dir and os.path.exists(temp_marker_dir):
-                self._cleanup_temp_directory(temp_marker_dir)
+            temp_mineru_dir = marker_extraction_result.get("temp_mineru_dir")
+            if temp_mineru_dir and os.path.exists(temp_mineru_dir):
+                self._cleanup_temp_directory(temp_mineru_dir)
 
     def _process_content_file(
         self, file: str, file_content: bytes, clean_title: str, kb_item
@@ -400,14 +441,14 @@ class MinIOPostProcessor:
                 "mineru_image_files_minio", f"Image files stored: {image_file_names}"
             )
 
-    def _cleanup_temp_directory(self, temp_marker_dir: str):
+    def _cleanup_temp_directory(self, temp_mineru_dir: str):
         """Clean up temporary directory."""
         try:
             import shutil
 
-            shutil.rmtree(temp_marker_dir)
+            shutil.rmtree(temp_mineru_dir)
             self.log_operation(
-                "mineru_cleanup", f"Cleaned up temporary directory: {temp_marker_dir}"
+                "mineru_cleanup", f"Cleaned up temporary directory: {temp_mineru_dir}"
             )
         except Exception as cleanup_error:
             self.log_operation(

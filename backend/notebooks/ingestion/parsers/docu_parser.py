@@ -6,6 +6,7 @@ import base64
 import json
 import logging
 import os
+import subprocess
 import tempfile
 import time
 from typing import Any, Optional
@@ -37,281 +38,59 @@ class DocuParser(BaseParser):
         self.mineru_parse_endpoint = f"{self.mineru_base_url}/file_parse"
         self.logger = logger or logging.getLogger(__name__)
 
-        # CSS for document conversion
-        self.pptx_css = """
-        @page {
-            size: A4 landscape;
-            margin: 1.5cm;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            break-inside: auto;
-            font-size: 10pt;
-        }
-        tr {
-            break-inside: avoid;
-            page-break-inside: avoid;
-        }
-        td {
-            border: 0.75pt solid #000;
-            padding: 6pt;
-        }
-        img {
-            max-width: 100%;
-            height: auto;
-            object-fit: contain;
-        }
-        """
-
-        self.docx_css = """
-        @page {
-            size: A4;
-            margin: 2cm;
-        }
-        img {
-            max-width: 100%;
-            max-height: 25cm;
-            object-fit: contain;
-            margin: 12pt auto;
-        }
-        div, p {
-            max-width: 100%;
-            word-break: break-word;
-            font-size: 10pt;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            break-inside: auto;
-            font-size: 10pt;
-        }
-        tr {
-            break-inside: avoid;
-            page-break-inside: avoid;
-        }
-        td {
-            border: 0.75pt solid #000;
-            padding: 6pt;
-        }
-        """
+        # No CSS needed; using LibreOffice for conversions
 
     def _convert_pptx_to_pdf(self, filepath: str) -> str:
-        """Convert PPTX to PDF and return temp PDF path."""
-        import base64
-        from pptx import Presentation
-        from pptx.enum.shapes import MSO_SHAPE_TYPE, PP_PLACEHOLDER
-        from weasyprint import CSS, HTML
-
-        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-        temp_pdf_path = temp_pdf.name
-        temp_pdf.close()
-
+        """Convert PPT/PPTX to PDF using LibreOffice headless and return temp PDF path."""
+        outdir = tempfile.mkdtemp(prefix="lo_ppt_", suffix="_to_pdf")
         try:
-            pptx = Presentation(filepath)
-            html_parts = []
-
-            for slide_index, slide in enumerate(pptx.slides):
-                html_parts.append("<section>")
-
-                # Process shapes in the slide
-                for shape in slide.shapes:
-                    if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-                        html_parts.append(self._handle_pptx_group(shape))
-                        continue
-
-                    if shape.has_table:
-                        html_parts.append(self._handle_pptx_table(shape))
-                        continue
-
-                    if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
-                        html_parts.append(self._handle_pptx_image(shape))
-                        continue
-
-                    if hasattr(shape, "text") and shape.text is not None:
-                        if shape.has_text_frame:
-                            html_parts.append(self._handle_pptx_text(shape))
-                        else:
-                            html_parts.append(f"<p>{self._escape_html(shape.text)}</p>")
-
-                html_parts.append("</section>")
-
-            html = "\n".join(html_parts)
-            HTML(string=html).write_pdf(temp_pdf_path, stylesheets=[CSS(string=self.pptx_css)])
-
-            return temp_pdf_path
-
+            cmd = [
+                "libreoffice",
+                "--headless",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                outdir,
+                filepath,
+            ]
+            subprocess.run(cmd, check=True)
+            out_pdf = os.path.join(
+                outdir, os.path.splitext(os.path.basename(filepath))[0] + ".pdf"
+            )
+            if not os.path.exists(out_pdf):
+                raise ParseError(
+                    f"PPT/PPTX to PDF conversion produced no output for {filepath}"
+                )
+            return out_pdf
         except Exception as e:
-            if os.path.exists(temp_pdf_path):
-                os.remove(temp_pdf_path)
-            raise ParseError(f"PPTX to PDF conversion failed: {e}") from e
+            raise ParseError(f"PPT/PPTX to PDF conversion failed: {e}") from e
 
     def _convert_docx_to_pdf(self, filepath: str) -> str:
-        """Convert DOCX to PDF and return temp PDF path."""
-        import re
-        from io import BytesIO
-        import mammoth
-        from PIL import Image
-        from weasyprint import CSS, HTML
-
-        temp_pdf = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-        temp_pdf_path = temp_pdf.name
-        temp_pdf.close()
-
+        """Convert DOC/DOCX to PDF using LibreOffice headless and return temp PDF path."""
+        outdir = tempfile.mkdtemp(prefix="lo_doc_", suffix="_to_pdf")
         try:
-            with open(filepath, "rb") as docx_file:
-                result = mammoth.convert_to_html(docx_file)
-                html = result.value
-                html = self._preprocess_base64_images(html)
-
-                HTML(string=html).write_pdf(temp_pdf_path, stylesheets=[CSS(string=self.docx_css)])
-
-            return temp_pdf_path
-
+            cmd = [
+                "libreoffice",
+                "--headless",
+                "--convert-to",
+                "pdf",
+                "--outdir",
+                outdir,
+                filepath,
+            ]
+            subprocess.run(cmd, check=True)
+            out_pdf = os.path.join(
+                outdir, os.path.splitext(os.path.basename(filepath))[0] + ".pdf"
+            )
+            if not os.path.exists(out_pdf):
+                raise ParseError(
+                    f"DOC/DOCX to PDF conversion produced no output for {filepath}"
+                )
+            return out_pdf
         except Exception as e:
-            if os.path.exists(temp_pdf_path):
-                os.remove(temp_pdf_path)
-            raise ParseError(f"DOCX to PDF conversion failed: {e}") from e
+            raise ParseError(f"DOC/DOCX to PDF conversion failed: {e}") from e
 
-    def _handle_pptx_group(self, group_shape) -> str:
-        """Recursively handle shapes in a group."""
-        from pptx.enum.shapes import MSO_SHAPE_TYPE
-
-        group_parts = []
-        for shape in group_shape.shapes:
-            if shape.shape_type == MSO_SHAPE_TYPE.GROUP:
-                group_parts.append(self._handle_pptx_group(shape))
-                continue
-
-            if shape.has_table:
-                group_parts.append(self._handle_pptx_table(shape))
-                continue
-
-            if shape.shape_type == MSO_SHAPE_TYPE.PICTURE:
-                group_parts.append(self._handle_pptx_image(shape))
-                continue
-
-            if hasattr(shape, "text"):
-                if shape.has_text_frame:
-                    group_parts.append(self._handle_pptx_text(shape))
-                else:
-                    group_parts.append(f"<p>{self._escape_html(shape.text)}</p>")
-
-        return "".join(group_parts)
-
-    def _handle_pptx_text(self, shape) -> str:
-        """Process shape text including bullet/numbered lists."""
-        from pptx.enum.shapes import PP_PLACEHOLDER
-
-        label_html_tag = "p"
-        if shape.is_placeholder:
-            placeholder_type = shape.placeholder_format.type
-            if placeholder_type in [PP_PLACEHOLDER.TITLE, PP_PLACEHOLDER.CENTER_TITLE]:
-                label_html_tag = "h3"
-            elif placeholder_type == PP_PLACEHOLDER.SUBTITLE:
-                label_html_tag = "h4"
-
-        html_parts = []
-        list_open = False
-        list_type = None
-
-        for paragraph in shape.text_frame.paragraphs:
-            p_el = paragraph._element
-            bullet_char = p_el.find(".//a:buChar", namespaces=p_el.nsmap)
-            bullet_num = p_el.find(".//a:buAutoNum", namespaces=p_el.nsmap)
-
-            is_bullet = (bullet_char is not None) or (paragraph.level > 0)
-            is_numbered = bullet_num is not None
-
-            if is_bullet or is_numbered:
-                current_list_type = "ol" if is_numbered else "ul"
-                if not list_open:
-                    list_open = True
-                    list_type = current_list_type
-                    html_parts.append(f"<{list_type}>")
-                elif list_open and list_type != current_list_type:
-                    html_parts.append(f"</{list_type}>")
-                    list_type = current_list_type
-                    html_parts.append(f"<{list_type}>")
-
-                p_text = "".join(run.text for run in paragraph.runs)
-                if p_text:
-                    html_parts.append(f"<li>{self._escape_html(p_text)}</li>")
-            else:
-                if list_open:
-                    html_parts.append(f"</{list_type}>")
-                    list_open = False
-                    list_type = None
-
-                p_text = "".join(run.text for run in paragraph.runs)
-                if p_text:
-                    html_parts.append(f"<{label_html_tag}>{self._escape_html(p_text)}</{label_html_tag}>")
-
-        if list_open:
-            html_parts.append(f"</{list_type}>")
-
-        return "".join(html_parts)
-
-    def _handle_pptx_image(self, shape) -> str:
-        """Embed image as base64 in HTML."""
-        import base64
-
-        try:
-            image = shape.image
-            image_bytes = image.blob
-            img_str = base64.b64encode(image_bytes).decode("utf-8")
-            return f"<img src='data:{image.content_type};base64,{img_str}' />"
-        except Exception as e:
-            self.logger.warning(f"Warning: image cannot be loaded: {e}")
-            return ""
-
-    def _handle_pptx_table(self, shape) -> str:
-        """Render table as HTML."""
-        table_html = ["<table border='1'>"]
-
-        for row in shape.table.rows:
-            row_html = ["<tr>"]
-            for cell in row.cells:
-                row_html.append(f"<td>{self._escape_html(cell.text)}</td>")
-            row_html.append("</tr>")
-            table_html.append("".join(row_html))
-
-        table_html.append("</table>")
-        return "".join(table_html)
-
-    def _preprocess_base64_images(self, html_content: str) -> str:
-        """Preprocess base64 images in HTML."""
-        import re
-        import base64
-        from io import BytesIO
-        from PIL import Image
-
-        pattern = r'data:([^;]+);base64,([^"\'>\s]+)'
-
-        def convert_image(match):
-            try:
-                img_data = base64.b64decode(match.group(2))
-                with BytesIO(img_data) as bio:
-                    with Image.open(bio) as img:
-                        output = BytesIO()
-                        img.save(output, format=img.format)
-                        new_base64 = base64.b64encode(output.getvalue()).decode()
-                        return f"data:{match.group(1)};base64,{new_base64}"
-            except Exception as e:
-                self.logger.error(f"Failed to process image: {e}")
-                return ""
-
-        return re.sub(pattern, convert_image, html_content)
-
-    def _escape_html(self, text: str) -> str:
-        """Minimal escaping for HTML special characters."""
-        return (
-            text.replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-            .replace("'", "&#39;")
-        )
+    # Removed HTML-based PPTX/DOCX helpers; LibreOffice handles formatting directly
 
     async def parse(self, file_path: str, metadata: dict[str, Any]) -> ParseResult:
         """
@@ -322,7 +101,7 @@ class DocuParser(BaseParser):
             metadata: File metadata (filename, extension, etc.)
 
         Returns:
-            ParseResult with content, metadata, and optional marker_extraction_result
+            ParseResult with content, metadata, and optional mineru_extraction_result
         """
         file_extension = metadata.get("file_extension", "").lower()
         is_pdf = file_extension == ".pdf"
@@ -508,14 +287,14 @@ class DocuParser(BaseParser):
             duration = time.time() - start_time
             self.logger.info(f"MinerU parsing completed in {duration:.2f} seconds")
 
-            # Return result with marker extraction info
+            # Return result with MinerU extraction info
             return ParseResult(
                 content="",  # Empty content since MinerU files contain everything
                 metadata=doc_metadata,
                 features_available=features_available,
-                marker_extraction_result={
+                mineru_extraction_result={
                     "success": True,
-                    "temp_marker_dir": temp_dir,
+                    "temp_mineru_dir": temp_dir,
                     "clean_title": clean_pdf_title,
                 },
             )
