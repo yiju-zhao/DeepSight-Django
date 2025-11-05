@@ -537,8 +537,16 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
     switch (preview.type) {
       case PREVIEW_TYPES.TEXT_CONTENT:
-        // Check if this is a PDF with parsed content
-        return preview.isPdfPreview ? renderPdfContentPreview() : renderTextPreview();
+        // Check file type for specialized rendering
+        if (preview.isPdfPreview) {
+          return renderPdfContentPreview();
+        }
+        // Check if this is an Excel file
+        const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
+        if (['.xlsx', '.xls'].includes(fileExt)) {
+          return renderExcelContentPreview();
+        }
+        return renderTextPreview();
       case PREVIEW_TYPES.URL_INFO:
         return renderUrlPreview();
       case PREVIEW_TYPES.AUDIO_INFO:
@@ -563,9 +571,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     // Determine the appropriate icon based on file extension
     const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
     const isPresentation = ['.ppt', '.pptx'].includes(fileExt);
-    const isSpreadsheet = ['.xlsx', '.xls'].includes(fileExt);
-    const IconComponent = isPresentation ? Presentation : (isSpreadsheet ? FileSpreadsheet : FileText);
-    const iconColor = isPresentation ? 'text-orange-500' : (isSpreadsheet ? 'text-green-600' : 'text-blue-500');
+    const IconComponent = isPresentation ? Presentation : FileText;
+    const iconColor = isPresentation ? 'text-orange-500' : 'text-blue-500';
 
     return (
       <div className="space-y-4">
@@ -576,36 +583,14 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
 
         <div className="flex flex-wrap gap-2 mb-4">
-          {isSpreadsheet && preview.metadata?.sheet_count && (
-            <Badge variant="secondary">
-              <FileSpreadsheet className="h-3 w-3 mr-1" />
-              {preview.metadata.sheet_count} {preview.metadata.sheet_count === 1 ? 'sheet' : 'sheets'}
-            </Badge>
-          )}
-          {isSpreadsheet && preview.metadata?.total_rows !== undefined && (
-            <Badge variant="secondary">
-              <FileText className="h-3 w-3 mr-1" />
-              {preview.metadata.total_rows} rows
-            </Badge>
-          )}
-          {isSpreadsheet && preview.metadata?.total_columns !== undefined && (
-            <Badge variant="secondary">
-              <FileText className="h-3 w-3 mr-1" />
-              {preview.metadata.total_columns} columns
-            </Badge>
-          )}
-          {!isSpreadsheet && (
-            <>
-              <Badge variant="secondary">
-                <HardDrive className="h-3 w-3 mr-1" />
-                {preview.wordCount} words
-              </Badge>
-              <Badge variant="secondary">
-                <FileText className="h-3 w-3 mr-1" />
-                {preview.lines || 0} lines
-              </Badge>
-            </>
-          )}
+          <Badge variant="secondary">
+            <HardDrive className="h-3 w-3 mr-1" />
+            {preview.wordCount} words
+          </Badge>
+          <Badge variant="secondary">
+            <FileText className="h-3 w-3 mr-1" />
+            {preview.lines || 0} lines
+          </Badge>
           {preview.fileSize && (
             <Badge variant="secondary">
               <HardDrive className="h-3 w-3 mr-1" />
@@ -1083,116 +1068,238 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     );
   };
 
-  const renderPdfContentPreview = () => {
+  // Generic document preview renderer for PDF and Excel files
+  const renderDocumentPreview = (config: {
+    documentType: 'pdf' | 'excel';
+    title: string;
+    icon: React.ComponentType<any>;
+    colorScheme: {
+      gradient: string;
+      border: string;
+      iconBg: string;
+    };
+    badges: React.ReactNode[];
+    actionButton: {
+      label: string;
+      icon: React.ComponentType<any>;
+      onClick: () => Promise<void>;
+    };
+    content: string;
+  }) => {
     if (!preview) return null;
-    
+
+    const { documentType, title, icon: Icon, colorScheme, badges, actionButton, content } = config;
+
     return (
       <div className="space-y-6">
-      {/* PDF Header with Action Buttons */}
-      <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg p-4 border border-red-200">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center flex-shrink-0">
-              <FileText className="h-5 w-5 text-white" />
-            </div>
-            <div className="flex-1">
-              <h4 className="text-base font-semibold text-gray-900 mb-3">PDF Document (Parsed Content)</h4>
-              {/* Document Stats - aligned with title */}
-              <div className="flex flex-wrap gap-2 -ml-1">
-                <Badge variant="secondary">
-                  <FileText className="h-3 w-3 mr-1" />
-                  {preview.wordCount} words
-                </Badge>
-                <Badge variant="secondary">
-                  <HardDrive className="h-3 w-3 mr-1" />
-                  {preview.fileSize}
-                </Badge>
+        {/* Document Header with Action Buttons */}
+        <div className={`bg-gradient-to-r ${colorScheme.gradient} rounded-lg p-4 border ${colorScheme.border}`}>
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-3">
+              <div className={`w-10 h-10 ${colorScheme.iconBg} rounded-full flex items-center justify-center flex-shrink-0`}>
+                <Icon className="h-5 w-5 text-white" />
+              </div>
+              <div className="flex-1">
+                <h4 className="text-base font-semibold text-gray-900 mb-3">{title}</h4>
+                {/* Document Stats */}
+                <div className="flex flex-wrap gap-2 -ml-1">
+                  {badges}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2 h-full pt-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={async () => {
-                try {
-                  if (!source.id || !notebookId) {
-                    console.error('Missing file ID or notebook ID for PDF view');
-                    return;
-                  }
-
-                  const pdfUrl = getFileUrl(source.id, 'inline');
-                  console.log('Opening PDF with URL:', pdfUrl);
-
-                  // Try direct URL first (works best for authenticated endpoints)
-                  try {
-                    // Test if the URL is accessible
-                    const testResponse = await fetch(pdfUrl, {
-                      method: 'HEAD',
-                      credentials: 'include'
-                    });
-
-                    if (testResponse.ok) {
-                      // Direct URL works - open it directly
-                      window.open(pdfUrl, '_blank');
-                      return;
-                    }
-                  } catch (directError) {
-                    console.log('Direct URL failed, trying blob approach:', directError);
-                  }
-
-                  // Fallback: Create blob URL
-                  const response = await fetch(pdfUrl, {
-                    credentials: 'include'
-                  });
-
-                  if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                  }
-
-                  const blob = await response.blob();
-
-                  // Verify it's actually a PDF
-                  if (!blob.type.includes('pdf') && blob.size > 0) {
-                    console.warn('Response may not be a PDF:', blob.type);
-                  }
-
-                  const result = createSecureBlob([blob], { type: 'application/pdf' });
-
-                  // Open blob URL in new tab
-                  const newTab = window.open(result.url, '_blank');
-
-                  if (!newTab) {
-                    throw new Error('Popup blocked - please allow popups for this site');
-                  }
-
-                  // Clean up blob URL after a delay
-                  setTimeout(() => {
-                    result.revoke();
-                  }, 5000);
-
-                } catch (error) {
-                  console.error('PDF open failed:', error);
-                  alert(`Failed to open PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                }
-              }}
-              className="text-xs font-medium"
-            >
-              <FileText className="h-3 w-3 mr-1.5" />
-              Open PDF
-            </Button>
+            <div className="flex items-center gap-2 h-full pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={actionButton.onClick}
+                className="text-xs font-medium"
+              >
+                <actionButton.icon className="h-3 w-3 mr-1.5" />
+                {actionButton.label}
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
-      
-      {/* Parsed Content Display */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="p-6 max-h-[600px] overflow-y-auto">
-          <MarkdownContent content={processMarkdownContent(preview.content, source.file_id || '', notebookId, useMinIOUrls)} notebookId={notebookId} fileId={source.file_id || ''} />
+
+        {/* Parsed Content Display */}
+        <div className="bg-white rounded-lg border border-gray-200">
+          <div className="p-6 max-h-[600px] overflow-y-auto">
+            <MarkdownContent content={content} notebookId={notebookId} fileId={source.file_id || ''} />
+          </div>
         </div>
-      </div>
       </div>
     );
+  };
+
+  const renderPdfContentPreview = () => {
+    if (!preview) return null;
+
+    return renderDocumentPreview({
+      documentType: 'pdf',
+      title: 'PDF Document (Parsed Content)',
+      icon: FileText,
+      colorScheme: {
+        gradient: 'from-red-50 to-orange-50',
+        border: 'border-red-200',
+        iconBg: 'bg-red-500',
+      },
+      badges: [
+        <Badge key="words" variant="secondary">
+          <FileText className="h-3 w-3 mr-1" />
+          {preview.wordCount} words
+        </Badge>,
+        <Badge key="size" variant="secondary">
+          <HardDrive className="h-3 w-3 mr-1" />
+          {preview.fileSize}
+        </Badge>,
+      ],
+      actionButton: {
+        label: 'Open PDF',
+        icon: FileText,
+        onClick: async () => {
+          try {
+            if (!source.id || !notebookId) {
+              console.error('Missing file ID or notebook ID for PDF view');
+              return;
+            }
+
+            const pdfUrl = getFileUrl(source.id, 'inline');
+            console.log('Opening PDF with URL:', pdfUrl);
+
+            // Try direct URL first (works best for authenticated endpoints)
+            try {
+              const testResponse = await fetch(pdfUrl, {
+                method: 'HEAD',
+                credentials: 'include'
+              });
+
+              if (testResponse.ok) {
+                window.open(pdfUrl, '_blank');
+                return;
+              }
+            } catch (directError) {
+              console.log('Direct URL failed, trying blob approach:', directError);
+            }
+
+            // Fallback: Create blob URL
+            const response = await fetch(pdfUrl, {
+              credentials: 'include'
+            });
+
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const blob = await response.blob();
+
+            if (!blob.type.includes('pdf') && blob.size > 0) {
+              console.warn('Response may not be a PDF:', blob.type);
+            }
+
+            const result = createSecureBlob([blob], { type: 'application/pdf' });
+            const newTab = window.open(result.url, '_blank');
+
+            if (!newTab) {
+              throw new Error('Popup blocked - please allow popups for this site');
+            }
+
+            setTimeout(() => {
+              result.revoke();
+            }, 5000);
+
+          } catch (error) {
+            console.error('PDF open failed:', error);
+            alert(`Failed to open PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        }
+      },
+      content: processMarkdownContent(preview.content, source.file_id || '', notebookId, useMinIOUrls),
+    });
+  };
+
+  const renderExcelContentPreview = () => {
+    if (!preview) return null;
+
+    const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
+
+    // Create badges for Excel metadata
+    const excelBadges = [];
+
+    if (preview.metadata?.sheet_count) {
+      excelBadges.push(
+        <Badge key="sheets" variant="secondary">
+          <FileSpreadsheet className="h-3 w-3 mr-1" />
+          {preview.metadata.sheet_count} {preview.metadata.sheet_count === 1 ? 'sheet' : 'sheets'}
+        </Badge>
+      );
+    }
+
+    if (preview.metadata?.total_rows !== undefined) {
+      excelBadges.push(
+        <Badge key="rows" variant="secondary">
+          <FileText className="h-3 w-3 mr-1" />
+          {preview.metadata.total_rows} rows
+        </Badge>
+      );
+    }
+
+    if (preview.metadata?.total_columns !== undefined) {
+      excelBadges.push(
+        <Badge key="columns" variant="secondary">
+          <FileText className="h-3 w-3 mr-1" />
+          {preview.metadata.total_columns} columns
+        </Badge>
+      );
+    }
+
+    if (preview.fileSize) {
+      excelBadges.push(
+        <Badge key="size" variant="secondary">
+          <HardDrive className="h-3 w-3 mr-1" />
+          {preview.fileSize}
+        </Badge>
+      );
+    }
+
+    return renderDocumentPreview({
+      documentType: 'excel',
+      title: 'Excel Spreadsheet (Parsed Content)',
+      icon: FileSpreadsheet,
+      colorScheme: {
+        gradient: 'from-green-50 to-emerald-50',
+        border: 'border-green-200',
+        iconBg: 'bg-green-600',
+      },
+      badges: excelBadges,
+      actionButton: {
+        label: 'Download Excel',
+        icon: FileSpreadsheet,
+        onClick: async () => {
+          try {
+            if (!source.id || !notebookId) {
+              console.error('Missing file ID or notebook ID for Excel download');
+              return;
+            }
+
+            const excelUrl = getFileUrl(source.id, 'raw');
+            console.log('Downloading Excel with URL:', excelUrl);
+
+            // Create a download for Excel file since browsers can't preview it natively
+            const title = preview?.title || 'spreadsheet';
+            const cleanTitle = title.replace(/\.[^/.]+$/, ''); // Remove any existing extension
+            const extension = fileExt.replace('.', '').toLowerCase();
+            const filename = `${cleanTitle}.${extension}`;
+
+            await downloadFileSecurely(excelUrl, filename);
+
+          } catch (error) {
+            console.error('Excel download failed:', error);
+            alert(`Failed to download Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          }
+        }
+      },
+      content: processMarkdownContent(preview.content, source.file_id || '', notebookId, useMinIOUrls),
+    });
   };
 
   const renderPdfMetadataPreview = () => {
