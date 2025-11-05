@@ -267,8 +267,11 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
     <>
       {/* Header - Fixed at top */}
       <div className="sticky top-0 z-10 bg-white pt-4 pb-4 -mt-8 -mx-8 px-8">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-2xl font-bold text-gray-900">Upload sources</h2>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Add Source</h2>
+            <p className="text-gray-600 text-sm">Add files, links, or text to this notebook</p>
+          </div>
           <Button
             variant="ghost"
             size="icon"
@@ -281,12 +284,6 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
           >
             <X className="h-6 w-6" />
           </Button>
-        </div>
-
-        {/* Header - Sources are now notebook-specific */}
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-gray-900">Add Source</h2>
-          <p className="text-gray-600 text-sm">Add files, links, or text to this notebook</p>
         </div>
 
         {/* Custom Error Display - Now in header for better visibility */}

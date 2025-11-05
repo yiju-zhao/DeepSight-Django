@@ -1136,7 +1136,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
     return renderDocumentPreview({
       documentType: 'pdf',
-      title: 'PDF Document (Parsed Content)',
+      title: 'PDF Document',
       icon: FileText,
       colorScheme: {
         gradient: 'from-red-50 to-orange-50',
@@ -1263,7 +1263,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
     return renderDocumentPreview({
       documentType: 'excel',
-      title: 'Excel Spreadsheet (Parsed Content)',
+      title: 'Excel Spreadsheet',
       icon: FileSpreadsheet,
       colorScheme: {
         gradient: 'from-green-50 to-emerald-50',
