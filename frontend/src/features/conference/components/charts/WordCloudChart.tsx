@@ -37,7 +37,7 @@ export function WordCloudChart({ keywords }: WordCloudChartProps) {
         width={500}
         height={320}
         fontSize={fontSizeSetter}
-        font={'Inter, sans-serif'}
+        font={"'Open Sans', 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', 'Arial', 'Noto Sans', 'sans-serif'"}
         padding={2}
         spiral="rectangular"
         rotate={0}

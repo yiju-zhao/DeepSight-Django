@@ -1,5 +1,5 @@
 
-@import '@geist-ui/fonts/index.css';
+/* Fonts loaded via index.html: Open Sans (Latin) + Noto Sans SC (Chinese) */
 
 @tailwind base;
 @tailwind components;

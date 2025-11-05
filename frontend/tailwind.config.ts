@@ -24,12 +24,10 @@ const config: Config = {
     },
     
     extend: {
-      // Font family configuration (Geist + Noto Sans SC)
+      // Font family configuration (Open Sans as primary + Chinese fallbacks)
       fontFamily: {
         sans: [
-          'Geist Variable',
-          'Geist',
-          'Geist Sans',
+          'Open Sans',
           'Noto Sans SC',
           'PingFang SC',
           'Microsoft YaHei',
@@ -45,9 +43,7 @@ const config: Config = {
           'sans-serif',
         ],
         heading: [
-          'Geist Variable',
-          'Geist',
-          'Geist Sans',
+          'Open Sans',
           'Noto Sans SC',
           'PingFang SC',
           'Microsoft YaHei',
