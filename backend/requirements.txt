@@ -55,6 +55,7 @@ python-dotenv  # Environment variable management via .env files
 httpx
 requests
 pandas
+tabulate
 pytz
 tqdm
 regex
