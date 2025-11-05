@@ -14,9 +14,7 @@ export const FILE_ICONS = {
   txt: FileText,
   md: FileText,
   pptx: Presentation,
-  ppt: Presentation,
   docx: FileText,
-  doc: FileText,
   xlsx: FileText,
   xls: FileText,
   mp3: Music,
@@ -81,7 +79,7 @@ export const STATUS_CONFIG = {
 // File validation configuration
 export const VALIDATION_CONFIG = {
   allowedExtensions: [
-    "pdf", "txt", "md", "pptx", "ppt", "docx", "doc", "xlsx", "xls",
+    "pdf", "txt", "md", "pptx", "docx", "xlsx", "xls",
     "mp3", "mp4", "wav", "m4a", "avi", "mov", "mkv",
     "webm", "flv", "wmv", "3gp", "ogv", "m4v"
   ],
@@ -92,9 +90,7 @@ export const VALIDATION_CONFIG = {
     "txt": "text/plain",
     "md": "text/markdown",
     "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "ppt": "application/vnd.ms-powerpoint",
     "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "doc": "application/msword",
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "xls": "application/vnd.ms-excel",
     "mp3": "audio/mpeg",
@@ -111,7 +107,7 @@ export const VALIDATION_CONFIG = {
     "ogv": "video/ogg",
     "m4v": "video/x-m4v"
   },
-  acceptString: ".pdf,.txt,.md,.pptx,.ppt,.docx,.doc,.xlsx,.xls,.mp3,.mp4,.wav,.m4a,.avi,.mov,.mkv,.webm,.flv,.wmv,.3gp,.ogv,.m4v"
+  acceptString: ".pdf,.txt,.md,.pptx,.docx,.xlsx,.xls,.mp3,.mp4,.wav,.m4a,.avi,.mov,.mkv,.webm,.flv,.wmv,.3gp,.ogv,.m4v"
 };
 
 // Video format compatibility information

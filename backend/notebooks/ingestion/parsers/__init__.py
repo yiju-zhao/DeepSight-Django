@@ -6,7 +6,6 @@ from .base_parser import BaseParser, ParseResult
 from .docu_parser import DocuParser
 from .media_parser import MediaParser
 from .text_parser import TextParser
-from .table_parser import TableParser
 
 __all__ = [
     "BaseParser",
@@ -14,5 +13,4 @@ __all__ = [
     "DocuParser",
     "MediaParser",
     "TextParser",
-    "TableParser",
 ]

@@ -16,7 +16,6 @@ from .parsers import (
     ParseResult,
     DocuParser,
     TextParser,
-    TableParser,
 )
 from .transcription import TranscriptionClient, XinferenceProvider
 from .url_fetcher import UrlFetchResult, UrlFetcher
@@ -37,7 +36,6 @@ __all__ = [
     "DocuParser",
     "MediaParser",
     "TextParser",
-    "TableParser",
     # Transcription
     "TranscriptionClient",
     "XinferenceProvider",
