@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Eye, FileText, Globe, Music, Video, File, HardDrive, Calendar, ExternalLink, Loader2, AlertCircle, RefreshCw, Trash2, Plus, ChevronLeft, CheckCircle, Clock, Upload, Link2, Youtube, Group, Presentation } from 'lucide-react';
+import { X, Eye, FileText, Globe, Music, Video, File, HardDrive, Calendar, ExternalLink, Loader2, AlertCircle, RefreshCw, Trash2, Plus, ChevronLeft, CheckCircle, Clock, Upload, Link2, Youtube, Group, Presentation, FileSpreadsheet } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { supportsPreview, PREVIEW_TYPES, formatDate, getVideoMimeType, getAudioMimeType, generateTextPreviewWithMinIOUrls } from "@/features/notebook/utils/filePreview";
@@ -471,10 +471,13 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   const getPreviewIcon = (type: string) => {
     switch (type) {
       case PREVIEW_TYPES.TEXT_CONTENT:
-        // Check if this is a presentation file
+        // Check if this is a presentation or spreadsheet file
         const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
         if (['.ppt', '.pptx'].includes(fileExt)) {
           return Presentation;
+        }
+        if (['.xlsx', '.xls'].includes(fileExt)) {
+          return FileSpreadsheet;
         }
         return FileText;
       case PREVIEW_TYPES.URL_INFO:
@@ -552,7 +555,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
   const renderTextPreview = () => {
     if (!preview) return null;
-    
+
     // Debug: show processed content and image URLs
     const baseContent = state.resolvedContent || preview.content;
     const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
@@ -560,8 +563,9 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     // Determine the appropriate icon based on file extension
     const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
     const isPresentation = ['.ppt', '.pptx'].includes(fileExt);
-    const IconComponent = isPresentation ? Presentation : FileText;
-    const iconColor = isPresentation ? 'text-orange-500' : 'text-blue-500';
+    const isSpreadsheet = ['.xlsx', '.xls'].includes(fileExt);
+    const IconComponent = isPresentation ? Presentation : (isSpreadsheet ? FileSpreadsheet : FileText);
+    const iconColor = isPresentation ? 'text-orange-500' : (isSpreadsheet ? 'text-green-600' : 'text-blue-500');
 
     return (
       <div className="space-y-4">
@@ -572,14 +576,36 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
 
         <div className="flex flex-wrap gap-2 mb-4">
-          <Badge variant="secondary">
-            <HardDrive className="h-3 w-3 mr-1" />
-            {preview.wordCount} words
-          </Badge>
-          <Badge variant="secondary">
-            <FileText className="h-3 w-3 mr-1" />
-            {preview.lines || 0} lines
-          </Badge>
+          {isSpreadsheet && preview.metadata?.sheet_count && (
+            <Badge variant="secondary">
+              <FileSpreadsheet className="h-3 w-3 mr-1" />
+              {preview.metadata.sheet_count} {preview.metadata.sheet_count === 1 ? 'sheet' : 'sheets'}
+            </Badge>
+          )}
+          {isSpreadsheet && preview.metadata?.total_rows !== undefined && (
+            <Badge variant="secondary">
+              <FileText className="h-3 w-3 mr-1" />
+              {preview.metadata.total_rows} rows
+            </Badge>
+          )}
+          {isSpreadsheet && preview.metadata?.total_columns !== undefined && (
+            <Badge variant="secondary">
+              <FileText className="h-3 w-3 mr-1" />
+              {preview.metadata.total_columns} columns
+            </Badge>
+          )}
+          {!isSpreadsheet && (
+            <>
+              <Badge variant="secondary">
+                <HardDrive className="h-3 w-3 mr-1" />
+                {preview.wordCount} words
+              </Badge>
+              <Badge variant="secondary">
+                <FileText className="h-3 w-3 mr-1" />
+                {preview.lines || 0} lines
+              </Badge>
+            </>
+          )}
           {preview.fileSize && (
             <Badge variant="secondary">
               <HardDrive className="h-3 w-3 mr-1" />
