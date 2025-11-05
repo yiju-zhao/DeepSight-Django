@@ -1,5 +1,5 @@
 
-/* Fonts loaded via index.html: Open Sans (Latin) + Noto Sans SC (Chinese) */
+/* Fonts: Open Sans for Latin. Chinese fallback uses Microsoft YaHei (微软雅黑) when available; otherwise system Chinese fonts (PingFang SC, Hiragino Sans GB, Heiti SC). */
 
 @tailwind base;
 @tailwind components;

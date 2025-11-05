@@ -24,13 +24,15 @@ const config: Config = {
     },
     
     extend: {
-      // Font family configuration (Open Sans as primary + Chinese fallbacks)
+      // Font family configuration (Open Sans + Microsoft YaHei for Chinese)
       fontFamily: {
         sans: [
           'Open Sans',
-          'Noto Sans SC',
-          'PingFang SC',
           'Microsoft YaHei',
+          '微软雅黑',
+          'PingFang SC',
+          'Hiragino Sans GB',
+          'Heiti SC',
           'ui-sans-serif',
           'system-ui',
           '-apple-system',
@@ -39,14 +41,15 @@ const config: Config = {
           'Roboto',
           'Helvetica Neue',
           'Arial',
-          'Noto Sans',
           'sans-serif',
         ],
         heading: [
           'Open Sans',
-          'Noto Sans SC',
-          'PingFang SC',
           'Microsoft YaHei',
+          '微软雅黑',
+          'PingFang SC',
+          'Hiragino Sans GB',
+          'Heiti SC',
           'ui-sans-serif',
           'system-ui',
           '-apple-system',
@@ -55,7 +58,6 @@ const config: Config = {
           'Roboto',
           'Helvetica Neue',
           'Arial',
-          'Noto Sans',
           'sans-serif',
         ],
       },
