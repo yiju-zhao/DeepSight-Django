@@ -15,7 +15,7 @@ from ..processors.minio_post_processor import MinIOPostProcessor
 from ..utils.helpers import clean_title
 from ..utils.storage import FileStorageService
 from .exceptions import IngestionError, ParseError, SourceError, StorageError
-from .parsers import MediaParser, DocuParser, ParseResult, TextParser
+from .parsers import MediaParser, DocuParser, ParseResult, TextParser, TableParser
 from .transcription import XinferenceProvider
 from .url_fetcher import UrlFetcher
 
@@ -68,6 +68,8 @@ class IngestionOrchestrator:
         )
 
         self.text_parser = TextParser(logger=self.logger)
+
+        self.table_parser = TableParser(logger=self.logger)
 
         # Initialize storage and post-processor
         self.file_storage = FileStorageService()
@@ -132,12 +134,12 @@ class IngestionOrchestrator:
                     **fetch_result.metadata,
                 }
 
-                if extension == ".pdf":
+                if extension in [".pdf", ".ppt", ".pptx", ".doc", ".docx"]:
                     parse_result = await self.docu_parser.parse(
                         fetch_result.local_path, metadata
                     )
-                elif extension in [".ppt", ".pptx"]:
-                    parse_result = await self.text_parser.parse(
+                elif extension in [".xlsx", ".xls"]:
+                    parse_result = await self.table_parser.parse(
                         fetch_result.local_path, metadata
                     )
                 else:
@@ -231,8 +233,10 @@ class IngestionOrchestrator:
             # Determine parser based on extension
             extension = metadata.get("file_extension", "").lower()
 
-            if extension in [".pdf", ".xlsx", ".xls"]:
+            if extension in [".pdf", ".doc", ".docx", ".ppt", ".pptx"]:
                 parse_result = await self.docu_parser.parse(file_path, metadata)
+            elif extension in [".xlsx", ".xls"]:
+                parse_result = await self.table_parser.parse(file_path, metadata)
             elif extension in [
                 ".mp3",
                 ".wav",
@@ -249,7 +253,7 @@ class IngestionOrchestrator:
                 ".m4v",
             ]:
                 parse_result = await self.media_parser.parse(file_path, metadata)
-            elif extension in [".md", ".txt", ".doc", ".docx", ".ppt", ".pptx"]:
+            elif extension in [".md", ".txt"]:
                 parse_result = await self.text_parser.parse(file_path, metadata)
             else:
                 raise ParseError(f"Unsupported file extension: {extension}")

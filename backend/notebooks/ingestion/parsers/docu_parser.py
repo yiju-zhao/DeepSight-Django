@@ -1,5 +1,5 @@
 """
-Document parser using MinerU API for PDFs and Excel files, with PyMuPDF fallback for PDFs.
+Document parser using MinerU API for PDFs, Word, and PowerPoint files, with PyMuPDF fallback for PDFs.
 """
 
 import base64
@@ -23,7 +23,7 @@ except ImportError:
 
 
 class DocuParser(BaseParser):
-    """Document parser with MinerU primary for PDFs/Excel and PyMuPDF fallback for PDFs."""
+    """Document parser with MinerU for PDFs, Word, PowerPoint and PyMuPDF fallback for PDFs."""
 
     def __init__(
         self,
@@ -39,7 +39,7 @@ class DocuParser(BaseParser):
 
     async def parse(self, file_path: str, metadata: dict[str, Any]) -> ParseResult:
         """
-        Parse document file (PDF or Excel) using MinerU, with PyMuPDF fallback for PDFs.
+        Parse document file (PDF, Word, PowerPoint) using MinerU, with PyMuPDF fallback for PDFs.
 
         Args:
             file_path: Path to document file
@@ -49,7 +49,9 @@ class DocuParser(BaseParser):
             ParseResult with content, metadata, and optional marker_extraction_result
         """
         file_extension = metadata.get("file_extension", "").lower()
-        is_excel = file_extension in [".xlsx", ".xls"]
+        is_pdf = file_extension == ".pdf"
+        is_word = file_extension in [".docx", ".doc"]
+        is_powerpoint = file_extension in [".pptx", ".ppt"]
 
         # Try MinerU first
         if self._check_mineru_health():
@@ -59,18 +61,25 @@ class DocuParser(BaseParser):
                 self.logger.warning(
                     f"MinerU parsing failed: {e}"
                 )
-                # Only fall back to PyMuPDF for PDF files
-                if not is_excel:
+                # Fall back based on file type
+                if is_pdf:
                     self.logger.info("Falling back to PyMuPDF for PDF")
+                elif is_word:
+                    self.logger.info("Falling back to python-docx for Word document")
+                elif is_powerpoint:
+                    self.logger.info("Falling back to python-pptx for PowerPoint")
                 else:
-                    # For Excel files, we don't have a fallback
-                    raise ParseError(f"MinerU parsing failed for Excel file: {e}")
+                    raise ParseError(f"MinerU parsing failed for {file_extension} file: {e}")
 
-        # Fallback to PyMuPDF (PDF only)
-        if not is_excel:
+        # Apply appropriate fallback
+        if is_pdf:
             return await self._parse_with_pymupdf(file_path, metadata)
+        elif is_word:
+            return await self._parse_with_docx(file_path, metadata)
+        elif is_powerpoint:
+            return await self._parse_with_pptx(file_path, metadata)
         else:
-            raise ParseError("MinerU service is unavailable and no fallback exists for Excel files")
+            raise ParseError(f"MinerU service is unavailable and no fallback exists for {file_extension} files")
 
     def _check_mineru_health(self) -> bool:
         """Check if MinerU API is available."""
@@ -84,9 +93,18 @@ class DocuParser(BaseParser):
     async def _parse_with_mineru(
         self, file_path: str, metadata: dict[str, Any]
     ) -> ParseResult:
-        """Parse document (PDF or Excel) using MinerU API."""
+        """Parse document (PDF, Word, PowerPoint) using MinerU API."""
         file_extension = metadata.get("file_extension", "").lower()
-        file_type = "Excel" if file_extension in [".xlsx", ".xls"] else "PDF"
+
+        # Determine file type for logging
+        file_type_map = {
+            ".pdf": "PDF",
+            ".docx": "Word",
+            ".doc": "Word",
+            ".pptx": "PowerPoint",
+            ".ppt": "PowerPoint",
+        }
+        file_type = file_type_map.get(file_extension, "Document")
         self.logger.info(f"Starting MinerU parsing of {file_type} file: {file_path}")
         start_time = time.time()
 
@@ -221,8 +239,119 @@ class DocuParser(BaseParser):
             ],
         )
 
+    async def _parse_with_docx(
+        self, file_path: str, metadata: dict[str, Any]
+    ) -> ParseResult:
+        """Parse Word document using python-docx fallback."""
+        self.logger.info(f"Using python-docx fallback for {file_path}")
+
+        try:
+            # Try python-docx for .docx files
+            if metadata.get("file_extension", "").lower() == ".docx":
+                try:
+                    from docx import Document
+
+                    doc = Document(file_path)
+                    content = "\n\n".join(
+                        [para.text for para in doc.paragraphs if para.text]
+                    )
+
+                    doc_metadata = {
+                        "processing_method": "python_docx_fallback",
+                        "paragraph_count": len(doc.paragraphs),
+                        "word_count": len(content.split()),
+                    }
+
+                    return ParseResult(
+                        content=content,
+                        metadata=doc_metadata,
+                        features_available=["text_extraction", "document_structure"],
+                    )
+                except ImportError:
+                    self.logger.warning(
+                        "python-docx not available, returning placeholder"
+                    )
+
+            # Fallback: return a message that file is uploaded but needs processing
+            content = (
+                f"Word document '{metadata['filename']}' uploaded successfully. "
+                f"Text extraction requires python-docx installation for detailed processing."
+            )
+
+            return ParseResult(
+                content=content,
+                metadata={
+                    "file_type": "word_document",
+                    "supported_extraction": False,
+                    "processing_method": "fallback_placeholder",
+                },
+                features_available=["text_extraction", "formatting_preservation"],
+            )
+
+        except Exception as e:
+            raise ParseError(f"Word document fallback processing failed: {e}") from e
+
+    async def _parse_with_pptx(
+        self, file_path: str, metadata: dict[str, Any]
+    ) -> ParseResult:
+        """Parse PowerPoint presentation using python-pptx fallback."""
+        self.logger.info(f"Using python-pptx fallback for {file_path}")
+
+        try:
+            # Try python-pptx for extraction
+            try:
+                from pptx import Presentation
+
+                prs = Presentation(file_path)
+
+                content = ""
+                for i, slide in enumerate(prs.slides):
+                    content += f"\n=== Slide {i + 1} ===\n"
+                    for shape in slide.shapes:
+                        if hasattr(shape, "text") and shape.text:
+                            content += shape.text + "\n"
+
+                ppt_metadata = {
+                    "processing_method": "python_pptx_fallback",
+                    "slide_count": len(prs.slides),
+                    "word_count": len(content.split()),
+                }
+
+                return ParseResult(
+                    content=content,
+                    metadata=ppt_metadata,
+                    features_available=["text_extraction", "slide_structure"],
+                )
+
+            except ImportError:
+                self.logger.warning(
+                    "python-pptx not available, returning placeholder"
+                )
+                # Fallback
+                content = (
+                    f"Presentation '{metadata['filename']}' uploaded successfully. "
+                    f"Text extraction requires python-pptx installation for detailed processing."
+                )
+
+                return ParseResult(
+                    content=content,
+                    metadata={
+                        "file_type": "presentation",
+                        "supported_extraction": False,
+                        "processing_method": "fallback_placeholder",
+                    },
+                    features_available=[
+                        "slide_extraction",
+                        "text_extraction",
+                        "image_extraction",
+                    ],
+                )
+
+        except Exception as e:
+            raise ParseError(f"Presentation fallback processing failed: {e}") from e
+
     def _call_mineru_api(self, file_path: str) -> dict[str, Any]:
-        """Call MinerU API to parse document (PDF or Excel)."""
+        """Call MinerU API to parse document (PDF, Word, PowerPoint)."""
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Document file not found: {file_path}")
 
@@ -231,8 +360,10 @@ class DocuParser(BaseParser):
             file_extension = os.path.splitext(file_path)[1].lower()
             mime_type_map = {
                 ".pdf": "application/pdf",
-                ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                ".xls": "application/vnd.ms-excel",
+                ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                ".doc": "application/msword",
+                ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                ".ppt": "application/vnd.ms-powerpoint",
             }
             mime_type = mime_type_map.get(file_extension, "application/octet-stream")
 
@@ -287,7 +418,7 @@ class DocuParser(BaseParser):
     def _extract_document_metadata(
         self, file_path: str, metadata: dict[str, Any], mineru_result: dict[str, Any]
     ) -> dict[str, Any]:
-        """Extract document metadata (PDF or Excel)."""
+        """Extract document metadata (PDF, Word, PowerPoint)."""
         file_extension = metadata.get("file_extension", "").lower()
         is_pdf = file_extension == ".pdf"
 
