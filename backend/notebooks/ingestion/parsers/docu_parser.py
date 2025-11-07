@@ -94,7 +94,7 @@ class DocuParser(BaseParser):
 
     async def parse(self, file_path: str, metadata: dict[str, Any]) -> ParseResult:
         """
-        Parse document file (PDF, Word, PowerPoint) using MinerU, with PyMuPDF fallback for PDFs.
+        Parse document file (PDF, Word, PowerPoint) using MinerU, with fallbacks.
 
         Args:
             file_path: Path to document file
@@ -108,33 +108,28 @@ class DocuParser(BaseParser):
         is_word = file_extension in [".docx", ".doc"]
         is_powerpoint = file_extension in [".pptx", ".ppt"]
 
-        # Try MinerU first
-        if self._check_mineru_health():
-            try:
-                return await self._parse_with_mineru(file_path, metadata)
-            except Exception as e:
-                self.logger.warning(
-                    f"MinerU parsing failed: {e}"
-                )
-                # Fall back based on file type
-                if is_pdf:
-                    self.logger.info("Falling back to PyMuPDF for PDF")
-                elif is_word:
-                    self.logger.info("Falling back to python-docx for Word document")
-                elif is_powerpoint:
-                    self.logger.info("Falling back to python-pptx for PowerPoint")
-                else:
-                    raise ParseError(f"MinerU parsing failed for {file_extension} file: {e}")
+        # Try MinerU first (no health check - assume it's available)
+        try:
+            return await self._parse_with_mineru(file_path, metadata)
+        except Exception as e:
+            self.logger.warning(
+                f"MinerU parsing failed: {e}. Attempting fallback parser."
+            )
 
-        # Apply appropriate fallback
-        if is_pdf:
-            return await self._parse_with_pymupdf(file_path, metadata)
-        elif is_word:
-            return await self._parse_with_docx(file_path, metadata)
-        elif is_powerpoint:
-            return await self._parse_with_pptx(file_path, metadata)
-        else:
-            raise ParseError(f"MinerU service is unavailable and no fallback exists for {file_extension} files")
+            # Fall back to appropriate parser based on file type
+            if is_pdf:
+                self.logger.info("Falling back to PyMuPDF for PDF")
+                return await self._parse_with_pymupdf(file_path, metadata)
+            elif is_word:
+                self.logger.info("Falling back to python-docx for Word document")
+                return await self._parse_with_docx(file_path, metadata)
+            elif is_powerpoint:
+                self.logger.info("Falling back to python-pptx for PowerPoint")
+                return await self._parse_with_pptx(file_path, metadata)
+            else:
+                raise ParseError(
+                    f"MinerU parsing failed for {file_extension} file and no fallback parser is available. Error: {e}"
+                )
 
     def _check_mineru_health(self) -> bool:
         """Check if MinerU API is available."""

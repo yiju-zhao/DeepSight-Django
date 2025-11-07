@@ -9,12 +9,16 @@ from typing import Any
 
 # Direct import of caption generator utility
 try:
-    from reports.utils import extract_figure_data_from_markdown
+    from reports.utils import (
+        extract_all_image_references,
+        extract_figure_data_from_markdown,
+    )
 
     from ..utils.image_processing.caption_generator import generate_caption_for_image
 except ImportError:
     generate_caption_for_image = None
     extract_figure_data_from_markdown = None
+    extract_all_image_references = None
 
 
 class MinIOPostProcessor:
@@ -124,14 +128,14 @@ class MinIOPostProcessor:
                                 )
                                 kb_item.content = markdown_content
 
-                            # Extract referenced images from markdown (only for PDFs)
-                            if should_filter and extract_figure_data_from_markdown:
+                            # Extract ALL image references from markdown (only for PDFs)
+                            if should_filter and extract_all_image_references:
                                 try:
-                                    figure_data = extract_figure_data_from_markdown(
+                                    # Use new function to extract ALL images, not just captioned ones
+                                    image_references = extract_all_image_references(
                                         source_file
                                     )
-                                    for fig in figure_data:
-                                        image_path = fig.get("image_path", "")
+                                    for image_path in image_references:
                                         if image_path:
                                             # Extract filename and add variations for matching
                                             full_name = os.path.basename(image_path)
@@ -142,14 +146,13 @@ class MinIOPostProcessor:
                                             referenced_images.add(base_name)
 
                                     self.log_operation(
-                                        "extract_figures_success",
-                                        f"Found {len(figure_data)} image references in markdown (PDF filtering): "
-                                        f"{[fig.get('image_path', '') for fig in figure_data]}"
+                                        "extract_images_success",
+                                        f"Found {len(image_references)} image references in markdown (PDF filtering): {image_references}"
                                     )
                                 except Exception as e:
                                     self.log_operation(
-                                        "extract_figures_error",
-                                        f"Failed to extract figures from markdown: {e}",
+                                        "extract_images_error",
+                                        f"Failed to extract image references from markdown: {e}",
                                         "warning",
                                     )
                             break

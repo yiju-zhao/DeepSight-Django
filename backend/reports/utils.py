@@ -231,6 +231,69 @@ def find_already_inserted_figures(content: str, figure_ids: list[str]) -> set[st
     return already_inserted
 
 
+def extract_all_image_references(file_path: str) -> list[str]:
+    """
+    Extract ALL image references from a Markdown file, regardless of whether they have captions.
+
+    This function is used for determining which images should be saved during post-processing.
+    Unlike extract_figure_data_from_markdown(), this extracts every image reference found.
+
+    Args:
+        file_path: Path to the Markdown file
+
+    Returns:
+        List of image paths (filenames) referenced in the markdown
+
+    Example:
+        Given markdown with:
+        - ![](image-1.png)
+        - ![](image-2.png)
+        - **Figure 1.** Caption text
+        - ![](image-3.png)
+
+        Returns: ["image-1.png", "image-2.png", "image-3.png"]
+    """
+    if not file_path:
+        return []
+
+    image_paths = []
+    try:
+        with open(file_path, encoding="utf-8") as f:
+            lines = f.readlines()
+    except Exception as e:
+        logger.warning(f"Error reading file {file_path}: {e}")
+        return []
+
+    # Extract all images using markdown and HTML patterns
+    for line in lines:
+        line_cleaned = line.strip()
+
+        # Try markdown image pattern: ![](path)
+        md_match = MD_IMAGE_REGEX.match(line_cleaned)
+        if md_match:
+            image_path = md_match.group(1)
+            if image_path:
+                image_paths.append(image_path)
+            continue
+
+        # Try HTML image pattern: <img src="path">
+        html_match = HTML_IMG_REGEX.match(line_cleaned)
+        if html_match:
+            image_path = html_match.group(1)
+            if image_path:
+                image_paths.append(image_path)
+
+    # Remove duplicates while preserving order
+    seen = set()
+    unique_images = []
+    for img_path in image_paths:
+        if img_path not in seen:
+            seen.add(img_path)
+            unique_images.append(img_path)
+
+    return unique_images
+
+
 def extract_figure_data_from_markdown(file_path: str) -> list[dict[str, str]]:
     """
     Extract figure information (image path, caption) from a Markdown file.
