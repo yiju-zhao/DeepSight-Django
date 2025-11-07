@@ -4,7 +4,6 @@
 
 import React, { useMemo } from 'react';
 import { Bot } from 'lucide-react';
-import { motion } from 'framer-motion';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { useExternalStoreRuntime } from '@assistant-ui/react';
 import type { AppendMessage } from '@assistant-ui/react';
@@ -89,23 +88,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
       <AssistantRuntimeProvider runtime={runtime}>
         {/* Messages Area */}
         <div className="flex-1 overflow-hidden">
-          {messages.length === 0 && !isLoading ? (
-            <div className="h-full flex items-center justify-center p-8">
-              <div className="text-center max-w-lg">
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.3 }}
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600"
-                >
-                  <Bot className="h-4 w-4" />
-                  <span>Ask me anything about your knowledge base</span>
-                </motion.div>
-              </div>
-            </div>
-          ) : (
-            <CustomThread />
-          )}
+          <CustomThread />
         </div>
 
         {/* Suggestions */}
