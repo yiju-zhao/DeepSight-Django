@@ -31,6 +31,18 @@ class Report(models.Model):
         blank=True, help_text="User-provided outline content to use as starting point"
     )
 
+    # Custom requirements from user
+    custom_requirements = models.TextField(
+        blank=True,
+        default="",
+        help_text="User's custom requirements for report generation (style, structure, content focus, etc.)"
+    )
+    parsed_requirements = models.JSONField(
+        null=True,
+        blank=True,
+        help_text="Parsed structured requirements (internal use)"
+    )
+
     # Content inputs from knowledge base
     source_ids = models.JSONField(
         default=list,
@@ -280,6 +292,9 @@ class Report(models.Model):
             # Content input fields
             "topic": self.topic,
             "source_ids": self.source_ids,
+            # Custom requirements
+            "custom_requirements": self.custom_requirements,
+            "parsed_requirements": self.parsed_requirements,
         }
 
     def update_status(self, status, progress=None, error=None):

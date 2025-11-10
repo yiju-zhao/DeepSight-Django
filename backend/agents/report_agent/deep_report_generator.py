@@ -236,6 +236,10 @@ class ReportGenerationConfig:
     user_id: str | None = None  # User ID for MinIO access
     figure_data: list[Any] | None = None  # For image data
 
+    # Custom requirements
+    custom_requirements: str | None = None  # User's raw custom requirements text
+    parsed_requirements: dict[str, Any] | None = None  # Parsed structured requirements
+
     # CSV processing options (for non-interactive API use)
     csv_session_code: str | None = None
     csv_date_filter: str | None = None  # Format: YYYY-MM-DD

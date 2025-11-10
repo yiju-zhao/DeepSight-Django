@@ -100,6 +100,21 @@ class ReportGenerationService:
             if report.include_image and hasattr(report, "_cached_figure_data"):
                 figure_data = report._cached_figure_data
 
+            # Parse custom requirements if provided
+            if report.custom_requirements and not report.parsed_requirements:
+                try:
+                    from .requirements_parser import RequirementsParser
+
+                    parser = RequirementsParser(model_provider=report.model_provider)
+                    parsed = parser.parse(report.custom_requirements)
+
+                    if parsed:
+                        report.parsed_requirements = parsed
+                        report.save(update_fields=['parsed_requirements'])
+                        logger.info(f"Parsed custom requirements for report {report_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to parse custom requirements: {e}. Continuing without parsing.")
+
             config_dict = report.get_configuration_dict()
             config_dict.update(
                 {

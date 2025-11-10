@@ -13,6 +13,8 @@ class ReportSerializer(serializers.ModelSerializer):
             "topic",
             "article_title",
             "old_outline",
+            "custom_requirements",
+            "parsed_requirements",
             "source_ids",
             "csv_session_code",
             "csv_date_filter",
@@ -63,6 +65,7 @@ class ReportCreateSerializer(serializers.ModelSerializer):
             "topic",
             "article_title",
             "old_outline",
+            "custom_requirements",
             "source_ids",
             "csv_session_code",
             "csv_date_filter",
@@ -194,6 +197,12 @@ class ReportGenerationRequestSerializer(serializers.Serializer):
         allow_blank=True,
         allow_null=True,
         help_text="User-provided outline content to use as starting point",
+    )
+    custom_requirements = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        allow_null=True,
+        help_text="Custom requirements for report generation (style, structure, content focus, etc.)"
     )
     model_provider = serializers.ChoiceField(
         choices=Report.MODEL_PROVIDER_CHOICES, default=Report.MODEL_PROVIDER_OPENAI
