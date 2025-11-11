@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Eye, FileText, Globe, Music, Video, File, HardDrive, Calendar, ExternalLink, Loader2, AlertCircle, RefreshCw, Trash2, Plus, ChevronLeft, CheckCircle, Clock, Upload, Link2, Youtube, Group, Presentation, FileSpreadsheet } from 'lucide-react';
+import { X, Eye, FileText, Globe, Music, Video, File, HardDrive, Calendar, ExternalLink, Loader2, AlertCircle, RefreshCw, Trash2, Plus, ChevronLeft, CheckCircle, Clock, Upload, Link2, Youtube, Group, Presentation, FileSpreadsheet, Copy } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { supportsPreview, PREVIEW_TYPES, formatDate, getVideoMimeType, getAudioMimeType, generateTextPreviewWithMinIOUrls } from "@/features/notebook/utils/filePreview";
@@ -333,6 +333,7 @@ interface FilePreviewState {
     [key: string]: React.ReactNode;
   };
   resolvedContent?: string | null;
+  copyStatus: 'idle' | 'copying' | 'copied';
 }
 
 interface FilePreviewComponentProps {
@@ -364,7 +365,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     videoError: false,
     videoLoaded: false,
     modals: {},
-    resolvedContent: null
+    resolvedContent: null,
+    copyStatus: 'idle'
   });
 
   // Create blob manager for automatic cleanup
@@ -467,6 +469,62 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     resolveImagesInContent();
   }, [preview?.content, notebookId, source?.file_id]);
 
+
+  // Build copyable markdown text based on current preview and resolved content
+  const getCopyableMarkdown = React.useCallback((): string | null => {
+    if (!preview) return null;
+    const fileId = source.file_id || '';
+    const nid = notebookId;
+
+    switch (preview.type) {
+      case PREVIEW_TYPES.TEXT_CONTENT: {
+        const base = (state.resolvedContent ?? preview.content) as string | undefined;
+        const processed = processMarkdownContent(base || '', fileId, nid, useMinIOUrls);
+        return processed && processed.trim().length > 0 ? processed : null;
+      }
+      case PREVIEW_TYPES.AUDIO_INFO:
+      case PREVIEW_TYPES.VIDEO_INFO: {
+        if ((preview as any).hasTranscript && preview.content) {
+          const processed = processMarkdownContent(preview.content as string, fileId, nid, useMinIOUrls);
+          return processed && processed.trim().length > 0 ? processed : null;
+        }
+        return null;
+      }
+      default:
+        return null;
+    }
+  }, [preview, state.resolvedContent, notebookId, source?.file_id, useMinIOUrls]);
+
+  const canCopy = React.useMemo(() => {
+    const t = getCopyableMarkdown();
+    return !!t && t.trim().length > 0;
+  }, [getCopyableMarkdown]);
+
+  const handleCopyAsMarkdown = async () => {
+    try {
+      const text = getCopyableMarkdown();
+      if (!text) return;
+      updateState({ copyStatus: 'copying' });
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      updateState({ copyStatus: 'copied' });
+      setTimeout(() => updateState({ copyStatus: 'idle' }), 2000);
+    } catch (e) {
+      console.error('Copy failed:', e);
+      updateState({ copyStatus: 'idle' });
+    }
+  };
 
   const getPreviewIcon = (type: string) => {
     switch (type) {
@@ -1508,14 +1566,27 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             <p className="text-sm text-gray-500">{source?.title || "Unknown file"}</p>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-600"
-        >
-          <X className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleCopyAsMarkdown}
+            disabled={!canCopy || state.copyStatus === 'copying'}
+            title={!canCopy ? 'Parsed content not available' : undefined}
+            className="text-xs"
+          >
+            <Copy className="h-3 w-3 mr-1" />
+            {state.copyStatus === 'copied' ? 'Copied' : 'Copy as Markdown'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
 
       {/* Content */}
