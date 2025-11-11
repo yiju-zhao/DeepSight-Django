@@ -350,16 +350,17 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
         )
         qs = KnowledgeBaseItem.objects.filter(notebook=notebook).order_by("-created_at")
 
-        # By default, only show sources that have completed RagFlow processing.
-        # Allow opt-out via query param ?include_incomplete=1 for internal/debug usage.
-        try:
-            include_incomplete = self.request.query_params.get("include_incomplete", "")
-            include_flag = str(include_incomplete).lower() in {"1", "true", "yes"}
-        except Exception:
-            include_flag = False
-
-        if not include_flag:
-            qs = qs.filter(ragflow_processing_status=RagflowDocStatus.COMPLETED)
+        # Show all sources regardless of processing status
+        # Users should see uploaded files immediately, including those still processing
+        # Original filtering logic kept for reference but disabled:
+        # try:
+        #     include_incomplete = self.request.query_params.get("include_incomplete", "")
+        #     include_flag = str(include_incomplete).lower() in {"1", "true", "yes"}
+        # except Exception:
+        #     include_flag = False
+        #
+        # if not include_flag:
+        #     qs = qs.filter(ragflow_processing_status=RagflowDocStatus.COMPLETED)
 
         return qs
 

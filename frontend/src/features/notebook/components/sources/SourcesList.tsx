@@ -443,6 +443,46 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     return undefined;
   }, [selectedIdsString, onSelectionChange]);
 
+  // Single-item delete (handles server-backed and local placeholder failed items)
+  const handleDeleteOne = useCallback(async (source: Source): Promise<void> => {
+    const id = String(source?.metadata?.knowledge_item_id || source?.file_id || source?.id || '');
+    const localKey = String(source?.file_id || source?.id || '');
+
+    // If no identifiable id, treat as local placeholder item
+    if (!id) {
+      setLocalUploads(prev => {
+        const next = { ...prev };
+        delete next[localKey];
+        return next;
+      });
+      return;
+    }
+
+    try {
+      await sourceService.deleteParsedFile(id, notebookId);
+      // Remove any local placeholder with same id (best-effort)
+      setLocalUploads(prev => {
+        const next = { ...prev };
+        delete next[localKey];
+        delete next[id];
+        return next;
+      });
+      queryClient.invalidateQueries({ queryKey: sourceKeys.parsedFiles(notebookId) });
+    } catch (e) {
+      // If server deletion fails (e.g., 404), still remove local placeholder
+      setLocalUploads(prev => {
+        const next = { ...prev };
+        delete next[localKey];
+        delete next[id];
+        return next;
+      });
+      // Surface error message for server-backed items
+      if (source?.metadata?.knowledge_item_id || source?.file_id) {
+        setError(`Failed to delete ${source.title}`);
+      }
+    }
+  }, [notebookId, queryClient]);
+
   // ✅ Optimistic delete for selected sources
   const handleDeleteSelected = async (): Promise<void> => {
     const selectedSources = sources.filter((source: Source) => source.selected);
@@ -828,11 +868,12 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 {groupSources.map((source: Source) => (
                   <SourceItem
                     key={keyForSource(source)}
-                    source={source}
+                    source={{ ...source, selected: selectedIds.has(String(source.id)) }}
                     onToggle={toggleSource}
                     onPreview={() => handlePreviewFile(source)}
                     getSourceTooltip={getSourceTooltip}
                     getPrincipleFileIcon={getPrincipleFileIcon}
+                    onDelete={handleDeleteOne}
                   />
                 ))}
               </div>
@@ -844,11 +885,12 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             {(processedSources as Source[]).map((source: Source) => (
               <SourceItem
                 key={keyForSource(source)}
-                source={source}
+                source={{ ...source, selected: selectedIds.has(String(source.id)) }}
                 onToggle={() => toggleSource(source.id)}
                 onPreview={() => handlePreviewFile(source)}
                 getSourceTooltip={getSourceTooltip}
                 getPrincipleFileIcon={getPrincipleFileIcon}
+                onDelete={handleDeleteOne}
               />
             ))}
           </div>

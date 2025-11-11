@@ -21,7 +21,7 @@ class SourceService {
   // ─── FILES ────────────────────────────────────────────────────────────────
 
   async listParsedFiles(notebookId: string, { limit = 50, offset = 0 }: ListOptions = {}): Promise<any> {
-    return apiClient.get(`/notebooks/${notebookId}/files/`, { params: { limit, offset, include_incomplete: '1' } });
+    return apiClient.get(`/notebooks/${notebookId}/files/`, { params: { limit, offset } });
   }
 
   async getParsedFile(fileId: string, notebookId: string): Promise<any> {

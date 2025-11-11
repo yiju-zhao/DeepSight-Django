@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Checkbox } from '@/shared/components/ui/checkbox';
-import { Loader2, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Loader2, AlertCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { supportsPreview } from '@/features/notebook/utils/filePreview';
 import { Source } from '@/features/notebook/type';
 
@@ -10,6 +10,7 @@ interface SourceItemProps {
   onPreview: (source: Source) => void;
   getSourceTooltip: (source: Source) => string;
   getPrincipleFileIcon: (source: Source) => React.ComponentType<any>;
+  onDelete?: (source: Source) => void;
 }
 
 /**
@@ -21,7 +22,8 @@ export const SourceItem = React.memo<SourceItemProps>(({
   onToggle,
   onPreview,
   getSourceTooltip,
-  getPrincipleFileIcon
+  getPrincipleFileIcon,
+  onDelete
 }) => {
   // Derive a minimal tri-state: processing | failed | done
   // CRITICAL: Only show as 'done' when ragflow_processing_status === 'completed'
@@ -67,6 +69,7 @@ export const SourceItem = React.memo<SourceItemProps>(({
   const isDone = status === 'done';
   const isSweeping = isProcessing; // sweep only when processing
   const isContentReady = isDone; // only final items are interactive/selectable
+  const isSelectable = isDone || isFailed; // allow selection for done or failed
   const showImageReady = source.captioning_status === 'completed';
 
   const handleItemClick = useCallback((e: React.MouseEvent) => {
@@ -148,9 +151,18 @@ export const SourceItem = React.memo<SourceItemProps>(({
               <ImageIcon className="h-4 w-4 text-green-600" />
             </div>
           )}
+          {isFailed && typeof onDelete === 'function' && (
+            <button
+              title="Delete failed source"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(source); }}
+              className="text-red-600 hover:text-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
 
-          {/* Only show checkbox when content is ready */}
-          {isContentReady && (
+          {/* Show checkbox when item is selectable (done or failed), but not during processing */}
+          {isSelectable && (
             <div
               className="flex items-center cursor-pointer animate-in fade-in slide-in-from-right-2 duration-300"
               onClick={(e) => {
