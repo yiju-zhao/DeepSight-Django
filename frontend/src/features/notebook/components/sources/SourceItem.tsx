@@ -32,20 +32,12 @@ export const SourceItem = React.memo<SourceItemProps>(({
     const r = s.ragflow_processing_status;
     const c = s.captioning_status;
 
-    // Debug log: output current status values
-    console.log(`[deriveStatus] Source ${s.id}:`, {
-      parsing_status: p,
-      ragflow_processing_status: r,
-      captioning_status: c
-    });
-
-    // Failed has HIGHEST priority
+    // Failed has priority
     if (
       (p && ['failed', 'error', 'cancelled', 'unsupported'].includes(p)) ||
       r === 'failed' ||
       c === 'failed'
     ) {
-      console.log(`[deriveStatus] → Returning 'failed' for source ${s.id}`);
       return 'failed';
     }
 
@@ -79,15 +71,6 @@ export const SourceItem = React.memo<SourceItemProps>(({
   const isContentReady = isDone; // only final items are interactive/selectable
   const isSelectable = isDone || isFailed; // allow selection for done or failed
   const showImageReady = source.captioning_status === 'completed';
-
-  // Debug log: output selection status
-  console.log(`[SourceItem] Source ${source.id}:`, {
-    status,
-    isFailed,
-    isDone,
-    isSelectable,
-    selected: source.selected
-  });
 
   const handleItemClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
