@@ -1,10 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { store } from '@/shared/store';
 import { Toaster } from "@/shared/components/ui/toaster";
 import { ErrorBoundary } from "@/shared/components/ui/ErrorBoundary";
-import { QueryProvider } from "@/shared/providers/QueryProvider";
 import { PerformanceMonitor, reportWebVitals } from "@/shared/utils/performance";
 import { PrivateRoute } from "@/shared/components/auth/PrivateRoute";
 import { useAuth } from "@/shared/hooks/useAuth";
@@ -105,14 +102,10 @@ function App() {
   }, []);
 
   return (
-    <Provider store={store}>
-      <QueryProvider>
-        <ErrorBoundary level="page">
-          <AppRoutes />
-          <Toaster />
-        </ErrorBoundary>
-      </QueryProvider>
-    </Provider>
+    <ErrorBoundary level="page">
+      <AppRoutes />
+      <Toaster />
+    </ErrorBoundary>
   );
 }
 
