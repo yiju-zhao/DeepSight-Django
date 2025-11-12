@@ -8,6 +8,7 @@ import { PersistGate } from 'redux-persist/integration/react';
 import { store, persistor } from '../store';
 import { QueryProvider } from './QueryProvider';
 import { LoadingSpinner } from "@/shared/components/ui/LoadingSpinner";
+import { TooltipProvider } from "@/shared/components/ui/tooltip";
 
 interface AppProvidersProps {
   children: React.ReactNode;
@@ -25,7 +26,9 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
         persistor={persistor}
       >
         <QueryProvider>
-          {children}
+          <TooltipProvider>
+            {children}
+          </TooltipProvider>
         </QueryProvider>
       </PersistGate>
     </Provider>
