@@ -9,7 +9,7 @@ import {
   Info,
 } from 'lucide-react';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { Tooltip } from '@/shared/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/shared/components/ui/tooltip';
 
 interface DashboardKPIsProps {
   data: KPIData;
@@ -25,9 +25,9 @@ interface KPICardProps {
     value: number;
     isPositive: boolean;
   };
-  gradientFrom: string;
-  gradientTo: string;
-  iconColor: string;
+  gradientFrom?: string;
+  gradientTo?: string;
+  iconColor?: string;
   isLoading?: boolean;
 }
 
@@ -71,8 +71,11 @@ const KPICard = ({
                 {label}
               </p>
               {description && (
-                <Tooltip content={description}>
-                  <Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>{description}</TooltipContent>
                 </Tooltip>
               )}
             </div>
@@ -157,14 +160,7 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
-            <KPICard
-              key={i}
-              icon={Users}
-              label=""
-              value=""
-              color=""
-              isLoading={true}
-            />
+            <KPICard key={i} icon={Users} label="" value="" isLoading={true} />
           ))}
         </div>
 

@@ -27,16 +27,16 @@ const STORAGE_VERSION = '1.0';
 
 interface FavoriteData {
   version: string;
-  favorites: number[]; // Array of publication IDs
+  favorites: string[]; // Array of publication IDs
   lastUpdated: string;
 }
 
 interface UseFavoritesReturn {
-  favorites: Set<number>;
-  isFavorite: (publicationId: number) => boolean;
-  toggleFavorite: (publicationId: number) => void;
-  addFavorite: (publicationId: number) => void;
-  removeFavorite: (publicationId: number) => void;
+  favorites: Set<string>;
+  isFavorite: (publicationId: string) => boolean;
+  toggleFavorite: (publicationId: string) => void;
+  addFavorite: (publicationId: string) => void;
+  removeFavorite: (publicationId: string) => void;
   clearFavorites: () => void;
   favoriteCount: number;
   getFavoritePublications: (publications: Publication[]) => Publication[];
@@ -49,7 +49,7 @@ interface UseFavoritesReturn {
 /**
  * Load favorites from localStorage
  */
-function loadFavorites(): Set<number> {
+function loadFavorites(): Set<string> {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (!stored) return new Set();
@@ -72,7 +72,7 @@ function loadFavorites(): Set<number> {
 /**
  * Save favorites to localStorage
  */
-function saveFavorites(favorites: Set<number>): void {
+function saveFavorites(favorites: Set<string>): void {
   try {
     const data: FavoriteData = {
       version: STORAGE_VERSION,
@@ -98,7 +98,7 @@ function saveFavorites(favorites: Set<number>): void {
  * Hook for managing favorite publications
  */
 export function useFavorites(): UseFavoritesReturn {
-  const [favorites, setFavorites] = useState<Set<number>>(() => loadFavorites());
+  const [favorites, setFavorites] = useState<Set<string>>(() => loadFavorites());
 
   // Persist favorites when they change
   useEffect(() => {
@@ -124,7 +124,7 @@ export function useFavorites(): UseFavoritesReturn {
    * Check if a publication is favorited
    */
   const isFavorite = useCallback(
-    (publicationId: number): boolean => {
+    (publicationId: string): boolean => {
       return favorites.has(publicationId);
     },
     [favorites]
@@ -133,7 +133,7 @@ export function useFavorites(): UseFavoritesReturn {
   /**
    * Add a publication to favorites
    */
-  const addFavorite = useCallback((publicationId: number): void => {
+  const addFavorite = useCallback((publicationId: string): void => {
     setFavorites((prev) => {
       if (prev.has(publicationId)) return prev;
       const next = new Set(prev);
@@ -145,7 +145,7 @@ export function useFavorites(): UseFavoritesReturn {
   /**
    * Remove a publication from favorites
    */
-  const removeFavorite = useCallback((publicationId: number): void => {
+  const removeFavorite = useCallback((publicationId: string): void => {
     setFavorites((prev) => {
       if (!prev.has(publicationId)) return prev;
       const next = new Set(prev);
@@ -158,7 +158,7 @@ export function useFavorites(): UseFavoritesReturn {
    * Toggle favorite status
    */
   const toggleFavorite = useCallback(
-    (publicationId: number): void => {
+    (publicationId: string): void => {
       if (isFavorite(publicationId)) {
         removeFavorite(publicationId);
       } else {

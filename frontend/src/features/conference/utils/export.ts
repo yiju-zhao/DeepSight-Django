@@ -260,7 +260,8 @@ export function estimateFileSize(
   if (!publications.length) return 0;
 
   // Sample first publication
-  const sample = transformData([publications[0]], fields);
+  const first = publications[0]!;
+  const sample = transformData([first], fields);
   const sampleStr =
     format === 'csv'
       ? Papa.unparse(sample)
