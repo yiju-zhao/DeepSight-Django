@@ -1,6 +1,7 @@
 import { memo, useState } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
 import { FineHistogramBin } from '../../types';
+import chartTheme from '../../utils/chartTheme';
 
 interface RatingHistogramProps {
   data: FineHistogramBin[];
@@ -89,12 +90,13 @@ const RatingHistogramComponent = ({
           data={chartData}
           keys={['value']}
           indexBy="label"
+          {...chartTheme.barChart}
           margin={{ top: 20, right: 60, bottom: 50, left: 60 }}
-          padding={0.1}
+          padding={0.15}
           valueScale={{ type: 'linear' }}
           indexScale={{ type: 'band', round: true }}
-          colors={{ scheme: 'nivo' }}
-          borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+          colors={[chartTheme.colors[0]]}
+          borderRadius={4}
           axisTop={null}
           axisRight={null}
           axisBottom={{
@@ -116,14 +118,14 @@ const RatingHistogramComponent = ({
           enableLabel={true}
           labelSkipWidth={12}
           labelSkipHeight={12}
-          labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+          labelTextColor={{ from: 'color', modifiers: [['darker', 1.8]] }}
           tooltip={({ data }) => (
-            <div className="bg-white p-3 shadow-lg rounded-lg border">
-              <div className="font-semibold text-gray-900">
+            <div className="bg-white p-3 shadow-lg rounded-lg border border-gray-200">
+              <div className="font-semibold text-gray-900 text-sm mb-1">
                 Rating: {data.binStart?.toFixed(1)} - {data.binEnd?.toFixed(1)}
               </div>
               <div className="text-sm text-gray-600">
-                {data.value} publications
+                <span className="font-medium text-gray-900">{data.value}</span> publications
               </div>
             </div>
           )}

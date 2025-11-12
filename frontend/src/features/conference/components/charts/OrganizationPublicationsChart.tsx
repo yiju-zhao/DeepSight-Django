@@ -2,6 +2,7 @@ import { memo, useState } from 'react';
 import { ResponsiveBar } from '@nivo/bar';
 import { ChevronDown } from 'lucide-react';
 import { OrganizationPublicationData, OrganizationPublicationByResearchAreaData } from '../../types';
+import chartTheme from '../../utils/chartTheme';
 
 interface OrganizationPublicationsChartProps {
   data: OrganizationPublicationData[];
@@ -161,17 +162,18 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
           keys={keys}
           indexBy="organization"
           layout="vertical"
+          {...chartTheme.barChart}
           margin={{
             top: 20,
             right: viewMode === 'total' ? 60 : 180,
             bottom: 150,
             left: 60
           }}
-          padding={0.3}
+          padding={0.2}
           valueScale={{ type: 'linear' }}
           indexScale={{ type: 'band', round: true }}
-          colors={{ scheme: 'tableau10' }}
-          borderColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+          colors={chartTheme.colors}
+          borderRadius={4}
           axisTop={null}
           axisRight={null}
           axisBottom={{
@@ -193,7 +195,7 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
           enableLabel={viewMode === 'total'}
           labelSkipWidth={12}
           labelSkipHeight={12}
-          labelTextColor={{ from: 'color', modifiers: [['darker', 1.6]] }}
+          labelTextColor={{ from: 'color', modifiers: [['darker', 1.8]] }}
           legends={viewMode === 'research_area' ? [
             {
               dataFrom: 'keys',
@@ -216,29 +218,30 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
                   }
                 }
               ],
-              // Custom legend label formatting
-              itemTextColor: '#333'
+              itemTextColor: 'hsl(215, 16%, 35%)'
             }
           ] : []}
           tooltip={({ id, value, indexValue, color }) => (
-            <div className="bg-white p-3 shadow-lg rounded-lg border">
-              <div className="font-semibold text-gray-900">
+            <div className="bg-white p-3 shadow-lg rounded-lg border border-gray-200">
+              <div className="font-semibold text-gray-900 text-sm mb-1">
                 {indexValue}
               </div>
               {viewMode === 'research_area' && (
-                <div
-                  className="flex items-center text-sm text-gray-600 mb-1"
-                >
+                <div className="flex items-center text-sm text-gray-600">
                   <div
-                    className="w-3 h-3 mr-2 rounded"
+                    className="w-3 h-3 mr-2 rounded-sm flex-shrink-0"
                     style={{ backgroundColor: color }}
                   />
-                  {id}: {value} publications
+                  <span className="text-xs text-gray-500">{id}:</span>
+                  <span className="ml-1 font-medium text-gray-900">{value}</span>
                 </div>
               )}
               {viewMode === 'total' && (
                 <div className="text-sm text-gray-600">
-                  {value} publications (including collaborations)
+                  <span className="font-medium text-gray-900">{value}</span> publications
+                  <span className="text-xs text-gray-500 block mt-0.5">
+                    (including collaborations)
+                  </span>
                 </div>
               )}
             </div>

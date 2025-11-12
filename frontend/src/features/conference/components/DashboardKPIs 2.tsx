@@ -178,71 +178,49 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
 
 
   return (
-    <div className="space-y-8">
-      {/* Section Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-foreground tracking-tight">
-            Conference Overview
-          </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Key metrics and statistics for this conference
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div className="mb-4">
+        <h2 className="text-2xl font-bold text-gray-900">Conference Overview</h2>
       </div>
 
-      {/* Main KPI Cards - 5 cards in responsive grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+      {/* Main KPI Cards - 5 cards in one line */}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
         <KPICard
           icon={Users}
           label="Total Publications"
           value={data.total_publications}
-          description="Total number of publications in this conference"
-          gradientFrom="from-blue-500"
-          gradientTo="to-blue-600"
-          iconColor="text-white"
+          color="bg-blue-500"
         />
 
         <KPICard
           icon={GraduationCap}
           label="Authors"
           value={data.unique_authors}
-          description="Unique authors who contributed to publications"
-          gradientFrom="from-emerald-500"
-          gradientTo="to-emerald-600"
-          iconColor="text-white"
+          color="bg-green-500"
         />
 
         <KPICard
           icon={Building2}
-          label="Organizations"
+          label="Orgnizations"
           value={data.unique_affiliations}
-          description="Unique organizations represented in publications"
-          gradientFrom="from-purple-500"
-          gradientTo="to-purple-600"
-          iconColor="text-white"
+          color="bg-purple-500"
         />
 
         <KPICard
           icon={Globe}
           label="Countries"
           value={data.unique_countries}
-          description="Countries represented in author affiliations"
-          gradientFrom="from-orange-500"
-          gradientTo="to-orange-600"
-          iconColor="text-white"
+          color="bg-orange-500"
         />
 
         <KPICard
           icon={Star}
           label="Average Rating"
           value={data.avg_rating.toFixed(1)}
-          description="Average quality rating of all publications"
-          gradientFrom="from-amber-500"
-          gradientTo="to-amber-600"
-          iconColor="text-white"
+          color="bg-yellow-500"
         />
       </div>
+
     </div>
   );
 }
