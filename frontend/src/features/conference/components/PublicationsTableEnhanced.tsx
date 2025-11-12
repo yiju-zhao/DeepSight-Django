@@ -29,6 +29,7 @@ import { Card, CardHeader, CardContent } from '@/shared/components/ui/card';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Button } from '@/shared/components/ui/button';
 import ExportButton from './ExportButton';
+import PublicationDetailModal from './PublicationDetailModal';
 import { useFavorites } from '../hooks/useFavorites';
 
 interface PublicationsTableProps {
@@ -326,6 +327,8 @@ const PublicationsTableComponent = ({
 }: PublicationsTableProps) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [selectedPublication, setSelectedPublication] = useState<PublicationTableItem | null>(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   const { favorites, toggleFavorite } = useFavorites();
 
@@ -400,11 +403,12 @@ const PublicationsTableComponent = ({
   const someSelected = selectedIds.size > 0 && selectedIds.size < data.length;
 
   const handleViewDetails = (publication: PublicationTableItem) => {
+    setSelectedPublication(publication);
+    setShowDetailModal(true);
+
+    // Also call the optional callback if provided
     if (onViewDetails) {
       onViewDetails(publication);
-    } else {
-      // Fallback: could open a simple alert or nothing
-      console.log('View details for:', publication.title);
     }
   };
 
@@ -597,6 +601,16 @@ const PublicationsTableComponent = ({
           Showing {data.length} of {pagination.count.toLocaleString()} publications
         </div>
       </CardContent>
+
+      {/* Publication Detail Modal */}
+      <PublicationDetailModal
+        publication={selectedPublication}
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false);
+          setSelectedPublication(null);
+        }}
+      />
     </Card>
   );
 };
