@@ -196,7 +196,7 @@ export interface FileMetadata {
   error?: string;
   extraction_type?: string;
   processing_method?: string;
-  caption_generation_status?: 'pending' | 'in_progress' | 'completed' | 'failed';
+  captioning_status?: 'pending' | 'in_progress' | 'completed' | 'failed' | 'not_required';
   caption_generation_error?: string;
   caption_generation_completed_at?: string;
   images_requiring_captions?: number;
