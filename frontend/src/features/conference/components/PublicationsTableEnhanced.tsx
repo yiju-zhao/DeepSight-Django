@@ -1,0 +1,608 @@
+/**
+ * Enhanced Publications Table Component
+ *
+ * Modern redesign with:
+ * - Favorite/bookmark functionality
+ * - Batch selection and export
+ * - Detail view modal trigger
+ * - Improved styling and animations
+ * - Better responsive design
+ */
+
+import { useState, useMemo, memo, useEffect, useRef } from 'react';
+import { PublicationTableItem, PaginationInfo } from '../types';
+import {
+  ExternalLink,
+  Github,
+  FileText,
+  Star,
+  StarOff,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Settings,
+  Eye,
+  Filter,
+} from 'lucide-react';
+import { splitSemicolonValues, formatTruncatedList } from '@/shared/utils/utils';
+import { Card, CardHeader, CardContent } from '@/shared/components/ui/card';
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import { Button } from '@/shared/components/ui/button';
+import ExportButton from './ExportButton';
+import { useFavorites } from '../hooks/useFavorites';
+
+interface PublicationsTableProps {
+  data: PublicationTableItem[];
+  pagination: PaginationInfo;
+  currentPage: number;
+  onPageChange: (page: number) => void;
+  searchTerm: string;
+  onSearchChange: (search: string) => void;
+  sortField: SortField;
+  sortDirection: SortDirection;
+  onSortChange: (field: SortField, direction: SortDirection) => void;
+  isFiltered: boolean;
+  isLoading?: boolean;
+  onViewDetails?: (publication: PublicationTableItem) => void;
+}
+
+interface ColumnVisibility {
+  title: boolean;
+  authors: boolean;
+  topic: boolean;
+  rating: boolean;
+  links: boolean;
+  keywords: boolean;
+  countries: boolean;
+}
+
+type SortField = 'rating' | 'title';
+type SortDirection = 'asc' | 'desc';
+
+// ============================================================================
+// LOADING SKELETON
+// ============================================================================
+
+const LoadingSkeleton = () => (
+  <Card>
+    <CardContent className="p-6">
+      <div className="h-6 bg-muted rounded animate-pulse w-48 mb-6" />
+
+      {/* Filters skeleton */}
+      <div className="flex flex-wrap gap-4 mb-6">
+        <div className="h-10 bg-muted rounded animate-pulse w-64" />
+        <div className="h-10 bg-muted rounded animate-pulse w-40" />
+        <div className="h-10 bg-muted rounded animate-pulse w-32" />
+      </div>
+
+      {/* Table skeleton */}
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-20 bg-muted rounded-lg animate-pulse" />
+        ))}
+      </div>
+    </CardContent>
+  </Card>
+);
+
+// ============================================================================
+// PUBLICATION ROW
+// ============================================================================
+
+interface PublicationRowProps {
+  publication: PublicationTableItem;
+  columnVisibility: ColumnVisibility;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  onViewDetails: () => void;
+}
+
+const PublicationRow = memo(({
+  publication,
+  columnVisibility,
+  isSelected,
+  onToggleSelect,
+  isFavorite,
+  onToggleFavorite,
+  onViewDetails,
+}: PublicationRowProps) => {
+  const keywords = useMemo(() => splitSemicolonValues(publication.keywords), [publication.keywords]);
+  const authors = useMemo(() => splitSemicolonValues(publication.authors), [publication.authors]);
+  const countries = useMemo(() => splitSemicolonValues(publication.aff_country_unique), [publication.aff_country_unique]);
+
+  const keywordsDisplay = useMemo(() => formatTruncatedList(keywords, 3), [keywords]);
+  const authorsDisplay = useMemo(() => formatTruncatedList(authors, 3), [authors]);
+  const countriesDisplay = useMemo(() => formatTruncatedList(countries, 3), [countries]);
+
+  return (
+    <tr className="group border-b border-border hover:bg-accent/50 transition-colors">
+      {/* Selection Checkbox */}
+      <td className="py-4 px-4 w-12">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={onToggleSelect}
+          className="cursor-pointer"
+        />
+      </td>
+
+      {/* Favorite Icon */}
+      <td className="py-4 px-2 w-12">
+        <button
+          onClick={onToggleFavorite}
+          className={`p-1.5 rounded-md transition-all ${
+            isFavorite
+              ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
+              : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-50 opacity-0 group-hover:opacity-100'
+          }`}
+          title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+        >
+          {isFavorite ? (
+            <Star className="h-4 w-4 fill-current" />
+          ) : (
+            <StarOff className="h-4 w-4" />
+          )}
+        </button>
+      </td>
+
+      {/* Title - Always visible */}
+      <td className="py-4 px-4">
+        <div className="space-y-1.5">
+          <div className="font-medium text-foreground text-sm hover:text-primary cursor-pointer transition-colors" onClick={onViewDetails}>
+            {publication.title}
+          </div>
+          {columnVisibility.keywords && keywords.length > 0 && (
+            <div className="text-xs text-muted-foreground line-clamp-2">
+              {keywordsDisplay.displayText}
+            </div>
+          )}
+        </div>
+      </td>
+
+      {/* Authors - Always visible */}
+      <td className="py-4 px-4">
+        <div className="space-y-2">
+          <div className="text-sm text-foreground">
+            {authorsDisplay.displayText}
+            {authorsDisplay.hasMore && (
+              <span className="text-muted-foreground"> +{authorsDisplay.remainingCount} more</span>
+            )}
+          </div>
+          {columnVisibility.countries && countries.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {countriesDisplay.displayItems.map((country, index) => (
+                <span key={index} className="inline-flex items-center px-2 py-0.5 text-xs bg-blue-100 text-blue-800 rounded-md font-medium">
+                  {country}
+                </span>
+              ))}
+              {countriesDisplay.hasMore && (
+                <span className="inline-flex items-center px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded-md font-medium">
+                  +{countriesDisplay.remainingCount}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </td>
+
+      {/* Topic - Conditional */}
+      {columnVisibility.topic && (
+        <td className="py-4 px-4">
+          <span className="text-sm text-foreground">
+            {publication.research_topic}
+          </span>
+        </td>
+      )}
+
+      {/* Rating - Conditional */}
+      {columnVisibility.rating && (
+        <td className="py-4 px-4">
+          {publication.rating && !isNaN(Number(publication.rating)) && (
+            <div className="flex items-center gap-1.5">
+              <Star className="w-4 h-4 text-amber-400 fill-current" />
+              <span className="text-sm font-semibold text-foreground">
+                {Number(publication.rating).toFixed(1)}
+              </span>
+            </div>
+          )}
+        </td>
+      )}
+
+      {/* Links - Conditional */}
+      {columnVisibility.links && (
+        <td className="py-4 px-4">
+          <div className="flex items-center gap-2">
+            {publication.pdf_url && (
+              <a
+                href={publication.pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-all"
+                title="View PDF"
+              >
+                <FileText className="h-4 w-4" />
+              </a>
+            )}
+
+            {publication.github && (
+              <a
+                href={publication.github}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 text-gray-700 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all"
+                title="View GitHub"
+              >
+                <Github className="h-4 w-4" />
+              </a>
+            )}
+
+            {publication.site && (
+              <a
+                href={publication.site}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-1.5 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-all"
+                title="View Project Site"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </a>
+            )}
+
+            <button
+              onClick={onViewDetails}
+              className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all opacity-0 group-hover:opacity-100"
+              title="View Details"
+            >
+              <Eye className="h-4 w-4" />
+            </button>
+          </div>
+        </td>
+      )}
+    </tr>
+  );
+});
+
+PublicationRow.displayName = 'PublicationRow';
+
+// ============================================================================
+// TABLE BODY
+// ============================================================================
+
+interface TableBodyProps {
+  data: PublicationTableItem[];
+  columnVisibility: ColumnVisibility;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
+  favorites: Set<string>;
+  onToggleFavorite: (id: string) => void;
+  onViewDetails: (publication: PublicationTableItem) => void;
+}
+
+const TableBody = memo(({
+  data,
+  columnVisibility,
+  selectedIds,
+  onToggleSelect,
+  favorites,
+  onToggleFavorite,
+  onViewDetails,
+}: TableBodyProps) => (
+  <tbody>
+    {data.map((publication) => (
+      <PublicationRow
+        key={publication.id}
+        publication={publication}
+        columnVisibility={columnVisibility}
+        isSelected={selectedIds.has(String(publication.id))}
+        onToggleSelect={() => onToggleSelect(String(publication.id))}
+        isFavorite={favorites.has(String(publication.id))}
+        onToggleFavorite={() => onToggleFavorite(String(publication.id))}
+        onViewDetails={() => onViewDetails(publication)}
+      />
+    ))}
+  </tbody>
+));
+
+TableBody.displayName = 'TableBody';
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+const PublicationsTableComponent = ({
+  data,
+  pagination,
+  currentPage,
+  onPageChange,
+  searchTerm,
+  onSearchChange,
+  sortField,
+  sortDirection,
+  onSortChange,
+  isFiltered,
+  isLoading,
+  onViewDetails,
+}: PublicationsTableProps) => {
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const { favorites, toggleFavorite } = useFavorites();
+
+  // Column visibility state
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
+    title: true,
+    authors: true,
+    topic: false,
+    rating: true,
+    links: true,
+    keywords: true,
+    countries: false,
+  });
+
+  const toggleColumn = (column: keyof ColumnVisibility) => {
+    if (column === 'title' || column === 'authors') return;
+    setColumnVisibility((prev) => ({
+      ...prev,
+      [column]: !prev[column],
+    }));
+  };
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    if (selectedIds.size === data.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(data.map((p) => String(p.id))));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Get selected publications for export
+  const selectedPublications = useMemo(() => {
+    return data.filter((p) => selectedIds.has(String(p.id)));
+  }, [data, selectedIds]);
+
+  // Ref for column settings dropdown
+  const columnSettingsRef = useRef<HTMLDivElement>(null);
+
+  // Close column settings when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (columnSettingsRef.current && !columnSettingsRef.current.contains(event.target as Node)) {
+        setShowColumnSettings(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  if (isLoading) {
+    return <LoadingSkeleton />;
+  }
+
+  const totalPages = Math.ceil(pagination.count / 20);
+  const allSelected = data.length > 0 && selectedIds.size === data.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < data.length;
+
+  const handleViewDetails = (publication: PublicationTableItem) => {
+    if (onViewDetails) {
+      onViewDetails(publication);
+    } else {
+      // Fallback: could open a simple alert or nothing
+      console.log('View details for:', publication.title);
+    }
+  };
+
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b bg-muted/30">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-foreground">
+              Publications
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {pagination.count.toLocaleString()} total publications
+              {isFiltered && ' (filtered)'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {selectedIds.size > 0 && (
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.size} selected
+              </span>
+            )}
+
+            <ExportButton
+              publications={data}
+              selectedPublications={selectedPublications}
+              variant="outline"
+              size="sm"
+            />
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="p-6">
+        {/* Controls */}
+        <div className="flex flex-wrap gap-4 mb-6">
+          <div className="relative flex-1 min-w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+            <input
+              type="text"
+              placeholder="Search titles, authors, keywords..."
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
+            />
+          </div>
+
+          <select
+            value={`${sortField}-${sortDirection}`}
+            onChange={(e) => {
+              const [field, direction] = e.target.value.split('-') as [SortField, SortDirection];
+              onSortChange(field, direction);
+            }}
+            className="px-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
+          >
+            <option value="rating-desc">Sort by Rating (High to Low)</option>
+            <option value="rating-asc">Sort by Rating (Low to High)</option>
+            <option value="title-asc">Sort by Title (A to Z)</option>
+            <option value="title-desc">Sort by Title (Z to A)</option>
+          </select>
+
+          <div className="relative" ref={columnSettingsRef}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowColumnSettings(!showColumnSettings)}
+            >
+              <Settings size={16} className="mr-2" />
+              Columns
+            </Button>
+
+            {showColumnSettings && (
+              <div className="absolute right-0 top-full mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg z-10">
+                <div className="p-4">
+                  <h4 className="font-semibold text-sm text-foreground mb-3">Show/Hide Columns</h4>
+                  <div className="space-y-2">
+                    {Object.entries(columnVisibility).map(([key, visible]) => {
+                      const isRequired = key === 'title' || key === 'authors';
+                      const label = key.charAt(0).toUpperCase() + key.slice(1);
+
+                      return (
+                        <label
+                          key={key}
+                          className="flex items-center gap-2 py-1 px-2 rounded-md hover:bg-accent cursor-pointer"
+                        >
+                          <Checkbox
+                            checked={visible}
+                            onCheckedChange={() => toggleColumn(key as keyof ColumnVisibility)}
+                            disabled={isRequired}
+                          />
+                          <span className={`text-sm ${isRequired ? 'text-muted-foreground' : 'text-foreground'}`}>
+                            {label} {isRequired && '(Required)'}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full">
+            <thead className="bg-muted/50">
+              <tr className="border-b border-border">
+                <th className="py-3 px-4 w-12">
+                  <Checkbox
+                    checked={allSelected}
+                    indeterminate={someSelected}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </th>
+                <th className="py-3 px-2 w-12">
+                  <Star className="h-4 w-4 text-muted-foreground" />
+                </th>
+                <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Title</th>
+                <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Authors</th>
+                {columnVisibility.topic && (
+                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Topic</th>
+                )}
+                {columnVisibility.rating && (
+                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Rating</th>
+                )}
+                {columnVisibility.links && (
+                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Links</th>
+                )}
+              </tr>
+            </thead>
+            <TableBody
+              data={data}
+              columnVisibility={columnVisibility}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              favorites={favorites}
+              onToggleFavorite={toggleFavorite}
+              onViewDetails={handleViewDetails}
+            />
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-2 mt-6">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft size={16} className="mr-1" />
+              Previous
+            </Button>
+
+            <div className="flex gap-1">
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                if (page > totalPages) return null;
+
+                return (
+                  <Button
+                    key={page}
+                    variant={currentPage === page ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => onPageChange(page)}
+                    className="min-w-[2.5rem]"
+                  >
+                    {page}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage === totalPages}
+            >
+              Next
+              <ChevronRight size={16} className="ml-1" />
+            </Button>
+          </div>
+        )}
+
+        {/* Results Info */}
+        <div className="text-sm text-muted-foreground text-center mt-4">
+          Showing {data.length} of {pagination.count.toLocaleString()} publications
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+PublicationsTableComponent.displayName = 'PublicationsTableEnhanced';
+
+export const PublicationsTableEnhanced = memo(PublicationsTableComponent);
+export default PublicationsTableEnhanced;

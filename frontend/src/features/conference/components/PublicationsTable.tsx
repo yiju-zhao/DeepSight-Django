@@ -5,12 +5,18 @@ import {
   Github,
   FileText,
   Star,
+  StarOff,
   Search,
   ChevronLeft,
   ChevronRight,
-  Settings
+  Settings,
+  Eye,
 } from 'lucide-react';
 import { splitSemicolonValues, formatTruncatedList } from '@/shared/utils/utils';
+import { Card, CardHeader, CardContent } from '@/shared/components/ui/card';
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import ExportButton from './ExportButton';
+import { useFavorites } from '../hooks/useFavorites';
 
 interface PublicationsTableProps {
   data: PublicationTableItem[];
