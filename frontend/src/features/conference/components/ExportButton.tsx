@@ -19,11 +19,12 @@ import {
 } from '@/shared/components/ui/popover';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Separator } from '@/shared/components/ui/separator';
-import { Publication } from '../types';
+import { Publication, PublicationTableItem } from '../types';
 import {
   exportPublications,
   ExportFormat,
   ExportField,
+  ExportablePublication,
   DEFAULT_EXPORT_FIELDS,
   ALL_EXPORT_FIELDS,
   estimateFileSize,
@@ -31,8 +32,8 @@ import {
 } from '../utils/export';
 
 interface ExportButtonProps {
-  publications: Publication[];
-  selectedPublications?: Publication[];
+  publications: ExportablePublication[];
+  selectedPublications?: ExportablePublication[];
   disabled?: boolean;
   variant?: 'default' | 'outline' | 'ghost';
   size?: 'default' | 'sm' | 'lg';

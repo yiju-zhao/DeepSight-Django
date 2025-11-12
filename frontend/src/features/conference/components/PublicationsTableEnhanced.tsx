@@ -516,8 +516,7 @@ const PublicationsTableComponent = ({
               <tr className="border-b border-border">
                 <th className="py-3 px-4 w-12">
                   <Checkbox
-                    checked={allSelected}
-                    indeterminate={someSelected}
+                    checked={allSelected || someSelected}
                     onCheckedChange={toggleSelectAll}
                   />
                 </th>

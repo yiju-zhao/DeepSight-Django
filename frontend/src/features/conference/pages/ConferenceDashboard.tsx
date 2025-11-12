@@ -3,7 +3,7 @@ import { useDebounce } from '@/shared/hooks/useDebounce';
 import { useVenues, useInstances, useDashboard, useOverview, usePublications } from '../hooks/useConference';
 import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
-import { PublicationsTable } from '../components/PublicationsTable';
+import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
 import { AlertCircle, TrendingUp, Search, Calendar, MapPin, Star, Users, FileText } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
 
@@ -62,7 +62,7 @@ const DashboardContent = memo(({
     )}
 
     {/* Publications Table */}
-    <PublicationsTable
+    <PublicationsTableEnhanced
       data={publicationsData?.results || []}
       pagination={{
         count: publicationsData?.count || 0,
@@ -78,6 +78,11 @@ const DashboardContent = memo(({
       onSortChange={onSortChange}
       isFiltered={!!debouncedPublicationSearch}
       isLoading={publicationsLoading}
+      onViewDetails={(publication) => {
+        // TODO: Open publication detail modal
+        console.log('View details for:', publication.title);
+        // You can add a modal state here later
+      }}
     />
   </div>
 ));

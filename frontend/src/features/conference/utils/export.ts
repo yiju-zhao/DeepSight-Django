@@ -6,7 +6,7 @@
  */
 
 import Papa from 'papaparse';
-import { Publication } from '../types';
+import { Publication, PublicationTableItem } from '../types';
 
 // ============================================================================
 // TYPE DEFINITIONS
@@ -14,10 +14,13 @@ import { Publication } from '../types';
 
 export type ExportFormat = 'csv' | 'json';
 
+// Union type to support both Publication and PublicationTableItem
+export type ExportablePublication = Publication | PublicationTableItem;
+
 export interface ExportField {
-  key: keyof Publication | string;
+  key: keyof Publication | keyof PublicationTableItem | string;
   label: string;
-  transform?: (value: any, publication: Publication) => string | number;
+  transform?: (value: any, publication: ExportablePublication) => string | number;
 }
 
 export interface ExportOptions {
@@ -92,7 +95,7 @@ export const ALL_EXPORT_FIELDS: ExportField[] = [
  * Transform publication data according to field definitions
  */
 function transformData(
-  publications: Publication[],
+  publications: ExportablePublication[],
   fields: ExportField[]
 ): Record<string, any>[] {
   return publications.map((publication) => {
@@ -113,7 +116,7 @@ function transformData(
  * Export publications to CSV format
  */
 export function exportToCSV(
-  publications: Publication[],
+  publications: ExportablePublication[],
   fields: ExportField[] = DEFAULT_EXPORT_FIELDS,
   filename: string = 'publications.csv'
 ): void {
@@ -143,7 +146,7 @@ export function exportToCSV(
  * Export publications to JSON format
  */
 export function exportToJSON(
-  publications: Publication[],
+  publications: ExportablePublication[],
   fields: ExportField[] = DEFAULT_EXPORT_FIELDS,
   filename: string = 'publications.json'
 ): void {
@@ -166,7 +169,7 @@ export function exportToJSON(
  * Export publications in specified format
  */
 export function exportPublications(
-  publications: Publication[],
+  publications: ExportablePublication[],
   options: ExportOptions
 ): void {
   const {
@@ -253,7 +256,7 @@ export function createExportFields(keys: string[]): ExportField[] {
  * Estimate export file size in bytes
  */
 export function estimateFileSize(
-  publications: Publication[],
+  publications: ExportablePublication[],
   format: ExportFormat,
   fields: ExportField[] = DEFAULT_EXPORT_FIELDS
 ): number {
