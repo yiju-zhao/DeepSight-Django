@@ -61,7 +61,7 @@ const KPICard = ({
   return (
     <Card className="group overflow-hidden hover:shadow-lg transition-all duration-300 border-0">
       <div
-        className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} ${gradientTo} opacity-[0.02] group-hover:opacity-[0.04] transition-opacity duration-300`}
+        className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} ${gradientTo} opacity-[0.02] group-hover:opacity-[0.04] transition-opacity duration-300 pointer-events-none`}
       />
       <CardContent className="relative p-6">
         <div className="flex items-start justify-between">
