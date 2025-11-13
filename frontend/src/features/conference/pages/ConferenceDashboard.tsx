@@ -62,30 +62,6 @@ const DashboardContent = memo(({
         currentBinSize={currentBinSize}
       />
     )}
-
-    {/* Publications Table */}
-    <PublicationsTableEnhanced
-      data={publicationsData?.results || []}
-      pagination={{
-        count: publicationsData?.count || 0,
-        next: publicationsData?.next || null,
-        previous: publicationsData?.previous || null
-      }}
-      currentPage={currentPage}
-      onPageChange={onPageChange}
-      searchTerm={publicationSearchInput}
-      onSearchChange={onPublicationSearchChange}
-      sortField={sortField}
-      sortDirection={sortDirection}
-      onSortChange={onSortChange}
-      isFiltered={!!debouncedPublicationSearch}
-      isLoading={publicationsLoading}
-      onViewDetails={(publication) => {
-        // TODO: Open publication detail modal
-        console.log('View details for:', publication.title);
-        // You can add a modal state here later
-      }}
-    />
   </div>
 ));
 
@@ -101,6 +77,7 @@ export default function ConferenceDashboard() {
   // Separate search states to avoid coupling
   const [conferenceSearchInput, setConferenceSearchInput] = useState(''); // For conference list search
   const [publicationSearchInput, setPublicationSearchInput] = useState(''); // For publications search
+  const [selectedAffiliations, setSelectedAffiliations] = useState<string[]>([]); // For affiliation filter
   const [sortField, setSortField] = useState<'rating' | 'title'>('rating');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [binSize, setBinSize] = useState(0.5); // Default bin size for rating histogram
@@ -192,6 +169,7 @@ export default function ConferenceDashboard() {
     page: currentPage,
     page_size: 20,
     search: debouncedPublicationSearch || undefined,
+    aff_filter: selectedAffiliations.length > 0 ? selectedAffiliations.join(',') : undefined,
     ordering: getOrdering()
   } : undefined;
 
@@ -230,6 +208,7 @@ export default function ConferenceDashboard() {
     setSelectedInstance(undefined);
     setCurrentPage(1);
     setPublicationSearchInput(''); // Reset publications search when changing venue
+    setSelectedAffiliations([]); // Reset affiliation filter when changing venue
   };
 
   const handleYearChange = (year: number | undefined) => {
@@ -237,6 +216,7 @@ export default function ConferenceDashboard() {
     setSelectedInstance(undefined);
     setCurrentPage(1);
     setPublicationSearchInput(''); // Reset publications search when changing year
+    setSelectedAffiliations([]); // Reset affiliation filter when changing year
   };
 
   const handleInstanceSelect = (instanceId: number) => {
@@ -247,6 +227,7 @@ export default function ConferenceDashboard() {
       setSelectedInstance(instanceId);
       setCurrentPage(1);
       setPublicationSearchInput(''); // Reset publications search when changing instance
+      setSelectedAffiliations([]); // Reset affiliation filter when changing instance
 
       // Always scroll to dashboard when an instance is clicked, even if it's already selected
       setTimeout(() => scrollToDashboard(), 100);
@@ -494,10 +475,12 @@ export default function ConferenceDashboard() {
                     onPageChange={handlePageChange}
                     searchTerm={publicationSearchInput}
                     onSearchChange={handlePublicationSearchChange}
+                    selectedAffiliations={selectedAffiliations}
+                    onAffiliationFilterChange={setSelectedAffiliations}
                     sortField={sortField}
                     sortDirection={sortDirection}
                     onSortChange={handleSortChange}
-                    isFiltered={!!debouncedPublicationSearch}
+                    isFiltered={!!debouncedPublicationSearch || selectedAffiliations.length > 0}
                     isLoading={publicationsLoading}
                     onViewDetails={(publication) => {
                       console.log('View details for:', publication.title);

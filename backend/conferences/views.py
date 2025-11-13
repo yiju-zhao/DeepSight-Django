@@ -67,6 +67,7 @@ class PublicationViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         instance_id = self.request.query_params.get("instance")
         search = self.request.query_params.get("search")
+        aff_filter = self.request.query_params.get("aff_filter")
         ordering = self.request.query_params.get("ordering")
 
         if instance_id:
@@ -79,6 +80,16 @@ class PublicationViewSet(viewsets.ModelViewSet):
                 | Q(authors__icontains=search)
                 | Q(keywords__icontains=search)
             )
+
+        if aff_filter:
+            # Filter by affiliation (supports multiple affiliations with OR logic)
+            affiliations = [aff.strip() for aff in aff_filter.split(",") if aff.strip()]
+            if affiliations:
+                # Build Q objects for each affiliation and combine with OR
+                aff_queries = Q()
+                for affiliation in affiliations:
+                    aff_queries |= Q(aff_unique__icontains=affiliation)
+                queryset = queryset.filter(aff_queries)
 
         # Filter out publications with status "reject"
         queryset = queryset.exclude(session__iexact="reject")

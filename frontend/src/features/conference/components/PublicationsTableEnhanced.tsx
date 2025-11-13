@@ -39,6 +39,8 @@ interface PublicationsTableProps {
   onPageChange: (page: number) => void;
   searchTerm: string;
   onSearchChange: (search: string) => void;
+  selectedAffiliations?: string[];
+  onAffiliationFilterChange?: (affiliations: string[]) => void;
   sortField: SortField;
   sortDirection: SortDirection;
   onSortChange: (field: SortField, direction: SortDirection) => void;
@@ -50,6 +52,7 @@ interface PublicationsTableProps {
 interface ColumnVisibility {
   title: boolean;
   authors: boolean;
+  affiliation: boolean;
   topic: boolean;
   rating: boolean;
   links: boolean;
@@ -112,10 +115,12 @@ const PublicationRow = memo(({
   const keywords = useMemo(() => splitSemicolonValues(publication.keywords), [publication.keywords]);
   const authors = useMemo(() => splitSemicolonValues(publication.authors), [publication.authors]);
   const countries = useMemo(() => splitSemicolonValues(publication.aff_country_unique), [publication.aff_country_unique]);
+  const affiliations = useMemo(() => splitSemicolonValues(publication.aff_unique), [publication.aff_unique]);
 
   const keywordsDisplay = useMemo(() => formatTruncatedList(keywords, 3), [keywords]);
   const authorsDisplay = useMemo(() => formatTruncatedList(authors, 3), [authors]);
   const countriesDisplay = useMemo(() => formatTruncatedList(countries, 3), [countries]);
+  const affiliationsDisplay = useMemo(() => formatTruncatedList(affiliations, 2), [affiliations]);
 
   return (
     <tr className="group border-b border-border hover:bg-accent/50 transition-colors">
@@ -186,6 +191,26 @@ const PublicationRow = memo(({
           )}
         </div>
       </td>
+
+      {/* Affiliation - Conditional */}
+      {columnVisibility.affiliation && (
+        <td className="py-4 px-4">
+          {affiliations.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {affiliationsDisplay.displayItems.map((affiliation, index) => (
+                <span key={index} className="inline-flex items-center px-2 py-0.5 text-xs bg-green-100 text-green-800 rounded-md font-medium">
+                  {affiliation}
+                </span>
+              ))}
+              {affiliationsDisplay.hasMore && (
+                <span className="inline-flex items-center px-2 py-0.5 text-xs bg-muted text-muted-foreground rounded-md font-medium">
+                  +{affiliationsDisplay.remainingCount}
+                </span>
+              )}
+            </div>
+          )}
+        </td>
+      )}
 
       {/* Topic - Conditional */}
       {columnVisibility.topic && (
@@ -318,6 +343,8 @@ const PublicationsTableComponent = ({
   onPageChange,
   searchTerm,
   onSearchChange,
+  selectedAffiliations = [],
+  onAffiliationFilterChange,
   sortField,
   sortDirection,
   onSortChange,
@@ -326,6 +353,7 @@ const PublicationsTableComponent = ({
   onViewDetails,
 }: PublicationsTableProps) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [showAffiliationFilter, setShowAffiliationFilter] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedPublication, setSelectedPublication] = useState<PublicationTableItem | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
@@ -336,6 +364,7 @@ const PublicationsTableComponent = ({
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
     title: true,
     authors: true,
+    affiliation: true,
     topic: false,
     rating: true,
     links: true,
@@ -377,14 +406,34 @@ const PublicationsTableComponent = ({
     return data.filter((p) => selectedIds.has(String(p.id)));
   }, [data, selectedIds]);
 
-  // Ref for column settings dropdown
+  // Ref for column settings dropdown and affiliation filter dropdown
   const columnSettingsRef = useRef<HTMLDivElement>(null);
+  const affiliationFilterRef = useRef<HTMLDivElement>(null);
+
+  // Extract unique affiliations from current data for filter options
+  const uniqueAffiliations = useMemo(() => {
+    const affiliationsSet = new Set<string>();
+    data.forEach(pub => {
+      if (pub.aff_unique) {
+        const affiliations = splitSemicolonValues(pub.aff_unique);
+        affiliations.forEach(aff => {
+          if (aff.trim()) {
+            affiliationsSet.add(aff.trim());
+          }
+        });
+      }
+    });
+    return Array.from(affiliationsSet).sort();
+  }, [data]);
 
   // Close column settings when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (columnSettingsRef.current && !columnSettingsRef.current.contains(event.target as Node)) {
         setShowColumnSettings(false);
+      }
+      if (affiliationFilterRef.current && !affiliationFilterRef.current.contains(event.target as Node)) {
+        setShowAffiliationFilter(false);
       }
     };
 
@@ -529,6 +578,77 @@ const PublicationsTableComponent = ({
                 </th>
                 <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Title</th>
                 <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Authors</th>
+                {columnVisibility.affiliation && (
+                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">
+                    <div className="flex items-center gap-2">
+                      <span>Affiliation</span>
+                      <div className="relative" ref={affiliationFilterRef}>
+                        <button
+                          onClick={() => setShowAffiliationFilter(!showAffiliationFilter)}
+                          className={`p-1 rounded hover:bg-accent transition-colors ${
+                            selectedAffiliations.length > 0 ? 'text-primary' : 'text-muted-foreground'
+                          }`}
+                          title="Filter by affiliation"
+                        >
+                          <Filter className="h-4 w-4" />
+                        </button>
+
+                        {showAffiliationFilter && onAffiliationFilterChange && (
+                          <div className="absolute left-0 top-full mt-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-20 max-h-96 overflow-hidden flex flex-col">
+                            <div className="p-3 border-b border-border">
+                              <h4 className="font-semibold text-sm text-foreground mb-2">Filter by Affiliation</h4>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => onAffiliationFilterChange(uniqueAffiliations)}
+                                  className="flex-1"
+                                >
+                                  Select All
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => onAffiliationFilterChange([])}
+                                  className="flex-1"
+                                >
+                                  Clear All
+                                </Button>
+                              </div>
+                            </div>
+
+                            <div className="overflow-y-auto max-h-64 p-2">
+                              {uniqueAffiliations.map((affiliation) => (
+                                <label
+                                  key={affiliation}
+                                  className="flex items-center gap-2 py-2 px-2 rounded-md hover:bg-accent cursor-pointer"
+                                >
+                                  <Checkbox
+                                    checked={selectedAffiliations.includes(affiliation)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        onAffiliationFilterChange([...selectedAffiliations, affiliation]);
+                                      } else {
+                                        onAffiliationFilterChange(selectedAffiliations.filter(a => a !== affiliation));
+                                      }
+                                    }}
+                                  />
+                                  <span className="text-sm text-foreground flex-1">{affiliation}</span>
+                                </label>
+                              ))}
+                            </div>
+
+                            <div className="p-3 border-t border-border bg-muted/30">
+                              <div className="text-xs text-muted-foreground">
+                                {selectedAffiliations.length} of {uniqueAffiliations.length} selected
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </th>
+                )}
                 {columnVisibility.topic && (
                   <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Topic</th>
                 )}
