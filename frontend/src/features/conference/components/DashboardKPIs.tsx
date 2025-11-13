@@ -25,9 +25,6 @@ interface KPICardProps {
     value: number;
     isPositive: boolean;
   };
-  gradientFrom?: string;
-  gradientTo?: string;
-  iconColor?: string;
   isLoading?: boolean;
 }
 
@@ -37,21 +34,18 @@ const KPICard = ({
   value,
   description,
   trend,
-  gradientFrom,
-  gradientTo,
-  iconColor,
   isLoading
 }: KPICardProps) => {
   if (isLoading) {
     return (
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden bg-white rounded-lg border border-[#E3E3E3]">
         <CardContent className="p-6">
           <div className="flex items-start justify-between">
             <div className="flex-1 space-y-3">
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-28" />
-              <div className="h-9 bg-gray-200 rounded animate-pulse w-20" />
+              <div className="h-4 bg-[#F5F5F5] rounded animate-pulse w-28" />
+              <div className="h-9 bg-[#F5F5F5] rounded animate-pulse w-20" />
             </div>
-            <div className="w-12 h-12 bg-gray-200 rounded-xl animate-pulse" />
+            <div className="w-12 h-12 bg-[#F5F5F5] rounded-lg animate-pulse" />
           </div>
         </CardContent>
       </Card>
@@ -59,21 +53,18 @@ const KPICard = ({
   }
 
   return (
-    <Card className="group overflow-hidden hover:shadow-lg transition-all duration-300 border-0">
-      <div
-        className={`absolute inset-0 bg-gradient-to-br ${gradientFrom} ${gradientTo} opacity-[0.02] group-hover:opacity-[0.04] transition-opacity duration-300 pointer-events-none`}
-      />
+    <Card className="group overflow-hidden bg-white rounded-lg border-0 transition-all duration-300 shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px]">
       <CardContent className="relative p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1 space-y-3">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-medium text-muted-foreground">
+              <p className="text-sm font-medium text-[#666666]">
                 {label}
               </p>
               {description && (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 text-muted-foreground/50 cursor-help" />
+                    <Info className="h-3.5 w-3.5 text-[#666666]/50 cursor-help" />
                   </TooltipTrigger>
                   <TooltipContent>{description}</TooltipContent>
                 </Tooltip>
@@ -81,7 +72,7 @@ const KPICard = ({
             </div>
 
             <div className="flex items-baseline gap-3">
-              <p className="text-3xl font-bold text-foreground tracking-tight">
+              <p className="text-3xl font-bold text-[#1E1E1E] tracking-tight">
                 {typeof value === 'number' ? value.toLocaleString() : value}
               </p>
 
@@ -96,11 +87,8 @@ const KPICard = ({
             </div>
           </div>
 
-          <div
-            className={`p-3 rounded-xl bg-gradient-to-br ${gradientFrom} ${gradientTo} shadow-sm
-              group-hover:scale-110 group-hover:shadow-md transition-all duration-300`}
-          >
-            <Icon className={`h-6 w-6 ${iconColor}`} strokeWidth={2} />
+          <div className="p-3 rounded-lg bg-black/5 transition-all duration-300">
+            <Icon className="h-6 w-6 text-[#1E1E1E] opacity-80" strokeWidth={2} />
           </div>
         </div>
       </CardContent>
@@ -174,14 +162,14 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
 
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Section Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-foreground tracking-tight">
+          <h2 className="text-2xl font-bold text-[#1E1E1E] tracking-tight">
             Conference Overview
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-[#666666] mt-1">
             Key metrics and statistics for this conference
           </p>
         </div>
@@ -194,9 +182,6 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
           label="Total Publications"
           value={data.total_publications}
           description="Total number of publications in this conference"
-          gradientFrom="from-blue-500"
-          gradientTo="to-blue-600"
-          iconColor="text-white"
         />
 
         <KPICard
@@ -204,9 +189,6 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
           label="Authors"
           value={data.unique_authors}
           description="Unique authors who contributed to publications"
-          gradientFrom="from-emerald-500"
-          gradientTo="to-emerald-600"
-          iconColor="text-white"
         />
 
         <KPICard
@@ -214,9 +196,6 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
           label="Organizations"
           value={data.unique_affiliations}
           description="Unique organizations represented in publications"
-          gradientFrom="from-purple-500"
-          gradientTo="to-purple-600"
-          iconColor="text-white"
         />
 
         <KPICard
@@ -224,9 +203,6 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
           label="Countries"
           value={data.unique_countries}
           description="Countries represented in author affiliations"
-          gradientFrom="from-orange-500"
-          gradientTo="to-orange-600"
-          iconColor="text-white"
         />
 
         <KPICard
@@ -234,9 +210,6 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
           label="Average Rating"
           value={data.avg_rating.toFixed(1)}
           description="Average quality rating of all publications"
-          gradientFrom="from-amber-500"
-          gradientTo="to-amber-600"
-          iconColor="text-white"
         />
       </div>
     </div>

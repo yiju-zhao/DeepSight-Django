@@ -4,7 +4,9 @@ import { useVenues, useInstances, useDashboard, useOverview, usePublications } f
 import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
 import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
-import { AlertCircle, TrendingUp, Search, Calendar, MapPin, Star, Users, FileText } from 'lucide-react';
+import { CalendarView } from '../components/CalendarView';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
+import { AlertCircle, TrendingUp, Search, Calendar as CalendarIcon, MapPin, Star, Users, FileText } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
 
 // Memoized dashboard content component to prevent unnecessary re-renders
@@ -90,6 +92,7 @@ const DashboardContent = memo(({
 DashboardContent.displayName = 'DashboardContent';
 
 export default function ConferenceDashboard() {
+  const [activeTab, setActiveTab] = useState('overview');
   const [selectedVenue, setSelectedVenue] = useState<string>('');
   const [selectedYear, setSelectedYear] = useState<number | undefined>();
   const [selectedInstance, setSelectedInstance] = useState<number | undefined>();
@@ -272,70 +275,70 @@ export default function ConferenceDashboard() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col min-h-screen bg-gray-50">
-        <div className="flex-1 p-8 overflow-auto">
+      <div className="flex flex-col min-h-screen bg-white">
+        <div className="flex-1 p-6 overflow-auto">
           <div className="max-w-7xl mx-auto">
-            <div className="space-y-8">
+            <div className="space-y-6">
 
-          {/* Enhanced Conference Selection */}
+          {/* HUAWEI Style Header */}
           <div className="space-y-6">
-            {/* Search Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+            {/* Black Header with Title */}
+            <div className="bg-black rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] p-6 text-white">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-2xl font-bold">Explore Conferences</h2>
-                  <p className="text-blue-100 mt-1">Discover insights from leading academic venues</p>
+                  <h2 className="text-2xl font-bold">Conference Dashboard</h2>
+                  <p className="text-white/70 mt-1">Explore academic conference data and insights</p>
                 </div>
                 {selectedVenue && selectedYear && (
-                  <div className="bg-white bg-opacity-20 px-4 py-2 rounded-lg backdrop-blur-sm">
+                  <div className="bg-white/10 px-4 py-2 rounded-md backdrop-blur-sm border border-white/20">
                     <div className="text-sm font-medium">{selectedVenue} {selectedYear}</div>
                   </div>
                 )}
               </div>
 
-          {/* Search Bar */}
+          {/* Search Bar - HUAWEI Style */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" />
             <input
               type="text"
               placeholder="Search conferences, venues, or years..."
               value={conferenceSearchInput}
               onChange={(e) => setConferenceSearchInput(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white bg-opacity-20 backdrop-blur-sm border border-white border-opacity-30 rounded-lg text-white placeholder-blue-200 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
+              className="w-full pl-10 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all duration-300"
             />
           </div>
         </div>
 
-        {/* Popular Conferences */}
+        {/* Recent Conferences - HUAWEI Style */}
         {!conferenceSearchInput && popularConferences.length > 0 && (
-          <div className="bg-white rounded-xl shadow-sm border p-6">
+          <div className="bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] border border-[#E3E3E3] p-6">
             <div className="flex items-center mb-4">
-              <Star className="w-5 h-5 text-yellow-500 mr-2" />
-              <h3 className="text-lg font-semibold text-gray-900">Recent</h3>
+              <Star className="w-5 h-5 text-[#CE0E2D] mr-2" />
+              <h3 className="text-lg font-semibold text-[#1E1E1E]">Recent</h3>
             </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {popularConferences.map((instance) => (
                     <button
                       key={instance.instance_id}
                       onClick={() => handleInstanceSelect(instance.instance_id)}
-                      className={`group relative p-4 rounded-lg border-2 transition-all duration-200 text-left ${
+                      className={`group relative p-4 rounded-lg border transition-all duration-300 text-left shadow-[rgba(0,0,0,0.01)_0px_3px_6px] hover:shadow-[rgba(0,0,0,0.08)_0px_8px_12px] ${
                         matchingInstance?.instance_id === instance.instance_id
-                          ? 'border-blue-500 bg-blue-50 shadow-md'
-                          : 'border-gray-200 hover:border-blue-300 hover:shadow-sm'
+                          ? 'border-black bg-black/5'
+                          : 'border-[#E3E3E3] hover:border-black/30'
                       }`}
                     >
                       <div className="flex items-center justify-between mb-2">
-                        <div className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">
+                        <div className="font-semibold text-[#1E1E1E] transition-colors">
                           {instance.venue.name}
                         </div>
-                        <div className="flex items-center text-sm text-gray-500">
-                          <Calendar className="w-4 h-4 mr-1" />
+                        <div className="flex items-center text-sm text-[#666666]">
+                          <CalendarIcon className="w-4 h-4 mr-1" />
                           {instance.year}
                         </div>
                       </div>
-                      <div className="text-sm text-gray-600 mb-2">{instance.venue.type}</div>
+                      <div className="text-sm text-[#666666] mb-2">{instance.venue.type}</div>
                       {instance.location && (
-                        <div className="flex items-center text-xs text-gray-500">
+                        <div className="flex items-center text-xs text-[#666666]">
                           <MapPin className="w-3 h-3 mr-1" />
                           {instance.location}
                         </div>
@@ -346,13 +349,13 @@ export default function ConferenceDashboard() {
               </div>
             )}
 
-            {/* All Conferences Grid */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
+            {/* All Conferences Grid - HUAWEI Style */}
+            <div className="bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] border border-[#E3E3E3] p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
-                  <Users className="w-5 h-5 text-blue-500 mr-2" />
-                  <h3 className="text-lg font-semibold text-gray-900">All Conferences</h3>
-                  <span className="ml-2 text-sm text-gray-500">
+                  <Users className="w-5 h-5 text-[#1E1E1E] mr-2 opacity-80" />
+                  <h3 className="text-lg font-semibold text-[#1E1E1E]">All Conferences</h3>
+                  <span className="ml-2 text-sm text-[#666666]">
                     ({Object.keys(groupedConferences).length} venues)
                   </span>
                 </div>
@@ -362,7 +365,7 @@ export default function ConferenceDashboard() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {[...Array(6)].map((_, i) => (
                     <div key={i} className="animate-pulse">
-                      <div className="h-32 bg-gray-200 rounded-lg"></div>
+                      <div className="h-32 bg-[#F5F5F5] rounded-lg"></div>
                     </div>
                   ))}
                 </div>
@@ -371,15 +374,15 @@ export default function ConferenceDashboard() {
                   {Object.entries(groupedConferences).map(([venueName, venueData]) => (
                     <div
                       key={venueName}
-                      className="group bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-6 border border-gray-200 hover:shadow-lg transition-all duration-300"
+                      className="group bg-white rounded-lg p-6 border border-[#E3E3E3] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-300"
                     >
                       <div className="flex items-start justify-between mb-4">
                         <div>
-                          <h4 className="font-bold text-lg text-gray-900 group-hover:text-blue-600 transition-colors">
+                          <h4 className="font-bold text-lg text-[#1E1E1E] transition-colors">
                             {venueName}
                           </h4>
                         </div>
-                        <FileText className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                        <FileText className="w-5 h-5 text-[#666666] opacity-60 transition-opacity" />
                       </div>
 
 
@@ -390,10 +393,10 @@ export default function ConferenceDashboard() {
                           <button
                             key={instance.instance_id}
                             onClick={() => handleInstanceSelect(instance.instance_id)}
-                            className={`px-3 py-1 text-xs rounded-full transition-all duration-200 ${
+                            className={`px-3 py-1 text-xs rounded-md transition-all duration-300 ${
                               matchingInstance?.instance_id === instance.instance_id
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'bg-white text-gray-700 border border-gray-300 hover:bg-blue-50 hover:border-blue-300'
+                                ? 'bg-black text-white'
+                                : 'bg-white text-[#1E1E1E] border border-[#E3E3E3] hover:border-black/30'
                             }`}
                           >
                             {instance.year}
@@ -415,52 +418,92 @@ export default function ConferenceDashboard() {
             </div>
           </div>
 
-          {/* Dashboard Content */}
-          {(dashboardError || publicationsError) && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-              <div className="flex items-center">
-                <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
-                <div className="text-red-800">
-                  <div className="font-medium">Error loading dashboard data</div>
-                  <div className="text-sm mt-1">
-                    {dashboardError?.message || publicationsError?.message || 'Please check your selection and try again.'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
+          {/* Dashboard Content with Tabs */}
           {matchingInstance && (
             <div ref={dashboardContentRef}>
-              <DashboardContent
-                dashboardData={dashboardData}
-                dashboardLoading={dashboardLoading}
-                ratingHistogramData={ratingHistogramData}
-                ratingHistogramLoading={ratingHistogramLoading}
-                publicationsData={publicationsData}
-                publicationsLoading={publicationsLoading}
-                currentPage={currentPage}
-                onPageChange={handlePageChange}
-                publicationSearchInput={publicationSearchInput}
-                onPublicationSearchChange={handlePublicationSearchChange}
-                sortField={sortField}
-                sortDirection={sortDirection}
-                onSortChange={handleSortChange}
-                debouncedPublicationSearch={debouncedPublicationSearch}
-                onBinSizeChange={setBinSize}
-                currentBinSize={binSize}
-              />
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                <TabsList className="w-full justify-start">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="calendar">Calendar</TabsTrigger>
+                  <TabsTrigger value="publications">Publications</TabsTrigger>
+                </TabsList>
+
+                {/* Overview Tab */}
+                <TabsContent value="overview" className="space-y-6">
+                  {(dashboardError || publicationsError) && (
+                    <div className="bg-[#CE0E2D]/10 border border-[#CE0E2D]/20 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <AlertCircle className="h-5 w-5 text-[#CE0E2D] mr-2" />
+                        <div className="text-[#1E1E1E]">
+                          <div className="font-medium">Error loading dashboard data</div>
+                          <div className="text-sm mt-1 text-[#666666]">
+                            {dashboardError?.message || publicationsError?.message || 'Please check your selection and try again.'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <DashboardContent
+                    dashboardData={dashboardData}
+                    dashboardLoading={dashboardLoading}
+                    ratingHistogramData={ratingHistogramData}
+                    ratingHistogramLoading={ratingHistogramLoading}
+                    publicationsData={publicationsData}
+                    publicationsLoading={publicationsLoading}
+                    currentPage={currentPage}
+                    onPageChange={handlePageChange}
+                    publicationSearchInput={publicationSearchInput}
+                    onPublicationSearchChange={handlePublicationSearchChange}
+                    sortField={sortField}
+                    sortDirection={sortDirection}
+                    onSortChange={handleSortChange}
+                    debouncedPublicationSearch={debouncedPublicationSearch}
+                    onBinSizeChange={setBinSize}
+                    currentBinSize={binSize}
+                  />
+                </TabsContent>
+
+                {/* Calendar Tab */}
+                <TabsContent value="calendar">
+                  <CalendarView />
+                </TabsContent>
+
+                {/* Publications Tab */}
+                <TabsContent value="publications">
+                  <PublicationsTableEnhanced
+                    data={publicationsData?.results || []}
+                    pagination={{
+                      count: publicationsData?.count || 0,
+                      next: publicationsData?.next || null,
+                      previous: publicationsData?.previous || null
+                    }}
+                    currentPage={currentPage}
+                    onPageChange={handlePageChange}
+                    searchTerm={publicationSearchInput}
+                    onSearchChange={handlePublicationSearchChange}
+                    sortField={sortField}
+                    sortDirection={sortDirection}
+                    onSortChange={handleSortChange}
+                    isFiltered={!!debouncedPublicationSearch}
+                    isLoading={publicationsLoading}
+                    onViewDetails={(publication) => {
+                      console.log('View details for:', publication.title);
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
             </div>
           )}
 
           {/* No Selection State */}
           {!matchingInstance && !dashboardLoading && (
-            <div className="text-center py-16">
-              <h3 className="text-lg font-medium text-gray-500 mb-2">
-                Select a conference and year to view dashboard
+            <div className="text-center py-16 bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] border border-[#E3E3E3]">
+              <h3 className="text-lg font-medium text-[#1E1E1E] mb-2">
+                Select a conference to explore
               </h3>
-              <p className="text-gray-400">
-                Choose from the dropdowns above to explore publication data and analytics
+              <p className="text-[#666666]">
+                Choose a conference from above to view analytics and publications
               </p>
             </div>
           )}
