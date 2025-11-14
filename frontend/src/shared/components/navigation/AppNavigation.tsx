@@ -8,8 +8,10 @@ import {
   Brain,
   ChevronDown,
   TrendingUp,
-  ArrowRight,
-  LogOut
+  LogOut,
+  Menu,
+  X,
+  ChevronsLeft
 } from 'lucide-react';
 import { useAuth } from '@/shared/hooks/useAuth';
 
@@ -26,36 +28,24 @@ interface AppNavigationProps {
 
 const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isHoverZone, setIsHoverZone] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
-  const [showHint, setShowHint] = useState(true);
+
+  // Collapse state with localStorage persistence
+  const [isExpanded, setIsExpanded] = useState(() => {
+    const saved = localStorage.getItem('navigation-expanded');
+    return saved ? JSON.parse(saved) : true;
+  });
+
   const location = useLocation();
   const { handleLogout } = useAuth();
 
-  // Hide hint after 10 seconds or when navigation is used
+  // Persist expanded state to localStorage
   useEffect(() => {
-    const timer = setTimeout(() => setShowHint(false), 10000);
-    return () => clearTimeout(timer);
-  }, []);
+    localStorage.setItem('navigation-expanded', JSON.stringify(isExpanded));
+  }, [isExpanded]);
 
-  // Auto-open on hover near left edge with intelligent closing
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const isNearLeftEdge = e.clientX <= 20;
-      setIsHoverZone(isNearLeftEdge);
-
-      if (isNearLeftEdge && !isOpen) {
-        setIsOpen(true);
-        setShowHint(false);
-      } else if (isOpen && e.clientX > 320) {
-        // Auto-close when mouse moves away from navigation area
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    return () => document.removeEventListener('mousemove', handleMouseMove);
-  }, [isOpen]);
+  // Calculate navigation width based on expanded state
+  const navWidth = isExpanded ? 320 : 72;
 
   const navigationItems: NavigationItem[] = [
     {
@@ -108,49 +98,52 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
   const renderNavigationItem = (item: NavigationItem, depth = 0) => {
     const isActive = isActiveRoute(item.path);
     const hasChildren = item.children && item.children.length > 0;
-    const isExpanded = expandedItems.includes(item.path);
-    const paddingLeft = depth > 0 ? 'pl-8' : 'pl-4';
+    const isItemExpanded = expandedItems.includes(item.path);
+    const paddingLeft = depth > 0 ? 'pl-8' : '';
 
     return (
       <div key={item.path} className="w-full">
         <div
-          className={`flex items-center justify-between w-full py-3 px-4 rounded-lg transition-colors ${
+          className={`flex items-center justify-between w-full rounded-lg transition-all duration-300 ease-out ${
+            isExpanded ? 'space-x-3 px-4' : 'justify-center px-2'
+          } py-3 ${paddingLeft} ${
             isActive
-              ? 'bg-blue-50 text-blue-700 border-l-4 border-blue-700'
-              : 'text-gray-700 hover:bg-gray-50'
-          } ${paddingLeft}`}
+              ? 'opacity-100 font-bold bg-[#F5F5F5]'
+              : 'opacity-60 hover:opacity-100 hover:bg-[#F5F5F5]'
+          }`}
         >
           <Link
             to={item.path}
-            className="flex items-center space-x-3 flex-1"
+            className={`flex items-center ${isExpanded ? 'space-x-3' : ''} flex-1 ${!isExpanded ? 'justify-center' : ''}`}
             onClick={() => !hasChildren && setIsOpen(false)}
+            title={!isExpanded ? item.label : undefined}
           >
-            {item.icon}
-            <span className="font-medium">{item.label}</span>
+            <div className="text-[#1E1E1E]">{item.icon}</div>
+            {isExpanded && <span className="font-medium text-sm text-[#1E1E1E]">{item.label}</span>}
           </Link>
 
-          {hasChildren && (
+          {hasChildren && isExpanded && (
             <button
               onClick={() => toggleExpanded(item.path)}
-              className="p-1 rounded hover:bg-gray-200 transition-colors"
+              className="p-1 rounded hover:bg-[#E3E3E3] transition-colors duration-300"
             >
               <ChevronDown
-                className={`h-4 w-4 transition-transform ${
-                  isExpanded ? 'rotate-180' : ''
+                className={`h-4 w-4 text-[#666666] transition-transform duration-300 ${
+                  isItemExpanded ? 'rotate-180' : ''
                 }`}
               />
             </button>
           )}
         </div>
 
-        {hasChildren && (
+        {hasChildren && isExpanded && (
           <AnimatePresence>
-            {isExpanded && (
+            {isItemExpanded && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
                 exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
                 className="overflow-hidden"
               >
                 <div className="space-y-1 mt-1">
@@ -166,96 +159,116 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
 
   return (
     <>
-      {/* Hover trigger zone - invisible area on left edge */}
-      <div
-        className="fixed left-0 top-0 w-5 h-full z-40"
-        onMouseEnter={() => setIsHoverZone(true)}
-      />
-
-      {/* Navigation hint - shows initially to guide users */}
-      <AnimatePresence>
-        {showHint && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ delay: 2 }}
-            className="fixed top-1/2 left-4 transform -translate-y-1/2 z-40 pointer-events-none"
-          >
-            <div className="bg-black/80 text-white px-3 py-2 rounded-lg shadow-lg flex items-center space-x-2 text-sm">
-              <ArrowRight className="h-4 w-4" />
-              <span>Hover left edge to navigate</span>
-            </div>
-          </motion.div>
+      {/* Toggle Button - Fixed in top-left corner (Huawei Design) */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="fixed top-4 left-4 z-[100]
+                   bg-white border border-[#E3E3E3]
+                   hover:border-black
+                   p-3 rounded-md
+                   shadow-huawei-sm hover:shadow-huawei-md
+                   transition-all duration-300 ease-out"
+        aria-label={isOpen ? "Close Navigation" : "Open Navigation"}
+      >
+        {isOpen ? (
+          <X className="h-5 w-5 text-[#1E1E1E]" />
+        ) : (
+          <Menu className="h-5 w-5 text-[#1E1E1E]" />
         )}
-      </AnimatePresence>
-
-      {/* Hover zone indicator */}
-      <motion.div
-        className="fixed left-0 top-0 w-1 h-full bg-blue-500/30 z-30"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: isHoverZone ? 1 : 0 }}
-        transition={{ duration: 0.2 }}
-      />
+      </button>
 
       {/* Navigation Sidebar */}
       <AnimatePresence>
         {isOpen && (
           <>
-            {/* Backdrop - covers entire screen including header */}
+            {/* Backdrop - Huawei Design: 20% black overlay */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-20 z-[60]"
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="fixed inset-0 bg-black/20 z-[60]"
               onClick={() => setIsOpen(false)}
             />
 
-            {/* Sidebar */}
+            {/* Sidebar - Huawei Design Style */}
             <motion.div
-              initial={{ x: -320 }}
-              animate={{ x: 0 }}
-              exit={{ x: -320 }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed left-0 top-0 h-full w-80 bg-white shadow-2xl z-[70] overflow-y-auto"
-              onMouseEnter={() => {
-                // Keep open when hovering sidebar
-                setIsOpen(true);
+              initial={{ x: -navWidth }}
+              animate={{
+                x: 0,
+                width: navWidth
               }}
+              exit={{ x: -navWidth }}
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="fixed left-0 top-0 h-full bg-white
+                         border-r border-[#E3E3E3]
+                         shadow-huawei-sm
+                         z-[70] overflow-y-auto"
             >
-              <div className="p-6">
-                {/* Header */}
+              <div className={`${isExpanded ? 'p-6' : 'p-4'} flex flex-col h-full`}>
+                {/* Header - Adaptive for collapsed state */}
                 <div className="mb-8">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-2 h-12 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
-                    <div>
-                      <h1 className="text-2xl font-bold text-gray-900">DeepSight</h1>
-                      <p className="text-sm text-gray-600">AI Research Platform</p>
+                  {isExpanded ? (
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-12 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
+                      <div>
+                        <h1 className="text-2xl font-bold text-[#1E1E1E]">DeepSight</h1>
+                        <p className="text-sm text-[#666666]">AI Research Platform</p>
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex justify-center">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600
+                                      rounded-lg flex items-center justify-center shadow-huawei-sm">
+                        <span className="text-white font-bold text-lg">D</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Navigation Items */}
-                <nav className="space-y-2">
+                <nav className="space-y-2 flex-1">
                   {navigationItems.map(item => renderNavigationItem(item))}
                 </nav>
 
                 {/* Footer */}
-                <div className="mt-12 pt-6 border-t border-border">
-                  <p className="text-xs text-muted-foreground mb-4">
-                    © 2024 DeepSight. All rights reserved.
-                  </p>
+                <div className="mt-auto pt-6 border-t border-[#E3E3E3]">
+                  {isExpanded && (
+                    <p className="text-xs text-[#666666] mb-4">
+                      © 2024 DeepSight. All rights reserved.
+                    </p>
+                  )}
 
                   {/* Logout Button - Huawei Design Style */}
-                  <div className="pt-4 border-t border-border">
+                  <div className={`${isExpanded ? 'pt-4 border-t border-[#E3E3E3]' : ''}`}>
                     <button
                       onClick={handleLogout}
-                      className="flex items-center space-x-3 w-full py-3 px-4 rounded-lg
-                                 text-foreground hover:bg-secondary
-                                 transition-all duration-300 ease-out group"
+                      className={`flex items-center w-full rounded-lg
+                                  ${isExpanded ? 'space-x-3 px-4' : 'justify-center px-2'}
+                                  py-3
+                                  text-[#1E1E1E] hover:bg-[#F5F5F5]
+                                  transition-colors duration-300 ease-out group`}
+                      title={!isExpanded ? "Logout" : undefined}
                     >
-                      <LogOut className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors duration-300" />
-                      <span className="font-medium text-sm">Logout</span>
+                      <LogOut className="h-5 w-5 text-[#666666] group-hover:text-[#1E1E1E] transition-colors duration-300" />
+                      {isExpanded && <span className="font-medium text-sm">Logout</span>}
+                    </button>
+                  </div>
+
+                  {/* Expand/Collapse Toggle Button - Huawei Design */}
+                  <div className={`${isExpanded ? 'pt-4' : 'pt-2'}`}>
+                    <button
+                      onClick={() => setIsExpanded(!isExpanded)}
+                      className="w-full p-3 flex items-center justify-center
+                                 hover:bg-[#F5F5F5] rounded-lg
+                                 transition-colors duration-300 ease-out"
+                      aria-label={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+                      title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
+                    >
+                      <ChevronsLeft
+                        className={`h-5 w-5 text-[#666666] transition-transform duration-300 ease-out
+                                    ${!isExpanded ? 'rotate-180' : ''}`}
+                      />
                     </button>
                   </div>
                 </div>

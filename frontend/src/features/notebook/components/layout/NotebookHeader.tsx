@@ -1,7 +1,6 @@
 import React from "react";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/shared/hooks/useAuth";
 
 interface NotebookHeaderProps {
   notebookTitle?: string;
@@ -19,7 +18,6 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
   backPath = "/deepdive"
 }) => {
   const navigate = useNavigate();
-  const { handleLogout } = useAuth();
 
   return (
     <header className="flex-shrink-0 relative z-10 border-b border-[#E3E3E3] bg-white/90 backdrop-blur">
@@ -47,17 +45,6 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
               </h1>
             </div>
           )}
-        </div>
-
-        {/* Logout Button */}
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={handleLogout}
-            className="p-2 rounded-lg bg-white hover:bg-[#F7F7F7] border border-[#E3E3E3] text-[#1E1E1E] hover:text-black transition-colors duration-200"
-            title="Logout"
-          >
-            <LogOut className="h-5 w-5" />
-          </button>
         </div>
       </div>
     </header>
