@@ -725,20 +725,6 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               <Group className="h-3 w-3 mr-1" />
               Group
             </Button>
-            <Button
-              variant="default"
-              size="sm"
-              className="h-7 px-3 text-xs bg-black hover:bg-black/80 text-white inline-flex items-center gap-1"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleAddSource();
-              }}
-              disabled={isLoading}
-            >
-              <Plus className="h-3 w-3" />
-              Add
-            </Button>
             {onToggleCollapse && (
               <Button
                 variant="ghost"
@@ -833,6 +819,29 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
           </div>
         </div>
       )}
+
+      {/* Floating Action Button */}
+      <motion.div
+        className="absolute bottom-4 right-4 z-10"
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
+      >
+        <Button
+          variant="default"
+          size="lg"
+          className="h-14 w-14 rounded-full bg-[#CE0E2D] hover:bg-[#A20A22] shadow-[rgba(0,0,0,0.16)_0px_8px_16px] hover:shadow-[rgba(0,0,0,0.2)_0px_12px_24px] transition-all duration-200 p-0 flex items-center justify-center group"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            handleAddSource();
+          }}
+          disabled={isLoading}
+          title="Add Source"
+        >
+          <Plus className="h-6 w-6 text-white group-hover:scale-110 transition-transform" />
+        </Button>
+      </motion.div>
 
       {/* Main Content Area */}
       <div className="flex-1 min-h-0 overflow-y-auto relative">

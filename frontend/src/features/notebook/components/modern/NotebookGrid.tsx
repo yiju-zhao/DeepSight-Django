@@ -226,7 +226,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
             <Button
               onClick={() => setShowCreateForm(true)}
               disabled={createNotebook.isPending}
-              className="inline-flex items-center bg-black hover:bg-black/80"
+              className="inline-flex items-center bg-[#CE0E2D] hover:bg-[#A20A22]"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Notebook
@@ -273,7 +273,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
               className={cn(
                 "rounded-md",
                 viewMode === 'grid'
-                  ? "bg-black text-white hover:bg-black"
+                  ? "bg-[#CE0E2D] text-white hover:bg-[#A20A22]"
                   : "text-[#666666]"
               )}
             >
@@ -286,7 +286,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
               className={cn(
                 "rounded-md",
                 viewMode === 'list'
-                  ? "bg-black text-white hover:bg-black"
+                  ? "bg-[#CE0E2D] text-white hover:bg-[#A20A22]"
                   : "text-[#666666]"
               )}
             >

@@ -67,7 +67,7 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               size="lg"
               className={`px-8 py-4 text-sm font-medium rounded-lg transition-all duration-300 ${
                 hasFiles && !isCreating
-                  ? 'bg-black hover:bg-black/80 text-white shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px]'
+                  ? 'bg-[#CE0E2D] hover:bg-[#A20A22] text-white shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px]'
                   : 'bg-[#F5F5F5] hover:bg-[#F5F5F5] text-[#B1B1B1] cursor-not-allowed'
               }`}
             >

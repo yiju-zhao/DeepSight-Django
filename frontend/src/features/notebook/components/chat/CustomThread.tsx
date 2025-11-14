@@ -231,7 +231,7 @@ const CustomComposer: React.FC = () => {
             onClick={handleSend}
             disabled={!inputValue.trim() || isSending}
             size="sm"
-            className="px-4 py-2 bg-black hover:bg-black/80 text-white rounded-xl shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-[#CE0E2D] hover:bg-[#A20A22] text-white rounded-xl shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -248,12 +248,12 @@ const CustomComposer: React.FC = () => {
 // Custom Thread Component
 export const CustomThread: React.FC = () => {
   return (
-    <>
+    <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
         <CustomMessage />
       </div>
       <CustomComposer />
-    </>
+    </div>
   );
 };
 
