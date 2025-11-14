@@ -839,36 +839,38 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         {isGrouped ? (
           // Grouped rendering with unified styling
           <div>
-            {Object.entries(processedSources as Record<string, Source[]]).map(([type, groupSources]: [string, Source[]]) => (
-              <div key={type}>
-                <div className="px-4 py-2 bg-[#F7F7F7] sticky top-0 border-b border-[#E3E3E3]">
-                  <div className="flex items-center gap-2">
-                    <div className="w-6 h-6 bg-white rounded-full border border-[#E3E3E3] flex items-center justify-center">
-                      {React.createElement(fileIcons[type] || FileIcon, {
-                        className: "h-3 w-3 text-[#7F7F7F]"
-                      })}
+            {Object.entries(processedSources as Record<string, Source[]>).map(
+              ([type, groupSources]) => (
+                <div key={type}>
+                  <div className="px-4 py-2 bg-[#F7F7F7] sticky top-0 border-b border-[#E3E3E3]">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-white rounded-full border border-[#E3E3E3] flex items-center justify-center">
+                        {React.createElement(fileIcons[type] || FileIcon, {
+                          className: "h-3 w-3 text-[#7F7F7F]"
+                        })}
+                      </div>
+                      <h4 className="text-[11px] font-semibold text-[#7B7B7B] uppercase tracking-[0.3px]">
+                        {type.toUpperCase()}
+                      </h4>
+                      <Badge variant="outline" className="text-[11px] bg-white border-[#E3E3E3] text-[#666666]">
+                        {groupSources.length}
+                      </Badge>
                     </div>
-                    <h4 className="text-[11px] font-semibold text-[#7B7B7B] uppercase tracking-[0.3px]">
-                      {type.toUpperCase()}
-                    </h4>
-                    <Badge variant="outline" className="text-[11px] bg-white border-[#E3E3E3] text-[#666666]">
-                      {groupSources.length}
-                    </Badge>
                   </div>
+                  {groupSources.map((source: Source) => (
+                    <SourceItem
+                      key={keyForSource(source)}
+                      source={{ ...source, selected: selectedIds.has(String(source.id)) }}
+                      onToggle={toggleSource}
+                      onPreview={() => handlePreviewFile(source)}
+                      getSourceTooltip={getSourceTooltip}
+                      getPrincipleFileIcon={getPrincipleFileIcon}
+                      onDelete={handleDeleteOne}
+                    />
+                  ))}
                 </div>
-                {groupSources.map((source: Source) => (
-                  <SourceItem
-                    key={keyForSource(source)}
-                    source={{ ...source, selected: selectedIds.has(String(source.id)) }}
-                    onToggle={toggleSource}
-                    onPreview={() => handlePreviewFile(source)}
-                    getSourceTooltip={getSourceTooltip}
-                    getPrincipleFileIcon={getPrincipleFileIcon}
-                    onDelete={handleDeleteOne}
-                  />
-                ))}
-              </div>
-            ))}
+              )
+            )}
           </div>
         ) : (
           // Ungrouped rendering with unified styling
