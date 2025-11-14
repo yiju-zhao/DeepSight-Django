@@ -130,122 +130,43 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-screen bg-gray-50">
+      <div className="flex flex-col min-h-screen bg-white">
         <MainPageHeader
           title="Dashboard"
-          subtitle="AI-powered insights and analytics"
+          subtitle="Your Research Overview"
           icon={<BarChart3 className="w-5 h-5 text-white" />}
-          iconColor="from-blue-500 to-blue-600"
+          iconColor="from-gray-800 to-gray-900"
         />
 
-        <div className="flex-1 p-6 md:p-8 overflow-hidden min-h-0">
-          <div className="max-w-7xl mx-auto h-full">
-            {/* Three-Panel Dashboard Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-              {/* Conference Panel */}
-              <div className="lg:col-span-1 flex flex-col h-full">
-                <div className="mb-2 flex-shrink-0">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Conference</span>
-                    <div className="h-px bg-gray-200 flex-1" />
-                  </div>
-                </div>
-                <div className="flex-1 min-h-0">
-                  <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
-                </div>
+        <div className="flex-1 px-4 md:px-10 lg:px-20 py-10 md:py-20">
+          <div className="max-w-7xl mx-auto space-y-10 md:space-y-20">
+            {/* Conference Overview Stats Section */}
+            <section className="animate-slide-up">
+              <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
+            </section>
+
+            {/* Reports & Podcasts Grid Section */}
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 animate-slide-up-delay-1">
+              {/* Reports Section */}
+              <div>
+                <ReportsSection
+                  reports={reports}
+                  onReportSelect={handleReportSelect}
+                  loading={reportsQuery.isLoading}
+                />
               </div>
 
-              {/* Reports Panel */}
-              <div className="lg:col-span-1 flex flex-col h-full">
-                <div className="mb-2 flex-shrink-0">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Reports</span>
-                    <div className="h-px bg-gray-200 flex-1" />
-                  </div>
-                </div>
-                <div className="flex-1 min-h-0">
-                  {reports.length > 0 ? (
-                    <ReportsSection
-                      reports={reports}
-                      onReportSelect={handleReportSelect}
-                    />
-                  ) : (
-                    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6 h-full flex flex-col">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-gray-100 rounded-lg">
-                            <div className="h-6 w-6 bg-gray-300 rounded" />
-                          </div>
-                          <div>
-                            <h2 className="text-base font-semibold text-gray-900">Research Reports</h2>
-                            <p className="text-sm text-gray-600">AI-generated insights</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="h-12 w-12 rounded-full border border-dashed border-gray-300 mx-auto mb-4 flex items-center justify-center text-gray-400">
-                            <span className="text-lg">📊</span>
-                          </div>
-                          <h3 className="text-sm font-medium text-gray-900 mb-1">Coming soon</h3>
-                          <p className="text-gray-500 text-xs">Report generation features in progress</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+              {/* Podcasts Section */}
+              <div>
+                <PodcastsSection
+                  podcasts={podcasts}
+                  onPodcastSelect={handlePodcastSelect}
+                  loading={loading}
+                />
               </div>
-
-              {/* Podcasts Panel */}
-              <div className="lg:col-span-1 flex flex-col h-full">
-                <div className="mb-2 flex-shrink-0">
-                  <div className="flex items-center space-x-3">
-                    <span className="text-[11px] font-medium text-gray-500 tracking-wider uppercase">Podcasts</span>
-                    <div className="h-px bg-gray-200 flex-1" />
-                  </div>
-                </div>
-                <div className="flex-1 min-h-0">
-                  {podcasts.length > 0 ? (
-                    <PodcastsSection
-                      podcasts={podcasts}
-                      onPodcastSelect={handlePodcastSelect}
-                    />
-                  ) : (
-                    <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6 h-full flex flex-col">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="p-2 bg-gray-100 rounded-lg">
-                            <div className="h-6 w-6 bg-gray-300 rounded" />
-                          </div>
-                          <div>
-                            <h2 className="text-base font-semibold text-gray-900">AI Podcasts</h2>
-                            <p className="text-sm text-gray-600">Audio generation</p>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex-1 flex items-center justify-center">
-                        <div className="text-center">
-                          <div className="h-12 w-12 rounded-full border border-dashed border-gray-300 mx-auto mb-4 flex items-center justify-center text-gray-400">
-                            <span className="text-lg">🎙️</span>
-                          </div>
-                          <h3 className="text-sm font-medium text-gray-900 mb-1">Coming soon</h3>
-                          <p className="text-gray-500 text-xs">Podcast features in progress</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            </section>
           </div>
         </div>
-
-        <DashboardActions
-          onViewModeChange={handleViewModeChange}
-          onLanguageChange={handleLanguageChange}
-          viewMode={viewMode}
-          language={language}
-        />
       </div>
     </AppLayout>
   );

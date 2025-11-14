@@ -88,6 +88,8 @@ const config: Config = {
         accent: {
           DEFAULT: 'hsl(var(--accent))',
           foreground: 'hsl(var(--accent-foreground))',
+          red: 'hsl(var(--accent-red))',              // Huawei Red #CE0E2D
+          'red-hover': 'hsl(var(--accent-red-hover))', // Darker Red #A20A22
         },
         popover: {
           DEFAULT: 'hsl(var(--popover))',
@@ -105,7 +107,23 @@ const config: Config = {
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
-      
+
+      // Huawei Shadow System (5 levels)
+      boxShadow: {
+        'huawei-subtle': '0 3px 6px 0 rgba(0, 0, 0, 0.01)',
+        'huawei-sm': '0 8px 12px 0 rgba(0, 0, 0, 0.08)',
+        'huawei-md': '0 12px 20px 0 rgba(0, 0, 0, 0.12)',
+        'huawei-lg': '0 16px 24px 0 rgba(0, 0, 0, 0.16)',
+        'huawei-inset': 'inset 0 0 0 rgba(0, 0, 0, 0.3)',
+      },
+
+      // Huawei Transition Duration
+      transitionDuration: {
+        '150': '150ms',  // fast
+        '300': '300ms',  // default
+        '600': '600ms',  // slow
+      },
+
       // Custom animations for UI components
       keyframes: {
         'accordion-down': {

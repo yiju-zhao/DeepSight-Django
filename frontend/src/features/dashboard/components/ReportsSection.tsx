@@ -1,16 +1,21 @@
 /**
  * Reports section component for the dashboard
- * Handles display of trending reports
+ * Handles display of trending reports with modern Huawei-style design
  * Optimized with React.memo to prevent unnecessary re-renders
  */
 
 import React, { useMemo } from 'react';
 import ReportListItem from '@/features/report/components/ReportListItem';
+import { Card } from '@/shared/components/ui/card';
+import { SectionHeader } from '@/shared/components/ui/section-header';
+import { Button } from '@/shared/components/ui/button';
+import { FileText } from 'lucide-react';
 import { Report } from '../queries';
 
 interface ReportsSectionProps {
   reports: Report[];
   onReportSelect: (report: Report) => void;
+  onViewAll?: () => void;
   loading?: boolean;
   className?: string;
 }
@@ -18,22 +23,25 @@ interface ReportsSectionProps {
 const ReportsSection: React.FC<ReportsSectionProps> = React.memo(({
   reports,
   onReportSelect,
+  onViewAll,
   loading = false,
   className = '',
 }) => {
-  // Memoize loading skeleton to prevent re-creation
+  // Limit to 3 reports for dashboard
+  const displayReports = useMemo(() => reports.slice(0, 3), [reports]);
+
+  // Memoize loading skeleton
   const loadingSkeleton = useMemo(() => (
-    <div className={`mb-8 ${className}`}>
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6">
-        <div className="space-y-4">
+    <Card variant="elevated" className={className}>
+      <div className="p-6 space-y-4">
+        <div className="h-6 bg-gray-200 rounded animate-pulse w-48" />
+        <div className="space-y-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className="animate-pulse">
-              <div className="h-20 bg-gray-200 rounded-lg"></div>
-            </div>
+            <div key={i} className="h-20 bg-gray-200 rounded-lg animate-pulse" />
           ))}
         </div>
       </div>
-    </div>
+    </Card>
   ), [className]);
 
   if (loading) {
@@ -42,38 +50,52 @@ const ReportsSection: React.FC<ReportsSectionProps> = React.memo(({
 
   if (reports.length === 0) {
     return (
-      <div className={`mb-8 ${className}`}>
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm p-6">
-          <div className="text-center py-6">
-            <div className="h-10 w-10 rounded-full border border-dashed border-gray-300 mx-auto mb-3 flex items-center justify-center text-gray-400">📊</div>
+      <Card variant="elevated" className={className}>
+        <div className="p-6">
+          <SectionHeader title="Trending Reports" />
+          <div className="text-center py-8">
+            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
             <h3 className="text-sm font-medium text-gray-900 mb-1">No trending reports</h3>
             <p className="text-xs text-gray-500">Check back later for trending research.</p>
           </div>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className={`h-full ${className}`}>
-      <div className="bg-white/80 backdrop-blur-sm rounded-xl border border-gray-200 shadow-sm h-full flex flex-col">
-        <div className="p-6 pb-4 flex-shrink-0">
-          <h2 className="text-base font-semibold text-gray-900">Trending Reports</h2>
-          <p className="text-xs text-gray-500">Latest AI-generated research summaries</p>
+    <Card variant="elevated" hoverable className={className}>
+      <div className="p-6">
+        <SectionHeader
+          title="Trending Reports"
+          action={
+            onViewAll && reports.length > 3 && (
+              <Button variant="ghost" size="sm" withArrow onClick={onViewAll}>
+                View All
+              </Button>
+            )
+          }
+        />
+
+        <div className="space-y-3">
+          {displayReports.map((report) => (
+            <ReportListItem
+              key={report.id}
+              report={report}
+              onSelect={onReportSelect}
+            />
+          ))}
         </div>
-        <div className="flex-1 px-6 pb-6 overflow-y-auto min-h-0">
-          <div className="space-y-3">
-            {reports.map((report) => (
-              <ReportListItem
-                key={report.id}
-                report={report}
-                onSelect={onReportSelect}
-              />
-            ))}
+
+        {onViewAll && reports.length > 3 && (
+          <div className="mt-6 pt-4 border-t border-border">
+            <Button variant="accent" withArrow onClick={onViewAll} className="w-full md:w-auto">
+              View All Reports
+            </Button>
           </div>
-        </div>
+        )}
       </div>
-    </div>
+    </Card>
   );
 });
 
