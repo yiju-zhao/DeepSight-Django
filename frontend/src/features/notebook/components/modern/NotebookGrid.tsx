@@ -153,17 +153,17 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
       {notebooks.map((notebook: Notebook) => (
         <div
           key={notebook.id}
-          className="group bg-white rounded-lg shadow-sm hover:shadow-md transition-all cursor-pointer relative"
+          className="group bg-white rounded-2xl border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-300 cursor-pointer relative"
           onClick={() => handleNotebookClick(notebook)}
         >
           <div className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                <h3 className="text-lg font-semibold text-[#1E1E1E] truncate group-hover:text-[#CE0E2D] transition-colors">
                   {notebook.name}
                 </h3>
                 {notebook.description && (
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">
+                  <p className="text-sm text-[#666666] mt-1 line-clamp-2">
                     {notebook.description}
                   </p>
                 )}
@@ -173,14 +173,14 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
                   e.stopPropagation();
                   setNotebookToDelete(notebook);
                 }}
-                className="text-gray-400 hover:text-red-600 transition-colors p-1 rounded hover:bg-red-50"
+                className="text-[#B1B1B1] hover:text-[#CE0E2D] transition-colors p-1 rounded hover:bg-[#FFF3F4]"
                 title="Delete notebook"
               >
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
+            <div className="mt-4 flex items-center justify-between text-sm text-[#666666]">
               <div className="flex items-center space-x-4">
                 <span>{notebook.source_count} sources</span>
               </div>
@@ -196,9 +196,9 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
 
   if (error) {
     return (
-      <div className="text-center py-12">
-        <p className="text-red-600 mb-4">Failed to load notebooks</p>
-        <Button onClick={() => refetch()} variant="outline">
+      <div className="text-center py-16 bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] border border-[#E3E3E3]">
+        <p className="text-[#CE0E2D] mb-4 font-medium">Failed to load notebooks</p>
+        <Button onClick={() => refetch()} variant="outline" className="border-[#E3E3E3]">
           Try Again
         </Button>
       </div>
@@ -207,21 +207,26 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
 
   return (
     <ErrorBoundary level="section">
-      <div className={cn('space-y-6', className)}>
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Notebooks</h1>
-            <p className="text-gray-600 mt-1">
-              Manage your research notebooks and knowledge base
+      <div className={cn('space-y-8', className)}>
+        {/* Header - HUAWEI style */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
+              DeepDive
+            </p>
+            <h1 className="text-[28px] font-bold text-[#1E1E1E] leading-tight">
+              Research Notebooks
+            </h1>
+            <p className="text-sm text-[#666666]">
+              Organize your research, sources, and insights in one place.
             </p>
           </div>
-          
+
           <div className="flex items-center space-x-3">
             <Button
               onClick={() => setShowCreateForm(true)}
               disabled={createNotebook.isPending}
-              className="inline-flex items-center"
+              className="inline-flex items-center bg-black hover:bg-black/80"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Notebook
@@ -242,15 +247,15 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
         {/* Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="relative max-w-md w-full">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-[#7F7F7F]" />
             <input
               type="text"
               placeholder="Search notebooks..."
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               className={cn(
-                "w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all",
-                isSearchStale && "bg-yellow-50 border-yellow-200"
+                "w-full pl-10 pr-4 py-2 border border-[#E3E3E3] rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all text-sm",
+                isSearchStale && "bg-[#FFF8E1] border-[#FFE082]"
               )}
             />
             {(isSearchPending || isSearchStale) && (
@@ -260,12 +265,17 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
             )}
           </div>
 
-          <div className="flex items-center border border-gray-300 rounded-lg p-1">
+          <div className="flex items-center border border-[#E3E3E3] rounded-lg p-1 bg-white">
             <Button
               variant={viewMode === 'grid' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('grid')}
-              className="rounded-md"
+              className={cn(
+                "rounded-md",
+                viewMode === 'grid'
+                  ? "bg-black text-white hover:bg-black"
+                  : "text-[#666666]"
+              )}
             >
               <Grid className="w-4 h-4" />
             </Button>
@@ -273,7 +283,12 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('list')}
-              className="rounded-md"
+              className={cn(
+                "rounded-md",
+                viewMode === 'list'
+                  ? "bg-black text-white hover:bg-black"
+                  : "text-[#666666]"
+              )}
             >
               <List className="w-4 h-4" />
             </Button>

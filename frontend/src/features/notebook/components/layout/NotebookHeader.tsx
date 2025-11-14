@@ -22,25 +22,27 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
   const { handleLogout } = useAuth();
 
   return (
-    <header className="flex-shrink-0 relative z-10">
-      <div className="px-3 pt-2 pb-2 md:px-4 lg:px-5 flex justify-between items-center">
+    <header className="flex-shrink-0 relative z-10 border-b border-[#E3E3E3] bg-white/90 backdrop-blur">
+      <div className="px-4 md:px-10 lg:px-20 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-3">
           {/* Back Button */}
           {showBackButton && (
             <button
               onClick={() => navigate(backPath)}
-              className="p-2 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 transition-colors duration-200"
+              className="p-2 rounded-lg bg-white hover:bg-[#F7F7F7] border border-[#E3E3E3] transition-colors duration-200"
               title={`Back to ${backPath === "/deepdive" ? "DeepDive" : "Previous Page"}`}
             >
-              <ArrowLeft className="h-5 w-5 text-gray-700" />
+              <ArrowLeft className="h-5 w-5 text-[#1E1E1E]" />
             </button>
           )}
 
           {/* Title with simple styling */}
           {notebookTitle && (
-            <div className="ml-2 flex items-center space-x-2">
-              <div className="w-0.5 h-6 bg-red-600 rounded-full"></div>
-              <h1 className="text-xl font-semibold text-gray-900">
+            <div className="ml-2 flex flex-col">
+              <span className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
+                DeepDive Notebook
+              </span>
+              <h1 className="text-[20px] md:text-[24px] font-bold text-[#1E1E1E] leading-tight mt-0.5">
                 {notebookTitle}
               </h1>
             </div>
@@ -51,7 +53,7 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
         <div className="flex items-center space-x-3">
           <button
             onClick={handleLogout}
-            className="p-2 rounded-lg bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 hover:text-gray-900 transition-colors duration-200"
+            className="p-2 rounded-lg bg-white hover:bg-[#F7F7F7] border border-[#E3E3E3] text-[#1E1E1E] hover:text-black transition-colors duration-200"
             title="Logout"
           >
             <LogOut className="h-5 w-5" />

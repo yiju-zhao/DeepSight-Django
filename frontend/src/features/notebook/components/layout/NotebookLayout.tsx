@@ -100,7 +100,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
   };
 
   return (
-    <div className="h-screen bg-gray-100 flex flex-col relative overflow-hidden">
+    <div className="h-screen bg-white flex flex-col relative overflow-hidden">
       {/* Header */}
       <NotebookHeader
         notebookTitle={notebookTitle}
@@ -109,7 +109,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0">
         <div
-          className={`${RESPONSIVE_PANELS.mobile.gap} ${RESPONSIVE_PANELS.mobile.padding} md:${RESPONSIVE_PANELS.tablet.gap} md:${RESPONSIVE_PANELS.tablet.padding} lg:${RESPONSIVE_PANELS.desktop.gap} lg:${RESPONSIVE_PANELS.desktop.padding} flex-1 min-h-0 grid transition-[grid-template-columns] duration-300 ease-out`}
+          className={`${RESPONSIVE_PANELS.mobile.gap} ${RESPONSIVE_PANELS.mobile.padding} md:${RESPONSIVE_PANELS.tablet.gap} md:${RESPONSIVE_PANELS.tablet.padding} lg:${RESPONSIVE_PANELS.desktop.gap} lg:${RESPONSIVE_PANELS.desktop.padding} flex-1 min-h-0 grid transition-[grid-template-columns] duration-300 ease-out bg-white`}
           style={{
             gridTemplateColumns: isStudioExpanded
               ? `56px 5fr 7fr` // Studio expanded: wider collapsed bar, balanced chat and studio
@@ -119,9 +119,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           }}
         >
           {/* Sources Panel */}
-          <div
-            className="bg-white rounded-2xl transition-all duration-300 overflow-hidden min-h-0 relative"
-          >
+          <div className="bg-white rounded-2xl border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px] transition-all duration-300 overflow-hidden min-h-0 relative">
             {!isSourcesCollapsed && !isStudioExpanded ? (
               <div>
                 {React.cloneElement(sourcesPanel, {
@@ -152,16 +150,12 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           </div>
 
           {/* Chat Panel */}
-          <div
-            className="bg-white rounded-2xl transition-all duration-300 overflow-hidden min-h-0"
-          >
+          <div className="bg-white rounded-2xl border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px] transition-all duration-300 overflow-hidden min-h-0">
             {React.cloneElement(chatPanel, panelProps)}
           </div>
 
           {/* Studio Panel */}
-          <div
-            className="bg-white rounded-2xl transition-all duration-300 overflow-auto min-h-0"
-          >
+          <div className="bg-white rounded-2xl border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px] transition-all duration-300 overflow-auto min-h-0">
             {React.cloneElement(studioPanel, {
               ...panelProps,
               onToggleExpand: handleStudioToggleExpand,
