@@ -12,51 +12,63 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 }) => {
   return (
     <div className="h-full flex items-center justify-center bg-white">
-      <div className="max-w-xl w-full px-8 py-12">
-        {/* Main Content */}
+      <div className="max-w-xl w-full px-6 md:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-center"
+          className="bg-white border border-[#E3E3E3] rounded-2xl shadow-[rgba(0,0,0,0.04)_0px_4px_8px] px-6 py-8 md:px-8 md:py-10"
         >
+          {/* Icon + Title */}
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
+              <MessageCircle className="h-5 w-5 text-[#7F7F7F]" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
+                DeepDive Chat
+              </span>
+              <h2 className="text-[20px] md:text-[22px] font-bold text-[#1E1E1E] leading-tight mt-0.5">
+                Start a conversation
+              </h2>
+              <p className="text-sm text-[#666666] mt-1">
+                Ask questions about your sources and explore insights with the AI co-pilot.
+              </p>
+            </div>
+          </div>
 
-
-          {/* Source Requirement Alert */}
           {!hasFiles && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
-              className="mb-8 mx-auto max-w-md"
+              className="mb-6"
             >
-              <Alert className="border border-amber-200 bg-amber-50/50">
-                <div className="flex items-start space-x-3">
-                  <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <AlertDescription className="text-sm text-amber-900 leading-relaxed">
-                      Add source to notebook before starting the conversation
-                    </AlertDescription>
-                  </div>
+              <Alert className="border border-amber-200 bg-amber-50/60">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-4 w-4 text-amber-700 flex-shrink-0 mt-0.5" />
+                  <AlertDescription className="text-xs text-amber-900 leading-relaxed">
+                    Add at least one source to this notebook before starting a conversation.
+                  </AlertDescription>
                 </div>
               </Alert>
             </motion.div>
           )}
 
-          {/* Start Chat Button */}
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: hasFiles ? 0.3 : 0.4 }}
+            className="mt-4"
           >
             <Button
               onClick={onStartChat}
               disabled={isCreating || !hasFiles}
               size="lg"
-              className={`px-10 py-6 text-base font-medium rounded-xl transition-all duration-300 ${
+              className={`px-8 py-4 text-sm font-medium rounded-lg transition-all duration-300 ${
                 hasFiles && !isCreating
-                  ? 'bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg'
-                  : 'bg-gray-200 hover:bg-gray-200 text-gray-400 cursor-not-allowed'
+                  ? 'bg-black hover:bg-black/80 text-white shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px]'
+                  : 'bg-[#F5F5F5] hover:bg-[#F5F5F5] text-[#B1B1B1] cursor-not-allowed'
               }`}
             >
               {isCreating ? (

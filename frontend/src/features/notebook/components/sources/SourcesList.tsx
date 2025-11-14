@@ -725,6 +725,20 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               <Group className="h-3 w-3 mr-1" />
               Group
             </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-7 px-3 text-xs bg-black hover:bg-black/80 text-white inline-flex items-center gap-1"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddSource();
+              }}
+              disabled={isLoading}
+            >
+              <Plus className="h-3 w-3" />
+              Add
+            </Button>
             {onToggleCollapse && (
               <Button
                 variant="ghost"
@@ -770,38 +784,15 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         )}
       </AnimatePresence>
 
-      {/* Floating Action Button */}
-      <motion.div
-        className="absolute bottom-4 right-4 z-10"
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ type: "spring", stiffness: 260, damping: 20 }}
-      >
-        <Button
-          variant="default"
-          size="lg"
-          className="h-14 w-14 rounded-full bg-red-600 hover:bg-red-700 shadow-lg hover:shadow-xl transition-all duration-200 p-0 flex items-center justify-center group"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            handleAddSource();
-          }}
-          disabled={isLoading}
-          title="Add Source"
-        >
-          <Plus className="h-6 w-6 text-white group-hover:scale-110 transition-transform" />
-        </Button>
-      </motion.div>
-
       {/* Simple Selection Bar */}
       {sources.length > 0 && (
-        <div className="flex-shrink-0 px-4 py-3 bg-white">
+        <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-[#E3E3E3]">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs text-gray-500 hover:text-gray-700"
+                className="h-6 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -824,8 +815,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               size="sm"
               className={`h-6 px-2 text-xs transition-colors ${
                 selectedCount > 0 
-                  ? 'text-gray-500 hover:text-red-600' 
-                  : 'text-gray-300 cursor-not-allowed'
+                  ? 'text-[#666666] hover:text-[#CE0E2D]'
+                  : 'text-[#D4D4D4] cursor-not-allowed'
               }`}
               onClick={(e) => {
                 e.preventDefault();
@@ -848,19 +839,19 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         {isGrouped ? (
           // Grouped rendering with unified styling
           <div>
-            {Object.entries(processedSources as Record<string, Source[]>).map(([type, groupSources]: [string, Source[]]) => (
+            {Object.entries(processedSources as Record<string, Source[]]).map(([type, groupSources]: [string, Source[]]) => (
               <div key={type}>
-                <div className="px-4 py-2 bg-white sticky top-0">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-5 h-5 bg-gray-200 rounded-md flex items-center justify-center">
+                <div className="px-4 py-2 bg-[#F7F7F7] sticky top-0 border-b border-[#E3E3E3]">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-white rounded-full border border-[#E3E3E3] flex items-center justify-center">
                       {React.createElement(fileIcons[type] || FileIcon, {
-                        className: "h-3 w-3 text-gray-600"
+                        className: "h-3 w-3 text-[#7F7F7F]"
                       })}
                     </div>
-                    <h4 className="text-xs font-semibold text-gray-700 uppercase tracking-wide">
+                    <h4 className="text-[11px] font-semibold text-[#7B7B7B] uppercase tracking-[0.3px]">
                       {type.toUpperCase()}
                     </h4>
-                    <Badge variant="outline" className="text-xs bg-white border-gray-300">
+                    <Badge variant="outline" className="text-[11px] bg-white border-[#E3E3E3] text-[#666666]">
                       {groupSources.length}
                     </Badge>
                   </div>
@@ -898,19 +889,19 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         
         {/* Empty/Loading States */}
         {!isLoading && sources.length === 0 && (
-          <div className="p-8 text-center">
-            <div className="w-12 h-12 bg-white rounded-lg mx-auto mb-3 flex items-center justify-center">
-              <Upload className="h-6 w-6 text-gray-400" />
+          <div className="p-10 text-center">
+            <div className="w-12 h-12 bg-[#F5F5F5] rounded-xl mx-auto mb-3 flex items-center justify-center">
+              <Upload className="h-6 w-6 text-[#B1B1B1]" />
             </div>
-            <h3 className="text-sm font-medium text-gray-900 mb-1">No files yet</h3>
-            <p className="text-xs text-gray-500">Add files to get started</p>
+            <h3 className="text-sm font-semibold text-[#1E1E1E] mb-1">No files yet</h3>
+            <p className="text-xs text-[#666666]">Add files to get started.</p>
           </div>
         )}
         
         {isLoading && sources.length === 0 && (
-          <div className="p-8 text-center">
-            <RefreshCw className="h-6 w-6 text-gray-400 animate-spin mx-auto mb-3" />
-            <p className="text-sm text-gray-500">Loading...</p>
+          <div className="p-10 text-center">
+            <RefreshCw className="h-6 w-6 text-[#B1B1B1] animate-spin mx-auto mb-3" />
+            <p className="text-sm text-[#666666]">Loading sources…</p>
           </div>
         )}
       </div>

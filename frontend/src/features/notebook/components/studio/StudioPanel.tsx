@@ -689,9 +689,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       {!isReportPreview ? (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* ====== FIXED SECTIONS: Generation Forms ====== */}
-          <div className="flex-shrink-0 p-4 bg-white border-b border-gray-200">
-            {/* ====== LISKOV SUBSTITUTION PRINCIPLE (LSP) ====== */}
-            {/* Both forms follow the same interface contract */}
+          <div className="flex-shrink-0 px-4 py-4 bg-white border-b border-[#E3E3E3]">
+            <div className="mb-3">
+              <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
+                Generation
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <ReportGenerationForm
                 config={reportGeneration.config}

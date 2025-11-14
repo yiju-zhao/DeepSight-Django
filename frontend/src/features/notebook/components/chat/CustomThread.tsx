@@ -112,7 +112,7 @@ const CustomMessage: React.FC = () => {
   const messages = thread.messages;
 
   return (
-    <div className="p-8 space-y-5 max-w-4xl mx-auto">
+    <div className="px-6 py-6 space-y-5 max-w-3xl mx-auto">
       <AnimatePresence>
         {messages.map((message) => {
           const isUser = message.role === 'user';
@@ -140,8 +140,8 @@ const CustomMessage: React.FC = () => {
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     isUser
-                      ? 'bg-gradient-to-br from-gray-700 to-gray-800 text-white'
-                      : 'bg-white border-2 border-gray-200 text-gray-600'
+                      ? 'bg-black text-white'
+                      : 'bg-white border border-[#E3E3E3] text-[#666666]'
                   }`}
                 >
                   {isUser ? (
@@ -154,11 +154,11 @@ const CustomMessage: React.FC = () => {
                 {/* Message Content */}
                 <div className={`group relative ${isUser ? '' : 'w-full'}`}>
                   {isUser ? (
-                    <div className="px-4 py-2.5 rounded-2xl bg-white text-gray-900">
+                    <div className="px-4 py-2.5 rounded-2xl bg-[#F5F5F5] text-[#1E1E1E]">
                       <p className="text-sm leading-6">{text}</p>
                     </div>
                   ) : (
-                    <div className="px-4 py-3 rounded-2xl bg-white">
+                    <div className="px-4 py-3 rounded-2xl bg-white border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px]">
                       <MarkdownContent content={text} />
                     </div>
                   )}
@@ -210,9 +210,9 @@ const CustomComposer: React.FC = () => {
   };
 
   return (
-    <div className="flex-shrink-0 p-6 bg-white">
-      <div className="bg-white rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-red-300">
-        <div className="flex items-end space-x-3 p-4">
+    <div className="flex-shrink-0 px-6 py-4 bg-white border-t border-[#E3E3E3]">
+      <div className="bg-[#F7F7F7] rounded-2xl border border-[#E3E3E3] focus-within:ring-2 focus-within:ring-black">
+        <div className="flex items-end space-x-3 px-4 py-3">
           <div className="flex-1 min-h-[40px]">
             <Textarea
               ref={textareaRef}
@@ -231,7 +231,7 @@ const CustomComposer: React.FC = () => {
             onClick={handleSend}
             disabled={!inputValue.trim() || isSending}
             size="sm"
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 bg-black hover:bg-black/80 text-white rounded-xl shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
