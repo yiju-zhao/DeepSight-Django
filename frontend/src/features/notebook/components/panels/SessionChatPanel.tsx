@@ -82,7 +82,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
           </div>
           <div className={PANEL_HEADERS.actionsContainer}>
             {sessions.length > 0 && (
-              <span className="text-xs text-gray-500">
+              <span>
                 {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
               </span>
             )}

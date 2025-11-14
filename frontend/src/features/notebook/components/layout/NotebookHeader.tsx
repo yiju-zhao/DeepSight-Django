@@ -23,7 +23,7 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
 
   return (
     <header className="flex-shrink-0 relative z-10 border-b border-[#E3E3E3] bg-white/90 backdrop-blur">
-      <div className="px-4 md:px-10 lg:px-20 py-3 flex justify-between items-center">
+      <div className="px-3 md:px-4 lg:px-5 py-3 flex justify-between items-center">
         <div className="flex items-center space-x-3">
           {/* Back Button */}
           {showBackButton && (

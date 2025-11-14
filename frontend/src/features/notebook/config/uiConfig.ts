@@ -270,16 +270,16 @@ export const TYPOGRAPHY = {
   }
 };
 
-// Panel header configurations for consistency
+// Panel header configurations for consistency (DeepDive panels)
 export const PANEL_HEADERS = {
-  container: 'flex-shrink-0 px-6 py-2.5 bg-white',
+  container: 'flex-shrink-0 px-4 py-3 bg-white border-b border-[#E3E3E3]',
   separator: '',
   layout: 'flex items-center justify-between',
-  iconContainer: '',
-  icon: 'h-5 w-5 text-gray-600',
-  title: 'text-base font-semibold text-gray-900',
-  titleContainer: 'flex items-center space-x-2',
-  actionsContainer: 'flex items-center space-x-2'
+  iconContainer: 'flex items-center justify-center w-6 h-6 rounded-full bg-[#F5F5F5]',
+  icon: 'h-3.5 w-3.5 text-[#7F7F7F]',
+  title: 'text-sm font-semibold text-[#1E1E1E]',
+  titleContainer: 'flex items-center gap-2',
+  actionsContainer: 'flex items-center gap-2 text-xs text-[#7B7B7B]'
 };
 
 // Border radius configurations

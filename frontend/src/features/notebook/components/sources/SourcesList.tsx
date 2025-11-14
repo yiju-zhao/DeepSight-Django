@@ -715,7 +715,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+              className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -729,7 +729,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
+                className="h-7 w-7 p-0 text-[#B1B1B1] hover:text-[#666666]"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();

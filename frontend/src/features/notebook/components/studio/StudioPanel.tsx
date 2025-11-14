@@ -576,7 +576,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                    className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
                     onClick={() => setViewMode('edit')}
                   >
                     <Edit className="h-3 w-3 mr-1" />
@@ -588,7 +588,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs text-blue-600 hover:text-blue-800"
+                      className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
                       onClick={handlePreviewEdits}
                     >
                       <Eye className="h-3 w-3 mr-1" />
@@ -597,7 +597,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                      className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
                       onClick={() => handleSaveFile(selectedFileContent)}
                     >
                       <Save className="h-3 w-3 mr-1" />
@@ -619,7 +619,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
+                  className="h-7 w-7 p-0 text-[#B1B1B1] hover:text-[#666666]"
                   onClick={toggleExpanded}
                 >
                   {isStudioExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -627,7 +627,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
+                  className="h-7 w-7 p-0 text-[#B1B1B1] hover:text-[#666666]"
                   onClick={handleCloseFile}
                 >
                   <X className="h-4 w-4" />
@@ -639,7 +639,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                  className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
                   onClick={handleRefresh}
                   disabled={reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading}
                 >
@@ -649,7 +649,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                  className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
                   onClick={() => {
                     // Import AdvancedSettingsModal component dynamically
                     import('./AdvancedSettingsModal').then(({ default: AdvancedSettingsModal }) => {
@@ -674,7 +674,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-gray-400 hover:text-gray-600"
+                  className="h-7 w-7 p-0 text-[#B1B1B1] hover:text-[#666666]"
                   onClick={toggleExpanded}
                 >
                   {isStudioExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
