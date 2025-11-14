@@ -48,7 +48,7 @@ interface SourcesListRef {
 }
 
 // Helper function to get principle file icon with visual indicator
-  const getPrincipleFileIcon = (source: Source): React.ComponentType<any> => {
+const getPrincipleFileIcon = (source: Source): React.ComponentType<any> => {
   // Enhanced URL detection with multiple fallbacks
   const isUrl = source.ext === 'url' || 
                 source.metadata?.source_url || 
