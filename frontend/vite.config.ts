@@ -1,6 +1,6 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
-import { createLogger, defineConfig, type PluginOption } from 'vite';
+import { createLogger, defineConfig, type PluginOption, loadEnv } from 'vite';
 
 // ============================================================================
 // TYPES
@@ -238,7 +238,11 @@ logger.error = (msg: string, options?: { error?: Error }): void => {
 // VITE CONFIGURATION
 // ============================================================================
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  const proxyTarget = env.VITE_BACKEND_URL || `http://${env.VITE_HOST_IP || 'localhost'}:${env.VITE_BACKEND_PORT || '8000'}`;
+  
+  return {
   customLogger: logger,
   
   plugins: [
@@ -253,7 +257,7 @@ export default defineConfig({
 
     proxy: {
       '/api': {
-        target: process.env.VITE_BACKEND_URL || 'http://localhost:8000',
+        target: proxyTarget,
         changeOrigin: true,
         secure: false,
       },
@@ -293,4 +297,5 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  };
 });
