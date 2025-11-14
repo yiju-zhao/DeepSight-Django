@@ -145,9 +145,9 @@ export default function DashboardPage() {
               <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
             </section>
 
-            {/* Reports & Podcasts Grid Section */}
+            {/* Reports & Podcasts Grid Section (Hidden) */}
+            {/*
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8 animate-slide-up-delay-1">
-              {/* Reports Section */}
               <div>
                 <ReportsSection
                   reports={reports}
@@ -156,7 +156,6 @@ export default function DashboardPage() {
                 />
               </div>
 
-              {/* Podcasts Section */}
               <div>
                 <PodcastsSection
                   podcasts={podcasts}
@@ -165,6 +164,7 @@ export default function DashboardPage() {
                 />
               </div>
             </section>
+            */}
           </div>
         </div>
       </div>

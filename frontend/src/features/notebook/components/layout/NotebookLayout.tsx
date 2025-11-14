@@ -104,6 +104,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
       {/* Header */}
       <NotebookHeader
         notebookTitle={notebookTitle}
+        showBackButton={false}
       />
 
       {/* Main Content */}
