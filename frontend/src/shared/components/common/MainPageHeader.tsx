@@ -1,7 +1,6 @@
 import React from "react";
-import { LogOut, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/shared/hooks/useAuth";
 
 interface MainPageHeaderProps {
   title: string;
@@ -28,7 +27,6 @@ const MainPageHeader: React.FC<MainPageHeaderProps> = ({
   rightActions
 }) => {
   const navigate = useNavigate();
-  const { handleLogout } = useAuth();
 
   return (
     <header className="bg-gray-50 sticky top-0 z-40">
@@ -59,19 +57,11 @@ const MainPageHeader: React.FC<MainPageHeaderProps> = ({
           </div>
 
           {/* Right side actions */}
-          <div className="flex items-center space-x-3">
-            {/* Custom right actions (like language switcher) */}
-            {rightActions}
-
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="p-3 rounded-lg hover:bg-gray-100 transition-colors"
-              title="Log out"
-            >
-              <LogOut className="w-6 h-6 text-gray-600" />
-            </button>
-          </div>
+          {rightActions && (
+            <div className="flex items-center space-x-3">
+              {rightActions}
+            </div>
+          )}
         </div>
       </div>
     </header>

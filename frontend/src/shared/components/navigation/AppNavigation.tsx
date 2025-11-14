@@ -8,8 +8,10 @@ import {
   Brain,
   ChevronDown,
   TrendingUp,
-  ArrowRight
+  ArrowRight,
+  LogOut
 } from 'lucide-react';
+import { useAuth } from '@/shared/hooks/useAuth';
 
 interface NavigationItem {
   path: string;
@@ -28,6 +30,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
   const [showHint, setShowHint] = useState(true);
   const location = useLocation();
+  const { handleLogout } = useAuth();
 
   // Hide hint after 10 seconds or when navigation is used
   useEffect(() => {
@@ -238,10 +241,23 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
                 </nav>
 
                 {/* Footer */}
-                <div className="mt-12 pt-6 border-t border-gray-200">
-                  <p className="text-xs text-gray-400">
+                <div className="mt-12 pt-6 border-t border-border">
+                  <p className="text-xs text-muted-foreground mb-4">
                     © 2024 DeepSight. All rights reserved.
                   </p>
+
+                  {/* Logout Button - Huawei Design Style */}
+                  <div className="pt-4 border-t border-border">
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center space-x-3 w-full py-3 px-4 rounded-lg
+                                 text-foreground hover:bg-secondary
+                                 transition-all duration-300 ease-out group"
+                    >
+                      <LogOut className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors duration-300" />
+                      <span className="font-medium text-sm">Logout</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
