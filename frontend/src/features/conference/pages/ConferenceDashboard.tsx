@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, memo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useDebounce } from '@/shared/hooks/useDebounce';
 import { useVenues, useInstances, useDashboard, useOverview, usePublications } from '../hooks/useConference';
 import { DashboardKPIs } from '../components/DashboardKPIs';
@@ -87,9 +87,6 @@ export default function ConferenceDashboard() {
 
   // Debounce search input to avoid too many API calls
   const debouncedPublicationSearch = useDebounce(publicationSearchInput, 500); // 500ms delay (publications only)
-
-  // Ref for the dashboard content section
-  const dashboardContentRef = useRef<HTMLDivElement>(null);
 
   // Fetch all instances first to build dropdown options
   const { data: instances, isLoading: instancesLoading } = useInstances();
@@ -185,26 +182,6 @@ export default function ConferenceDashboard() {
   // Overview data hook available but not used in this component
   // const { data: overviewData } = useOverview();
 
-  // Auto-scroll to dashboard content when a conference is selected
-  const scrollToDashboard = () => {
-    if (dashboardContentRef.current) {
-      // Small delay to ensure the content is rendered
-      setTimeout(() => {
-        dashboardContentRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
-      }, 300);
-    }
-  };
-
-  // Auto-scroll when matchingInstance changes (new selection)
-  useEffect(() => {
-    if (matchingInstance) {
-      scrollToDashboard();
-    }
-  }, [matchingInstance]);
-
   const handleVenueChange = (venue: string) => {
     setSelectedVenue(venue);
     setSelectedYear(undefined);
@@ -231,9 +208,6 @@ export default function ConferenceDashboard() {
       setCurrentPage(1);
       setPublicationSearchInput(''); // Reset publications search when changing instance
       setSelectedAffiliations([]); // Reset affiliation filter when changing instance
-
-      // Always scroll to dashboard when an instance is clicked, even if it's already selected
-      setTimeout(() => scrollToDashboard(), 100);
     }
   };
 
@@ -306,7 +280,7 @@ export default function ConferenceDashboard() {
 
           {/* Dashboard Content with Tabs */}
           {matchingInstance && (
-            <div ref={dashboardContentRef}>
+            <div>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
                 <TabsList className="w-full justify-start">
                   <TabsTrigger value="overview">Overview</TabsTrigger>
