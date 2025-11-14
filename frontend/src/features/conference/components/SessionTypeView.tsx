@@ -169,46 +169,6 @@ export const SessionTypeView: React.FC<SessionTypeViewProps> = ({ instanceId }) 
           />
         </div>
       )}
-
-      {/* Publications List */}
-      <div>
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h3 className="text-xl font-bold text-[#1E1E1E]">
-              Publications
-            </h3>
-            {selectedSessionTypes.length > 0 && (
-              <p className="text-sm text-[#666666] mt-1">
-                Filtered by: {selectedSessionTypes.join(', ')}
-              </p>
-            )}
-          </div>
-          <div className="text-sm font-medium text-[#666666]">
-            {displayPublications.length} result{displayPublications.length !== 1 ? 's' : ''}
-          </div>
-        </div>
-
-        <PublicationsTableEnhanced
-          data={displayPublications}
-          pagination={{
-            count: filteredPublicationsData?.count || 0,
-            next: filteredPublicationsData?.next || null,
-            previous: filteredPublicationsData?.previous || null,
-          }}
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          sortField={sortField}
-          sortDirection={sortDirection}
-          onSortChange={handleSortChange}
-          isFiltered={selectedSessionTypes.length > 0 || !!searchTerm}
-          isLoading={isLoadingFiltered}
-          onViewDetails={(publication) => {
-            console.log('View details for:', publication.title);
-          }}
-        />
-      </div>
     </div>
   );
 };
