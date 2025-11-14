@@ -280,12 +280,41 @@ export default function ConferenceDashboard() {
 
           {/* Dashboard Content with Tabs */}
           {matchingInstance && (
-            <div>
+            <div className="space-y-4">
+              <div>
+                <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
+                  Selected conference
+                </p>
+                <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                  <h2 className="text-[24px] md:text-[28px] font-bold text-[#1E1E1E] leading-tight">
+                    {matchingInstance.venue.name}
+                  </h2>
+                  <span className="text-sm md:text-base text-[#666666]">
+                    {matchingInstance.year}
+                  </span>
+                </div>
+              </div>
+
               <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="w-full justify-start">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
-                  <TabsTrigger value="sessions">Sessions</TabsTrigger>
-                  <TabsTrigger value="publications">Publications</TabsTrigger>
+                <TabsList className="w-full justify-start bg-[#F7F7F7] rounded-lg px-1 py-1 border border-[#E3E3E3]">
+                  <TabsTrigger
+                    value="overview"
+                    className="rounded-md text-sm data-[state=active]:bg-white data-[state=active]:shadow-[rgba(0,0,0,0.08)_0px_6px_10px] data-[state=active]:border-transparent"
+                  >
+                    Overview
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="sessions"
+                    className="rounded-md text-sm data-[state=active]:bg-white data-[state=active]:shadow-[rgba(0,0,0,0.08)_0px_6px_10px] data-[state=active]:border-transparent"
+                  >
+                    Sessions
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="publications"
+                    className="rounded-md text-sm data-[state=active]:bg-white data-[state=active]:shadow-[rgba(0,0,0,0.08)_0px_6px_10px] data-[state=active]:border-transparent"
+                  >
+                    Publications
+                  </TabsTrigger>
                 </TabsList>
 
                 {/* Overview Tab */}

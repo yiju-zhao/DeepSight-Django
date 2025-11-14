@@ -138,7 +138,6 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
   if (isLoading) {
     return (
       <div className="space-y-8">
-        <div className="h-7 bg-[#F5F5F5] rounded animate-pulse w-64" />
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {Array.from({ length: 5 }).map((_, i) => (
             <KPICard key={i} icon={Users} label="" value="" isLoading={true} />
@@ -150,16 +149,6 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
 
   return (
     <div className="space-y-8">
-      {/* Section Header */}
-      <div>
-        <h2 className="text-[28px] font-bold text-[#1E1E1E] leading-tight">
-          Key Metrics
-        </h2>
-        <p className="text-sm text-[#666666] mt-2">
-          Overview of conference statistics and performance indicators
-        </p>
-      </div>
-
       {/* Main KPI Cards - HUAWEI Style 4-column responsive grid with stagger animations */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div style={{ animationDelay: '0ms' }}>

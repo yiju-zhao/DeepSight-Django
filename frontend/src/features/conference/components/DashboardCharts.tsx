@@ -42,16 +42,6 @@ const DashboardChartsComponent = ({
 
   return (
     <div className="space-y-8">
-      {/* Section Header - HUAWEI Style */}
-      <div>
-        <h2 className="text-[28px] font-bold text-[#1E1E1E] leading-tight">
-          Data Visualizations
-        </h2>
-        <p className="text-sm text-[#666666] mt-2">
-          Explore conference data through interactive charts and networks
-        </p>
-      </div>
-
       {/* Rating Histogram and Keywords - 2 Column Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ChartCard title="">

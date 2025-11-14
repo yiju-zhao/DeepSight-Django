@@ -1,4 +1,4 @@
-import { memo, useState } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import ForceGraph2D from 'react-force-graph-2d';
 import { Maximize2, X } from 'lucide-react';
 import { ForceGraphData } from '../../types';
@@ -14,6 +14,33 @@ interface NetworkGraphProps {
 
 const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingMessage, themeColor = 'orange' }: NetworkGraphProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [dimensions, setDimensions] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
+
+  useEffect(() => {
+    if (!containerRef.current) {
+      return;
+    }
+
+    const element = containerRef.current;
+    const observer = new ResizeObserver(entries => {
+      const entry = entries[0];
+      const { width, height } = entry.contentRect;
+      setDimensions({
+        width,
+        height,
+      });
+    });
+
+    observer.observe(element);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   // Get top 5 nodes by publication count
   const sortedNodes = [...(data?.nodes || [])].sort((a, b) => (b.val || 0) - (a.val || 0));
@@ -166,7 +193,7 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
   }
 
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
+    <div ref={containerRef} className="relative w-full h-full flex items-center justify-center">
       <button
         onClick={() => setIsExpanded(true)}
         className="absolute top-2 right-2 p-2 hover:bg-gray-100 rounded-lg transition-colors z-10"
@@ -174,11 +201,13 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
       >
         <Maximize2 className="w-5 h-5 text-gray-600" />
       </button>
-      <NetworkChart
-        width={550}
-        height={550}
-        fontSize={12}
-      />
+      {dimensions.width > 0 && dimensions.height > 0 && (
+        <NetworkChart
+          width={Math.floor(dimensions.width)}
+          height={Math.floor(dimensions.height)}
+          fontSize={12}
+        />
+      )}
     </div>
   );
 };
