@@ -27,13 +27,10 @@ const DashboardChartsComponent = ({
 }: DashboardChartsProps) => {
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="mb-4">
-          <div className="h-7 bg-gray-200 rounded animate-pulse w-48" />
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {Array.from({ length: 6 }).map((_, i) => (
+      <div className="space-y-8">
+        <div className="h-7 bg-[#F5F5F5] rounded animate-pulse w-48" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {Array.from({ length: 4 }).map((_, i) => (
             <ChartCard key={i} title="" isLoading={true}>
               <div />
             </ChartCard>
@@ -44,12 +41,19 @@ const DashboardChartsComponent = ({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="mb-4">
-        <h2 className="text-2xl font-bold text-gray-900">Visualizations</h2>
+    <div className="space-y-8">
+      {/* Section Header - HUAWEI Style */}
+      <div>
+        <h2 className="text-[28px] font-bold text-[#1E1E1E] leading-tight">
+          Data Visualizations
+        </h2>
+        <p className="text-sm text-[#666666] mt-2">
+          Explore conference data through interactive charts and networks
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Rating Histogram and Keywords - 2 Column Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ChartCard title="">
           <RatingHistogram
             data={ratingHistogramData || data.ratings_histogram_fine || []}
@@ -63,7 +67,8 @@ const DashboardChartsComponent = ({
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
+      {/* Organization Publications - Full Width */}
+      <div className="grid grid-cols-1 gap-8">
         <ChartCard title="Organization Publications (Top 15)" height="h-[500px]">
           <OrganizationPublicationsChart
             data={data.organization_publications || []}
@@ -73,7 +78,8 @@ const DashboardChartsComponent = ({
         </ChartCard>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Collaboration Networks - 2 Column Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <ChartCard title="Geographic Collaboration Network" height="h-[550px]">
           <NetworkGraph
             data={data.force_graphs?.country || { nodes: [], links: [] }}

@@ -128,17 +128,17 @@ export const SessionTypeView: React.FC<SessionTypeViewProps> = ({ instanceId }) 
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-8">
+      {/* Header - HUAWEI Style */}
       <div>
-        <h2 className="text-2xl font-bold text-[#1E1E1E]">Session Types</h2>
-        <p className="text-sm text-[#666666] mt-1">
-          Explore publications by presentation type
+        <h2 className="text-[28px] font-bold text-[#1E1E1E] leading-tight">Session Types</h2>
+        <p className="text-sm text-[#666666] mt-2">
+          Explore publications by presentation type and session format
         </p>
       </div>
 
-      {/* Session Type Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Session Type Cards - 4 Column Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {sessionStats.map((stat) => {
           const Icon = SESSION_ICONS[stat.type as keyof typeof SESSION_ICONS] || BookOpen;
           const isActive = selectedSessionTypes.includes(stat.type);
@@ -172,16 +172,18 @@ export const SessionTypeView: React.FC<SessionTypeViewProps> = ({ instanceId }) 
 
       {/* Publications List */}
       <div>
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-[#1E1E1E]">
-            Publications
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-xl font-bold text-[#1E1E1E]">
+              Publications
+            </h3>
             {selectedSessionTypes.length > 0 && (
-              <span className="ml-2 text-sm font-normal text-[#666666]">
-                ({selectedSessionTypes.join(', ')})
-              </span>
+              <p className="text-sm text-[#666666] mt-1">
+                Filtered by: {selectedSessionTypes.join(', ')}
+              </p>
             )}
-          </h3>
-          <div className="text-sm text-[#666666]">
+          </div>
+          <div className="text-sm font-medium text-[#666666]">
             {displayPublications.length} result{displayPublications.length !== 1 ? 's' : ''}
           </div>
         </div>

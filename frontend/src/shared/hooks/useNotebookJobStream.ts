@@ -14,8 +14,7 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/shared/queries/keys';
 import { studioKeys } from '@/features/notebook/hooks/studio/useStudio';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+import { API_BASE_URL } from '@/config';
 
 export interface JobEvent {
   entity: 'podcast' | 'report' | 'source';

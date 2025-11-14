@@ -25,7 +25,6 @@ import {
   Filter,
 } from 'lucide-react';
 import { splitSemicolonValues, formatTruncatedList } from '@/shared/utils/utils';
-import { Card, CardHeader, CardContent } from '@/shared/components/ui/card';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Button } from '@/shared/components/ui/button';
 import ExportButton from './ExportButton';
@@ -68,25 +67,23 @@ type SortDirection = 'asc' | 'desc';
 // ============================================================================
 
 const LoadingSkeleton = () => (
-  <Card>
-    <CardContent className="p-6">
-      <div className="h-6 bg-muted rounded animate-pulse w-48 mb-6" />
+  <div className="bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] p-6">
+    <div className="h-7 bg-[#F5F5F5] rounded animate-pulse w-48 mb-6" />
 
-      {/* Filters skeleton */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="h-10 bg-muted rounded animate-pulse w-64" />
-        <div className="h-10 bg-muted rounded animate-pulse w-40" />
-        <div className="h-10 bg-muted rounded animate-pulse w-32" />
-      </div>
+    {/* Filters skeleton */}
+    <div className="flex flex-wrap gap-4 mb-6">
+      <div className="h-10 bg-[#F5F5F5] rounded animate-pulse w-64" />
+      <div className="h-10 bg-[#F5F5F5] rounded animate-pulse w-40" />
+      <div className="h-10 bg-[#F5F5F5] rounded animate-pulse w-32" />
+    </div>
 
-      {/* Table skeleton */}
-      <div className="space-y-3">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-20 bg-muted rounded-lg animate-pulse" />
-        ))}
-      </div>
-    </CardContent>
-  </Card>
+    {/* Table skeleton */}
+    <div className="space-y-3">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="h-20 bg-[#F5F5F5] rounded-lg animate-pulse" />
+      ))}
+    </div>
+  </div>
 );
 
 // ============================================================================
@@ -123,7 +120,7 @@ const PublicationRow = memo(({
   const affiliationsDisplay = useMemo(() => formatTruncatedList(affiliations, 2), [affiliations]);
 
   return (
-    <tr className="group border-b border-border hover:bg-accent/50 transition-colors">
+    <tr className="group border-b border-[#E3E3E3] hover:bg-[#F5F5F5] transition-all duration-200">
       {/* Selection Checkbox */}
       <td className="py-4 px-4 w-12">
         <Checkbox
@@ -137,10 +134,10 @@ const PublicationRow = memo(({
       <td className="py-4 px-2 w-12">
         <button
           onClick={onToggleFavorite}
-          className={`p-1.5 rounded-md transition-all ${
+          className={`p-1.5 rounded-md transition-all duration-200 ${
             isFavorite
               ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
-              : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-50 opacity-0 group-hover:opacity-100'
+              : 'text-[#666666] hover:text-amber-500 hover:bg-amber-50 opacity-0 group-hover:opacity-100'
           }`}
           title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
         >
@@ -462,22 +459,23 @@ const PublicationsTableComponent = ({
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="border-b bg-muted/30">
+    <div className="bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] overflow-hidden">
+      {/* Header Section - HUAWEI Style */}
+      <div className="border-b border-[#E3E3E3] bg-[#F5F5F5] px-6 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold text-foreground">
+            <h2 className="text-xl font-bold text-[#1E1E1E]">
               Publications
             </h2>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-[#666666] mt-1">
               {pagination.count.toLocaleString()} total publications
               {isFiltered && ' (filtered)'}
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {selectedIds.size > 0 && (
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm font-medium text-[#666666]">
                 {selectedIds.size} selected
               </span>
             )}
@@ -490,19 +488,19 @@ const PublicationsTableComponent = ({
             />
           </div>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="p-6">
-        {/* Controls */}
+      <div className="p-6">
+        {/* Controls - HUAWEI Style */}
         <div className="flex flex-wrap gap-4 mb-6">
           <div className="relative flex-1 min-w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" size={18} />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#666666]" size={18} />
             <input
               type="text"
               placeholder="Search titles, authors, keywords..."
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
+              className="w-full pl-10 pr-4 py-2.5 border border-[#E3E3E3] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-all duration-300 text-sm text-[#1E1E1E] placeholder-[#666666]"
             />
           </div>
 
@@ -512,7 +510,7 @@ const PublicationsTableComponent = ({
               const [field, direction] = e.target.value.split('-') as [SortField, SortDirection];
               onSortChange(field, direction);
             }}
-            className="px-4 py-2 border border-input rounded-lg bg-background focus:ring-2 focus:ring-ring focus:border-transparent text-sm"
+            className="px-4 py-2.5 border border-[#E3E3E3] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-all duration-300 text-sm text-[#1E1E1E] cursor-pointer"
           >
             <option value="rating-desc">Sort by Rating (High to Low)</option>
             <option value="rating-asc">Sort by Rating (Low to High)</option>
@@ -716,11 +714,11 @@ const PublicationsTableComponent = ({
           </div>
         )}
 
-        {/* Results Info */}
-        <div className="text-sm text-muted-foreground text-center mt-4">
+        {/* Results Info - HUAWEI Style */}
+        <div className="text-sm text-[#666666] text-center mt-6">
           Showing {data.length} of {pagination.count.toLocaleString()} publications
         </div>
-      </CardContent>
+      </div>
 
       {/* Publication Detail Modal */}
       <PublicationDetailModal
@@ -731,7 +729,7 @@ const PublicationsTableComponent = ({
           setSelectedPublication(null);
         }}
       />
-    </Card>
+    </div>
   );
 };
 

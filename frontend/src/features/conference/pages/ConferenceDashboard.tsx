@@ -5,9 +5,11 @@ import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
 import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
 import { SessionTypeView } from '../components/SessionTypeView';
+import ConferenceSelectionDrawer from '../components/ConferenceSelectionDrawer';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
-import { AlertCircle, TrendingUp, Search, Calendar as CalendarIcon, MapPin, Star, Users, FileText, ChevronDown, ChevronUp } from 'lucide-react';
+import { AlertCircle, Calendar, Filter } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
+import MainPageHeader from '@/shared/components/common/MainPageHeader';
 
 // Memoized dashboard content component to prevent unnecessary re-renders
 const DashboardContent = memo(({
@@ -74,6 +76,7 @@ export default function ConferenceDashboard() {
   const [selectedInstance, setSelectedInstance] = useState<number | undefined>();
   const [currentPage, setCurrentPage] = useState(1);
   const [allConferencesExpanded, setAllConferencesExpanded] = useState(false); // Collapsed by default
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false); // Drawer state
   // Separate search states to avoid coupling
   const [conferenceSearchInput, setConferenceSearchInput] = useState(''); // For conference list search
   const [publicationSearchInput, setPublicationSearchInput] = useState(''); // For publications search
@@ -257,159 +260,49 @@ export default function ConferenceDashboard() {
 
   return (
     <AppLayout>
+      {/* Conference Selection Drawer */}
+      <ConferenceSelectionDrawer
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        conferenceSearchInput={conferenceSearchInput}
+        onSearchInputChange={setConferenceSearchInput}
+        popularConferences={popularConferences}
+        groupedConferences={groupedConferences}
+        selectedInstance={matchingInstance}
+        onInstanceSelect={handleInstanceSelect}
+        instancesLoading={instancesLoading}
+        allConferencesExpanded={allConferencesExpanded}
+        onToggleAllConferences={() => setAllConferencesExpanded(!allConferencesExpanded)}
+      />
+
       <div className="flex flex-col min-h-screen bg-white">
-        <div className="flex-1 p-6 overflow-auto">
-          <div className="max-w-7xl mx-auto">
-            <div className="space-y-6">
-
-          {/* HUAWEI Style Header */}
-          <div className="space-y-4">
-            {/* Black Header with Title */}
-            <div className="bg-black rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] p-4 text-white">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h2 className="text-2xl font-bold">Conference Dashboard</h2>
-                  <p className="text-white/70 mt-1">Explore academic conference data and insights</p>
-                </div>
-                {selectedVenue && selectedYear && (
-                  <div className="bg-white/10 px-4 py-2 rounded-md backdrop-blur-sm border border-white/20">
-                    <div className="text-sm font-medium">{selectedVenue} {selectedYear}</div>
-                  </div>
-                )}
-              </div>
-
-          {/* Search Bar - HUAWEI Style */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-white/50 w-5 h-5" />
-            <input
-              type="text"
-              placeholder="Search conferences, venues, or years..."
-              value={conferenceSearchInput}
-              onChange={(e) => setConferenceSearchInput(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-md text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30 transition-all duration-300"
-            />
-          </div>
-        </div>
-
-        {/* Recent Conferences - Horizontal Scroll */}
-        {!conferenceSearchInput && popularConferences.length > 0 && (
-          <div className="bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] border border-[#E3E3E3] p-4">
-            <div className="flex items-center mb-3">
-              <Star className="w-5 h-5 text-[#CE0E2D] mr-2" />
-              <h3 className="text-base font-semibold text-[#1E1E1E]">Recent</h3>
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#E3E3E3] scrollbar-track-transparent">
-              {popularConferences.map((instance) => (
-                <button
-                  key={instance.instance_id}
-                  onClick={() => handleInstanceSelect(instance.instance_id)}
-                  className={`group relative flex-shrink-0 w-72 p-3 rounded-lg border transition-all duration-300 text-left shadow-[rgba(0,0,0,0.01)_0px_3px_6px] hover:shadow-[rgba(0,0,0,0.08)_0px_8px_12px] ${
-                    matchingInstance?.instance_id === instance.instance_id
-                      ? 'border-black bg-black/5'
-                      : 'border-[#E3E3E3] hover:border-black/30'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="font-semibold text-[#1E1E1E] text-sm transition-colors truncate">
-                      {instance.venue.name}
-                    </div>
-                    <div className="flex items-center text-xs text-[#666666] ml-2">
-                      <CalendarIcon className="w-3.5 h-3.5 mr-1" />
-                      {instance.year}
-                    </div>
-                  </div>
-                  <div className="text-xs text-[#666666] mb-1.5">{instance.venue.type}</div>
-                  {instance.location && (
-                    <div className="flex items-center text-xs text-[#666666]">
-                      <MapPin className="w-3 h-3 mr-1" />
-                      <span className="truncate">{instance.location}</span>
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-            {/* All Conferences Grid - Collapsible */}
-            <div className="bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] border border-[#E3E3E3] p-4">
+        {/* Main Page Header with Conference Selection Button */}
+        <MainPageHeader
+          title="Conference Analytics"
+          subtitle="Deep insights into academic conferences"
+          icon={<Calendar className="w-6 h-6 text-white" />}
+          iconColor="from-[#CE0E2D] to-[#A20A22]"
+          rightActions={
+            <div className="flex items-center space-x-3">
+              {/* Conference Selection Button */}
               <button
-                onClick={() => setAllConferencesExpanded(!allConferencesExpanded)}
-                className="flex items-center justify-between w-full mb-4 hover:opacity-80 transition-opacity duration-300"
+                onClick={() => setIsDrawerOpen(true)}
+                className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-white border border-[#E3E3E3] hover:border-black/30 hover:shadow-[rgba(0,0,0,0.08)_0px_8px_12px] transition-all duration-300"
               >
-                <div className="flex items-center">
-                  <Users className="w-5 h-5 text-[#1E1E1E] mr-2 opacity-80" />
-                  <h3 className="text-base font-semibold text-[#1E1E1E]">All Conferences</h3>
-                  <span className="ml-2 text-sm text-[#666666]">
-                    ({Object.keys(groupedConferences).length} venues)
-                  </span>
-                </div>
-                {allConferencesExpanded ? (
-                  <ChevronUp className="w-5 h-5 text-[#666666]" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-[#666666]" />
-                )}
+                <Filter className="w-4 h-4 text-[#1E1E1E]" />
+                <span className="text-sm font-medium text-[#1E1E1E]">
+                  {matchingInstance
+                    ? `${matchingInstance.venue.name} ${matchingInstance.year}`
+                    : 'Select Conference'}
+                </span>
               </button>
-
-              {allConferencesExpanded && (
-                <>
-                  {instancesLoading ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {[...Array(6)].map((_, i) => (
-                        <div key={i} className="animate-pulse">
-                          <div className="h-32 bg-[#F5F5F5] rounded-lg"></div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {Object.entries(groupedConferences).map(([venueName, venueData]) => (
-                        <div
-                          key={venueName}
-                          className="group bg-white rounded-lg p-4 border border-[#E3E3E3] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-300"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h4 className="font-bold text-base text-[#1E1E1E] transition-colors">
-                                {venueName}
-                              </h4>
-                            </div>
-                            <FileText className="w-4 h-4 text-[#666666] opacity-60 transition-opacity" />
-                          </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            {venueData.instances
-                              .sort((a: any, b: any) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime())
-                              .map((instance: any) => (
-                              <button
-                                key={instance.instance_id}
-                                onClick={() => handleInstanceSelect(instance.instance_id)}
-                                className={`px-2.5 py-1 text-xs rounded-md transition-all duration-300 ${
-                                  matchingInstance?.instance_id === instance.instance_id
-                                    ? 'bg-black text-white'
-                                    : 'bg-white text-[#1E1E1E] border border-[#E3E3E3] hover:border-black/30'
-                                }`}
-                              >
-                                {instance.year}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {!instancesLoading && Object.keys(groupedConferences).length === 0 && (
-                    <div className="text-center py-12">
-                      <Search className="w-12 h-12 text-[#666666] mx-auto mb-4" />
-                      <h3 className="text-base font-medium text-[#1E1E1E] mb-2">No conferences found</h3>
-                      <p className="text-sm text-[#666666]">Try adjusting your search terms</p>
-                    </div>
-                  )}
-                </>
-              )}
             </div>
-          </div>
+          }
+        />
+
+        <div className="flex-1 overflow-auto bg-white">
+          <div className="max-w-7xl mx-auto px-4 md:px-10 lg:px-20 py-10 md:py-20">
+            <div className="space-y-10 md:space-y-20">
 
           {/* Dashboard Content with Tabs */}
           {matchingInstance && (
@@ -491,17 +384,24 @@ export default function ConferenceDashboard() {
             </div>
           )}
 
-          {/* No Selection State */}
-          {!matchingInstance && !dashboardLoading && (
-            <div className="text-center py-16 bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] border border-[#E3E3E3]">
-              <h3 className="text-lg font-medium text-[#1E1E1E] mb-2">
-                Select a conference to explore
-              </h3>
-              <p className="text-[#666666]">
-                Choose a conference from above to view analytics and publications
-              </p>
-            </div>
-          )}
+              {/* No Selection State */}
+              {!matchingInstance && !dashboardLoading && (
+                <div className="text-center py-16 bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] border border-[#E3E3E3]">
+                  <Calendar className="w-16 h-16 text-[#666666] mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-[#1E1E1E] mb-2">
+                    Select a conference to explore
+                  </h3>
+                  <p className="text-[#666666] mb-6">
+                    Click "Select Conference" to view analytics and publications
+                  </p>
+                  <button
+                    onClick={() => setIsDrawerOpen(true)}
+                    className="px-6 py-3 bg-black text-white rounded-lg hover:opacity-80 transition-opacity duration-300"
+                  >
+                    Select Conference
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
