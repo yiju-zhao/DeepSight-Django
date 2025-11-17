@@ -252,10 +252,10 @@ export default function ConferenceDashboard() {
       <div className="flex flex-col min-h-screen bg-transparent">
         {/* Main Page Header with Conference Selection Button */}
         <MainPageHeader
+          label="ANALYTICS"
           title="Conference Analytics"
-          // subtitle="Deep insights into academic conferences"
-          icon={<Calendar className="w-6 h-6 text-white" />}
-          iconColor="from-[#CE0E2D] to-[#A20A22]"
+          subtitle="Deep insights into academic conferences"
+          icon={<Calendar className="w-6 h-6 text-[#CE0E2D]" />}
           rightActions={
             <div className="flex items-center space-x-3">
               {/* Conference Selection Button */}

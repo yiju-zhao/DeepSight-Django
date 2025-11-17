@@ -1,5 +1,5 @@
 import React from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface NotebookHeaderProps {
@@ -9,42 +9,51 @@ interface NotebookHeaderProps {
 }
 
 /**
- * Header component for notebook pages
- * Handles navigation, menu, and logout functionality
+ * Header component for notebook pages following Huawei Design Guide
+ * Features:
+ * - Clean typography following Huawei scale (28px → 24px → 20px)
+ * - Minimalist design with generous white space
+ * - Consistent colors: #1E1E1E (primary), #666666 (secondary)
+ * - Icon integration matching MainPageHeader pattern
  */
 const NotebookHeader: React.FC<NotebookHeaderProps> = ({
   notebookTitle,
   showBackButton = true,
-  backPath = "/deepdive"
+  backPath = "/notebooks"
 }) => {
   const navigate = useNavigate();
 
   return (
-    <header className="flex-shrink-0 relative z-10 border-b border-[#E3E3E3] bg-white/90 backdrop-blur">
-      <div className="px-3 md:px-4 lg:px-5 py-3 flex justify-between items-center">
-        <div className="flex items-center space-x-3">
+    <header className="bg-white">
+      <div className="px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex items-center space-x-4">
           {/* Back Button */}
           {showBackButton && (
             <button
               onClick={() => navigate(backPath)}
-              className="p-2 rounded-lg bg-white hover:bg-[#F7F7F7] border border-[#E3E3E3] transition-colors duration-200"
-              title={`Back to ${backPath === "/deepdive" ? "DeepDive" : "Previous Page"}`}
+              className="p-2 rounded-lg bg-white hover:bg-[#F7F7F7] border border-[#E3E3E3] transition-colors duration-300"
+              title="Back to Notebooks"
             >
               <ArrowLeft className="h-5 w-5 text-[#1E1E1E]" />
             </button>
           )}
 
-          {/* Title with simple styling */}
-          {notebookTitle && (
-            <div className="ml-2 flex flex-col">
-              <span className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
-                DeepDive Notebook
-              </span>
-              <h1 className="text-[20px] md:text-[24px] font-bold text-[#1E1E1E] leading-tight mt-0.5">
-                {notebookTitle}
+          <div className="flex items-center space-x-4">
+            {/* Icon Container */}
+            <div className="w-10 h-10 flex items-center justify-center">
+              <BookOpen className="w-6 h-6 text-[#CE0E2D]" />
+            </div>
+
+            {/* Title Section */}
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B] mb-0.5">
+                DEEPDIVE NOTEBOOK
+              </p>
+              <h1 className="text-[20px] md:text-[24px] lg:text-[28px] font-bold text-[#1E1E1E] leading-[1.321]">
+                {notebookTitle || 'Untitled Notebook'}
               </h1>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </header>

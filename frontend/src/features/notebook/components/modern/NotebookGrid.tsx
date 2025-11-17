@@ -207,33 +207,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
 
   return (
     <ErrorBoundary level="section">
-      <div className={cn('space-y-8', className)}>
-        {/* Header - HUAWEI style */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="space-y-1">
-            <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
-              DeepDive
-            </p>
-            <h1 className="text-[28px] font-bold text-[#1E1E1E] leading-tight">
-              Research Notebooks
-            </h1>
-            <p className="text-sm text-[#666666]">
-              Organize your research, sources, and insights in one place.
-            </p>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            <Button
-              onClick={() => setShowCreateForm(true)}
-              disabled={createNotebook.isPending}
-              className="inline-flex items-center bg-[#CE0E2D] hover:bg-[#A20A22]"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              New Notebook
-            </Button>
-          </div>
-        </div>
-
+      <div className={cn('space-y-6', className)}>
         {/* Create Notebook Form */}
         {showCreateForm && (
           <CreateNotebookForm
@@ -265,33 +239,46 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
             )}
           </div>
 
-          <div className="flex items-center border border-[#E3E3E3] rounded-lg p-1 bg-white">
+          <div className="flex items-center space-x-3">
+            {/* New Notebook Button */}
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                "rounded-md",
-                viewMode === 'grid'
-                  ? "bg-[#CE0E2D] text-white hover:bg-[#A20A22]"
-                  : "text-[#666666]"
-              )}
+              onClick={() => setShowCreateForm(true)}
+              disabled={createNotebook.isPending}
+              className="inline-flex items-center bg-[#CE0E2D] hover:bg-[#A20A22]"
             >
-              <Grid className="w-4 h-4" />
+              <Plus className="w-4 h-4 mr-2" />
+              New Notebook
             </Button>
-            <Button
-              variant={viewMode === 'list' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => setViewMode('list')}
-              className={cn(
-                "rounded-md",
-                viewMode === 'list'
-                  ? "bg-[#CE0E2D] text-white hover:bg-[#A20A22]"
-                  : "text-[#666666]"
-              )}
-            >
-              <List className="w-4 h-4" />
-            </Button>
+
+            {/* View Toggle */}
+            <div className="flex items-center border border-[#E3E3E3] rounded-lg p-1 bg-white">
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  "rounded-md",
+                  viewMode === 'grid'
+                    ? "bg-[#CE0E2D] text-white hover:bg-[#A20A22]"
+                    : "text-[#666666]"
+                )}
+              >
+                <Grid className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "rounded-md",
+                  viewMode === 'list'
+                    ? "bg-[#CE0E2D] text-white hover:bg-[#A20A22]"
+                    : "text-[#666666]"
+                )}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
 

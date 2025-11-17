@@ -101,9 +101,10 @@ export default function DashboardPage() {
       <AppLayout>
         <div className="p-8 bg-transparent min-h-screen">
           <MainPageHeader
+            label="DEEPSIGHT"
             title="Dashboard"
-            icon={<BarChart3 className="w-5 h-5 text-white" />}
-            iconColor="from-gray-800 to-gray-900"
+            subtitle="Overview of your research projects and analytics"
+            icon={<BarChart3 className="w-6 h-6 text-[#1E1E1E]" />}
           />
           <div className="max-w-4xl mx-auto">
             <EmptyState
@@ -135,9 +136,10 @@ export default function DashboardPage() {
     <AppLayout>
       <div className="flex flex-col min-h-screen bg-transparent">
         <MainPageHeader
+          label="DEEPSIGHT"
           title="Dashboard"
-          icon={<BarChart3 className="w-5 h-5 text-white" />}
-          iconColor="from-gray-800 to-gray-900"
+          subtitle="Overview of your research projects and analytics"
+          icon={<BarChart3 className="w-6 h-6 text-[#1E1E1E]" />}
         />
 
         <div className="flex-1 px-4 md:px-10 lg:px-20 py-10 md:py-20">

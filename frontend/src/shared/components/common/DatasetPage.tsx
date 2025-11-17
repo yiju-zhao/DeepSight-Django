@@ -11,9 +11,10 @@ export default function DatasetPage() {
     <AppLayout>
       <div className="min-h-screen bg-transparent flex flex-col">
         <MainPageHeader
+          label="RESEARCH"
           title="Dataset"
-          icon={<Database className="w-5 h-5 text-white" />}
-          iconColor="from-green-500 to-green-600"
+          subtitle="Explore and manage research papers"
+          icon={<Database className="w-6 h-6 text-[#1E1E1E]" />}
           rightActions={<LanguageSwitcher />}
         />
 
