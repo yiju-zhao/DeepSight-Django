@@ -100,7 +100,7 @@ export default function DashboardPage() {
   if (error) {
     return (
       <AppLayout>
-        <div className="p-8 bg-white min-h-screen">
+        <div className="p-8 bg-transparent min-h-screen">
           <DashboardHeader />
           <div className="max-w-4xl mx-auto">
             <EmptyState
@@ -130,7 +130,7 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col min-h-screen bg-white">
+      <div className="flex flex-col min-h-screen bg-transparent">
         <MainPageHeader
           title="Dashboard"
           subtitle="Your Research Overview"

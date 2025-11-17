@@ -9,7 +9,7 @@ import LanguageSwitcher from "@/shared/components/common/LanguageSwitcher";
 export default function DatasetPage() {
   return (
     <AppLayout>
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen bg-transparent flex flex-col">
         <MainPageHeader
           title="Dataset"
           subtitle="Research papers and publications"

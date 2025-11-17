@@ -115,8 +115,8 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
             isExpanded ? 'space-x-3 px-4' : 'justify-center px-2'
           } py-3 ${paddingLeft} ${
             isActive
-              ? 'opacity-100 font-bold bg-[#F5F5F5]'
-              : 'opacity-60 hover:opacity-100 hover:bg-[#F5F5F5]'
+              ? 'opacity-100 font-bold bg-white'
+              : 'opacity-60 hover:opacity-100 hover:bg-white'
           }`}
         >
           <Link
@@ -131,7 +131,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
           {hasChildren && isExpanded && (
             <button
               onClick={() => toggleExpanded(item.path)}
-              className="p-1 rounded hover:bg-[#E3E3E3] transition-colors duration-300"
+              className="p-1 rounded hover:bg-white transition-colors duration-300"
             >
               <ChevronDown
                 className={`h-4 w-4 text-[#666666] transition-transform duration-300 ${
@@ -196,7 +196,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
       <motion.aside
         animate={{ width: navWidth }}
         transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-        className={`fixed left-0 top-0 h-screen z-50 bg-white border-r border-[#E3E3E3] shadow-huawei-sm overflow-hidden
+        className={`fixed left-0 top-0 h-screen z-50 bg-[#F5F5F5] overflow-hidden
                    transition-transform duration-300 ease-in-out
                    lg:translate-x-0 ${isMobileVisible ? 'translate-x-0' : '-translate-x-full'}
                    ${className}`}
@@ -244,7 +244,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
               className={`flex items-center w-full rounded-lg
                           ${isExpanded ? 'space-x-3 px-4' : 'justify-center px-2'}
                           py-3
-                          text-[#1E1E1E] hover:bg-[#F5F5F5]
+                          text-[#1E1E1E] hover:bg-white
                           transition-colors duration-300 ease-out group`}
               title={!isExpanded ? 'Logout' : undefined}
             >
@@ -258,7 +258,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
             <button
               onClick={() => setIsExpanded(!isExpanded)}
               className="w-full p-3 flex items-center justify-center
-                         hover:bg-[#F5F5F5] rounded-lg
+                         hover:bg-white rounded-lg
                          transition-colors duration-300 ease-out"
               aria-label={isExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
               title={isExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
