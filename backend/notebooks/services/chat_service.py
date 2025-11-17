@@ -708,14 +708,9 @@ class ChatService(NotebookBaseService):
                     session=session, notebook=notebook, sender="user", message=question
                 )
 
-                # ✨ 立即创建助手消息记录（空内容，状态为 generating）
-                assistant_message = SessionChatMessage.objects.create(
-                    session=session,
-                    notebook=notebook,
-                    sender="assistant",
-                    message="",
-                    metadata={"status": "generating", "started_at": user_message.timestamp.isoformat()}
-                )
+                # ✨ 延迟创建助手消息直到收到第一个 token（避免空消息验证错误）
+                assistant_message = None
+                message_start_time = user_message.timestamp.isoformat()
 
                 self.log_notebook_operation(
                     "session_user_message_recorded",
@@ -778,6 +773,20 @@ class ChatService(NotebookBaseService):
                             # Calculate delta from accumulated content
                             new_content = answer[len(accumulated_content) :]
                             if new_content:
+                                # ✨ 在收到第一个 token 时创建助手消息
+                                if assistant_message is None:
+                                    assistant_message = SessionChatMessage.objects.create(
+                                        session=session,
+                                        notebook=notebook,
+                                        sender="assistant",
+                                        message=answer,  # 使用第一块内容
+                                        metadata={
+                                            "status": "generating",
+                                            "started_at": message_start_time
+                                        }
+                                    )
+                                    logger.info(f"Created assistant message with first token: {len(answer)} chars")
+
                                 accumulated_content = answer
                                 payload = json.dumps(
                                     {"type": "token", "text": new_content}
@@ -814,16 +823,33 @@ class ChatService(NotebookBaseService):
                 )
 
                 # ✨ 最终更新消息内容并标记为完成
-                if assistant_message and accumulated_content:
-                    assistant_message.message = accumulated_content
-                    assistant_message.metadata = {
-                        "status": "completed",
-                        "started_at": assistant_message.metadata.get("started_at"),
-                        "completed_at": user_message.timestamp.isoformat(),
-                        "total_length": len(accumulated_content)
-                    }
-                    assistant_message.save(update_fields=["message", "metadata", "updated_at"])
-                    logger.info(f"Final message saved: {len(accumulated_content)} characters")
+                if accumulated_content:
+                    # 如果助手消息还未创建（边缘情况：RAGFlow 在最终事件中返回完整响应）
+                    if assistant_message is None:
+                        assistant_message = SessionChatMessage.objects.create(
+                            session=session,
+                            notebook=notebook,
+                            sender="assistant",
+                            message=accumulated_content,
+                            metadata={
+                                "status": "completed",
+                                "started_at": message_start_time,
+                                "completed_at": user_message.timestamp.isoformat(),
+                                "total_length": len(accumulated_content)
+                            }
+                        )
+                        logger.info(f"Created assistant message at completion: {len(accumulated_content)} chars")
+                    else:
+                        # 更新现有消息
+                        assistant_message.message = accumulated_content
+                        assistant_message.metadata = {
+                            "status": "completed",
+                            "started_at": assistant_message.metadata.get("started_at"),
+                            "completed_at": user_message.timestamp.isoformat(),
+                            "total_length": len(accumulated_content)
+                        }
+                        assistant_message.save(update_fields=["message", "metadata", "updated_at"])
+                        logger.info(f"Final message saved: {len(accumulated_content)} characters")
 
                 # Generate suggested questions
                 suggestions_result = self.generate_suggested_questions(
