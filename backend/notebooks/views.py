@@ -53,6 +53,9 @@ from .models import (
 from .serializers import (
     BatchFileUploadSerializer,
     BatchJobSerializer,
+    BatchURLParseDocumentSerializer,
+    BatchURLParseSerializer,
+    BatchURLParseWithMediaSerializer,
     KnowledgeBaseItemSerializer,
     NotebookCreateSerializer,
     NotebookListSerializer,
@@ -661,6 +664,159 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
             )
         except Exception as e:
             logger.exception(f"Failed to parse document URL: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="Batch parse URLs",
+        description="Parse multiple web URLs in batch. Each URL will be processed asynchronously.",
+        request=BatchURLParseSerializer,
+        responses={
+            207: OpenApiResponse(description="Multi-status - partial success"),
+            202: OpenApiResponse(description="All URLs accepted for processing"),
+            400: OpenApiResponse(description="Invalid request"),
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="batch_parse_url")
+    def batch_parse_url(self, request, notebook_pk=None):
+        """Parse multiple URLs in batch."""
+        serializer = BatchURLParseSerializer(
+            data=request.data,
+            context={
+                "request": request,
+                "notebook_id": notebook_pk,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            from uuid import uuid4
+
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_pk
+            )
+
+            # Get URL or URLs from validated data
+            url = serializer.validated_data.get("url")
+            urls = serializer.validated_data.get("urls")
+            upload_url_id = (
+                serializer.validated_data.get("upload_url_id") or uuid4().hex
+            )
+
+            # Convert single URL to list for uniform processing
+            urls_to_process = [url] if url else urls
+
+            result = self.url_service.handle_batch_url_parse(
+                urls=urls_to_process,
+                upload_url_id=upload_url_id,
+                notebook=notebook,
+                user=request.user,
+            )
+            return Response(
+                result, status=result.get("status_code", status.HTTP_202_ACCEPTED)
+            )
+        except Exception as e:
+            logger.exception(f"Failed to batch parse URLs: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="Batch parse URLs with media extraction",
+        description="Parse multiple web URLs with media extraction in batch. Each URL will be processed asynchronously.",
+        request=BatchURLParseWithMediaSerializer,
+        responses={
+            207: OpenApiResponse(description="Multi-status - partial success"),
+            202: OpenApiResponse(description="All URLs accepted for processing"),
+            400: OpenApiResponse(description="Invalid request"),
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="batch_parse_url_with_media")
+    def batch_parse_url_with_media(self, request, notebook_pk=None):
+        """Parse multiple URLs with media extraction in batch."""
+        serializer = BatchURLParseWithMediaSerializer(
+            data=request.data,
+            context={
+                "request": request,
+                "notebook_id": notebook_pk,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            from uuid import uuid4
+
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_pk
+            )
+
+            # Get URL or URLs from validated data
+            url = serializer.validated_data.get("url")
+            urls = serializer.validated_data.get("urls")
+            upload_url_id = (
+                serializer.validated_data.get("upload_url_id") or uuid4().hex
+            )
+
+            # Convert single URL to list for uniform processing
+            urls_to_process = [url] if url else urls
+
+            result = self.url_service.handle_batch_url_with_media(
+                urls=urls_to_process,
+                upload_url_id=upload_url_id,
+                notebook=notebook,
+                user=request.user,
+            )
+            return Response(
+                result, status=result.get("status_code", status.HTTP_202_ACCEPTED)
+            )
+        except Exception as e:
+            logger.exception(f"Failed to batch parse URLs with media: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @extend_schema(
+        summary="Batch parse document URLs",
+        description="Parse multiple document URLs in batch. Each URL will be processed asynchronously.",
+        request=BatchURLParseDocumentSerializer,
+        responses={
+            207: OpenApiResponse(description="Multi-status - partial success"),
+            202: OpenApiResponse(description="All URLs accepted for processing"),
+            400: OpenApiResponse(description="Invalid request"),
+        },
+    )
+    @action(detail=False, methods=["post"], url_path="batch_parse_document_url")
+    def batch_parse_document_url(self, request, notebook_pk=None):
+        """Parse multiple document URLs in batch."""
+        serializer = BatchURLParseDocumentSerializer(
+            data=request.data,
+            context={
+                "request": request,
+                "notebook_id": notebook_pk,
+            },
+        )
+        serializer.is_valid(raise_exception=True)
+        try:
+            from uuid import uuid4
+
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_pk
+            )
+
+            # Get URL or URLs from validated data
+            url = serializer.validated_data.get("url")
+            urls = serializer.validated_data.get("urls")
+            upload_url_id = (
+                serializer.validated_data.get("upload_url_id") or uuid4().hex
+            )
+
+            # Convert single URL to list for uniform processing
+            urls_to_process = [url] if url else urls
+
+            result = self.url_service.handle_batch_document_url(
+                urls=urls_to_process,
+                upload_url_id=upload_url_id,
+                notebook=notebook,
+                user=request.user,
+            )
+            return Response(
+                result, status=result.get("status_code", status.HTTP_202_ACCEPTED)
+            )
+        except Exception as e:
+            logger.exception(f"Failed to batch parse document URLs: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["post"], url_path="extract_video_images")

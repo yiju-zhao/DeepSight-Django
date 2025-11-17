@@ -26,8 +26,22 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
   const [urlProcessingType, setUrlProcessingType] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  
+  const [batchMode, setBatchMode] = useState(false);
+  const [batchUrls, setBatchUrls] = useState('');
+  const [batchResults, setBatchResults] = useState<{
+    successful: Array<{ url: string; file_id: string }>;
+    failed: Array<{ url: string; reason: string }>;
+  } | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // URL parsing function for batch mode
+  const parseUrls = (text: string): string[] => {
+    return text
+      .split('\n')
+      .map(url => url.trim())
+      .filter(url => url.length > 0 && (url.startsWith('http://') || url.startsWith('https://')));
+  };
 
   // File validation function
   const validateFile = (file: File) => {
@@ -105,6 +119,69 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
 
   // Handle link upload
   const handleLinkUpload = async () => {
+    // Batch mode handling
+    if (batchMode) {
+      const urls = parseUrls(batchUrls);
+      if (urls.length === 0) {
+        setError('Please enter at least one valid URL (one per line, starting with http:// or https://)');
+        return;
+      }
+
+      setError(null);
+      setIsUploading(true);
+      setBatchResults(null);
+
+      try {
+        const uploadFileId = `link_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+        // Call batch API based on processing type
+        let response;
+        if (urlProcessingType === 'media') {
+          response = await sourceService.parseUrlWithMedia(urls, notebookId, 'cosine', uploadFileId);
+        } else if (urlProcessingType === 'document') {
+          response = await sourceService.parseDocumentUrl(urls, notebookId, 'cosine', uploadFileId);
+        } else {
+          response = await sourceService.parseUrl(urls, notebookId, 'cosine', uploadFileId);
+        }
+
+        // Handle batch response
+        if (response.successful || response.failed) {
+          const results = {
+            successful: response.successful || [],
+            failed: response.failed || []
+          };
+          setBatchResults(results);
+
+          // Notify parent for each successful upload
+          if (onUploadStarted && results.successful.length > 0) {
+            results.successful.forEach((item: { url: string; file_id: string }) => {
+              const urlDomain = item.url.replace(/^https?:\/\//, '').split('/')[0];
+              const displayName = `${urlDomain} - ${urlProcessingType || 'website'}`;
+              onUploadStarted(item.file_id, displayName, 'url');
+            });
+          }
+
+          // If all succeeded, close modal
+          if (results.failed.length === 0) {
+            setTimeout(() => {
+              handleClose();
+              onSourcesAdded();
+            }, 1500);
+          }
+        } else {
+          throw new Error(response.error || 'Batch URL parsing failed');
+        }
+      } catch (error) {
+        console.error('Error processing batch URLs:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setError(`Failed to process URLs: ${errorMessage}`);
+      } finally {
+        setIsUploading(false);
+      }
+      return;
+    }
+
+    // Single URL mode handling
     if (!linkUrl.trim()) {
       setError('Please enter a valid URL');
       return;
@@ -258,6 +335,9 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
     setActiveTab('file');
     setLinkUrl('');
     setPasteText('');
+    setBatchUrls('');
+    setBatchMode(false);
+    setBatchResults(null);
     setError(null);
     setIsUploading(false);
     onClose();
@@ -436,42 +516,125 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
               </div>
                           {activeTab === 'link' && (
                 <div className="space-y-3">
-                  <input
-                    type="url"
-                    placeholder={
-                      urlProcessingType === 'media' 
-                        ? "Enter URL (YouTube, video links)" 
-                        : urlProcessingType === 'document'
-                        ? "Enter direct PDF/PowerPoint link"
-                        : "Enter URL (website or blog)"
-                    }
-                    value={linkUrl}
-                    onChange={(e) => setLinkUrl(e.target.value)}
-                    className="w-full p-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                    disabled={isUploading}
-                  />
-                  {urlProcessingType === 'document' && (
-                    <p className="text-xs text-gray-600">
-                      📄 Only PDF and PowerPoint links are supported. Use the "Website" option for HTML pages.
-                    </p>
+                  {/* Batch Mode Toggle */}
+                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span className="text-sm text-gray-700">
+                      {batchMode ? 'Batch Upload (Multiple URLs)' : 'Single URL'}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setBatchMode(!batchMode);
+                        setBatchResults(null);
+                        setError(null);
+                      }}
+                      disabled={isUploading}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                        batchMode
+                          ? `${COLORS.tw.primary.bg[600]} text-white`
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                      }`}
+                    >
+                      {batchMode ? 'Switch to Single' : 'Switch to Batch'}
+                    </button>
+                  </div>
+
+                  {/* Single URL Input */}
+                  {!batchMode && (
+                    <>
+                      <input
+                        type="url"
+                        placeholder={
+                          urlProcessingType === 'media'
+                            ? "Enter URL (YouTube, video links)"
+                            : urlProcessingType === 'document'
+                            ? "Enter direct PDF/PowerPoint link"
+                            : "Enter URL (website or blog)"
+                        }
+                        value={linkUrl}
+                        onChange={(e) => setLinkUrl(e.target.value)}
+                        className="w-full p-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        disabled={isUploading}
+                      />
+                      {urlProcessingType === 'document' && (
+                        <p className="text-xs text-gray-600">
+                          📄 Only PDF and PowerPoint links are supported. Use the "Website" option for HTML pages.
+                        </p>
+                      )}
+                    </>
                   )}
+
+                  {/* Batch URL Textarea */}
+                  {batchMode && (
+                    <>
+                      <textarea
+                        placeholder={`Enter URLs (one per line)${
+                          urlProcessingType === 'media'
+                            ? '\nExample:\nhttps://youtube.com/watch?v=...\nhttps://vimeo.com/...'
+                            : urlProcessingType === 'document'
+                            ? '\nExample:\nhttps://example.com/doc1.pdf\nhttps://example.com/doc2.pptx'
+                            : '\nExample:\nhttps://example.com/article1\nhttps://example.com/article2'
+                        }`}
+                        value={batchUrls}
+                        onChange={(e) => setBatchUrls(e.target.value)}
+                        rows={6}
+                        className="w-full p-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none font-mono text-sm"
+                        disabled={isUploading}
+                      />
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <span>{parseUrls(batchUrls).length} valid URLs</span>
+                        <span>{batchUrls.split('\n').length} lines</span>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Batch Results Display */}
+                  {batchResults && (
+                    <div className="space-y-2 p-3 bg-gray-50 rounded-lg">
+                      <div className="text-sm font-medium text-gray-900">
+                        Results: {batchResults.successful.length} succeeded, {batchResults.failed.length} failed
+                      </div>
+                      {batchResults.successful.length > 0 && (
+                        <div className="text-xs text-green-600">
+                          ✓ {batchResults.successful.length} URL{batchResults.successful.length > 1 ? 's' : ''} added successfully
+                        </div>
+                      )}
+                      {batchResults.failed.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs font-medium text-red-600">
+                            ✗ Failed URLs:
+                          </div>
+                          {batchResults.failed.slice(0, 3).map((item, idx) => (
+                            <div key={idx} className="text-xs text-red-500 pl-3">
+                              • {item.url}: {item.reason}
+                            </div>
+                          ))}
+                          {batchResults.failed.length > 3 && (
+                            <div className="text-xs text-gray-500 pl-3">
+                              ... and {batchResults.failed.length - 3} more
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <Button
                     onClick={handleLinkUpload}
-                    disabled={!linkUrl.trim() || isUploading}
-                    className={`w-full text-white ${
-                      urlProcessingType === 'media' 
-                        ? `${COLORS.tw.primary.bg[600]} ${COLORS.tw.primary.hover.bg[700]}` 
-                        : urlProcessingType === 'document'
-                        ? `${COLORS.tw.primary.bg[600]} ${COLORS.tw.primary.hover.bg[700]}`
-                        : `${COLORS.tw.primary.bg[600]} ${COLORS.tw.primary.hover.bg[700]}`
-                    }`}
+                    disabled={
+                      (batchMode ? parseUrls(batchUrls).length === 0 : !linkUrl.trim()) ||
+                      isUploading
+                    }
+                    className={`w-full text-white ${COLORS.tw.primary.bg[600]} ${COLORS.tw.primary.hover.bg[700]}`}
                   >
                     {isUploading ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : null}
-                    {urlProcessingType === 'media' ? 'Process Media' : 
-                     urlProcessingType === 'document' ? 'Process Document' : 
-                     'Process Website'}
+                    {batchMode
+                      ? `Process ${parseUrls(batchUrls).length} URL${parseUrls(batchUrls).length !== 1 ? 's' : ''}`
+                      : urlProcessingType === 'media' ? 'Process Media' :
+                        urlProcessingType === 'document' ? 'Process Document' :
+                        'Process Website'
+                    }
                   </Button>
                 </div>
               )}

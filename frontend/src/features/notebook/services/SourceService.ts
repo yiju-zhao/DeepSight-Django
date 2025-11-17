@@ -121,21 +121,23 @@ class SourceService {
   async parseUrl(url: string | string[], notebookId: string, searchMethod: string = 'cosine', uploadFileId: string | null = null): Promise<BatchResponse> {
     const urls = Array.isArray(url) ? url : [url];
     const isBatch = Array.isArray(url);
-    
+
     const body: any = {
       search_method: searchMethod
     };
-    
+
     if (isBatch) {
       body.urls = urls;
     } else {
       body.url = url;
     }
-    
+
     if (uploadFileId) body.upload_url_id = uploadFileId;
 
-    const response = await apiClient.post(`/notebooks/${notebookId}/files/parse_url/`, body);
-    
+    // Use batch endpoint for multiple URLs, single endpoint for one URL
+    const endpoint = isBatch ? 'batch_parse_url' : 'parse_url';
+    const response = await apiClient.post(`/notebooks/${notebookId}/files/${endpoint}/`, body);
+
     return {
       ...response,
       is_batch: isBatch,
@@ -146,22 +148,24 @@ class SourceService {
   async parseUrlWithMedia(url: string | string[], notebookId: string, searchMethod: string = 'cosine', uploadFileId: string | null = null): Promise<BatchResponse> {
     const urls = Array.isArray(url) ? url : [url];
     const isBatch = Array.isArray(url);
-    
+
     const body: any = {
       search_method: searchMethod,
       media_processing: true
     };
-    
+
     if (isBatch) {
       body.urls = urls;
     } else {
       body.url = url;
     }
-    
+
     if (uploadFileId) body.upload_url_id = uploadFileId;
 
-    const response = await apiClient.post(`/notebooks/${notebookId}/files/parse_url_with_media/`, body);
-    
+    // Use batch endpoint for multiple URLs, single endpoint for one URL
+    const endpoint = isBatch ? 'batch_parse_url_with_media' : 'parse_url_with_media';
+    const response = await apiClient.post(`/notebooks/${notebookId}/files/${endpoint}/`, body);
+
     return {
       ...response,
       is_batch: isBatch,
@@ -172,22 +176,24 @@ class SourceService {
   async parseDocumentUrl(url: string | string[], notebookId: string, searchMethod: string = 'cosine', uploadFileId: string | null = null): Promise<BatchResponse> {
     const urls = Array.isArray(url) ? url : [url];
     const isBatch = Array.isArray(url);
-    
+
     const body: any = {
       search_method: searchMethod,
       document_processing: true
     };
-    
+
     if (isBatch) {
       body.urls = urls;
     } else {
       body.url = url;
     }
-    
+
     if (uploadFileId) body.upload_url_id = uploadFileId;
 
-    const response = await apiClient.post(`/notebooks/${notebookId}/files/parse_document_url/`, body);
-    
+    // Use batch endpoint for multiple URLs, single endpoint for one URL
+    const endpoint = isBatch ? 'batch_parse_document_url' : 'parse_document_url';
+    const response = await apiClient.post(`/notebooks/${notebookId}/files/${endpoint}/`, body);
+
     return {
       ...response,
       is_batch: isBatch,

@@ -146,3 +146,126 @@ class URLService(NotebookBaseService):
         except Exception as e:
             logger.exception(f"Document URL parsing failed for {url}: {e}")
             raise
+
+    @transaction.atomic
+    def handle_batch_url_parse(self, urls, upload_url_id, notebook, user):
+        """
+        Handle batch URL parsing asynchronously using Celery.
+
+        Process multiple URLs in batch, creating KB item placeholders for each
+        and triggering async processing. Returns structured response with
+        success/failure breakdown.
+        """
+        successful = []
+        failed = []
+
+        for url in urls:
+            try:
+                result = self.handle_single_url_parse(
+                    url=url,
+                    upload_url_id=upload_url_id,
+                    notebook=notebook,
+                    user=user,
+                )
+                successful.append(
+                    {
+                        "url": url,
+                        "file_id": result["file_id"],
+                        "upload_url_id": result["upload_url_id"],
+                    }
+                )
+            except Exception as e:
+                logger.exception(f"Failed to process URL {url}: {e}")
+                failed.append({"url": url, "reason": str(e)})
+
+        return {
+            "success": len(failed) == 0,
+            "total_submitted": len(urls),
+            "successful": successful,
+            "failed": failed,
+            "status_code": status.HTTP_207_MULTI_STATUS
+            if failed
+            else status.HTTP_202_ACCEPTED,
+        }
+
+    @transaction.atomic
+    def handle_batch_url_with_media(self, urls, upload_url_id, notebook, user):
+        """
+        Handle batch URL parsing with media extraction asynchronously using Celery.
+
+        Process multiple URLs in batch with media extraction, creating KB item
+        placeholders for each and triggering async processing. Returns structured
+        response with success/failure breakdown.
+        """
+        successful = []
+        failed = []
+
+        for url in urls:
+            try:
+                result = self.handle_url_with_media(
+                    url=url,
+                    upload_url_id=upload_url_id,
+                    notebook=notebook,
+                    user=user,
+                )
+                successful.append(
+                    {
+                        "url": url,
+                        "file_id": result["file_id"],
+                        "upload_url_id": result["upload_url_id"],
+                    }
+                )
+            except Exception as e:
+                logger.exception(f"Failed to process URL with media {url}: {e}")
+                failed.append({"url": url, "reason": str(e)})
+
+        return {
+            "success": len(failed) == 0,
+            "total_submitted": len(urls),
+            "successful": successful,
+            "failed": failed,
+            "status_code": status.HTTP_207_MULTI_STATUS
+            if failed
+            else status.HTTP_202_ACCEPTED,
+        }
+
+    @transaction.atomic
+    def handle_batch_document_url(self, urls, upload_url_id, notebook, user):
+        """
+        Handle batch document URL parsing asynchronously using Celery.
+
+        Process multiple document URLs in batch, creating KB item placeholders
+        for each and triggering async processing. Returns structured response
+        with success/failure breakdown.
+        """
+        successful = []
+        failed = []
+
+        for url in urls:
+            try:
+                result = self.handle_document_url(
+                    url=url,
+                    upload_url_id=upload_url_id,
+                    notebook=notebook,
+                    user=user,
+                )
+                successful.append(
+                    {
+                        "url": url,
+                        "file_id": result["file_id"],
+                        "upload_url_id": result["upload_url_id"],
+                    }
+                )
+            except Exception as e:
+                logger.exception(f"Failed to process document URL {url}: {e}")
+                failed.append({"url": url, "reason": str(e)})
+
+        return {
+            "success": len(failed) == 0,
+            "total_submitted": len(urls),
+            "successful": successful,
+            "failed": failed,
+            "status_code": status.HTTP_207_MULTI_STATUS
+            if failed
+            else status.HTTP_202_ACCEPTED,
+        }

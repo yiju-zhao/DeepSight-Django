@@ -233,3 +233,67 @@ class BatchURLParseWithMediaSerializer(serializers.Serializer):
                     )
 
         return data
+
+
+class BatchURLParseDocumentSerializer(serializers.Serializer):
+    """Serializer for batch document URL parsing requests."""
+
+    # Accept either a single URL or a list of URLs
+    url = serializers.CharField(required=False)
+    urls = serializers.ListField(
+        child=serializers.URLField(), required=False, allow_empty=False
+    )
+    upload_url_id = serializers.CharField(required=False)
+
+    def validate(self, data):
+        """Ensure either url or urls is provided and check for duplicates."""
+        url = data.get("url")
+        urls = data.get("urls")
+
+        if not url and not urls:
+            raise serializers.ValidationError(
+                "Either 'url' or 'urls' must be provided."
+            )
+
+        if url and urls:
+            raise serializers.ValidationError(
+                "Provide either 'url' or 'urls', not both."
+            )
+
+        # Check for duplicates
+        request = self.context.get("request")
+        notebook_id = self.context.get("notebook_id")
+
+        if request and hasattr(request, "user") and request.user.is_authenticated:
+            user_id = request.user.id
+
+            # Check single URL
+            if url:
+                existing_item = check_source_duplicate(url, user_id, notebook_id)
+                if existing_item:
+                    raise serializers.ValidationError(
+                        {
+                            "url": f'URL "{url}" already exists. Check the knowledge base.',
+                            "existing_item_id": str(existing_item.id),
+                        }
+                    )
+
+            # Check multiple URLs
+            if urls:
+                duplicate_urls = []
+                for u in urls:
+                    existing_item = check_source_duplicate(u, user_id, notebook_id)
+                    if existing_item:
+                        duplicate_urls.append(
+                            {"url": u, "existing_item_id": str(existing_item.id)}
+                        )
+
+                if duplicate_urls:
+                    raise serializers.ValidationError(
+                        {
+                            "urls": "Some URLs already exist. Check the knowledge base.",
+                            "duplicates": duplicate_urls,
+                        }
+                    )
+
+        return data

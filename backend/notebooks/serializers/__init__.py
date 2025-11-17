@@ -28,6 +28,7 @@ from .notebook_serializers import (
 
 # URL serializers
 from .url_serializers import (
+    BatchURLParseDocumentSerializer,
     BatchURLParseSerializer,
     BatchURLParseWithMediaSerializer,
     URLParseDocumentSerializer,
@@ -53,6 +54,7 @@ __all__ = [
     "URLParseDocumentSerializer",
     "BatchURLParseSerializer",
     "BatchURLParseWithMediaSerializer",
+    "BatchURLParseDocumentSerializer",
     # Batch processing
     "BatchJobSerializer",
     "BatchJobItemSerializer",
