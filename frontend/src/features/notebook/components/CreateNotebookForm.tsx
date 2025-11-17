@@ -35,12 +35,10 @@ const CreateNotebookForm: React.FC<CreateNotebookFormProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-lg mb-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Notebook</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-[#1E1E1E] mb-2">
               Notebook Name *
             </label>
             <input
@@ -49,36 +47,48 @@ const CreateNotebookForm: React.FC<CreateNotebookFormProps> = ({
               value={name}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
               disabled={loading}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+              className="w-full px-4 py-2.5 border border-[#E3E3E3] rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all text-sm"
               required
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
+            <label className="block text-sm font-medium text-[#1E1E1E] mb-2">
+              Description (Optional)
             </label>
-            <input
-              type="text"
-              placeholder="Brief description (optional)"
+            <textarea
+              placeholder="Brief description"
               value={description}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setDescription(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescription(e.target.value)}
               disabled={loading}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+              rows={3}
+              className="w-full px-4 py-2.5 border border-[#E3E3E3] rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all text-sm resize-none"
             />
           </div>
         </div>
         
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{error}</p>
+          <div className="p-3 bg-[#FFF3F4] border border-[#CE0E2D]/20 rounded-lg">
+            <p className="text-sm text-[#CE0E2D]">{error}</p>
           </div>
         )}
-        
-        <div className="flex items-center space-x-3">
+
+        <div className="flex items-center justify-end space-x-3 pt-2">
+          <button
+            type="button"
+            onClick={() => {
+              onCancel();
+              setName("");
+              setDescription("");
+            }}
+            disabled={loading}
+            className="px-6 py-2 border border-[#E3E3E3] text-[#1E1E1E] rounded-lg hover:bg-[#F7F7F7] transition-colors duration-300 font-medium text-sm disabled:opacity-50"
+          >
+            Cancel
+          </button>
           <button
             type="submit"
             disabled={loading || !name.trim()}
-            className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-xl hover:from-red-600 hover:to-red-700 disabled:from-gray-400 disabled:to-gray-500 transition-all font-medium"
+            className="flex items-center space-x-2 px-6 py-2 bg-[#CE0E2D] text-white rounded-lg hover:bg-[#A20A22] disabled:bg-[#B1B1B1] transition-colors duration-300 font-medium text-sm"
           >
             {loading ? (
               <>
@@ -92,20 +102,8 @@ const CreateNotebookForm: React.FC<CreateNotebookFormProps> = ({
               </>
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              onCancel();
-              setName("");
-              setDescription("");
-            }}
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors font-medium"
-          >
-            Cancel
-          </button>
         </div>
       </form>
-    </div>
   );
 };
 

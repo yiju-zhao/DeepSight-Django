@@ -142,7 +142,7 @@ export default function DashboardPage() {
           icon={<BarChart3 className="w-6 h-6 text-[#1E1E1E]" />}
         />
 
-        <div className="flex-1 px-4 md:px-10 lg:px-20 py-10 md:py-20">
+        <div className="flex-1 px-4 md:px-10 lg:px-20 py-6 md:py-8">
           <div className="max-w-7xl mx-auto space-y-10 md:space-y-20">
             {/* Conference Overview Stats Section */}
             <section className="animate-slide-up">

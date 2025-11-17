@@ -4,7 +4,7 @@
 
 import React, { useMemo, useState, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Grid, List, Trash2 } from 'lucide-react';
+import { Plus, Search, Grid, List, Trash2, X } from 'lucide-react';
 import { useNotebooks, useCreateNotebook, useDeleteNotebook } from "@/features/notebook/queries";
 import { ErrorBoundary } from "@/shared/components/ui/ErrorBoundary";
 import { LoadingSpinner, NotebookGridSkeleton } from "@/shared/components/ui/LoadingSpinner";
@@ -15,6 +15,7 @@ import CreateNotebookForm from "@/features/notebook/components/CreateNotebookFor
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Notebook } from "@/shared/api";
 import { cn } from "@/shared/utils/utils";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface NotebookGridProps {
   className?: string;
@@ -208,15 +209,6 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
   return (
     <ErrorBoundary level="section">
       <div className={cn('space-y-6', className)}>
-        {/* Create Notebook Form */}
-        {showCreateForm && (
-          <CreateNotebookForm
-            onSubmit={handleCreateNotebook}
-            onCancel={() => setShowCreateForm(false)}
-            loading={createNotebook.isPending}
-            error={createNotebook.error?.message}
-          />
-        )}
 
         {/* Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -325,6 +317,49 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
             )}
           </Suspense>
         )}
+
+        {/* Create Notebook Modal */}
+        <AnimatePresence>
+          {showCreateForm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+              onClick={() => setShowCreateForm(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                transition={{ type: "spring", duration: 0.3 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-[#E3E3E3]">
+                  <h3 className="text-lg font-semibold text-[#1E1E1E]">Create New Notebook</h3>
+                  <button
+                    onClick={() => setShowCreateForm(false)}
+                    className="p-2 rounded-lg hover:bg-[#F7F7F7] transition-colors"
+                  >
+                    <X className="w-5 h-5 text-[#666666]" />
+                  </button>
+                </div>
+
+                {/* Modal Content */}
+                <div className="px-6 py-6">
+                  <CreateNotebookForm
+                    onSubmit={handleCreateNotebook}
+                    onCancel={() => setShowCreateForm(false)}
+                    loading={createNotebook.isPending}
+                    error={createNotebook.error?.message}
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Delete Confirmation Dialog */}
         {notebookToDelete && (
