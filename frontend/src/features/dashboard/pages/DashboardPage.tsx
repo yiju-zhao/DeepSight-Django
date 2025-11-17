@@ -17,7 +17,6 @@ import ReportsSection from '../components/ReportsSection';
 import PodcastsSection from '../components/PodcastsSection';
 import ConferenceSection from '../components/ConferenceSection';
 import DashboardActions from '../components/DashboardActions';
-import DashboardHeader from '../components/DashboardHeader';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import MainPageHeader from '@/shared/components/common/MainPageHeader';
@@ -101,7 +100,11 @@ export default function DashboardPage() {
     return (
       <AppLayout>
         <div className="p-8 bg-transparent min-h-screen">
-          <DashboardHeader />
+          <MainPageHeader
+            title="Dashboard"
+            icon={<BarChart3 className="w-5 h-5 text-white" />}
+            iconColor="from-gray-800 to-gray-900"
+          />
           <div className="max-w-4xl mx-auto">
             <EmptyState
               icon="⚠️"

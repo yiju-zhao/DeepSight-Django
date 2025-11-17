@@ -1,5 +1,4 @@
 // Dashboard components index
-export { default as DashboardHeader } from './DashboardHeader';
 export { default as ReportsSection } from './ReportsSection';
 export { default as PodcastsSection } from './PodcastsSection';
 export { default as ConferenceSection } from './ConferenceSection';

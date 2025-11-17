@@ -280,7 +280,6 @@ All API responses follow a consistent error format:
 ### Feature Components
 - **NotebookCard** - Notebook display with actions
 - **ReportList** - Report listing with filtering
-- **DashboardHeader** - Dashboard title and actions
 - **SourceUploader** - File upload interface
 
 ## 🔧 Environment Variables
