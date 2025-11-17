@@ -17,11 +17,21 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   className = ''
 }) => {
   return (
-    <div className={`relative min-h-screen ${className}`}>
-      {showNavigation && <AppNavigation />}
-      <main className="w-full">
-        {children}
-      </main>
+    <div className={`min-h-screen bg-[#F5F5F5] ${className}`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {showNavigation && (
+            <aside className="lg:w-80 lg:flex-shrink-0">
+              <div className="sticky top-[100px]">
+                <AppNavigation />
+              </div>
+            </aside>
+          )}
+          <main className="flex-1">
+            {children}
+          </main>
+        </div>
+      </div>
     </div>
   );
 };

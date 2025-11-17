@@ -9,8 +9,6 @@ import {
   ChevronDown,
   TrendingUp,
   LogOut,
-  Menu,
-  X,
   ChevronsLeft
 } from 'lucide-react';
 import { useAuth } from '@/shared/hooks/useAuth';
@@ -27,7 +25,6 @@ interface AppNavigationProps {
 }
 
 const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   // Collapse state with localStorage persistence
@@ -115,7 +112,6 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
           <Link
             to={item.path}
             className={`flex items-center ${isExpanded ? 'space-x-3' : ''} flex-1 ${!isExpanded ? 'justify-center' : ''}`}
-            onClick={() => !hasChildren && setIsOpen(false)}
             title={!isExpanded ? item.label : undefined}
           >
             <div className="text-[#1E1E1E]">{item.icon}</div>
@@ -158,126 +154,82 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
   };
 
   return (
-    <>
-      {/* Toggle Button - Fixed in top-left corner (Huawei Design) */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="fixed top-4 left-4 z-[100]
-                   bg-white border border-[#E3E3E3]
-                   hover:border-black
-                   p-3 rounded-md
-                   shadow-huawei-sm hover:shadow-huawei-md
-                   transition-all duration-300 ease-out"
-        aria-label={isOpen ? "Close Navigation" : "Open Navigation"}
-      >
-        {isOpen ? (
-          <X className="h-5 w-5 text-[#1E1E1E]" />
-        ) : (
-          <Menu className="h-5 w-5 text-[#1E1E1E]" />
-        )}
-      </button>
-
-      {/* Navigation Sidebar */}
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            {/* Backdrop - Huawei Design: 20% black overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3, ease: "easeOut" }}
-              className="fixed inset-0 bg-black/20 z-[60]"
-              onClick={() => setIsOpen(false)}
-            />
-
-            {/* Sidebar - Huawei Design Style */}
-            <motion.div
-              initial={{ x: -navWidth }}
-              animate={{
-                x: 0,
-                width: navWidth
-              }}
-              exit={{ x: -navWidth }}
-              transition={{ type: "spring", damping: 30, stiffness: 300 }}
-              className="fixed left-0 top-0 h-full bg-white
-                         border-r border-[#E3E3E3]
-                         shadow-huawei-sm
-                         z-[70] overflow-y-auto"
-            >
-              <div className={`${isExpanded ? 'p-6' : 'p-4'} flex flex-col h-full`}>
-                {/* Header - Adaptive for collapsed state */}
-                <div className="mb-8">
-                  {isExpanded ? (
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-12 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
-                      <div>
-                        <h1 className="text-2xl font-bold text-[#1E1E1E]">DeepSight</h1>
-                        <p className="text-sm text-[#666666]">AI Research Platform</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex justify-center">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600
-                                      rounded-lg flex items-center justify-center shadow-huawei-sm">
-                        <span className="text-white font-bold text-lg">D</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Navigation Items */}
-                <nav className="space-y-2 flex-1">
-                  {navigationItems.map(item => renderNavigationItem(item))}
-                </nav>
-
-                {/* Footer */}
-                <div className="mt-auto pt-6 border-t border-[#E3E3E3]">
-                  {isExpanded && (
-                    <p className="text-xs text-[#666666] mb-4">
-                      © 2024 DeepSight. All rights reserved.
-                    </p>
-                  )}
-
-                  {/* Logout Button - Huawei Design Style */}
-                  <div className={`${isExpanded ? 'pt-4 border-t border-[#E3E3E3]' : ''}`}>
-                    <button
-                      onClick={handleLogout}
-                      className={`flex items-center w-full rounded-lg
-                                  ${isExpanded ? 'space-x-3 px-4' : 'justify-center px-2'}
-                                  py-3
-                                  text-[#1E1E1E] hover:bg-[#F5F5F5]
-                                  transition-colors duration-300 ease-out group`}
-                      title={!isExpanded ? "Logout" : undefined}
-                    >
-                      <LogOut className="h-5 w-5 text-[#666666] group-hover:text-[#1E1E1E] transition-colors duration-300" />
-                      {isExpanded && <span className="font-medium text-sm">Logout</span>}
-                    </button>
-                  </div>
-
-                  {/* Expand/Collapse Toggle Button - Huawei Design */}
-                  <div className={`${isExpanded ? 'pt-4' : 'pt-2'}`}>
-                    <button
-                      onClick={() => setIsExpanded(!isExpanded)}
-                      className="w-full p-3 flex items-center justify-center
-                                 hover:bg-[#F5F5F5] rounded-lg
-                                 transition-colors duration-300 ease-out"
-                      aria-label={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-                      title={isExpanded ? "Collapse Sidebar" : "Expand Sidebar"}
-                    >
-                      <ChevronsLeft
-                        className={`h-5 w-5 text-[#666666] transition-transform duration-300 ease-out
-                                    ${!isExpanded ? 'rotate-180' : ''}`}
-                      />
-                    </button>
-                  </div>
-                </div>
+    <motion.aside
+      animate={{ width: navWidth }}
+      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+      className={`bg-white border border-[#E3E3E3] shadow-huawei-sm rounded-xl overflow-hidden ${className}`}
+    >
+      <div className={`${isExpanded ? 'p-6' : 'p-4'} flex flex-col h-full`}>
+        {/* Header - Adaptive for collapsed state */}
+        <div className="mb-8">
+          {isExpanded ? (
+            <div className="flex items-center space-x-3">
+              <div className="w-2 h-12 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></div>
+              <div>
+                <h1 className="text-2xl font-bold text-[#1E1E1E]">DeepSight</h1>
+                <p className="text-sm text-[#666666]">AI Research Platform</p>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </>
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              <div
+                className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600
+                            rounded-lg flex items-center justify-center shadow-huawei-sm"
+              >
+                <span className="text-white font-bold text-lg">D</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation Items */}
+        <nav className="space-y-2 flex-1">
+          {navigationItems.map(item => renderNavigationItem(item))}
+        </nav>
+
+        {/* Footer */}
+        <div className="mt-auto pt-6 border-t border-[#E3E3E3]">
+          {isExpanded && (
+            <p className="text-xs text-[#666666] mb-4">
+              © 2024 DeepSight. All rights reserved.
+            </p>
+          )}
+
+          {/* Logout Button - Huawei Design Style */}
+          <div className={`${isExpanded ? 'pt-4 border-t border-[#E3E3E3]' : ''}`}>
+            <button
+              onClick={handleLogout}
+              className={`flex items-center w-full rounded-lg
+                          ${isExpanded ? 'space-x-3 px-4' : 'justify-center px-2'}
+                          py-3
+                          text-[#1E1E1E] hover:bg-[#F5F5F5]
+                          transition-colors duration-300 ease-out group`}
+              title={!isExpanded ? 'Logout' : undefined}
+            >
+              <LogOut className="h-5 w-5 text-[#666666] group-hover:text-[#1E1E1E] transition-colors duration-300" />
+              {isExpanded && <span className="font-medium text-sm">Logout</span>}
+            </button>
+          </div>
+
+          {/* Expand/Collapse Toggle Button - Huawei Design */}
+          <div className={`${isExpanded ? 'pt-4' : 'pt-2'}`}>
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="w-full p-3 flex items-center justify-center
+                         hover:bg-[#F5F5F5] rounded-lg
+                         transition-colors duration-300 ease-out"
+              aria-label={isExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
+              title={isExpanded ? 'Collapse Sidebar' : 'Expand Sidebar'}
+            >
+              <ChevronsLeft
+                className={`h-5 w-5 text-[#666666] transition-transform duration-300 ease-out
+                            ${!isExpanded ? 'rotate-180' : ''}`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.aside>
   );
 };
 
