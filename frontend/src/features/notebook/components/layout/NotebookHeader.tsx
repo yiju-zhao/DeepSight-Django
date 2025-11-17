@@ -24,9 +24,9 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
   const navigate = useNavigate();
 
   return (
-    <header className="bg-white">
-      <div className="px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center space-x-4">
+    <header className="bg-white border-b border-[#E3E3E3]">
+      <div className="px-4 sm:px-6 lg:px-8 py-3">
+        <div className="flex items-center space-x-3">
           {/* Back Button */}
           {showBackButton && (
             <button
@@ -38,21 +38,16 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
             </button>
           )}
 
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             {/* Icon Container */}
-            <div className="w-10 h-10 flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-[#CE0E2D]" />
+            <div className="w-8 h-8 flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-[#CE0E2D]" />
             </div>
 
-            {/* Title Section */}
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B] mb-0.5">
-                DEEPDIVE NOTEBOOK
-              </p>
-              <h1 className="text-[20px] md:text-[24px] lg:text-[28px] font-bold text-[#1E1E1E] leading-[1.321]">
-                {notebookTitle || 'Untitled Notebook'}
-              </h1>
-            </div>
+            {/* Title Section - Compact */}
+            <h1 className="text-[16px] md:text-[18px] font-semibold text-[#1E1E1E] leading-tight">
+              {notebookTitle || 'Untitled Notebook'}
+            </h1>
           </div>
         </div>
       </div>
