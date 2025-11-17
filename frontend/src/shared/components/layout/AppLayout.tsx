@@ -56,7 +56,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
       {/* Main Content - offset by navigation width on desktop only */}
       <main
-        className={`${mainMarginLeft} transition-all duration-300 ease-in-out min-h-screen`}
+        className={`${mainMarginLeft} transition-all duration-300 ease-in-out min-h-screen bg-white`}
       >
         {children}
       </main>

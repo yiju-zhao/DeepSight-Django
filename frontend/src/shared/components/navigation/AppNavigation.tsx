@@ -52,7 +52,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
   }, [location.pathname]);
 
   // Calculate navigation width based on expanded state
-  const navWidth = isExpanded ? 320 : 72;
+  const navWidth = isExpanded ? 240 : 64;
 
   const navigationItems: NavigationItem[] = [
     {
