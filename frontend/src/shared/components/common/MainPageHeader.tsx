@@ -31,7 +31,7 @@ const MainPageHeader: React.FC<MainPageHeaderProps> = ({
   return (
     <header className="bg-[#F5F5F5] sticky top-0 z-40">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-[72px]">
           <div className="flex items-center space-x-4">{/* Removed large left margin */}
             {/* Back Button (for individual pages like notebook detail) */}
             {showBackButton && backPath && (
