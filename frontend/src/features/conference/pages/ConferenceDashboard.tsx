@@ -253,7 +253,7 @@ export default function ConferenceDashboard() {
         {/* Main Page Header with Conference Selection Button */}
         <MainPageHeader
           title="Conference Analytics"
-          subtitle="Deep insights into academic conferences"
+          // subtitle="Deep insights into academic conferences"
           icon={<Calendar className="w-6 h-6 text-white" />}
           iconColor="from-[#CE0E2D] to-[#A20A22]"
           rightActions={
