@@ -46,7 +46,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
 
   // Calculate margin based on navigation state (only on desktop)
   const mainMarginLeft = showNavigation
-    ? (isNavExpanded ? 'lg:ml-[240px]' : 'lg:ml-[64px]')
+    ? (isNavExpanded ? 'lg:ml-[240px]' : 'lg:ml-[72px]')
     : 'ml-0';
 
   return (
