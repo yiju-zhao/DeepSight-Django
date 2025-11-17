@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import AppNavigation from '../navigation/AppNavigation';
 
 interface AppLayoutProps {
@@ -16,22 +16,52 @@ const AppLayout: React.FC<AppLayoutProps> = ({
   showNavigation = true,
   className = ''
 }) => {
+  // Sync with navigation expanded state from localStorage
+  const [isNavExpanded, setIsNavExpanded] = useState(() => {
+    const saved = localStorage.getItem('navigation-expanded');
+    return saved ? JSON.parse(saved) : true;
+  });
+
+  // Listen to localStorage changes to sync navigation state
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('navigation-expanded');
+      setIsNavExpanded(saved ? JSON.parse(saved) : true);
+    };
+
+    // Listen to storage events from other tabs/windows
+    window.addEventListener('storage', handleStorageChange);
+
+    // Custom event for same-tab updates
+    const handleCustomEvent = (e: CustomEvent) => {
+      setIsNavExpanded(e.detail);
+    };
+    window.addEventListener('navigation-state-change' as any, handleCustomEvent as any);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('navigation-state-change' as any, handleCustomEvent as any);
+    };
+  }, []);
+
+  // Calculate margin based on navigation state (only on desktop)
+  const mainMarginLeft = showNavigation
+    ? (isNavExpanded ? 'lg:ml-[320px]' : 'lg:ml-[72px]')
+    : 'ml-0';
+
   return (
     <div className={`min-h-screen bg-[#F5F5F5] ${className}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
-          {showNavigation && (
-            <aside className="lg:w-80 lg:flex-shrink-0">
-              <div className="sticky top-[100px]">
-                <AppNavigation />
-              </div>
-            </aside>
-          )}
-          <main className="flex-1">
-            {children}
-          </main>
+      {/* Fixed Navigation - rendered outside main content flow */}
+      {showNavigation && <AppNavigation />}
+
+      {/* Main Content - offset by navigation width on desktop only */}
+      <main
+        className={`${mainMarginLeft} transition-all duration-300 ease-in-out min-h-screen`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 };

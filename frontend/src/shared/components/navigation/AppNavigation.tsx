@@ -33,13 +33,23 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
     return saved ? JSON.parse(saved) : true;
   });
 
+  // Mobile visibility state
+  const [isMobileVisible, setIsMobileVisible] = useState(false);
+
   const location = useLocation();
   const { handleLogout } = useAuth();
 
-  // Persist expanded state to localStorage
+  // Persist expanded state to localStorage and dispatch custom event
   useEffect(() => {
     localStorage.setItem('navigation-expanded', JSON.stringify(isExpanded));
+    // Dispatch custom event for same-tab synchronization
+    window.dispatchEvent(new CustomEvent('navigation-state-change', { detail: isExpanded }));
   }, [isExpanded]);
+
+  // Close mobile navigation on route change
+  useEffect(() => {
+    setIsMobileVisible(false);
+  }, [location.pathname]);
 
   // Calculate navigation width based on expanded state
   const navWidth = isExpanded ? 320 : 72;
@@ -154,11 +164,43 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
   };
 
   return (
-    <motion.aside
-      animate={{ width: navWidth }}
-      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-      className={`bg-white border border-[#E3E3E3] shadow-huawei-sm rounded-xl overflow-hidden ${className}`}
-    >
+    <>
+      {/* Mobile Backdrop Overlay */}
+      <AnimatePresence>
+        {isMobileVisible && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+            onClick={() => setIsMobileVisible(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Toggle Button */}
+      <button
+        onClick={() => setIsMobileVisible(!isMobileVisible)}
+        className="fixed top-4 left-4 z-[60] lg:hidden p-3 bg-white rounded-lg shadow-lg border border-[#E3E3E3] hover:bg-[#F5F5F5] transition-colors duration-300"
+        aria-label="Toggle Navigation"
+      >
+        <div className="flex flex-col space-y-1.5">
+          <span className={`block w-5 h-0.5 bg-[#1E1E1E] transition-transform duration-300 ${isMobileVisible ? 'rotate-45 translate-y-2' : ''}`}></span>
+          <span className={`block w-5 h-0.5 bg-[#1E1E1E] transition-opacity duration-300 ${isMobileVisible ? 'opacity-0' : 'opacity-100'}`}></span>
+          <span className={`block w-5 h-0.5 bg-[#1E1E1E] transition-transform duration-300 ${isMobileVisible ? '-rotate-45 -translate-y-2' : ''}`}></span>
+        </div>
+      </button>
+
+      {/* Navigation Sidebar */}
+      <motion.aside
+        animate={{ width: navWidth }}
+        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+        className={`fixed left-0 top-0 h-screen z-50 bg-white border-r border-[#E3E3E3] shadow-huawei-sm overflow-hidden
+                   transition-transform duration-300 ease-in-out
+                   lg:translate-x-0 ${isMobileVisible ? 'translate-x-0' : '-translate-x-full'}
+                   ${className}`}
+      >
       <div className={`${isExpanded ? 'p-6' : 'p-4'} flex flex-col h-full`}>
         {/* Header - Adaptive for collapsed state */}
         <div className="mb-8">
@@ -230,6 +272,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
         </div>
       </div>
     </motion.aside>
+    </>
   );
 };
 

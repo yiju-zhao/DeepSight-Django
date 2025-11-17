@@ -3,25 +3,20 @@ import { Button } from "@/shared/components/ui/button";
 import { Search, MessageSquare, X } from 'lucide-react';
 import { COLORS } from "@/features/notebook/config/uiConfig";
 
-interface BaseConfig {
-  topic?: string;
-  [key: string]: any;
-}
-
 interface FileItem {
   id: string;
   name: string;
   [key: string]: any;
 }
 
-interface CustomizeModalProps {
+interface CustomizeModalProps<T = any> {
   isOpen: boolean;
   onClose: () => void;
-  config: BaseConfig;
-  onConfigChange: (config: Partial<BaseConfig>) => void;
+  config: T;
+  onConfigChange: (config: Partial<T>) => void;
   type: 'report' | 'podcast';
   selectedFiles: FileItem[];
-  onGenerate?: (configOverrides?: Partial<BaseConfig>) => void;
+  onGenerate?: (configOverrides?: Partial<T>) => void;
 }
 
 const CustomizeModal: React.FC<CustomizeModalProps> = ({
@@ -33,7 +28,7 @@ const CustomizeModal: React.FC<CustomizeModalProps> = ({
   selectedFiles,
   onGenerate
 }) => {
-  const [inputValue, setInputValue] = useState(config.topic || '');
+  const [inputValue, setInputValue] = useState((config as any).custom_requirements || '');
 
   if (!isOpen) return null;
 
@@ -69,14 +64,14 @@ const CustomizeModal: React.FC<CustomizeModalProps> = ({
 
   const handleInputChange = (value: string) => {
     setInputValue(value);
-    onConfigChange({ topic: value });
+    onConfigChange({ custom_requirements: value });
   };
 
   const handleGenerate = () => {
     if (hasSelectedFiles) {
-      onConfigChange({ topic: inputValue });
+      onConfigChange({ custom_requirements: inputValue });
       if (onGenerate) {
-        onGenerate({ topic: inputValue });
+        onGenerate({ custom_requirements: inputValue });
       }
       onClose();
     }

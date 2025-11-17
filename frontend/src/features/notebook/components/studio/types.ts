@@ -25,6 +25,7 @@ export interface GenerationConfig {
   temperature?: number;
   maxTokens?: number;
   systemPrompt?: string;
+  custom_requirements?: string;
   [key: string]: any;
 }
 
