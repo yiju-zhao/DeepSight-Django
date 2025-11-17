@@ -249,7 +249,7 @@ export default function ConferenceDashboard() {
         onToggleAllConferences={() => setAllConferencesExpanded(!allConferencesExpanded)}
       />
 
-      <div className="flex flex-col min-h-screen bg-white">
+      <div className="flex flex-col min-h-screen bg-transparent">
         {/* Main Page Header with Conference Selection Button */}
         <MainPageHeader
           title="Conference Analytics"
