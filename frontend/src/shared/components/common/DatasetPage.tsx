@@ -12,7 +12,6 @@ export default function DatasetPage() {
       <div className="min-h-screen bg-transparent flex flex-col">
         <MainPageHeader
           title="Dataset"
-          subtitle="Research papers and publications"
           icon={<Database className="w-5 h-5 text-white" />}
           iconColor="from-green-500 to-green-600"
           rightActions={<LanguageSwitcher />}

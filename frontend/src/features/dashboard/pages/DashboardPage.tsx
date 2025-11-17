@@ -133,7 +133,6 @@ export default function DashboardPage() {
       <div className="flex flex-col min-h-screen bg-transparent">
         <MainPageHeader
           title="Dashboard"
-          subtitle="Your Research Overview"
           icon={<BarChart3 className="w-5 h-5 text-white" />}
           iconColor="from-gray-800 to-gray-900"
         />
