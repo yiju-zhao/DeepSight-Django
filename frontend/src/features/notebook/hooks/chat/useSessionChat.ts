@@ -89,82 +89,33 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   const activeSession = sessions.find(s => s.id === activeSessionId) || null;
 
-  // Mutation for creating new session
+  // Refactored: Mutation for creating a new session without optimistic updates
   const createSessionMutation = useMutation({
     mutationFn: () => sessionChatService.createSession(notebookId, {}),
-    onMutate: async () => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: sessionKeys.sessions(notebookId) });
-
-      // Get current sessions from cache
-      const previousSessions = queryClient.getQueryData(sessionKeys.sessions(notebookId));
-      const previousActiveSessionId = activeSessionId;
-
-      // Create optimistic session with temporary ID
-      const optimisticSession: ChatSession = {
-        id: `temp-${Date.now()}`,
-        title: 'New Chat',
-        status: 'active',
-        message_count: 0,
-        created_at: new Date().toISOString(),
-        last_activity: new Date().toISOString(),
-      };
-
-      // Optimistically add the new session to the beginning of the list
-      queryClient.setQueryData(sessionKeys.sessions(notebookId), (old: any) => {
-        const currentSessions = old?.sessions || [];
-        return {
-          ...old,
-          sessions: [optimisticSession, ...currentSessions],
-          total_count: (old?.total_count || 0) + 1,
-        };
-      });
-
-      // Immediately set the new session as active for instant UI feedback
-      setActiveSessionId(optimisticSession.id);
-      setCurrentMessages([]); // Clear messages for new session
-
-      return { previousSessions, previousActiveSessionId, optimisticSessionId: optimisticSession.id };
-    },
-    onSuccess: async (response, _, context) => {
+    onSuccess: (response) => {
       const newSession = response.session;
-
-      if (newSession && newSession.id && context?.optimisticSessionId) {
-        // Replace optimistic session with real session in cache
+      if (newSession && newSession.id) {
+        // Manually add the new session to the cache for an instant update
         queryClient.setQueryData(sessionKeys.sessions(notebookId), (old: any) => {
-          if (!old?.sessions) return old;
+          const currentSessions = old?.sessions || [];
           return {
             ...old,
-            sessions: old.sessions.map((s: ChatSession) =>
-              s.id === context.optimisticSessionId ? newSession : s
-            ),
+            sessions: [newSession, ...currentSessions],
+            total_count: (old?.total_count || 0) + 1,
           };
         });
 
-        // Update active session ID to the real ID
+        // Switch to the new session immediately after it's added to the cache
         setActiveSessionId(newSession.id);
+        setCurrentMessages([]); // Ensure new session starts with no messages
 
         toast({
           title: 'Session Created',
           description: `New chat session "${newSession.title || 'New Chat'}" started`,
         });
       }
-
-      // Ensure sessions list is refreshed to sync with server
-      // await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
     },
-    onError: (error, _, context) => {
-      // Rollback optimistic update on error
-      if (context?.previousSessions) {
-        queryClient.setQueryData(sessionKeys.sessions(notebookId), context.previousSessions);
-      }
-
-      // Restore previous active session or clear if none
-      if (context?.previousActiveSessionId !== undefined) {
-        setActiveSessionId(context.previousActiveSessionId);
-      }
-      setCurrentMessages([]);
-
+    onError: (error) => {
       const errorMessage = error instanceof Error ? error.message : 'Failed to create session';
       setError(errorMessage);
       toast({
@@ -175,50 +126,43 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     },
   });
 
-  // Mutation for closing session
+  // Refactored: Mutation for closing a session, updating cache on success
   const closeSessionMutation = useMutation({
     mutationFn: (sessionId: string) => sessionChatService.closeSession(notebookId, sessionId),
-    onMutate: async (sessionId) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: sessionKeys.sessions(notebookId) });
+    onSuccess: (_, deletedSessionId) => {
+      // Determine the next active session *before* modifying the cache
+      const currentSessions = queryClient.getQueryData<any>(sessionKeys.sessions(notebookId))?.sessions || [];
+      const remainingSessions = currentSessions.filter((s: ChatSession) => s.id !== deletedSessionId);
+      let nextActiveSessionId = activeSessionId;
 
-      // Get current sessions from cache
-      const previousSessions = queryClient.getQueryData(sessionKeys.sessions(notebookId));
+      if (activeSessionId === deletedSessionId) {
+        nextActiveSessionId = remainingSessions.length > 0 ? remainingSessions[0].id : null;
+      }
 
-      // Get fresh sessions list from the cache data
-      const currentSessionsList = (previousSessions as any)?.sessions || [];
-      const remainingSessions = currentSessionsList.filter((s: any) => s.id !== sessionId);
+      // Manually remove the session from the cache
+      queryClient.setQueryData(sessionKeys.sessions(notebookId), (old: any) => ({
+        ...old,
+        sessions: remainingSessions,
+        total_count: Math.max(0, (old?.total_count || 1) - 1),
+      }));
 
-      // Optimistically update to remove the session
-      queryClient.setQueryData(sessionKeys.sessions(notebookId), (old: any) => {
-        if (!old?.sessions) return old;
-        return {
-          ...old,
-          sessions: remainingSessions,
-          total_count: Math.max(0, (old.total_count || 0) - 1),
-        };
+      // Update the active session ID state
+      if (activeSessionId === deletedSessionId) {
+        setActiveSessionId(nextActiveSessionId);
+        if (!nextActiveSessionId) {
+          setCurrentMessages([]);
+        }
+      }
+
+      toast({
+        title: 'Session Closed',
+        description: 'The chat session has been closed.',
       });
 
-      // Switch to another session or clear if this was the active one
-      if (activeSessionId === sessionId) {
-        const newActiveId = remainingSessions.length > 0 ? remainingSessions[0].id : null;
-        setActiveSessionId(newActiveId);
-        setCurrentMessages([]);
-      }
-
-      return { previousSessions };
+      // Optionally, invalidate in the background to ensure perfect sync
+      queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
     },
-    onSuccess: async (data, sessionId) => {
-      closingSessionRef.current = null;
-      // Refetch sessions to ensure cache is in sync with server
-      await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
-    },
-    onError: (error, sessionId, context) => {
-      closingSessionRef.current = null;
-      // Rollback optimistic update on error
-      if (context?.previousSessions) {
-        queryClient.setQueryData(sessionKeys.sessions(notebookId), context.previousSessions);
-      }
+    onError: (error) => {
       toast({
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to close session',
@@ -264,27 +208,27 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       const response = await sessionChatService.getSession(notebookId, sessionId);
       let messages = response.session.messages || [];
 
-      // ✨ 检查是否有缓存的流式消息（用于刷新后恢复）
+      // Check for cached streaming messages (for recovery after refresh)
       const cacheKey = `streaming_${notebookId}_${sessionId}`;
       try {
         const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
           const { userMessage, assistantMessage, timestamp } = JSON.parse(cached);
 
-          // 只使用 5 分钟内的缓存
+          // Only use cache from the last 5 minutes
           if (Date.now() - timestamp < 5 * 60 * 1000) {
             console.log('[useSessionChat] Restoring streaming message from cache');
 
-            // 检查服务器消息是否已包含这些消息
+            // Check if the server messages already include these
             const hasUserMsg = messages.some(m => m.message === userMessage.message && m.sender === 'user');
             const hasAssistantMsg = messages.some(m => m.sender === 'assistant' && m.message === assistantMessage.message);
 
             if (!hasUserMsg || !hasAssistantMsg) {
-              // 如果服务器还没有完整消息，使用缓存
+              // If the server doesn't have the full message yet, use the cache
               messages = [...messages, userMessage, assistantMessage];
             }
           } else {
-            // 缓存过期，清除
+            // Clear expired cache
             sessionStorage.removeItem(cacheKey);
           }
         }
@@ -306,45 +250,46 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   // Session actions
   const createSession = useCallback(async (): Promise<ChatSession | null> => {
     try {
-      // Execute the mutation (will trigger optimistic update in onMutate)
-      // onMutate will immediately set activeSessionId and add optimistic session to cache
-      const result = await createSessionMutation.mutateAsync();
-      const newSession = result.session;
-
-      if (newSession && newSession.id) {
-        // Preload messages for the new session (likely empty to start)
-        await loadSessionMessages(newSession.id);
-      }
-
-      return newSession;
-    } catch (error) {
-      // Error handling is done in mutation's onError
+      const response = await createSessionMutation.mutateAsync();
+      return response?.session ?? null;
+    } catch {
       return null;
     }
-  }, [createSessionMutation, loadSessionMessages]);
+  }, [createSessionMutation]);
 
-  const closeSession = useCallback(async (sessionId: string): Promise<boolean> => {
-    if (closingSessionRef.current === sessionId) {
-      return false;
-    }
-    closingSessionRef.current = sessionId;
-    try {
-      await closeSessionMutation.mutateAsync(sessionId);
-      return true;
-    } catch (error) {
-      // Error already handled in mutation's onError
-      return false;
-    }
-  }, [closeSessionMutation]);
+  const closeSession = useCallback(
+    async (sessionId: string): Promise<boolean> => {
+      if (closingSessionRef.current === sessionId) {
+        return false; // Avoid double-closing
+      }
+      closingSessionRef.current = sessionId;
+      try {
+        await closeSessionMutation.mutateAsync(sessionId);
+        return true;
+      } catch {
+        return false;
+      } finally {
+        closingSessionRef.current = null;
+      }
+    },
+    [closeSessionMutation]
+  );
 
-  const updateSessionTitle = useCallback(async (sessionId: string, title: string, options?: { silent?: boolean }): Promise<boolean> => {
-    try {
-      await updateTitleMutation.mutateAsync({ sessionId, title, silent: options?.silent });
-      return true;
-    } catch (error) {
-      return false;
-    }
-  }, [updateTitleMutation]);
+  const updateSessionTitle = useCallback(
+    async (
+      sessionId: string,
+      title: string,
+      options?: { silent?: boolean }
+    ): Promise<boolean> => {
+      try {
+        await updateTitleMutation.mutateAsync({ sessionId, title, silent: options?.silent });
+        return true;
+      } catch (error) {
+        return false;
+      }
+    },
+    [updateTitleMutation]
+  );
 
   const switchSession = useCallback((sessionId: string) => {
     setActiveSessionId(sessionId);
@@ -362,7 +307,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
         streamingControllerRef.current.abort();
       }
 
-      // ✨ 标记流式传输开始
+      // Mark streaming as in-progress
       isStreamingRef.current = true;
 
       // Add user message immediately
@@ -410,7 +355,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       let assistantContent = '';
       let animationFrameId: ReturnType<typeof requestAnimationFrame> | null = null;
 
-      // ✨ 缓存 key
+      // Cache key for session storage
       const cacheKey = `streaming_${notebookId}_${sessionId}`;
 
       // Extracted state update function with session validation
@@ -418,7 +363,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
         if (activeSessionIdRef.current === sessionId) {
           setCurrentMessages(prev => prev.map(m => m.id === assistantMessage.id ? { ...m, message: assistantContent } : m));
 
-          // ✨ 保存到 sessionStorage 支持刷新恢复
+          // Save to sessionStorage to support recovery on refresh
           try {
             sessionStorage.setItem(cacheKey, JSON.stringify({
               userMessage,
@@ -448,7 +393,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
             }
             streamingControllerRef.current = null;
 
-            // ✨ 重置流式传输状态
+            // Reset streaming status
             isStreamingRef.current = false;
 
             setError(error);
@@ -465,7 +410,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
             updateMessageInState();
             streamingControllerRef.current = null;
 
-            // ✨ 重置流式传输状态并清除缓存
+            // Reset streaming status and clear cache
             isStreamingRef.current = false;
             try {
               sessionStorage.removeItem(cacheKey);
@@ -477,11 +422,11 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
               setSuggestions(suggestions);
             }
 
-            // ✨ 流式完成后刷新 session 列表和消息
-            // 延迟一小段时间确保后端已保存
+            // After streaming, refresh session list and messages
+            // Delay slightly to ensure backend has saved the data
             setTimeout(() => {
               queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
-              // 重新加载消息以获取真实的数据库记录
+              // Reload messages to get real DB records
               if (activeSessionIdRef.current === sessionId) {
                 loadSessionMessages(sessionId);
               }
@@ -496,7 +441,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
       return true;
     } catch (error) {
-      // ✨ 重置流式传输状态
+      // Reset streaming status
       isStreamingRef.current = false;
 
       const errorMessage = error instanceof Error ? error.message : 'Failed to send message';
@@ -553,7 +498,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   // Load messages when active session changes
   useEffect(() => {
-    // ✨ 关键修复：流式传输期间不重新加载消息，防止覆盖
+    // Do not reload messages while streaming, as it can overwrite the streaming content
     if (isStreamingRef.current) {
       console.log('[useSessionChat] Skipping loadSessionMessages - streaming in progress');
       return;
