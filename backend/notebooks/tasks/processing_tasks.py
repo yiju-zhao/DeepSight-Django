@@ -433,16 +433,26 @@ def parse_document_url_task(
         # Refresh KB item from database
         kb_item.refresh_from_db()
 
-        # Mark as done
-        kb_item.parsing_status = ParsingStatus.DONE
-        kb_item.save(update_fields=["parsing_status"])
+        # Use common completion handler to:
+        # - Mark parsing as done
+        # - Chain RagFlow upload
+        # - Schedule image caption generation when images exist
+        completion_result = _handle_task_completion(
+            kb_item,
+            batch_item_id=None,
+            batch_job_id=None,
+            upload_url_id=upload_url_id,
+        )
 
         logger.info(f"Successfully parsed document URL to KB item {file_id}")
 
-        # Chain RagFlow upload task
-        upload_to_ragflow_task.apply_async(args=[str(file_id)])
-
-        return {"success": True, "file_id": file_id, "upload_url_id": upload_url_id}
+        # Maintain existing response shape while including completion status
+        return {
+            "success": True,
+            "file_id": file_id,
+            "upload_url_id": upload_url_id,
+            "status": completion_result.get("status"),
+        }
 
     except Exception as e:
         logger.exception(f"Failed to parse document URL {url}: {e}")
