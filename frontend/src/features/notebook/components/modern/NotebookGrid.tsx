@@ -154,7 +154,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
       {notebooks.map((notebook: Notebook) => (
         <div
           key={notebook.id}
-          className="group bg-white rounded-2xl border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-300 cursor-pointer relative"
+          className="group bg-white rounded-2xl shadow-md hover:shadow-xl transition-all duration-300 cursor-pointer relative"
           onClick={() => handleNotebookClick(notebook)}
         >
           <div className="p-6">
@@ -220,8 +220,8 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
               value={searchQuery}
               onChange={(e) => handleSearchChange(e.target.value)}
               className={cn(
-                "w-full pl-10 pr-4 py-2 border border-[#E3E3E3] rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all text-sm",
-                isSearchStale && "bg-[#FFF8E1] border-[#FFE082]"
+                "w-full pl-10 pr-4 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all text-sm shadow-sm",
+                isSearchStale && "bg-[#FFF8E1]"
               )}
             />
             {(isSearchPending || isSearchStale) && (
@@ -243,7 +243,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
             </Button>
 
             {/* View Toggle */}
-            <div className="flex items-center border border-[#E3E3E3] rounded-lg p-1 bg-white">
+            <div className="flex items-center rounded-lg p-1 bg-white shadow-sm">
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
                 size="sm"

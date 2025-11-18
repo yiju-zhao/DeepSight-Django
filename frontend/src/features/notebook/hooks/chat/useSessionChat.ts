@@ -105,6 +105,9 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
           };
         });
 
+        // Invalidate to trigger re-render
+        queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+
         // Switch to the new session immediately after it's added to the cache
         setActiveSessionId(newSession.id);
         setCurrentMessages([]); // Ensure new session starts with no messages
