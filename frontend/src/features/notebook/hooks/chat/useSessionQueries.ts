@@ -112,13 +112,10 @@ export const useCreateSessionMutation = (notebookId: string) => {
     void
   >({
     mutationFn: async (): Promise<ChatSession> => {
-      console.log('[useCreateSessionMutation] Starting session creation');
       const response = await sessionChatService.createSession(notebookId, {});
-      console.log('[useCreateSessionMutation] Response:', response);
 
       // Backend returns session directly (DRF standard) or wrapped in {session: ...}
       const session = (response as any).session || response;
-      console.log('[useCreateSessionMutation] Session:', session);
 
       if (!session || !session.id) {
         throw new Error('Invalid session response');
@@ -129,22 +126,14 @@ export const useCreateSessionMutation = (notebookId: string) => {
 
     // On success, add new session to cache
     onSuccess: (newSession) => {
-      console.log('[useCreateSessionMutation] onSuccess called with:', newSession);
       queryClient.setQueryData<SessionsCache>(
         sessionKeys.sessions(notebookId),
         (old) => {
-          console.log('[useCreateSessionMutation] Old cache:', old);
           const byId = { ...old?.byId, [newSession.id]: newSession };
           const allIds = [newSession.id, ...(old?.allIds || [])];
-          const newCache = { byId, allIds };
-          console.log('[useCreateSessionMutation] New cache:', newCache);
-          return newCache;
+          return { byId, allIds };
         }
       );
-    },
-
-    onError: (error) => {
-      console.error('[useCreateSessionMutation] Error:', error);
     },
   });
 };
