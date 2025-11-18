@@ -83,22 +83,22 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
   /**
    * Create a new session
-   * Uses optimistic update for immediate tab appearance
+   * Waits for server response, then displays new tab
    */
   const createSession = useCallback(async (): Promise<ChatSession | null> => {
     try {
-      const result = await createMutation.mutateAsync();
-      const realId = result.realId;
+      // Wait for server to create session
+      const newSession = await createMutation.mutateAsync();
 
-      // Transition activeSessionId to new session
-      setActiveSessionId(realId);
+      // Set as active session
+      setActiveSessionId(newSession.id);
 
       toast({
         title: 'Session Created',
         description: 'New chat session started',
       });
 
-      return sessionsQuery.data?.byId[realId] || null;
+      return newSession;
     } catch (error) {
       toast({
         title: 'Error',
@@ -107,7 +107,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       });
       return null;
     }
-  }, [createMutation, setActiveSessionId, toast, sessionsQuery.data]);
+  }, [createMutation, setActiveSessionId, toast]);
 
   /**
    * Close a session

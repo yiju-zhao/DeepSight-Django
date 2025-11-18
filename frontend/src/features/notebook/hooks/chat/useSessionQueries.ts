@@ -15,7 +15,6 @@ import type {
   ChatSession,
   SessionChatMessage,
   SessionsCache,
-  CreateSessionMutationResult,
   DeleteSessionMutationContext,
   UpdateSessionTitleMutationContext,
   ModelsResponse,
@@ -102,105 +101,31 @@ export const useModelsQuery = (notebookId: string) => {
 
 /**
  * Mutation hook for creating a new session
- * Uses optimistic updates with temporary ID, then replaces with real ID from server
+ * Simplified: waits for server response, then updates cache
  */
 export const useCreateSessionMutation = (notebookId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation<
-    CreateSessionMutationResult,
+    ChatSession,
     Error,
-    void,
-    { previousSessions: SessionsCache | undefined; tempId: string }
+    void
   >({
-    mutationFn: async (): Promise<CreateSessionMutationResult> => {
+    mutationFn: async (): Promise<ChatSession> => {
       const response: CreateSessionResponse = await sessionChatService.createSession(notebookId, {});
-      // Return placeholder - actual result constructed in onSuccess
-      return {
-        tempId: '',
-        realId: response.session.id,
-      };
+      return response.session;
     },
 
-    // Optimistic update - runs BEFORE server responds
-    onMutate: async () => {
-      // Cancel any outgoing refetches to avoid optimistic update being overwritten
-      await queryClient.cancelQueries({ queryKey: sessionKeys.sessions(notebookId) });
-
-      // Snapshot the previous value for rollback
-      const previousSessions = queryClient.getQueryData<SessionsCache>(
-        sessionKeys.sessions(notebookId)
-      );
-
-      // Generate temporary ID for optimistic session
-      const tempId = `temp-${Date.now()}`;
-      const optimisticSession: ChatSession = {
-        id: tempId,
-        title: 'New Chat',
-        status: 'active',
-        message_count: 0,
-        created_at: new Date().toISOString(),
-        last_activity: new Date().toISOString(),
-      };
-
-      // Optimistically update cache with temporary session
-      queryClient.setQueryData<SessionsCache>(
-        sessionKeys.sessions(notebookId),
-        (old) => ({
-          byId: { ...old?.byId, [tempId]: optimisticSession },
-          allIds: [tempId, ...(old?.allIds || [])],
-        })
-      );
-
-      // Return context for onSuccess and onError
-      return { previousSessions, tempId };
-    },
-
-    // On success, replace temp session with real session from server
-    onSuccess: (response, _, context) => {
-      const realId = response.realId;
-
+    // On success, add new session to cache
+    onSuccess: (newSession) => {
       queryClient.setQueryData<SessionsCache>(
         sessionKeys.sessions(notebookId),
         (old) => {
-          if (!old) return {
-            byId: { [realId]: { id: realId, title: 'New Chat', status: 'active', message_count: 0, created_at: new Date().toISOString(), last_activity: new Date().toISOString() } },
-            allIds: [realId],
-          };
-
-          // Remove temp session, add real session
-          const { [context.tempId]: _, ...restById } = old.byId;
-
-          // Get the real session from the server (we need to fetch it to get full details)
-          // For now, create a placeholder and let the next query fetch full details
-          const newSession: ChatSession = {
-            id: realId,
-            title: 'New Chat',
-            status: 'active',
-            message_count: 0,
-            created_at: new Date().toISOString(),
-            last_activity: new Date().toISOString(),
-          };
-
-          return {
-            byId: { ...restById, [realId]: newSession },
-            allIds: old.allIds.map(id => id === context.tempId ? realId : id),
-          };
+          const byId = { ...old?.byId, [newSession.id]: newSession };
+          const allIds = [newSession.id, ...(old?.allIds || [])];
+          return { byId, allIds };
         }
       );
-
-      // Return IDs for external handlers
-      return { tempId: context.tempId, realId };
-    },
-
-    // On error, rollback to previous state
-    onError: (error, _, context) => {
-      if (context?.previousSessions) {
-        queryClient.setQueryData(
-          sessionKeys.sessions(notebookId),
-          context.previousSessions
-        );
-      }
     },
   });
 };

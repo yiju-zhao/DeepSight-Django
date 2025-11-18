@@ -412,15 +412,6 @@ export interface SessionsCache {
 }
 
 /**
- * Result type for create session mutation
- * Includes both temporary ID (for optimistic update) and real ID (from server)
- */
-export interface CreateSessionMutationResult {
-  tempId: string;
-  realId: string;
-}
-
-/**
  * Context type for delete session mutation (for rollback on error)
  */
 export interface DeleteSessionMutationContext {
