@@ -399,3 +399,46 @@ export interface WelcomeScreenProps {
   isCreating?: boolean;
   hasFiles?: boolean;
 }
+
+// Normalized Cache Types for Session Management
+/**
+ * Normalized cache structure for efficient session lookup and updates
+ * - byId: O(1) session lookup by ID
+ * - allIds: Maintains session order (newest first)
+ */
+export interface SessionsCache {
+  byId: Record<string, ChatSession>;
+  allIds: string[];
+}
+
+/**
+ * Result type for create session mutation
+ * Includes both temporary ID (for optimistic update) and real ID (from server)
+ */
+export interface CreateSessionMutationResult {
+  tempId: string;
+  realId: string;
+}
+
+/**
+ * Context type for delete session mutation (for rollback on error)
+ */
+export interface DeleteSessionMutationContext {
+  previousSessions: SessionsCache | undefined;
+  sessionId: string;
+}
+
+/**
+ * Context type for update session title mutation (for rollback on error)
+ */
+export interface UpdateSessionTitleMutationContext {
+  previousSessions: SessionsCache | undefined;
+}
+
+/**
+ * Models response type
+ */
+export interface ModelsResponse {
+  available_models: string[];
+  current_model: string | null;
+}
