@@ -115,11 +115,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
                 </Select>
               </div>
             )}
-            {sessions.length > 0 && (
-              <span className="text-xs text-gray-500">
-                {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}
-              </span>
-            )}
           </div>
         </div>
       </div>
