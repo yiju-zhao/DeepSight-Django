@@ -198,6 +198,51 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     },
   });
 
+  // Message handling
+  const loadSessionMessages = useCallback(async (sessionId: string): Promise<SessionChatMessage[]> => {
+    try {
+      const response = await sessionChatService.getSession(notebookId, sessionId);
+      let messages = response.session.messages || [];
+
+      // ✨ 检查是否有缓存的流式消息（用于刷新后恢复）
+      const cacheKey = `streaming_${notebookId}_${sessionId}`;
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const { userMessage, assistantMessage, timestamp } = JSON.parse(cached);
+
+          // 只使用 5 分钟内的缓存
+          if (Date.now() - timestamp < 5 * 60 * 1000) {
+            console.log('[useSessionChat] Restoring streaming message from cache');
+
+            // 检查服务器消息是否已包含这些消息
+            const hasUserMsg = messages.some(m => m.message === userMessage.message && m.sender === 'user');
+            const hasAssistantMsg = messages.some(m => m.sender === 'assistant' && m.message === assistantMessage.message);
+
+            if (!hasUserMsg || !hasAssistantMsg) {
+              // 如果服务器还没有完整消息，使用缓存
+              messages = [...messages, userMessage, assistantMessage];
+            }
+          } else {
+            // 缓存过期，清除
+            sessionStorage.removeItem(cacheKey);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to restore streaming message from cache:', e);
+      }
+
+      if (activeSessionId === sessionId) {
+        setCurrentMessages(messages);
+      }
+
+      return messages;
+    } catch (error) {
+      console.error('Failed to load session messages:', error);
+      return [];
+    }
+  }, [notebookId, activeSessionId]);
+
   // Session actions
   const createSession = useCallback(async (): Promise<ChatSession | null> => {
     try {
@@ -244,52 +289,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
 
     // Load messages for the session
     loadSessionMessages(sessionId);
-  }, []);
-
-  // Message handling
-  const loadSessionMessages = useCallback(async (sessionId: string): Promise<SessionChatMessage[]> => {
-    try {
-      const response = await sessionChatService.getSession(notebookId, sessionId);
-      let messages = response.session.messages || [];
-
-      // ✨ 检查是否有缓存的流式消息（用于刷新后恢复）
-      const cacheKey = `streaming_${notebookId}_${sessionId}`;
-      try {
-        const cached = sessionStorage.getItem(cacheKey);
-        if (cached) {
-          const { userMessage, assistantMessage, timestamp } = JSON.parse(cached);
-
-          // 只使用 5 分钟内的缓存
-          if (Date.now() - timestamp < 5 * 60 * 1000) {
-            console.log('[useSessionChat] Restoring streaming message from cache');
-
-            // 检查服务器消息是否已包含这些消息
-            const hasUserMsg = messages.some(m => m.message === userMessage.message && m.sender === 'user');
-            const hasAssistantMsg = messages.some(m => m.sender === 'assistant' && m.message === assistantMessage.message);
-
-            if (!hasUserMsg || !hasAssistantMsg) {
-              // 如果服务器还没有完整消息，使用缓存
-              messages = [...messages, userMessage, assistantMessage];
-            }
-          } else {
-            // 缓存过期，清除
-            sessionStorage.removeItem(cacheKey);
-          }
-        }
-      } catch (e) {
-        console.warn('Failed to restore streaming message from cache:', e);
-      }
-
-      if (activeSessionId === sessionId) {
-        setCurrentMessages(messages);
-      }
-
-      return messages;
-    } catch (error) {
-      console.error('Failed to load session messages:', error);
-      return [];
-    }
-  }, [notebookId, activeSessionId]);
+  }, [loadSessionMessages]);
 
   const sendMessage = useCallback(async (sessionId: string, message: string): Promise<boolean> => {
     if (!message.trim()) return false;
