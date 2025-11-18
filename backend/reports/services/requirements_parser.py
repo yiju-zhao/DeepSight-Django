@@ -31,9 +31,7 @@ class ParseRequirements(dspy.Signature):
     content = dspy.OutputField(
         desc="Content requirements as JSON with keys: focus_areas (list), constraints (dict), avoid_topics (list)"
     )
-    audience = dspy.OutputField(
-        desc="Target audience description (string)"
-    )
+    audience = dspy.OutputField(desc="Target audience description (string)")
 
 
 class RequirementsParser:
@@ -82,7 +80,9 @@ class RequirementsParser:
                 )
 
             dspy.settings.configure(lm=lm)
-            logger.info(f"RequirementsParser initialized with {self.model_provider} model")
+            logger.info(
+                f"RequirementsParser initialized with {self.model_provider} model"
+            )
 
         except Exception as e:
             logger.error(f"Failed to setup language model: {e}")
@@ -120,14 +120,16 @@ class RequirementsParser:
                 "style": self._safe_json_parse(result.style, {}),
                 "structure": self._safe_json_parse(result.structure, {}),
                 "content": self._safe_json_parse(result.content, {}),
-                "audience": result.audience if hasattr(result, 'audience') else "",
-                "raw_instructions": requirements_text.strip()
+                "audience": result.audience if hasattr(result, "audience") else "",
+                "raw_instructions": requirements_text.strip(),
             }
 
             # Validate and clean the parsed structure
             parsed = self._validate_and_clean(parsed)
 
-            logger.info(f"Successfully parsed requirements: {json.dumps(parsed, indent=2)}")
+            logger.info(
+                f"Successfully parsed requirements: {json.dumps(parsed, indent=2)}"
+            )
             return parsed
 
         except Exception as e:
@@ -138,7 +140,7 @@ class RequirementsParser:
                 "structure": {},
                 "content": {"focus_areas": [requirements_text.strip()]},
                 "audience": "",
-                "raw_instructions": requirements_text.strip()
+                "raw_instructions": requirements_text.strip(),
             }
 
     def _safe_json_parse(self, json_str: str, default: dict) -> dict:
@@ -211,7 +213,9 @@ class RequirementsParser:
         return parsed
 
 
-def parse_custom_requirements(requirements_text: str, model_provider: str = "openai") -> Optional[dict]:
+def parse_custom_requirements(
+    requirements_text: str, model_provider: str = "openai"
+) -> Optional[dict]:
     """
     Convenience function to parse custom requirements.
 

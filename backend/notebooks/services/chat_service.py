@@ -220,7 +220,9 @@ class ChatService(NotebookBaseService):
                     "error": "Notebook does not have a RagFlow dataset configured.",
                 }
 
-            chat_result = self._get_or_create_chat_assistant(notebook.ragflow_dataset_id)
+            chat_result = self._get_or_create_chat_assistant(
+                notebook.ragflow_dataset_id
+            )
             if not chat_result.get("success"):
                 return chat_result
 
@@ -245,14 +247,18 @@ class ChatService(NotebookBaseService):
 
             return {"success": True, "model": model_name}
         except Exception as e:
-            logger.exception(f"Failed to get chat model for notebook {notebook.id}: {e}")
+            logger.exception(
+                f"Failed to get chat model for notebook {notebook.id}: {e}"
+            )
             return {
                 "success": False,
                 "error": "Failed to get chat model",
                 "details": str(e),
             }
 
-    def update_chat_model(self, notebook: Notebook, user_id: int, model_name: str) -> dict:
+    def update_chat_model(
+        self, notebook: Notebook, user_id: int, model_name: str
+    ) -> dict:
         """
         Update chat assistant LLM model for a notebook.
 
@@ -285,7 +291,9 @@ class ChatService(NotebookBaseService):
                     "error": "Notebook does not have a RagFlow dataset configured.",
                 }
 
-            chat_result = self._get_or_create_chat_assistant(notebook.ragflow_dataset_id)
+            chat_result = self._get_or_create_chat_assistant(
+                notebook.ragflow_dataset_id
+            )
             if not chat_result.get("success"):
                 return chat_result
 
@@ -914,34 +922,42 @@ class ChatService(NotebookBaseService):
                             if new_content:
                                 # ✨ 在收到第一个 token 时创建助手消息
                                 if assistant_message is None:
-                                    assistant_message = SessionChatMessage.objects.create(
-                                        session=session,
-                                        notebook=notebook,
-                                        sender="assistant",
-                                        message=answer,  # 使用第一块内容
-                                        metadata={
-                                            "status": "generating",
-                                            "started_at": message_start_time
-                                        }
+                                    assistant_message = (
+                                        SessionChatMessage.objects.create(
+                                            session=session,
+                                            notebook=notebook,
+                                            sender="assistant",
+                                            message=answer,  # 使用第一块内容
+                                            metadata={
+                                                "status": "generating",
+                                                "started_at": message_start_time,
+                                            },
+                                        )
                                     )
-                                    logger.info(f"Created assistant message with first token: {len(answer)} chars")
+                                    logger.info(
+                                        f"Created assistant message with first token: {len(answer)} chars"
+                                    )
 
                                 accumulated_content = answer
                                 payload = json.dumps(
                                     {"type": "token", "text": new_content}
                                 )
                                 yield f"data: {payload}\n\n"
-                                logger.debug(
-                                    f"Yielded {len(new_content)} characters"
-                                )
+                                logger.debug(f"Yielded {len(new_content)} characters")
 
                                 # ✨ 定期更新数据库中的消息（每10个token或每100字符）
                                 update_counter += 1
-                                if update_counter >= 10 or len(accumulated_content) % 100 < len(new_content):
+                                if update_counter >= 10 or len(
+                                    accumulated_content
+                                ) % 100 < len(new_content):
                                     if assistant_message:
                                         assistant_message.message = accumulated_content
-                                        assistant_message.save(update_fields=["message", "updated_at"])
-                                        logger.debug(f"Updated message in DB: {len(accumulated_content)} chars")
+                                        assistant_message.save(
+                                            update_fields=["message", "updated_at"]
+                                        )
+                                        logger.debug(
+                                            f"Updated message in DB: {len(accumulated_content)} chars"
+                                        )
                                         update_counter = 0
 
                 except Exception as conversation_error:
@@ -974,10 +990,12 @@ class ChatService(NotebookBaseService):
                                 "status": "completed",
                                 "started_at": message_start_time,
                                 "completed_at": user_message.timestamp.isoformat(),
-                                "total_length": len(accumulated_content)
-                            }
+                                "total_length": len(accumulated_content),
+                            },
                         )
-                        logger.info(f"Created assistant message at completion: {len(accumulated_content)} chars")
+                        logger.info(
+                            f"Created assistant message at completion: {len(accumulated_content)} chars"
+                        )
                     else:
                         # 更新现有消息
                         assistant_message.message = accumulated_content
@@ -985,10 +1003,14 @@ class ChatService(NotebookBaseService):
                             "status": "completed",
                             "started_at": assistant_message.metadata.get("started_at"),
                             "completed_at": user_message.timestamp.isoformat(),
-                            "total_length": len(accumulated_content)
+                            "total_length": len(accumulated_content),
                         }
-                        assistant_message.save(update_fields=["message", "metadata", "updated_at"])
-                        logger.info(f"Final message saved: {len(accumulated_content)} characters")
+                        assistant_message.save(
+                            update_fields=["message", "metadata", "updated_at"]
+                        )
+                        logger.info(
+                            f"Final message saved: {len(accumulated_content)} characters"
+                        )
 
                 # Generate suggested questions
                 suggestions_result = self.generate_suggested_questions(
@@ -1025,9 +1047,11 @@ class ChatService(NotebookBaseService):
                             "status": "error",
                             "started_at": assistant_message.metadata.get("started_at"),
                             "error": str(e),
-                            "partial_length": len(accumulated_content)
+                            "partial_length": len(accumulated_content),
                         }
-                        assistant_message.save(update_fields=["message", "metadata", "updated_at"])
+                        assistant_message.save(
+                            update_fields=["message", "metadata", "updated_at"]
+                        )
                     except Exception as save_error:
                         logger.warning(f"Failed to save error state: {save_error}")
 
@@ -1047,20 +1071,28 @@ class ChatService(NotebookBaseService):
                             assistant_message.message = accumulated_content
                             assistant_message.metadata = {
                                 "status": "interrupted",
-                                "started_at": assistant_message.metadata.get("started_at"),
-                                "partial_length": len(accumulated_content)
+                                "started_at": assistant_message.metadata.get(
+                                    "started_at"
+                                ),
+                                "partial_length": len(accumulated_content),
                             }
-                            assistant_message.save(update_fields=["message", "metadata", "updated_at"])
+                            assistant_message.save(
+                                update_fields=["message", "metadata", "updated_at"]
+                            )
 
                             self.log_notebook_operation(
                                 "session_assistant_message_interrupted",
                                 str(notebook.id),
                                 user_id,
-                                session_id=str(session.session_id) if session else session_id,
+                                session_id=str(session.session_id)
+                                if session
+                                else session_id,
                                 response_length=len(accumulated_content),
                             )
                 except Exception as persist_err:
-                    logger.warning(f"Failed to persist partial assistant message for session {session_id}: {persist_err}")
+                    logger.warning(
+                        f"Failed to persist partial assistant message for session {session_id}: {persist_err}"
+                    )
 
         return session_stream()
 

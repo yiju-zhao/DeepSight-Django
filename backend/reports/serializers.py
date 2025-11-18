@@ -202,7 +202,7 @@ class ReportGenerationRequestSerializer(serializers.Serializer):
         required=False,
         allow_blank=True,
         allow_null=True,
-        help_text="Custom requirements for report generation (style, structure, content focus, etc.)"
+        help_text="Custom requirements for report generation (style, structure, content focus, etc.)",
     )
     model_provider = serializers.ChoiceField(
         choices=Report.MODEL_PROVIDER_CHOICES, default=Report.MODEL_PROVIDER_OPENAI

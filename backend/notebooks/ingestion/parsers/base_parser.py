@@ -14,7 +14,9 @@ class ParseResult:
     content: str
     metadata: dict[str, Any] = field(default_factory=dict)
     features_available: list[str] = field(default_factory=list)
-    mineru_extraction_result: Optional[dict[str, Any]] = None  # For MinerU extraction results
+    mineru_extraction_result: Optional[dict[str, Any]] = (
+        None  # For MinerU extraction results
+    )
 
 
 class BaseParser(ABC):

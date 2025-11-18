@@ -151,14 +151,20 @@ class RunnerOrchestrator:
 
                     enhanced_topic = PromptEnhancer.enhance_topic_for_outline(
                         base_topic=config.topic or "",
-                        parsed_requirements=config.parsed_requirements
+                        parsed_requirements=config.parsed_requirements,
                     )
 
                     req_summary = PromptEnhancer.get_summary(config.parsed_requirements)
-                    self.logger.info(f"Enhanced topic with custom requirements: {req_summary}")
-                    processing_logs.append(f"Custom requirements applied: {req_summary}")
+                    self.logger.info(
+                        f"Enhanced topic with custom requirements: {req_summary}"
+                    )
+                    processing_logs.append(
+                        f"Custom requirements applied: {req_summary}"
+                    )
                 except Exception as e:
-                    self.logger.warning(f"Failed to enhance topic with requirements: {e}")
+                    self.logger.warning(
+                        f"Failed to enhance topic with requirements: {e}"
+                    )
                     # Continue with original topic if enhancement fails
                     enhanced_topic = config.topic
 

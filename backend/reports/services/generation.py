@@ -110,10 +110,14 @@ class ReportGenerationService:
 
                     if parsed:
                         report.parsed_requirements = parsed
-                        report.save(update_fields=['parsed_requirements'])
-                        logger.info(f"Parsed custom requirements for report {report_id}")
+                        report.save(update_fields=["parsed_requirements"])
+                        logger.info(
+                            f"Parsed custom requirements for report {report_id}"
+                        )
                 except Exception as e:
-                    logger.warning(f"Failed to parse custom requirements: {e}. Continuing without parsing.")
+                    logger.warning(
+                        f"Failed to parse custom requirements: {e}. Continuing without parsing."
+                    )
 
             config_dict = report.get_configuration_dict()
             config_dict.update(

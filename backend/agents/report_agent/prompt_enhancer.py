@@ -21,8 +21,7 @@ class PromptEnhancer:
 
     @staticmethod
     def enhance_topic_for_outline(
-        base_topic: str,
-        parsed_requirements: Optional[dict[str, Any]] = None
+        base_topic: str, parsed_requirements: Optional[dict[str, Any]] = None
     ) -> str:
         """
         Enhance the topic/input for outline generation with custom requirements.
@@ -65,7 +64,9 @@ class PromptEnhancer:
                 for section, description in structure["section_emphasis"].items():
                     emphasis_items.append(f"{section} ({description})")
                 if emphasis_items:
-                    enhancements.append(f"Section emphasis: {'; '.join(emphasis_items)}")
+                    enhancements.append(
+                        f"Section emphasis: {'; '.join(emphasis_items)}"
+                    )
 
         # Extract content requirements
         content = parsed_requirements.get("content", {})
@@ -82,7 +83,9 @@ class PromptEnhancer:
                 if constraints.get("max_words"):
                     constraint_parts.append(f"maximum {constraints['max_words']} words")
                 if constraints.get("citation_style"):
-                    constraint_parts.append(f"citation style: {constraints['citation_style']}")
+                    constraint_parts.append(
+                        f"citation style: {constraints['citation_style']}"
+                    )
 
                 if constraint_parts:
                     enhancements.append(f"Constraints: {', '.join(constraint_parts)}")
@@ -110,15 +113,16 @@ User Requirements:
 
 Please generate the outline considering both the research topic and user requirements above."""
 
-            logger.info(f"Enhanced topic for outline generation with {len(enhancements)} requirements")
+            logger.info(
+                f"Enhanced topic for outline generation with {len(enhancements)} requirements"
+            )
             return enhanced
 
         return base_topic
 
     @staticmethod
     def enhance_for_article_generation(
-        section_name: str,
-        parsed_requirements: Optional[dict[str, Any]] = None
+        section_name: str, parsed_requirements: Optional[dict[str, Any]] = None
     ) -> str:
         """
         Generate additional guidance for article generation phase.
@@ -170,9 +174,7 @@ Please generate the outline considering both the research topic and user require
         return ""
 
     @staticmethod
-    def enhance_for_polish(
-        parsed_requirements: Optional[dict[str, Any]] = None
-    ) -> str:
+    def enhance_for_polish(parsed_requirements: Optional[dict[str, Any]] = None) -> str:
         """
         Generate guidance for article polishing phase.
 
@@ -199,9 +201,13 @@ Please generate the outline considering both the research topic and user require
         constraints = content.get("constraints", {})
         if constraints:
             if constraints.get("min_words"):
-                guidance.append(f"Ensure article has at least {constraints['min_words']} words")
+                guidance.append(
+                    f"Ensure article has at least {constraints['min_words']} words"
+                )
             if constraints.get("citation_style"):
-                guidance.append(f"Verify citations follow {constraints['citation_style']} style")
+                guidance.append(
+                    f"Verify citations follow {constraints['citation_style']} style"
+                )
 
         # Audience alignment
         audience = parsed_requirements.get("audience", "")
@@ -209,7 +215,9 @@ Please generate the outline considering both the research topic and user require
             guidance.append(f"Ensure content is appropriate for: {audience}")
 
         if guidance:
-            return "Final polishing requirements:\n" + "\n".join(f"- {g}" for g in guidance)
+            return "Final polishing requirements:\n" + "\n".join(
+                f"- {g}" for g in guidance
+            )
 
         return ""
 
@@ -254,7 +262,7 @@ Please generate the outline considering both the research topic and user require
 def enhance_topic_with_requirements(
     topic: str,
     custom_requirements: Optional[str] = None,
-    parsed_requirements: Optional[dict[str, Any]] = None
+    parsed_requirements: Optional[dict[str, Any]] = None,
 ) -> str:
     """
     Convenience function to enhance topic with requirements.

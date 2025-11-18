@@ -35,12 +35,10 @@ class Report(models.Model):
     custom_requirements = models.TextField(
         blank=True,
         default="",
-        help_text="User's custom requirements for report generation (style, structure, content focus, etc.)"
+        help_text="User's custom requirements for report generation (style, structure, content focus, etc.)",
     )
     parsed_requirements = models.JSONField(
-        null=True,
-        blank=True,
-        help_text="Parsed structured requirements (internal use)"
+        null=True, blank=True, help_text="Parsed structured requirements (internal use)"
     )
 
     # Content inputs from knowledge base

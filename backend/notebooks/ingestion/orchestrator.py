@@ -330,14 +330,17 @@ class IngestionOrchestrator:
             # Generate a clean filename from the title for the stored .md file
             # The title is sourced from metadata, which gets it from youtube/webpage title
             title = full_metadata.get("original_filename", "Untitled")
-            base_filename = clean_title(title) # clean_title sanitizes and removes extension
+            base_filename = clean_title(
+                title
+            )  # clean_title sanitizes and removes extension
             processing_result["content_filename"] = f"{base_filename}.md"
-
 
             # For MinerU PDFs, skip content file and potentially use a more specific title
             if parse_result.mineru_extraction_result:
                 processing_result["skip_content_file"] = True
-                mineru_clean_title = parse_result.mineru_extraction_result.get("clean_title")
+                mineru_clean_title = parse_result.mineru_extraction_result.get(
+                    "clean_title"
+                )
                 if mineru_clean_title:
                     processing_result["content_filename"] = f"{mineru_clean_title}.md"
 

@@ -363,7 +363,9 @@ class UrlFetcher:
             corrected_path = self._fix_file_extension_sync(file_path, content_type)
 
             file_size = os.path.getsize(corrected_path)
-            self.logger.info(f"Downloaded: url={url}, size={file_size}, path={corrected_path}")
+            self.logger.info(
+                f"Downloaded: url={url}, size={file_size}, path={corrected_path}"
+            )
 
             return corrected_path, temp_dir
 
@@ -371,6 +373,7 @@ class UrlFetcher:
             # Clean up on error
             if os.path.exists(temp_dir):
                 import shutil
+
                 shutil.rmtree(temp_dir, ignore_errors=True)
             self.logger.error(f"Download timeout: url={url}, error={e}")
             raise SourceError(f"Download timeout: {url}") from e
@@ -378,6 +381,7 @@ class UrlFetcher:
             # Clean up on error
             if os.path.exists(temp_dir):
                 import shutil
+
                 shutil.rmtree(temp_dir, ignore_errors=True)
             self.logger.error(f"Download failed: url={url}, error={e}")
             raise SourceError(f"Failed to download file: {e}") from e

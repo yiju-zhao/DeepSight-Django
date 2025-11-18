@@ -173,7 +173,9 @@ class DocuParser(BaseParser):
                 actual_file_path = temp_pdf_path
 
             # Generate clean filename
-            default_filename = f"document{file_extension}" if file_extension else "document.pdf"
+            default_filename = (
+                f"document{file_extension}" if file_extension else "document.pdf"
+            )
             original_filename = metadata.get("filename", default_filename)
             base_title = (
                 original_filename.rsplit(".", 1)[0]
@@ -264,7 +266,9 @@ class DocuParser(BaseParser):
             )
 
             # Get document metadata
-            doc_metadata = self._extract_document_metadata(file_path, metadata, mineru_result)
+            doc_metadata = self._extract_document_metadata(
+                file_path, metadata, mineru_result
+            )
             doc_metadata["has_mineru_extraction"] = True
             doc_metadata["has_markdown_content"] = bool(md_content)
             doc_metadata["file_type"] = file_type.lower()
@@ -436,9 +440,7 @@ class DocuParser(BaseParser):
                 )
 
             except ImportError:
-                self.logger.warning(
-                    "python-pptx not available, returning placeholder"
-                )
+                self.logger.warning("python-pptx not available, returning placeholder")
                 # Fallback
                 content = (
                     f"Presentation '{metadata['filename']}' uploaded successfully. "
@@ -545,13 +547,15 @@ class DocuParser(BaseParser):
             try:
                 if fitz:
                     doc = fitz.open(file_path)
-                    base_metadata.update({
-                        "page_count": doc.page_count,
-                        "title": doc.metadata.get("title", ""),
-                        "author": doc.metadata.get("author", ""),
-                        "creation_date": doc.metadata.get("creationDate", ""),
-                        "modification_date": doc.metadata.get("modDate", ""),
-                    })
+                    base_metadata.update(
+                        {
+                            "page_count": doc.page_count,
+                            "title": doc.metadata.get("title", ""),
+                            "author": doc.metadata.get("author", ""),
+                            "creation_date": doc.metadata.get("creationDate", ""),
+                            "modification_date": doc.metadata.get("modDate", ""),
+                        }
+                    )
                     doc.close()
             except Exception as e:
                 self.logger.warning(f"Could not extract PDF metadata: {e}")

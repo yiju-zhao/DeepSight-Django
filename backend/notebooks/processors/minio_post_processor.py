@@ -103,11 +103,15 @@ class MinIOPostProcessor:
 
                 # Determine image filtering strategy based on document type
                 should_filter = self._should_filter_images(kb_item)
-                file_type = kb_item.metadata.get("file_type", "unknown") if kb_item.metadata else "unknown"
+                file_type = (
+                    kb_item.metadata.get("file_type", "unknown")
+                    if kb_item.metadata
+                    else "unknown"
+                )
 
                 self.log_operation(
                     "image_processing_strategy",
-                    f"Document type: {file_type}, Image filtering: {'enabled (PDF)' if should_filter else 'disabled (PPT/Word - save all images)'}"
+                    f"Document type: {file_type}, Image filtering: {'enabled (PDF)' if should_filter else 'disabled (PPT/Word - save all images)'}",
                 )
 
                 # Process files from temp directory and store in MinIO
@@ -147,7 +151,7 @@ class MinIOPostProcessor:
 
                                     self.log_operation(
                                         "extract_images_success",
-                                        f"Found {len(image_references)} image references in markdown (PDF filtering): {image_references}"
+                                        f"Found {len(image_references)} image references in markdown (PDF filtering): {image_references}",
                                     )
                                 except Exception as e:
                                     self.log_operation(
@@ -189,9 +193,13 @@ class MinIOPostProcessor:
                                 # PDF: Only save referenced images
                                 file_base = os.path.splitext(file)[0]
                                 is_referenced = (
-                                    file in referenced_images or  # Exact match
-                                    file_base in referenced_images or  # Base name match
-                                    any(ref in file or file in ref for ref in referenced_images if len(ref) > 3)  # Partial match (avoid short refs)
+                                    file in referenced_images  # Exact match
+                                    or file_base in referenced_images  # Base name match
+                                    or any(
+                                        ref in file or file in ref
+                                        for ref in referenced_images
+                                        if len(ref) > 3
+                                    )  # Partial match (avoid short refs)
                                 )
                                 should_save_image = is_referenced
 
@@ -342,7 +350,9 @@ class MinIOPostProcessor:
 
             # Validate that we got a valid object key
             if not object_key:
-                raise ValueError(f"MinIO returned empty object key for {target_filename}")
+                raise ValueError(
+                    f"MinIO returned empty object key for {target_filename}"
+                )
 
             # Step 3: Update the record with the actual MinIO object key
             kb_image.minio_object_key = object_key

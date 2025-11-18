@@ -60,7 +60,7 @@ class TableParser(BaseParser):
                 # Convert dataframe to markdown table
                 if not df.empty:
                     # Replace NaN with empty string for cleaner markdown
-                    df = df.fillna('')
+                    df = df.fillna("")
 
                     # Convert to markdown table format
                     markdown_table = df.to_markdown(index=False)
