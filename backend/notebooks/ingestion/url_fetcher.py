@@ -178,18 +178,29 @@ class UrlFetcher:
             )
 
         try:
+            # Configure content filter and markdown generator
+            pruning_filter = self._crawl4ai_filter(
+                threshold=0.48, 
+                threshold_type="fixed", 
+                min_word_threshold=80
+            )
+            
+            md_generator = self._crawl4ai_gen(
+                content_filter=pruning_filter,
+                options={
+                    "ignore_links": True,
+                    "escape_html": True
+                }
+            )
+
+            config = self._crawl4ai_config(
+                markdown_generator=md_generator
+            )
+
             async with self._crawl4ai(verbose=False) as crawler:
                 result = await crawler.arun(
                     url=url,
-                    wait_for=2,
-                    bypass_cache=True,
-                    word_count_threshold=10,
-                    remove_overlay_elements=True,
-                    screenshot=False,
-                    process_iframes=False,
-                    exclude_tags=["nav", "header", "footer", "aside"],
-                    exclude_external_links=True,
-                    only_text=False,
+                    config=config
                 )
 
                 if not result.success:
@@ -203,7 +214,19 @@ class UrlFetcher:
                 description = (
                     result.metadata.get("description", "") if result.metadata else ""
                 )
-                content = result.markdown or result.cleaned_html or ""
+                
+                # Use fit_markdown if available (filtered content), otherwise raw markdown
+                content = ""
+                if result.markdown:
+                    if hasattr(result.markdown, 'fit_markdown') and result.markdown.fit_markdown:
+                        content = result.markdown.fit_markdown
+                    elif hasattr(result.markdown, 'raw_markdown'):
+                        content = result.markdown.raw_markdown
+                    else:
+                        content = str(result.markdown)
+                
+                if not content and result.cleaned_html:
+                    content = result.cleaned_html
 
                 # Clean content
                 content = self._clean_markdown_content(content)
@@ -787,9 +810,14 @@ class UrlFetcher:
             return
 
         try:
-            from crawl4ai import AsyncWebCrawler
+            from crawl4ai import AsyncWebCrawler, CrawlerRunConfig
+            from crawl4ai.markdown_generation_strategy import DefaultMarkdownGenerator
+            from crawl4ai.content_filter_strategy import PruningContentFilter
 
             self._crawl4ai = AsyncWebCrawler
+            self._crawl4ai_config = CrawlerRunConfig
+            self._crawl4ai_gen = DefaultMarkdownGenerator
+            self._crawl4ai_filter = PruningContentFilter
             self._crawl4ai_loaded = True
         except ImportError as e:
             self.logger.warning(f"crawl4ai not available: {e}")
