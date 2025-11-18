@@ -28,6 +28,9 @@ const NetworkGraphComponent = ({ data, isLoading, title, noDataMessage, loadingM
     const element = containerRef.current;
     const observer = new ResizeObserver(entries => {
       const entry = entries[0];
+      if (!entry) {
+        return;
+      }
       const { width, height } = entry.contentRect;
       setDimensions({
         width,

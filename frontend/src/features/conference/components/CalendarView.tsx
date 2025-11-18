@@ -185,10 +185,14 @@ export const CalendarView: React.FC = () => {
 
   const handleDateClick = (date: Date) => {
     const instancesOnDate = getInstancesForDate(date);
-    if (instancesOnDate.length > 0) {
-      setSelectedInstance(instancesOnDate[0]);
-      setSelectedDate(date);
+    const firstInstance = instancesOnDate[0];
+
+    if (!firstInstance) {
+      return;
     }
+
+    setSelectedInstance(firstInstance);
+    setSelectedDate(date);
   };
 
   const handleEventClick = (event: CalendarEvent) => {

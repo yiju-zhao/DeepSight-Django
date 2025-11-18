@@ -92,19 +92,79 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   // Mutation for creating new session
   const createSessionMutation = useMutation({
     mutationFn: () => sessionChatService.createSession(notebookId, {}),
-    onSuccess: async (response) => {
-      // Ensure sessions list is refreshed
-      await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+    onMutate: async () => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: sessionKeys.sessions(notebookId) });
 
+      // Get current sessions from cache
+      const previousSessions = queryClient.getQueryData(sessionKeys.sessions(notebookId));
+      const previousActiveSessionId = activeSessionId;
+
+      // Create optimistic session with temporary ID
+      const optimisticSession: ChatSession = {
+        id: `temp-${Date.now()}`,
+        title: 'New Chat',
+        status: 'active',
+        message_count: 0,
+        created_at: new Date().toISOString(),
+        last_activity: new Date().toISOString(),
+      };
+
+      // Optimistically add the new session to the beginning of the list
+      queryClient.setQueryData(sessionKeys.sessions(notebookId), (old: any) => {
+        const currentSessions = old?.sessions || [];
+        return {
+          ...old,
+          sessions: [optimisticSession, ...currentSessions],
+          total_count: (old?.total_count || 0) + 1,
+        };
+      });
+
+      // Immediately set the new session as active for instant UI feedback
+      setActiveSessionId(optimisticSession.id);
+      setCurrentMessages([]); // Clear messages for new session
+
+      return { previousSessions, previousActiveSessionId, optimisticSessionId: optimisticSession.id };
+    },
+    onSuccess: async (response, _, context) => {
       const newSession = response.session;
-      if (newSession && newSession.id) {
+
+      if (newSession && newSession.id && context?.optimisticSessionId) {
+        // Replace optimistic session with real session in cache
+        queryClient.setQueryData(sessionKeys.sessions(notebookId), (old: any) => {
+          if (!old?.sessions) return old;
+          return {
+            ...old,
+            sessions: old.sessions.map((s: ChatSession) =>
+              s.id === context.optimisticSessionId ? newSession : s
+            ),
+          };
+        });
+
+        // Update active session ID to the real ID
+        setActiveSessionId(newSession.id);
+
         toast({
           title: 'Session Created',
           description: `New chat session "${newSession.title || 'New Chat'}" started`,
         });
       }
+
+      // Ensure sessions list is refreshed to sync with server
+      await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
     },
-    onError: (error) => {
+    onError: (error, _, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousSessions) {
+        queryClient.setQueryData(sessionKeys.sessions(notebookId), context.previousSessions);
+      }
+
+      // Restore previous active session or clear if none
+      if (context?.previousActiveSessionId !== undefined) {
+        setActiveSessionId(context.previousActiveSessionId);
+      }
+      setCurrentMessages([]);
+
       const errorMessage = error instanceof Error ? error.message : 'Failed to create session';
       setError(errorMessage);
       toast({
@@ -246,17 +306,19 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   // Session actions
   const createSession = useCallback(async (): Promise<ChatSession | null> => {
     try {
+      // Execute the mutation (will trigger optimistic update in onMutate)
+      // onMutate will immediately set activeSessionId and add optimistic session to cache
       const result = await createSessionMutation.mutateAsync();
       const newSession = result.session;
 
       if (newSession && newSession.id) {
-        setActiveSessionId(newSession.id);
         // Preload messages for the new session (likely empty to start)
         await loadSessionMessages(newSession.id);
       }
 
       return newSession;
     } catch (error) {
+      // Error handling is done in mutation's onError
       return null;
     }
   }, [createSessionMutation, loadSessionMessages]);
