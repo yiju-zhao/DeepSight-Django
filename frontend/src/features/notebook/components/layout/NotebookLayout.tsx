@@ -120,7 +120,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           }}
         >
           {/* Sources Panel */}
-          <div className="bg-white rounded-2xl border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px] transition-all duration-300 overflow-hidden min-h-0 relative">
+          <div className="bg-white rounded-2xl shadow-md transition-all duration-300 overflow-hidden min-h-0 relative">
             {!isSourcesCollapsed && !isStudioExpanded ? (
               <div>
                 {React.cloneElement(sourcesPanel, {
@@ -151,12 +151,12 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
           </div>
 
           {/* Chat Panel */}
-          <div className="bg-white rounded-2xl border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px] transition-all duration-300 overflow-hidden min-h-0">
+          <div className="bg-white rounded-2xl shadow-md transition-all duration-300 overflow-hidden min-h-0">
             {React.cloneElement(chatPanel, panelProps)}
           </div>
 
           {/* Studio Panel */}
-          <div className="bg-white rounded-2xl border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px] transition-all duration-300 overflow-auto min-h-0">
+          <div className="bg-white rounded-2xl shadow-md transition-all duration-300 overflow-auto min-h-0">
             {React.cloneElement(studioPanel, {
               ...panelProps,
               onToggleExpand: handleStudioToggleExpand,
