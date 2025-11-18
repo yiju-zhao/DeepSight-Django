@@ -126,7 +126,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="flex-shrink-0 p-4 border-b border-gray-200"
+            className="flex-shrink-0 p-4 shadow-sm"
           >
             <Alert variant="destructive" className="border-red-200 bg-red-50">
               <AlertCircle className="h-4 w-4" />

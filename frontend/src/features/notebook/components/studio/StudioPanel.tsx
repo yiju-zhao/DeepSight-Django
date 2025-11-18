@@ -689,7 +689,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       {!isReportPreview ? (
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* ====== FIXED SECTIONS: Generation Forms ====== */}
-          <div className="flex-shrink-0 px-4 py-4 bg-white border-b border-[#E3E3E3]">
+          <div className="flex-shrink-0 px-4 py-4 bg-white shadow-sm">
             <div className="mb-3">
               <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
                 Generation
@@ -763,7 +763,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
           {/* ====== FIXED BOTTOM: Podcast Player ====== */}
           {selectedPodcast && selectedPodcast.status === 'completed' && (
-            <div className="flex-shrink-0 bg-white border-t border-gray-200">
+            <div className="flex-shrink-0 bg-white shadow-inner">
               <PodcastAudioPlayer
                 podcast={{
                   id: selectedPodcast.id,

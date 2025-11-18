@@ -112,20 +112,36 @@ export const useCreateSessionMutation = (notebookId: string) => {
     void
   >({
     mutationFn: async (): Promise<ChatSession> => {
+      console.log('[useCreateSessionMutation] Starting session creation');
       const response: CreateSessionResponse = await sessionChatService.createSession(notebookId, {});
+      console.log('[useCreateSessionMutation] Response:', response);
+      console.log('[useCreateSessionMutation] Session:', response.session);
+
+      if (!response.session) {
+        throw new Error('Response does not contain session object');
+      }
+
       return response.session;
     },
 
     // On success, add new session to cache
     onSuccess: (newSession) => {
+      console.log('[useCreateSessionMutation] onSuccess called with:', newSession);
       queryClient.setQueryData<SessionsCache>(
         sessionKeys.sessions(notebookId),
         (old) => {
+          console.log('[useCreateSessionMutation] Old cache:', old);
           const byId = { ...old?.byId, [newSession.id]: newSession };
           const allIds = [newSession.id, ...(old?.allIds || [])];
-          return { byId, allIds };
+          const newCache = { byId, allIds };
+          console.log('[useCreateSessionMutation] New cache:', newCache);
+          return newCache;
         }
       );
+    },
+
+    onError: (error) => {
+      console.error('[useCreateSessionMutation] Error:', error);
     },
   });
 };

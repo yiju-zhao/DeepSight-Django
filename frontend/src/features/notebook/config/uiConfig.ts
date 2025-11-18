@@ -272,7 +272,7 @@ export const TYPOGRAPHY = {
 
 // Panel header configurations for consistency (DeepDive panels)
 export const PANEL_HEADERS = {
-  container: 'flex-shrink-0 px-4 py-3 bg-white border-b border-[#E3E3E3]',
+  container: 'flex-shrink-0 px-4 py-3 bg-white shadow-sm',
   separator: '',
   layout: 'flex items-center justify-between',
   iconContainer: 'flex items-center justify-center w-6 h-6 rounded-full bg-[#F5F5F5]',

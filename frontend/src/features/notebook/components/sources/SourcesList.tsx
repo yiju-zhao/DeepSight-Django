@@ -772,7 +772,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       {/* Simple Selection Bar */}
       {sources.length > 0 && (
-        <div className="flex-shrink-0 px-4 py-3 bg-white border-b border-[#E3E3E3]">
+        <div className="flex-shrink-0 px-4 py-3 bg-white shadow-sm">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Button
@@ -851,9 +851,9 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             {Object.entries(processedSources as Record<string, Source[]>).map(
               ([type, groupSources]) => (
                 <div key={type}>
-                  <div className="px-4 py-2 bg-[#F7F7F7] sticky top-0 border-b border-[#E3E3E3]">
+                  <div className="px-4 py-2 bg-[#F7F7F7] sticky top-0 shadow-sm">
                     <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 bg-white rounded-full border border-[#E3E3E3] flex items-center justify-center">
+                      <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
                         {React.createElement(fileIcons[type] || FileIcon, {
                           className: "h-3 w-3 text-[#7F7F7F]"
                         })}

@@ -24,14 +24,14 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
   const navigate = useNavigate();
 
   return (
-    <header className="bg-white border-b border-[#E3E3E3]">
+    <header className="bg-white shadow-sm">
       <div className="px-4 sm:px-6 lg:px-8 py-3">
         <div className="flex items-center space-x-3">
           {/* Back Button */}
           {showBackButton && (
             <button
               onClick={() => navigate(backPath)}
-              className="p-2 rounded-lg bg-white hover:bg-[#F7F7F7] border border-[#E3E3E3] transition-colors duration-300"
+              className="p-2 rounded-lg bg-white hover:bg-[#F7F7F7] shadow-sm hover:shadow-md transition-all duration-300"
               title="Back to Notebooks"
             >
               <ArrowLeft className="h-5 w-5 text-[#1E1E1E]" />
