@@ -151,7 +151,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       }
 
       // Ensure sessions list is refreshed to sync with server
-      await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
+      // await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
     },
     onError: (error, _, context) => {
       // Rollback optimistic update on error
