@@ -93,15 +93,14 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
 
         {/* Suggestions */}
         {suggestions && suggestions.length > 0 && (
-          <div className="flex-shrink-0 px-6 py-2 bg-white border-t border-gray-100">
+          <div className="flex-shrink-0 px-6 py-2 bg-white shadow-inner">
             <div className="flex flex-wrap gap-2">
               {suggestions.slice(0, 3).map((sugg, i) => (
                 <Button
                   key={`${i}-${sugg}`}
-                  variant="outline"
                   size="sm"
                   onClick={() => handleSuggestionClick(sugg)}
-                  className="h-6 rounded-full px-2 py-1 text-xs bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700"
+                  className="h-6 rounded-full px-2 py-1 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700"
                 >
                   {sugg}
                 </Button>

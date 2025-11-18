@@ -56,7 +56,7 @@ const MarkdownContent = React.memo(({ content }: { content: string }) => (
           <li className="text-gray-800 text-sm leading-6">{children}</li>
         ),
         blockquote: ({ children }) => (
-          <blockquote className="border-l-4 border-gray-300 pl-4 py-2 my-4 italic text-gray-700 bg-white rounded-r">
+          <blockquote className="border-l-2 border-gray-200 pl-4 py-2 my-4 italic text-gray-700 rounded-r">
             {children}
           </blockquote>
         ),
@@ -82,18 +82,18 @@ const MarkdownContent = React.memo(({ content }: { content: string }) => (
         ),
         table: ({ children }) => (
           <div className="my-4 overflow-x-auto">
-            <table className="min-w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">
+            <table className="min-w-full border-collapse rounded-lg overflow-hidden">
               {children}
             </table>
           </div>
         ),
         th: ({ children }) => (
-          <th className="border border-gray-200 px-4 py-2 bg-white text-sm font-semibold text-left">
+          <th className="px-4 py-2 bg-gray-50 text-sm font-semibold text-left">
             {children}
           </th>
         ),
         td: ({ children }) => (
-          <td className="border border-gray-200 px-4 py-2 text-sm">
+          <td className="px-4 py-2 text-sm border-b border-gray-100">
             {children}
           </td>
         ),
@@ -141,7 +141,7 @@ const CustomMessage: React.FC = () => {
                   className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
                     isUser
                       ? 'bg-black text-white'
-                      : 'bg-white border border-[#E3E3E3] text-[#666666]'
+                      : 'bg-white text-[#666666]'
                   }`}
                 >
                   {isUser ? (
@@ -158,7 +158,7 @@ const CustomMessage: React.FC = () => {
                       <p className="text-sm leading-6">{text}</p>
                     </div>
                   ) : (
-                    <div className="px-4 py-3 rounded-2xl bg-white border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px]">
+                    <div className="px-4 py-3 rounded-2xl bg-white shadow-md">
                       <MarkdownContent content={text} />
                     </div>
                   )}
@@ -210,8 +210,8 @@ const CustomComposer: React.FC = () => {
   };
 
   return (
-    <div className="flex-shrink-0 px-6 py-4 bg-white border-t border-[#E3E3E3]">
-      <div className="bg-[#F7F7F7] rounded-2xl border border-[#E3E3E3] focus-within:ring-2 focus-within:ring-black">
+    <div className="flex-shrink-0 px-6 py-4 bg-white shadow-inner">
+      <div className="bg-[#F7F7F7] rounded-2xl focus-within:ring-2 focus-within:ring-black shadow-sm">
         <div className="flex items-end space-x-3 px-4 py-3">
           <div className="flex-1 min-h-[40px]">
             <Textarea
