@@ -93,14 +93,11 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const createSessionMutation = useMutation({
     mutationFn: () => sessionChatService.createSession(notebookId, {}),
     onSuccess: async (response) => {
-      // Update sessions list and wait for refetch to complete
-      await queryClient.refetchQueries({ queryKey: sessionKeys.sessions(notebookId) });
+      // Ensure sessions list is refreshed
+      await queryClient.invalidateQueries({ queryKey: sessionKeys.sessions(notebookId) });
 
-      // Set new session as active
       const newSession = response.session;
       if (newSession && newSession.id) {
-        setActiveSessionId(newSession.id);
-
         toast({
           title: 'Session Created',
           description: `New chat session "${newSession.title || 'New Chat'}" started`,
@@ -205,11 +202,19 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const createSession = useCallback(async (): Promise<ChatSession | null> => {
     try {
       const result = await createSessionMutation.mutateAsync();
-      return result.session;
+      const newSession = result.session;
+
+      if (newSession && newSession.id) {
+        setActiveSessionId(newSession.id);
+        // Preload messages for the new session (likely empty to start)
+        await loadSessionMessages(newSession.id);
+      }
+
+      return newSession;
     } catch (error) {
       return null;
     }
-  }, [createSessionMutation]);
+  }, [createSessionMutation, loadSessionMessages]);
 
   const closeSession = useCallback(async (sessionId: string): Promise<boolean> => {
     if (closingSessionRef.current === sessionId) {

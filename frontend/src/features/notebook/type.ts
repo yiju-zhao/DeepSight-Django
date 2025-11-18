@@ -378,7 +378,7 @@ export interface SessionContextProviderProps {
 export interface SessionTabsProps {
   sessions: ChatSession[];
   activeSessionId: string | null;
-  onCreateSession: () => void | Promise<ChatSession | null>;
+  onCreateSession: () => void;
   onSwitchSession: (sessionId: string) => void;
   onCloseSession: (sessionId: string) => void;
   onUpdateTitle: (sessionId: string, title: string) => void;

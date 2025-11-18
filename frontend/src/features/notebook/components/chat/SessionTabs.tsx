@@ -53,22 +53,6 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
     return null;
   }
 
-  const handleCreateClick = () => {
-    const result = onCreateSession();
-    // Support async onCreateSession that returns the new session
-    if (result && typeof (result as any).then === 'function') {
-      (result as Promise<{ id: string } | null>)
-        .then((session) => {
-          if (session && session.id) {
-            onSwitchSession(session.id);
-          }
-        })
-        .catch(() => {
-          // Errors are handled inside the hook; no-op here
-        });
-    }
-  };
-
   return (
     <TooltipProvider>
       <div className="flex items-center bg-white px-4 gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 border-b border-[#E3E3E3]">
@@ -150,7 +134,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
           variant="ghost"
           size="sm"
           className="flex-shrink-0 h-9 px-3 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-white transition-colors"
-          onClick={handleCreateClick}
+          onClick={onCreateSession}
           disabled={isLoading}
         >
           {isLoading ? (
