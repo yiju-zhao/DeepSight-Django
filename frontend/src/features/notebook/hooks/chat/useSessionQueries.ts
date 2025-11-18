@@ -113,15 +113,18 @@ export const useCreateSessionMutation = (notebookId: string) => {
   >({
     mutationFn: async (): Promise<ChatSession> => {
       console.log('[useCreateSessionMutation] Starting session creation');
-      const response: CreateSessionResponse = await sessionChatService.createSession(notebookId, {});
+      const response = await sessionChatService.createSession(notebookId, {});
       console.log('[useCreateSessionMutation] Response:', response);
-      console.log('[useCreateSessionMutation] Session:', response.session);
 
-      if (!response.session) {
-        throw new Error('Response does not contain session object');
+      // Backend returns session directly (DRF standard) or wrapped in {session: ...}
+      const session = (response as any).session || response;
+      console.log('[useCreateSessionMutation] Session:', session);
+
+      if (!session || !session.id) {
+        throw new Error('Invalid session response');
       }
 
-      return response.session;
+      return session as ChatSession;
     },
 
     // On success, add new session to cache
