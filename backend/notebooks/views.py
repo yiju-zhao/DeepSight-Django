@@ -36,6 +36,7 @@ from rest_framework import (
 )
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
@@ -969,6 +970,77 @@ class BatchJobViewSet(viewsets.ReadOnlyModelViewSet):
         return BatchJob.objects.filter(
             notebook__id=notebook_id, notebook__user=self.request.user
         ).order_by("-created_at")
+
+
+class ChatModelsView(APIView):
+    """
+    List and update available chat models for notebook chat.
+
+    - GET: return available models and current model for a notebook
+    - POST: update the model used by the RagFlow chat assistant for this notebook
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.chat_service = ChatService()
+
+    def _get_notebook(self, request, notebook_id: str) -> Notebook:
+        return get_object_or_404(
+            Notebook.objects.filter(user=request.user), pk=notebook_id
+        )
+
+    def get(self, request, notebook_id: str):
+        notebook = self._get_notebook(request, notebook_id)
+
+        available_models = self.chat_service.get_available_chat_models()
+        current_model_result = self.chat_service.get_current_chat_model(
+            notebook, request.user.id
+        )
+
+        current_model = (
+            current_model_result.get("model")
+            if current_model_result.get("success")
+            else None
+        )
+
+        return Response(
+            {
+                "available_models": available_models,
+                "default_model": getattr(settings, "RAGFLOW_CHAT_MODEL", None),
+                "current_model": current_model,
+            }
+        )
+
+    def post(self, request, notebook_id: str):
+        notebook = self._get_notebook(request, notebook_id)
+        model_name = (request.data or {}).get("model")
+
+        if not model_name or not isinstance(model_name, str):
+            return Response(
+                {"detail": "Field 'model' is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        result = self.chat_service.update_chat_model(
+            notebook=notebook, user_id=request.user.id, model_name=model_name
+        )
+
+        if not result.get("success"):
+            return Response(
+                {"detail": result.get("error") or "Failed to update chat model"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        available_models = self.chat_service.get_available_chat_models()
+        return Response(
+            {
+                "available_models": available_models,
+                "default_model": getattr(settings, "RAGFLOW_CHAT_MODEL", None),
+                "current_model": result.get("model"),
+            }
+        )
 
 
 # ----------------------------

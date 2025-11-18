@@ -10,6 +10,7 @@ import type {
   UpdateSessionTitleResponse,
   SessionStreamMessage
 } from "@/features/notebook/type";
+import type { ChatModelsResponse } from "@/features/notebook/type";
 
 /**
  * Service class for session-based chat operations
@@ -218,6 +219,49 @@ class SessionChatService {
 
     if (!response.ok) {
       throw new Error('Failed to fetch agent info');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Get available chat models and current model for notebook chat.
+   */
+  async getChatModels(notebookId: string): Promise<ChatModelsResponse> {
+    const response = await fetch(
+      `${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/models/`,
+      {
+        credentials: 'include',
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch chat models');
+    }
+
+    return response.json();
+  }
+
+  /**
+   * Update chat model for notebook chat.
+   */
+  async updateChatModel(notebookId: string, model: string): Promise<ChatModelsResponse> {
+    const response = await fetch(
+      `${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/models/`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': this.getCookie('csrftoken') || '',
+        },
+        body: JSON.stringify({ model }),
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Failed to update chat model' }));
+      throw new Error(error.detail || error.error || `HTTP ${response.status}`);
     }
 
     return response.json();

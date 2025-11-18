@@ -177,6 +177,145 @@ class ChatService(NotebookBaseService):
         )
         return total_length
 
+    def get_available_chat_models(self) -> list[str]:
+        """
+        Get list of available chat models from settings.
+
+        Returns:
+            List of model identifiers (strings)
+        """
+        raw_models = getattr(settings, "RAGFLOW_CHAT_MODELS", "") or ""
+        default_model = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
+
+        models: list[str] = []
+        if raw_models:
+            models = [m.strip() for m in raw_models.split(",") if m.strip()]
+
+        if default_model and default_model not in models:
+            models.insert(0, default_model)
+
+        # Fallback: ensure we always return at least the default model if configured
+        if not models and default_model:
+            models = [default_model]
+
+        return models
+
+    def get_current_chat_model(self, notebook: Notebook, user_id: int) -> dict:
+        """
+        Get current chat model for a notebook by inspecting its RagFlow chat assistant.
+
+        Args:
+            notebook: Notebook instance
+            user_id: User ID (for access validation)
+
+        Returns:
+            Dict with success flag and current model name (if available)
+        """
+        try:
+            self.validate_notebook_access(notebook, notebook.user)
+
+            if not notebook.ragflow_dataset_id:
+                return {
+                    "success": False,
+                    "error": "Notebook does not have a RagFlow dataset configured.",
+                }
+
+            chat_result = self._get_or_create_chat_assistant(notebook.ragflow_dataset_id)
+            if not chat_result.get("success"):
+                return chat_result
+
+            chat_id = chat_result["chat_id"]
+            chats = self.ragflow_service.list_chats(chat_id=chat_id)
+            if not chats:
+                return {
+                    "success": False,
+                    "error": "Chat assistant not found for this notebook.",
+                }
+
+            chat = chats[0]
+            model_name = None
+            try:
+                if getattr(chat, "llm", None) is not None:
+                    model_name = getattr(chat.llm, "model_name", None)
+            except Exception:
+                model_name = None
+
+            if not model_name:
+                model_name = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
+
+            return {"success": True, "model": model_name}
+        except Exception as e:
+            logger.exception(f"Failed to get chat model for notebook {notebook.id}: {e}")
+            return {
+                "success": False,
+                "error": "Failed to get chat model",
+                "details": str(e),
+            }
+
+    def update_chat_model(self, notebook: Notebook, user_id: int, model_name: str) -> dict:
+        """
+        Update chat assistant LLM model for a notebook.
+
+        Args:
+            notebook: Notebook instance
+            user_id: User ID
+            model_name: Target model identifier
+
+        Returns:
+            Dict with success flag and updated model name
+        """
+        try:
+            self.validate_notebook_access(notebook, notebook.user)
+
+            # Validate against available models (if configured)
+            available_models = self.get_available_chat_models()
+            if available_models and model_name not in available_models:
+                return {
+                    "success": False,
+                    "error": "Selected model is not allowed.",
+                    "details": {
+                        "model": model_name,
+                        "allowed_models": available_models,
+                    },
+                }
+
+            if not notebook.ragflow_dataset_id:
+                return {
+                    "success": False,
+                    "error": "Notebook does not have a RagFlow dataset configured.",
+                }
+
+            chat_result = self._get_or_create_chat_assistant(notebook.ragflow_dataset_id)
+            if not chat_result.get("success"):
+                return chat_result
+
+            chat_id = chat_result["chat_id"]
+
+            # Update RagFlow chat LLM configuration
+            self.ragflow_service.update_chat(
+                chat_id=chat_id,
+                llm={"model_name": model_name},
+            )
+
+            self.log_notebook_operation(
+                "chat_model_updated",
+                str(notebook.id),
+                user_id,
+                chat_id=chat_id,
+                model_name=model_name,
+            )
+
+            return {"success": True, "model": model_name}
+        except Exception as e:
+            logger.exception(
+                f"Failed to update chat model for notebook {notebook.id}: {e}"
+            )
+            return {
+                "success": False,
+                "error": "Failed to update chat model",
+                "details": str(e),
+            }
+
     def generate_suggested_questions(self, notebook, base_question: str = None) -> dict:
         """
         Generate suggested questions using RagFlow's related questions API.

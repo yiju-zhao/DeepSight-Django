@@ -60,6 +60,13 @@ export interface ChatResponse {
   suggested_questions?: string[];
 }
 
+// Notebook chat model configuration
+export interface ChatModelsResponse {
+  available_models: string[];
+  default_model: string | null;
+  current_model: string | null;
+}
+
 // Studio Types
 export interface GenerationJob {
   id: string;
@@ -336,9 +343,14 @@ export interface UseSessionChatReturn {
   // Loading states
   isLoading: boolean;
   isCreatingSession: boolean;
+  isUpdatingModel: boolean;
 
   // Error handling
   error: string | null;
+
+  // Model configuration
+  availableModels: string[];
+  currentModel: string | null;
 
   // Actions
   createSession: () => Promise<ChatSession | null>;
@@ -350,7 +362,11 @@ export interface UseSessionChatReturn {
 
   // Utility
   refreshSessions: () => Promise<void>;
+  refreshModels: () => Promise<void>;
   clearError: () => void;
+
+  // Model actions
+  selectModel: (model: string) => Promise<boolean>;
 }
 
 export interface SessionContextProviderProps {

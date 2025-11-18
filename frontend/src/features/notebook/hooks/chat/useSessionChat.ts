@@ -16,6 +16,7 @@ const sessionKeys = {
   sessions: (notebookId: string) => [...sessionKeys.notebook(notebookId), 'sessions'] as const,
   session: (notebookId: string, sessionId: string) => [...sessionKeys.notebook(notebookId), 'session', sessionId] as const,
   messages: (notebookId: string, sessionId: string) => [...sessionKeys.session(notebookId, sessionId), 'messages'] as const,
+  models: (notebookId: string) => [...sessionKeys.notebook(notebookId), 'models'] as const,
 };
 
 /**
@@ -54,6 +55,25 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   });
 
   const sessions = Array.isArray(sessionsResponse?.sessions) ? sessionsResponse.sessions : [];
+
+  // Query for available chat models
+  const {
+    data: modelsResponse,
+    isLoading: isLoadingModels,
+    refetch: refetchModels,
+  } = useQuery({
+    queryKey: sessionKeys.models(notebookId),
+    queryFn: () => sessionChatService.getChatModels(notebookId),
+    enabled: !!notebookId,
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+
+  const availableModels = Array.isArray(modelsResponse?.available_models)
+    ? modelsResponse.available_models
+    : [];
+  const currentModel =
+    modelsResponse?.current_model || modelsResponse?.default_model || null;
 
   // Query for active session details
   const {
@@ -423,6 +443,28 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     }
   }, [notebookId, activeSessionId, toast, queryClient, loadSessionMessages]);
 
+  // Mutation for updating chat model
+  const updateModelMutation = useMutation({
+    mutationFn: (model: string) => sessionChatService.updateChatModel(notebookId, model),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: sessionKeys.models(notebookId) });
+      toast({
+        title: 'Model Updated',
+        description: 'Chat model has been updated for this notebook.',
+      });
+    },
+    onError: (error) => {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Failed to update chat model';
+      setError(errorMessage);
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Utility functions
   const refreshSessions = useCallback(async () => {
     await refetchSessions();
@@ -480,9 +522,14 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     activeSession,
     currentMessages,
     suggestions,
-    isLoading: isLoadingSessions || isLoadingSession,
+    isLoading: isLoadingSessions || isLoadingSession || isLoadingModels,
     isCreatingSession: createSessionMutation.isPending,
+    isUpdatingModel: updateModelMutation.isPending,
     error,
+
+    availableModels,
+    currentModel,
+
     createSession,
     closeSession,
     switchSession,
@@ -490,6 +537,18 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     sendMessage,
     loadSessionMessages,
     refreshSessions,
+    refreshModels: async () => {
+      await refetchModels();
+    },
     clearError,
+
+    selectModel: async (model: string): Promise<boolean> => {
+      try {
+        await updateModelMutation.mutateAsync(model);
+        return true;
+      } catch {
+        return false;
+      }
+    },
   };
 };

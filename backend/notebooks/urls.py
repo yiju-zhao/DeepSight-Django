@@ -13,6 +13,7 @@ from rest_framework_nested import routers
 # Import ViewSets from notebooks.views package
 from .views import (
     BatchJobViewSet,
+    ChatModelsView,
     FileStatusSSEView,
     FileViewSet,
     KnowledgeBaseViewSet,
@@ -53,5 +54,10 @@ urlpatterns = [
         "notebooks/<uuid:notebook_id>/jobs/stream/",
         NotebookJobsSSEView.as_view(),
         name="notebook-jobs-stream",
+    ),
+    path(
+        "notebooks/<uuid:notebook_id>/chat/models/",
+        ChatModelsView.as_view(),
+        name="notebook-chat-models",
     ),
 ]
