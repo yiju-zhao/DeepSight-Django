@@ -74,9 +74,9 @@ export const useInfiniteNotebooks = (params?: Omit<GetNotebooksParams, 'page'>) 
     queryKey: [...notebookQueries.lists(), 'infinite', params],
     queryFn: ({ pageParam = 1 }) =>
       notebooksApi.getAll({ ...params, page: pageParam }),
-    getNextPageParam: (lastPage) =>
-      lastPage.meta.pagination.hasNext 
-        ? lastPage.meta.pagination.page + 1 
+    getNextPageParam: (lastPage: any) =>
+      lastPage.next !== null && lastPage.next !== undefined
+        ? lastPage.current_page + 1
         : undefined,
     initialPageParam: 1,
     staleTime: 5 * 60 * 1000,
@@ -104,7 +104,7 @@ export const useCreateNotebook = () => {
 
 export const useUpdateNotebook = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateNotebookRequest }) =>
       notebooksApi.update(id, data),
@@ -114,16 +114,16 @@ export const useUpdateNotebook = () => {
         notebookQueries.detail(updatedNotebook.id),
         updatedNotebook
       );
-      
+
       // Update in lists cache
       queryClient.setQueriesData(
         { queryKey: notebookQueries.lists() },
         (oldData: any) => {
-          if (!oldData?.data) return oldData;
-          
+          if (!oldData?.results) return oldData;
+
           return {
             ...oldData,
-            data: oldData.data.map((notebook: Notebook) =>
+            results: oldData.results.map((notebook: Notebook) =>
               notebook.id === updatedNotebook.id ? updatedNotebook : notebook
             ),
           };
@@ -135,7 +135,7 @@ export const useUpdateNotebook = () => {
 
 export const useDeleteNotebook = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: (id: string) => notebooksApi.delete(id),
     onSuccess: (_, deletedId) => {
@@ -143,22 +143,16 @@ export const useDeleteNotebook = () => {
       queryClient.setQueriesData(
         { queryKey: notebookQueries.lists() },
         (oldData: any) => {
-          if (!oldData?.data) return oldData;
-          
+          if (!oldData?.results) return oldData;
+
           return {
             ...oldData,
-            data: oldData.data.filter((notebook: Notebook) => notebook.id !== deletedId),
-            meta: {
-              ...oldData.meta,
-              pagination: {
-                ...oldData.meta.pagination,
-                count: oldData.meta.pagination.count - 1,
-              },
-            },
+            results: oldData.results.filter((notebook: Notebook) => notebook.id !== deletedId),
+            count: oldData.count - 1,
           };
         }
       );
-      
+
       // Remove specific notebook cache
       queryClient.removeQueries({ queryKey: notebookQueries.detail(deletedId) });
     },

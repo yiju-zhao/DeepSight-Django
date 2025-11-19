@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Event, Instance, Publication, Venue
+from .models import Event, Instance, Publication, Session, Venue
 
 
 class VenueSerializer(serializers.ModelSerializer):
@@ -112,6 +112,32 @@ class EventSerializer(serializers.ModelSerializer):
             "transcript",
             "expert_view",
             "ai_analysis",
+        ]
+
+
+
+class SessionSerializer(serializers.ModelSerializer):
+    """Serializer for Session model"""
+
+    instance = InstanceSerializer(read_only=True)
+    instance_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = Session
+        fields = [
+            "id",
+            "instance",
+            "instance_id",
+            "date",
+            "start_time",
+            "end_time",
+            "type",
+            "title",
+            "url",
+            "speaker",
+            "abstract",
+            "overview",
+            "transcript",
         ]
 
 

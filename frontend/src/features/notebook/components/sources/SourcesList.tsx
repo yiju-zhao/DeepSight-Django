@@ -519,20 +519,10 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       // Try to maintain pagination count if present
       let next: any = { ...old, results: filtered };
-      const prevCount = old?.meta?.pagination?.count ?? old?.count;
+      const prevCount = old?.count;
       if (typeof prevCount === 'number') {
         const delta = oldResults.length - filtered.length;
-        if (old?.meta?.pagination) {
-          next = {
-            ...next,
-            meta: {
-              ...old.meta,
-              pagination: { ...old.meta.pagination, count: Math.max(0, prevCount - delta) },
-            },
-          };
-        } else {
-          next = { ...next, count: Math.max(0, prevCount - delta) };
-        }
+        next = { ...next, count: Math.max(0, prevCount - delta) };
       }
       return next;
     });

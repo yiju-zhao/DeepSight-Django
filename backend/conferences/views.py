@@ -10,7 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Event, Instance, Publication, Venue
+from .models import Event, Instance, Publication, Session, Venue
 from .serializers import (
     ActiveImportSerializer,
     EventSerializer,
@@ -18,6 +18,8 @@ from .serializers import (
     ImportToNotebookRequestSerializer,
     InstanceSerializer,
     PublicationSerializer,
+    PublicationSerializer,
+    SessionSerializer,
     VenueSerializer,
 )
 from .services import conference_import_service
@@ -187,6 +189,23 @@ class EventViewSet(viewsets.ModelViewSet):
 
     queryset = Event.objects.select_related("instance__venue").all()
     serializer_class = EventSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = StandardPageNumberPagination
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        instance_id = self.request.query_params.get("instance")
+        if instance_id:
+            queryset = queryset.filter(instance_id=instance_id)
+        return queryset
+
+
+
+class SessionViewSet(viewsets.ModelViewSet):
+    """ViewSet for Session model"""
+
+    queryset = Session.objects.select_related("instance__venue").all()
+    serializer_class = SessionSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardPageNumberPagination
 

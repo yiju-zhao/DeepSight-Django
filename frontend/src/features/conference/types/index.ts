@@ -1,4 +1,27 @@
 // Conference Types
+export interface Session {
+  id: string;
+  instance: Instance;
+  instance_id: number;
+  date: string;
+  start_time: string;
+  end_time: string;
+  type: string;
+  title: string;
+  url: string;
+  speaker?: string;
+  abstract?: string;
+  overview?: string;
+  transcript?: string;
+}
+
+export interface Event {
+  id: number;
+  name: string;
+  type: string;
+  description: string;
+}
+
 export interface Venue {
   id: number;
   name: string;

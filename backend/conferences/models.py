@@ -119,3 +119,26 @@ class Event(models.Model):
 
     class Meta:
         ordering = ["session_id", "title"]
+
+
+class Session(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    instance = models.ForeignKey(
+        Instance, on_delete=models.CASCADE, related_name="sessions"
+    )
+    date = models.DateField()
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+    type = models.CharField(max_length=255)
+    title = models.CharField(max_length=500)
+    url = models.URLField(max_length=500)
+    speaker = models.CharField(max_length=500, blank=True, null=True)
+    abstract = models.TextField(blank=True, null=True)
+    overview = models.TextField(blank=True, null=True)
+    transcript = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return self.title
+
+    class Meta:
+        ordering = ["date", "start_time"]

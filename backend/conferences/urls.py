@@ -9,6 +9,7 @@ router.register(r"venues", views.VenueViewSet, basename="venue")
 router.register(r"instances", views.InstanceViewSet, basename="instance")
 router.register(r"publications", views.PublicationViewSet, basename="publication")
 router.register(r"events", views.EventViewSet, basename="event")
+router.register(r"sessions", views.SessionViewSet, basename="session")
 router.register(r"overview", views.OverviewViewSet, basename="overview")
 
 # URL patterns

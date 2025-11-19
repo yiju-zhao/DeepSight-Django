@@ -13,11 +13,13 @@ import {
   ImportToNotebookRequest,
   ImportResponse,
   ActiveImport,
+  Session,
 } from '../types';
 
 export interface IConferenceService {
   getVenues(): Promise<Venue[]>;
   getInstances(params?: InstanceParams): Promise<Instance[]>;
+  getSessions(params?: { instance?: number }): Promise<Session[]>;
   getPublications(params?: { instance?: number; page?: number; page_size?: number; search?: string; ordering?: string }): Promise<PaginatedResponse<PublicationTableItem>>;
   getDashboard(params: DashboardParams): Promise<DashboardResponse>;
   getOverview(): Promise<ConferenceOverview>;
@@ -43,6 +45,14 @@ export class ConferenceService implements IConferenceService {
   async getInstances(params?: InstanceParams): Promise<Instance[]> {
     const res = await apiClient.get(`${this.baseEndpoint}/instances/`, { params: { ...(params || {}), page_size: 1000 } });
     return Array.isArray(res) ? res as Instance[] : (res?.results ?? []);
+  }
+
+  /**
+   * Get list of sessions with optional instance filter
+   */
+  async getSessions(params?: { instance?: number }): Promise<Session[]> {
+    const res = await apiClient.get(`${this.baseEndpoint}/sessions/`, { params: { ...(params || {}), page_size: 1000 } });
+    return Array.isArray(res) ? res as Session[] : (res?.results ?? []);
   }
 
   /**

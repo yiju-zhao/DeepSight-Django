@@ -4,7 +4,8 @@ import { useVenues, useInstances, useDashboard, useOverview, usePublications } f
 import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
 import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
-import { SessionTypeView } from '../components/SessionTypeView';
+import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
+import { SessionList } from '../components/SessionList';
 import ConferenceSelectionDrawer from '../components/ConferenceSelectionDrawer';
 import { ImportStatusPanel } from '../components/ImportStatusPanel';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
@@ -279,114 +280,114 @@ export default function ConferenceDashboard() {
           <div className="max-w-7xl mx-auto px-4 md:px-10 lg:px-20 py-6 md:py-8">
             <div className="space-y-10 md:space-y-20">
 
-          {/* Dashboard Content with Tabs */}
-          {matchingInstance && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
-                  Selected conference
-                </p>
-                <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                  <h2 className="text-[24px] md:text-[28px] font-bold text-[#1E1E1E] leading-tight">
-                    {matchingInstance.venue.name}
-                  </h2>
-                  <span className="text-sm md:text-base text-[#666666]">
-                    {matchingInstance.year}
-                  </span>
-                </div>
-              </div>
+              {/* Dashboard Content with Tabs */}
+              {matchingInstance && (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
+                      Selected conference
+                    </p>
+                    <div className="mt-1 flex flex-wrap items-baseline gap-2">
+                      <h2 className="text-[24px] md:text-[28px] font-bold text-[#1E1E1E] leading-tight">
+                        {matchingInstance.venue.name}
+                      </h2>
+                      <span className="text-sm md:text-base text-[#666666]">
+                        {matchingInstance.year}
+                      </span>
+                    </div>
+                  </div>
 
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-                <TabsList className="w-full justify-start bg-[#F7F7F7] rounded-lg px-1 py-1 border border-[#E3E3E3]">
-                  <TabsTrigger
-                    value="overview"
-                    className="rounded-md text-sm data-[state=active]:bg-white data-[state=active]:shadow-[rgba(0,0,0,0.08)_0px_6px_10px] data-[state=active]:border-transparent"
-                  >
-                    Overview
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="sessions"
-                    className="rounded-md text-sm data-[state=active]:bg-white data-[state=active]:shadow-[rgba(0,0,0,0.08)_0px_6px_10px] data-[state=active]:border-transparent"
-                  >
-                    Sessions
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="publications"
-                    className="rounded-md text-sm data-[state=active]:bg-white data-[state=active]:shadow-[rgba(0,0,0,0.08)_0px_6px_10px] data-[state=active]:border-transparent"
-                  >
-                    Publications
-                  </TabsTrigger>
-                </TabsList>
+                  <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                    <TabsList className="w-full justify-start bg-[#F7F7F7] rounded-lg px-1 py-1 border border-[#E3E3E3]">
+                      <TabsTrigger
+                        value="overview"
+                        className="rounded-md text-sm data-[state=active]:bg-white data-[state=active]:shadow-[rgba(0,0,0,0.08)_0px_6px_10px] data-[state=active]:border-transparent"
+                      >
+                        Overview
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="sessions"
+                        className="rounded-md text-sm data-[state=active]:bg-white data-[state=active]:shadow-[rgba(0,0,0,0.08)_0px_6px_10px] data-[state=active]:border-transparent"
+                      >
+                        Sessions
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value="publications"
+                        className="rounded-md text-sm data-[state=active]:bg-white data-[state=active]:shadow-[rgba(0,0,0,0.08)_0px_6px_10px] data-[state=active]:border-transparent"
+                      >
+                        Publications
+                      </TabsTrigger>
+                    </TabsList>
 
-                {/* Overview Tab */}
-                <TabsContent value="overview" className="space-y-6">
-                  {(dashboardError || publicationsError) && (
-                    <div className="bg-[#CE0E2D]/10 border border-[#CE0E2D]/20 rounded-lg p-4">
-                      <div className="flex items-center">
-                        <AlertCircle className="h-5 w-5 text-[#CE0E2D] mr-2" />
-                        <div className="text-[#1E1E1E]">
-                          <div className="font-medium">Error loading dashboard data</div>
-                          <div className="text-sm mt-1 text-[#666666]">
-                            {dashboardError?.message || publicationsError?.message || 'Please check your selection and try again.'}
+                    {/* Overview Tab */}
+                    <TabsContent value="overview" className="space-y-6">
+                      {(dashboardError || publicationsError) && (
+                        <div className="bg-[#CE0E2D]/10 border border-[#CE0E2D]/20 rounded-lg p-4">
+                          <div className="flex items-center">
+                            <AlertCircle className="h-5 w-5 text-[#CE0E2D] mr-2" />
+                            <div className="text-[#1E1E1E]">
+                              <div className="font-medium">Error loading dashboard data</div>
+                              <div className="text-sm mt-1 text-[#666666]">
+                                {dashboardError?.message || publicationsError?.message || 'Please check your selection and try again.'}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      )}
 
-                  <DashboardContent
-                    dashboardData={dashboardData}
-                    dashboardLoading={dashboardLoading}
-                    ratingHistogramData={ratingHistogramData}
-                    ratingHistogramLoading={ratingHistogramLoading}
-                    publicationsData={publicationsData}
-                    publicationsLoading={publicationsLoading}
-                    currentPage={currentPage}
-                    onPageChange={handlePageChange}
-                    publicationSearchInput={publicationSearchInput}
-                    onPublicationSearchChange={handlePublicationSearchChange}
-                    sortField={sortField}
-                    sortDirection={sortDirection}
-                    onSortChange={handleSortChange}
-                    debouncedPublicationSearch={debouncedPublicationSearch}
-                    onBinSizeChange={setBinSize}
-                    currentBinSize={binSize}
-                  />
-                </TabsContent>
+                      <DashboardContent
+                        dashboardData={dashboardData}
+                        dashboardLoading={dashboardLoading}
+                        ratingHistogramData={ratingHistogramData}
+                        ratingHistogramLoading={ratingHistogramLoading}
+                        publicationsData={publicationsData}
+                        publicationsLoading={publicationsLoading}
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                        publicationSearchInput={publicationSearchInput}
+                        onPublicationSearchChange={handlePublicationSearchChange}
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSortChange={handleSortChange}
+                        debouncedPublicationSearch={debouncedPublicationSearch}
+                        onBinSizeChange={setBinSize}
+                        currentBinSize={binSize}
+                      />
+                    </TabsContent>
 
-                {/* Sessions Tab */}
-                <TabsContent value="sessions">
-                  <SessionTypeView instanceId={matchingInstance.instance_id} />
-                </TabsContent>
+                    {/* Sessions Tab */}
+                    <TabsContent value="sessions">
+                      <SessionList instanceId={matchingInstance.instance_id} />
+                    </TabsContent>
 
-                {/* Publications Tab */}
-                <TabsContent value="publications">
-                  <PublicationsTableEnhanced
-                    data={publicationsData?.results || []}
-                    pagination={{
-                      count: publicationsData?.count || 0,
-                      next: publicationsData?.next || null,
-                      previous: publicationsData?.previous || null
-                    }}
-                    currentPage={currentPage}
-                    onPageChange={handlePageChange}
-                    searchTerm={publicationSearchInput}
-                    onSearchChange={handlePublicationSearchChange}
-                    selectedAffiliations={selectedAffiliations}
-                    onAffiliationFilterChange={setSelectedAffiliations}
-                    sortField={sortField}
-                    sortDirection={sortDirection}
-                    onSortChange={handleSortChange}
-                    isFiltered={!!debouncedPublicationSearch || selectedAffiliations.length > 0}
-                    isLoading={publicationsLoading}
-                    onViewDetails={(publication) => {
-                      console.log('View details for:', publication.title);
-                    }}
-                  />
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
+                    {/* Publications Tab */}
+                    <TabsContent value="publications">
+                      <PublicationsTableEnhanced
+                        data={publicationsData?.results || []}
+                        pagination={{
+                          count: publicationsData?.count || 0,
+                          next: publicationsData?.next || null,
+                          previous: publicationsData?.previous || null
+                        }}
+                        currentPage={currentPage}
+                        onPageChange={handlePageChange}
+                        searchTerm={publicationSearchInput}
+                        onSearchChange={handlePublicationSearchChange}
+                        selectedAffiliations={selectedAffiliations}
+                        onAffiliationFilterChange={setSelectedAffiliations}
+                        sortField={sortField}
+                        sortDirection={sortDirection}
+                        onSortChange={handleSortChange}
+                        isFiltered={!!debouncedPublicationSearch || selectedAffiliations.length > 0}
+                        isLoading={publicationsLoading}
+                        onViewDetails={(publication) => {
+                          console.log('View details for:', publication.title);
+                        }}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              )}
 
               {/* No Selection State */}
               {!matchingInstance && !dashboardLoading && (

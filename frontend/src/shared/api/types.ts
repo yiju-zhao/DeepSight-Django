@@ -10,27 +10,26 @@ export interface ApiResponse<T> {
   };
 }
 
-export interface PaginatedResponse<T> extends ApiResponse<T[]> {
-  data: T[];
-  meta: {
-    pagination: {
-      count: number;
-      page: number;
-      pages: number;
-      pageSize: number;
-      hasNext: boolean;
-      hasPrevious: boolean;
-    };
+export interface PaginatedResponse<T> {
+  count: number;
+  total_pages: number;
+  current_page: number;
+  page_size: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+  stats?: {
+    [key: string]: any;
   };
 }
 
 export interface PaginationMeta {
   count: number;
-  page: number;
-  pages: number;
-  pageSize: number;
-  hasNext: boolean;
-  hasPrevious: boolean;
+  total_pages: number;
+  current_page: number;
+  page_size: number;
+  next: string | null;
+  previous: string | null;
 }
 
 export interface FiltersMeta {
