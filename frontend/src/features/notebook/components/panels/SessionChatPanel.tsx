@@ -8,13 +8,7 @@ import SessionTabs from '@/features/notebook/components/chat/SessionTabs';
 import SessionChatWindow from '@/features/notebook/components/chat/SessionChatWindow';
 import WelcomeScreen from '@/features/notebook/components/chat/WelcomeScreen';
 import { PANEL_HEADERS, COLORS } from '@/features/notebook/config/uiConfig';
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/shared/components/ui/select';
+
 
 interface SessionChatPanelProps {
   notebookId: string;
@@ -43,9 +37,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     switchSession,
     updateSessionTitle,
     sendMessage,
-    availableModels,
-    currentModel,
-    selectModel,
   } = useSessionChat(notebookId);
 
   // Get parsed files to check availability (updates come from SSE)
@@ -92,29 +83,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
             <h3 className={PANEL_HEADERS.title}>Chat</h3>
           </div>
           <div className={PANEL_HEADERS.actionsContainer}>
-            {availableModels.length > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="text-xs text-gray-500 hidden md:inline">
-                  Model
-                </div>
-                <Select
-                  value={currentModel || undefined}
-                  onValueChange={(value) => selectModel(value)}
-                  disabled={isUpdatingModel}
-                >
-                  <SelectTrigger className="h-8 w-[180px] text-xs">
-                    <SelectValue placeholder="Select model" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableModels.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            {/* Legacy model selector removed */}
           </div>
         </div>
       </div>

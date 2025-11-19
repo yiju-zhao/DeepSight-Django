@@ -19,7 +19,7 @@ export { default as StudioPanelMain } from './studio/StudioPanel';
 export { default as PodcastAudioPlayer } from './studio/PodcastAudioPlayer';
 export { default as PodcastGenerationForm } from './studio/PodcastGenerationForm';
 export { default as ReportGenerationForm } from './studio/ReportGenerationForm';
-export { default as AdvancedSettingsModal } from './studio/AdvancedSettingsModal';
+
 export { default as CustomizeModal } from './studio/CustomizeModal';
 export { default as FileViewer } from './studio/FileViewer';
 export { default as AuthenticatedImage } from './studio/AuthenticatedImage';
