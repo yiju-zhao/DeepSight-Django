@@ -3,7 +3,7 @@ import { MessageCircle, AlertCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { useSessionChat } from '@/features/notebook/hooks/chat/useSessionChat';
-import { useParsedFiles } from '@/features/notebook/hooks/sources/useSources';
+import { useNotebook } from '@/features/notebook/queries';
 import SessionTabs from '@/features/notebook/components/chat/SessionTabs';
 import SessionChatWindow from '@/features/notebook/components/chat/SessionChatWindow';
 import WelcomeScreen from '@/features/notebook/components/chat/WelcomeScreen';
@@ -39,13 +39,13 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     sendMessage,
   } = useSessionChat(notebookId);
 
-  // Get parsed files to check availability (updates come from SSE)
-  const { data: parsedFilesData } = useParsedFiles(notebookId);
+  // Get notebook data to check if files are parsed
+  const { data: notebook } = useNotebook(notebookId);
 
   // Check if files are available for chat
   const hasFiles = React.useMemo(() => {
-    return parsedFilesData && parsedFilesData.results && parsedFilesData.results.length > 0;
-  }, [parsedFilesData]);
+    return notebook?.has_parsed_files ?? false;
+  }, [notebook]);
 
   const handleSendMessage = async (message: string): Promise<boolean> => {
     if (!activeSessionId) return false;
@@ -123,6 +123,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
           onCloseSession={handleCloseSession}
           onUpdateTitle={handleUpdateTitle}
           isLoading={isCreatingSession}
+          hasFiles={hasFiles}
         />
       )}
 

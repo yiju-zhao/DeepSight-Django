@@ -9,6 +9,8 @@ export interface Notebook {
   // Aggregates (optional depending on endpoint)
   source_count?: number;
   knowledge_item_count?: number;
+  parsed_files_count?: number;
+  has_parsed_files?: boolean;
   chat_message_count?: number;
   last_activity?: string;
   ragflow_dataset_info?: any;

@@ -20,6 +20,16 @@ class NotebookCountMixin:
             parsing_status=ParsingStatus.DONE
         ).count()
 
+    def get_parsed_files_count(self, obj):
+        """Get count of successfully parsed files (alias for knowledge_item_count)."""
+        return self.get_knowledge_item_count(obj)
+
+    def get_has_parsed_files(self, obj):
+        """Check if notebook has at least one successfully parsed file."""
+        return obj.knowledge_base_items.filter(
+            parsing_status=ParsingStatus.DONE
+        ).exists()
+
 
 class NotebookValidationMixin:
     """Shared validation helpers for create/update serializers."""
@@ -62,6 +72,8 @@ class NotebookSerializer(NotebookCountMixin, serializers.ModelSerializer):
     # Computed fields
     source_count = serializers.SerializerMethodField()
     knowledge_item_count = serializers.SerializerMethodField()
+    parsed_files_count = serializers.SerializerMethodField()
+    has_parsed_files = serializers.SerializerMethodField()
     chat_message_count = serializers.SerializerMethodField()
     last_activity = serializers.SerializerMethodField()
     ragflow_dataset_info = serializers.SerializerMethodField()
@@ -76,6 +88,8 @@ class NotebookSerializer(NotebookCountMixin, serializers.ModelSerializer):
             "updated_at",
             "source_count",
             "knowledge_item_count",
+            "parsed_files_count",
+            "has_parsed_files",
             "chat_message_count",
             "last_activity",
             "ragflow_dataset_info",
@@ -86,6 +100,8 @@ class NotebookSerializer(NotebookCountMixin, serializers.ModelSerializer):
             "updated_at",
             "source_count",
             "knowledge_item_count",
+            "parsed_files_count",
+            "has_parsed_files",
             "chat_message_count",
             "last_activity",
             "ragflow_dataset_info",
@@ -164,6 +180,8 @@ class NotebookListSerializer(NotebookCountMixin, serializers.ModelSerializer):
 
     source_count = serializers.SerializerMethodField()
     knowledge_item_count = serializers.SerializerMethodField()
+    parsed_files_count = serializers.SerializerMethodField()
+    has_parsed_files = serializers.SerializerMethodField()
 
     class Meta:
         model = Notebook
@@ -175,6 +193,8 @@ class NotebookListSerializer(NotebookCountMixin, serializers.ModelSerializer):
             "updated_at",
             "source_count",
             "knowledge_item_count",
+            "parsed_files_count",
+            "has_parsed_files",
         ]
         read_only_fields = [
             "id",
@@ -182,6 +202,8 @@ class NotebookListSerializer(NotebookCountMixin, serializers.ModelSerializer):
             "updated_at",
             "source_count",
             "knowledge_item_count",
+            "parsed_files_count",
+            "has_parsed_files",
         ]
 
 

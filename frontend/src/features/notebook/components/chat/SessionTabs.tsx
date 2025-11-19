@@ -14,6 +14,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
   onCloseSession,
   onUpdateTitle,
   isLoading = false,
+  hasFiles = false,
 }) => {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState('');
@@ -133,9 +134,10 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="flex-shrink-0 h-9 px-3 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-white transition-colors"
+          className="flex-shrink-0 h-9 px-3 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={onCreateSession}
-          disabled={isLoading}
+          disabled={isLoading || !hasFiles}
+          title={!hasFiles ? "Upload and parse at least one source to enable chat" : ""}
         >
           {isLoading ? (
             <Loader2 className="h-3 w-3 animate-spin mr-1.5" />

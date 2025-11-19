@@ -383,6 +383,7 @@ export interface SessionTabsProps {
   onCloseSession: (sessionId: string) => void;
   onUpdateTitle: (sessionId: string, title: string) => void;
   isLoading?: boolean;
+  hasFiles?: boolean;
 }
 
 export interface SessionChatWindowProps {

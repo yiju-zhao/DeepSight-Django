@@ -220,21 +220,23 @@ class ChatService(NotebookBaseService):
                     "error": "Notebook does not have a RagFlow dataset configured.",
                 }
 
-            chat_result = self._get_or_create_chat_assistant(
-                notebook.ragflow_dataset_id
-            )
-            if not chat_result.get("success"):
-                return chat_result
+            # Try to get existing chat assistant (don't auto-create)
+            chat_name = f"KB Assistant - {notebook.ragflow_dataset_id[:8]}"
+            try:
+                existing_chats = self.ragflow_service.list_chats(name=chat_name)
+                if not existing_chats:
+                    # No chat assistant exists yet - return default model
+                    default_model = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
+                    return {"success": True, "model": default_model}
 
-            chat_id = chat_result["chat_id"]
-            chats = self.ragflow_service.list_chats(chat_id=chat_id)
-            if not chats:
-                return {
-                    "success": False,
-                    "error": "Chat assistant not found for this notebook.",
-                }
+                chat = existing_chats[0]
+            except Exception as e:
+                logger.debug(f"No existing chat assistant found: {e}")
+                # Return default model if no chat exists
+                default_model = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
+                return {"success": True, "model": default_model}
 
-            chat = chats[0]
+            # Get model from existing chat
             model_name = None
             try:
                 if getattr(chat, "llm", None) is not None:
@@ -291,13 +293,24 @@ class ChatService(NotebookBaseService):
                     "error": "Notebook does not have a RagFlow dataset configured.",
                 }
 
-            chat_result = self._get_or_create_chat_assistant(
-                notebook.ragflow_dataset_id
-            )
-            if not chat_result.get("success"):
-                return chat_result
-
-            chat_id = chat_result["chat_id"]
+            # Get existing chat assistant (don't auto-create)
+            chat_name = f"KB Assistant - {notebook.ragflow_dataset_id[:8]}"
+            try:
+                existing_chats = self.ragflow_service.list_chats(name=chat_name)
+                if not existing_chats:
+                    return {
+                        "success": False,
+                        "error": "No chat assistant exists. Please create a chat session first.",
+                        "status_code": status.HTTP_400_BAD_REQUEST,
+                    }
+                chat_id = existing_chats[0].id
+            except Exception as e:
+                logger.debug(f"No existing chat assistant found: {e}")
+                return {
+                    "success": False,
+                    "error": "No chat assistant exists. Please create a chat session first.",
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                }
 
             # Update RagFlow chat LLM configuration
             self.ragflow_service.update_chat(
@@ -473,6 +486,18 @@ class ChatService(NotebookBaseService):
         try:
             # Validate notebook access
             self.validate_notebook_access(notebook, notebook.user)
+
+            # Check if dataset has any parsed files
+            parsed_files_count = notebook.knowledge_base_items.filter(
+                parsing_status='done'
+            ).count()
+
+            if parsed_files_count == 0:
+                return {
+                    "error": "Please upload and parse at least one file before creating a chat session.",
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                    "success": False,
+                }
 
             # Get or create chat assistant for this notebook's dataset
             chat_result = self._get_or_create_chat_assistant(
