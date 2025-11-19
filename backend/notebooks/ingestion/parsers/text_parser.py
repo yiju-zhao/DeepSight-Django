@@ -44,11 +44,14 @@ class TextParser(BaseParser):
         self.logger.info(f"Processing markdown file: {file_path}")
 
         # Check if content is provided in metadata (for in-memory parsing)
-        if "content" in metadata and metadata["content"]:
+        if "content" in metadata and metadata["content"] is not None:
             content = metadata["content"]
-        else:
+        elif file_path:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
+        else:
+            self.logger.warning("No content or file path provided for markdown parsing")
+            content = ""
 
         text_metadata = {
             "word_count": len(content.split()),

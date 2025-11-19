@@ -194,7 +194,8 @@ class UrlFetcher:
             )
 
             config = self._crawl4ai_config(
-                markdown_generator=md_generator
+                markdown_generator=md_generator,
+                excluded_tags=["header", "footer", "nav", "aside"]
             )
 
             async with self._crawl4ai(verbose=False) as crawler:
