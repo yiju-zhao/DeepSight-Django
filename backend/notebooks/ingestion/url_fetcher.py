@@ -182,7 +182,7 @@ class UrlFetcher:
                 excluded_tags=["nav", "header", "footer"],  
                 markdown_generator=DefaultMarkdownGenerator(  
                     content_filter=PruningContentFilter(threshold=0.5)  
-                )  
+                )
             )
 
             async with self._crawl4ai(verbose=False) as crawler:
@@ -216,8 +216,7 @@ class UrlFetcher:
                 if not content and result.cleaned_html:
                     content = result.cleaned_html
 
-                # Clean content
-                content = self._clean_markdown_content(content)
+
 
                 metadata = {
                     "title": title,
@@ -811,21 +810,4 @@ class UrlFetcher:
             self.logger.warning(f"crawl4ai not available: {e}")
             self._crawl4ai_loaded = False
 
-    def _clean_markdown_content(self, content: str) -> str:
-        """Clean markdown content by removing invalid image references."""
-        if not content:
-            return content
 
-        # Remove broken image references
-        content = re.sub(r"!\[.*?\]\([^)]*_page_\d+_Figure_\d+\.[^)]+\)", "", content)
-        content = re.sub(
-            r"!\[.*?\]\([^)]*\.(jpg|jpeg|png|gif|svg|webp)(?:\?[^)]*)?\)",
-            lambda m: "" if not m.group(0).startswith("![](http") else m.group(0),
-            content,
-            flags=re.IGNORECASE,
-        )
-
-        # Clean up multiple newlines
-        content = re.sub(r"\n\s*\n\s*\n+", "\n\n", content)
-
-        return content.strip()

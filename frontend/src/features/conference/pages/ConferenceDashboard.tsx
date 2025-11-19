@@ -4,10 +4,9 @@ import { useVenues, useInstances, useDashboard, useOverview, usePublications } f
 import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
 import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
-import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
 import { SessionList } from '../components/SessionList';
 import ConferenceSelectionDrawer from '../components/ConferenceSelectionDrawer';
-import { ImportStatusPanel } from '../components/ImportStatusPanel';
+import { ImportStatusIndicator } from '../components/ImportStatusIndicator';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
 import { AlertCircle, Calendar, Filter } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
@@ -260,6 +259,9 @@ export default function ConferenceDashboard() {
           icon={<Calendar className="w-6 h-6 text-[#CE0E2D]" />}
           rightActions={
             <div className="flex items-center space-x-3">
+              {/* Import Status Indicator */}
+              <ImportStatusIndicator />
+
               {/* Conference Selection Button */}
               <button
                 onClick={() => setIsDrawerOpen(true)}
@@ -411,9 +413,6 @@ export default function ConferenceDashboard() {
           </div>
         </div>
       </div>
-
-      {/* Import Status Panel */}
-      <ImportStatusPanel />
     </AppLayout>
   );
 }

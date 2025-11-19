@@ -50,7 +50,7 @@ export const ImportToNotebookWizard: React.FC<ImportToNotebookWizardProps> = ({
 
       // Fetch all pages of notebooks
       while (hasMore) {
-        const response = await notebooksApi.getAll({ page, page_size: 100 });
+        const response = await notebooksApi.getAll({ page, pageSize: 100 });
 
         // Standard DRF pagination format
         const notebooks = Array.isArray(response) ? response : (response as any)?.results || [];
@@ -106,15 +106,15 @@ export const ImportToNotebookWizard: React.FC<ImportToNotebookWizardProps> = ({
       const request =
         action === 'add'
           ? {
-              publication_ids: selectedPublicationIds,
-              action: 'add' as const,
-              notebook_id: selectedNotebookId,
-            }
+            publication_ids: selectedPublicationIds,
+            action: 'add' as const,
+            notebook_id: selectedNotebookId,
+          }
           : {
-              publication_ids: selectedPublicationIds,
-              action: 'create' as const,
-              notebook_name: newNotebookName.trim(),
-            };
+            publication_ids: selectedPublicationIds,
+            action: 'create' as const,
+            notebook_name: newNotebookName.trim(),
+          };
 
       const response = await conferenceService.importToNotebook(request);
       setImportResponse(response);
@@ -237,9 +237,8 @@ export const ImportToNotebookWizard: React.FC<ImportToNotebookWizardProps> = ({
                     <button
                       key={notebook.id}
                       onClick={() => setSelectedNotebookId(notebook.id)}
-                      className={`w-full p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 ${
-                        selectedNotebookId === notebook.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-                      }`}
+                      className={`w-full p-4 text-left hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 ${selectedNotebookId === notebook.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                        }`}
                     >
                       <div className="font-medium text-gray-900">{notebook.name}</div>
                       {notebook.description && (
@@ -397,7 +396,7 @@ export const ImportToNotebookWizard: React.FC<ImportToNotebookWizardProps> = ({
 
           {step === 'complete' && importResponse?.notebook_id && (
             <a
-              href={`/notebooks/${importResponse.notebook_id}`}
+              href={`/deepdive/${importResponse.notebook_id}`}
               className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               onClick={onClose}
             >
