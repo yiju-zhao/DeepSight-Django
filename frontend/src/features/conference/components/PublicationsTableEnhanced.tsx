@@ -29,7 +29,9 @@ import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Button } from '@/shared/components/ui/button';
 import ExportButton from './ExportButton';
 import PublicationDetailModal from './PublicationDetailModal';
+import { ImportToNotebookWizard } from './ImportToNotebookWizard';
 import { useFavorites } from '../hooks/useFavorites';
+import type { ImportResponse } from '../types';
 
 interface PublicationsTableProps {
   data: PublicationTableItem[];
@@ -354,6 +356,7 @@ const PublicationsTableComponent = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [selectedPublication, setSelectedPublication] = useState<PublicationTableItem | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showImportWizard, setShowImportWizard] = useState(false);
 
   const { favorites, toggleFavorite } = useFavorites();
 
@@ -458,7 +461,23 @@ const PublicationsTableComponent = ({
     }
   };
 
+  const handleImportComplete = (response: ImportResponse) => {
+    // Clear selection after successful import
+    if (response.success) {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleOpenImportWizard = () => {
+    if (selectedIds.size === 0) {
+      alert('Please select publications to import');
+      return;
+    }
+    setShowImportWizard(true);
+  };
+
   return (
+    <>
     <div className="bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] overflow-hidden">
       {/* Header Section - HUAWEI Style */}
       <div className="border-b border-[#E3E3E3] bg-[#F5F5F5] px-6 py-4">
@@ -479,6 +498,17 @@ const PublicationsTableComponent = ({
                 {selectedIds.size} selected
               </span>
             )}
+
+            <Button
+              onClick={handleOpenImportWizard}
+              variant="outline"
+              size="sm"
+              disabled={selectedIds.size === 0}
+              className="flex items-center gap-2"
+            >
+              <FileText size={16} />
+              Import to Notebook ({selectedIds.size})
+            </Button>
 
             <ExportButton
               publications={data}
@@ -729,7 +759,16 @@ const PublicationsTableComponent = ({
           setSelectedPublication(null);
         }}
       />
+
+      {/* Import To Notebook Wizard */}
+      <ImportToNotebookWizard
+        isOpen={showImportWizard}
+        onClose={() => setShowImportWizard(false)}
+        selectedPublicationIds={Array.from(selectedIds)}
+        onImportComplete={handleImportComplete}
+      />
     </div>
+    </>
   );
 };
 

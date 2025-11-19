@@ -157,3 +157,119 @@ class ConferenceOverviewSerializer(serializers.Serializer):
     years_covered = serializers.ListField()
     avg_papers_per_year = serializers.FloatField()
     conferences = serializers.ListField()
+
+
+# ===== Import to Notebook Serializers =====
+
+
+class ImportToNotebookRequestSerializer(serializers.Serializer):
+    """Serializer for importing publications to notebook request"""
+
+    publication_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        help_text="List of publication UUIDs to import",
+    )
+    notebook_id = serializers.UUIDField(
+        required=False,
+        allow_null=True,
+        help_text="Existing notebook ID to import into (required if action is 'add')",
+    )
+    action = serializers.ChoiceField(
+        choices=["add", "create"],
+        default="add",
+        help_text="Action to perform: 'add' to existing notebook or 'create' new one",
+    )
+    notebook_name = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        max_length=255,
+        help_text="Name for new notebook (required if action is 'create')",
+    )
+
+    def validate(self, data):
+        """Validate that required fields are present based on action"""
+        action = data.get("action", "add")
+
+        if action == "add":
+            if not data.get("notebook_id"):
+                raise serializers.ValidationError(
+                    {"notebook_id": "notebook_id is required when action is 'add'"}
+                )
+        elif action == "create":
+            if not data.get("notebook_name"):
+                raise serializers.ValidationError(
+                    {"notebook_name": "notebook_name is required when action is 'create'"}
+                )
+
+            # Check if notebook name already exists for this user
+            from notebooks.models import Notebook
+
+            user = self.context.get("request").user
+            if Notebook.objects.filter(user=user, name=data["notebook_name"]).exists():
+                raise serializers.ValidationError(
+                    {"notebook_name": f"Notebook with name '{data['notebook_name']}' already exists"}
+                )
+
+        return data
+
+
+class SkippedItemSerializer(serializers.Serializer):
+    """Serializer for skipped publication items"""
+
+    publication_id = serializers.UUIDField()
+    title = serializers.CharField()
+    reason = serializers.CharField()
+    existing_item_id = serializers.UUIDField(required=False)
+
+
+class ImportedItemSerializer(serializers.Serializer):
+    """Serializer for successfully imported publication items"""
+
+    publication_id = serializers.UUIDField()
+    title = serializers.CharField()
+    kb_item_id = serializers.UUIDField()
+    url = serializers.CharField()
+
+
+class FailedItemSerializer(serializers.Serializer):
+    """Serializer for failed publication items"""
+
+    publication_id = serializers.UUIDField()
+    title = serializers.CharField()
+    url = serializers.CharField()
+    reason = serializers.CharField()
+
+
+class ImportResponseSerializer(serializers.Serializer):
+    """Serializer for import to notebook response"""
+
+    success = serializers.BooleanField()
+    total_requested = serializers.IntegerField()
+    imported = serializers.IntegerField()
+    failed = serializers.IntegerField()
+    skipped = serializers.IntegerField()
+    skipped_no_url = SkippedItemSerializer(many=True)
+    skipped_duplicate = SkippedItemSerializer(many=True)
+    successful_imports = ImportedItemSerializer(many=True)
+    failed_imports = FailedItemSerializer(many=True)
+    batch_job_id = serializers.UUIDField(allow_null=True)
+    appended_to_batch = serializers.BooleanField()
+    message = serializers.CharField()
+    notebook_id = serializers.UUIDField(required=False)
+    notebook_name = serializers.CharField(required=False)
+
+
+class ActiveImportSerializer(serializers.Serializer):
+    """Serializer for active import status"""
+
+    batch_job_id = serializers.UUIDField()
+    notebook_id = serializers.UUIDField()
+    notebook_name = serializers.CharField()
+    status = serializers.CharField()
+    total_items = serializers.IntegerField()
+    completed_items = serializers.IntegerField()
+    failed_items = serializers.IntegerField()
+    progress_percentage = serializers.FloatField()
+    created_at = serializers.DateTimeField()
+    updated_at = serializers.DateTimeField()

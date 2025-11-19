@@ -12,11 +12,15 @@ from rest_framework.response import Response
 
 from .models import Event, Instance, Publication, Venue
 from .serializers import (
+    ActiveImportSerializer,
     EventSerializer,
+    ImportResponseSerializer,
+    ImportToNotebookRequestSerializer,
     InstanceSerializer,
     PublicationSerializer,
     VenueSerializer,
 )
+from .services import conference_import_service
 from .utils import (
     build_fine_histogram,
     deduplicate_keywords,
@@ -107,6 +111,75 @@ class PublicationViewSet(viewsets.ModelViewSet):
             queryset = queryset.order_by("-rating")
 
         return queryset
+
+    @action(detail=False, methods=["post"], url_path="import-to-notebook")
+    def import_to_notebook(self, request):
+        """
+        Import selected publications to a notebook.
+
+        Request body:
+        {
+            "publication_ids": ["uuid1", "uuid2", ...],
+            "action": "add" | "create",
+            "notebook_id": "uuid" (required if action="add"),
+            "notebook_name": "name" (required if action="create")
+        }
+        """
+        # Validate request data
+        serializer = ImportToNotebookRequestSerializer(
+            data=request.data, context={"request": request}
+        )
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        publication_ids = validated_data["publication_ids"]
+        action = validated_data["action"]
+
+        # Get or create notebook
+        from notebooks.models import Notebook
+
+        if action == "add":
+            # Get existing notebook
+            notebook_id = validated_data["notebook_id"]
+            try:
+                notebook = Notebook.objects.get(id=notebook_id, user=request.user)
+            except Notebook.DoesNotExist:
+                return Response(
+                    {"error": f"Notebook {notebook_id} not found or not accessible"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:  # action == "create"
+            # Create new notebook
+            notebook_name = validated_data["notebook_name"]
+            notebook = Notebook.objects.create(user=request.user, name=notebook_name)
+
+        # Import publications using service
+        result = conference_import_service.import_publications_to_notebook(
+            publication_ids=publication_ids,
+            notebook=notebook,
+            user=request.user,
+        )
+
+        # Add notebook info to response
+        result["notebook_id"] = str(notebook.id)
+        result["notebook_name"] = notebook.name
+
+        # Return response with appropriate status code
+        response_serializer = ImportResponseSerializer(result)
+        return Response(response_serializer.data, status=result["status_code"])
+
+    @action(detail=False, methods=["get"], url_path="import-status")
+    def import_status(self, request):
+        """
+        Get active and recent conference import jobs for the current user.
+
+        Returns list of import jobs with progress information.
+        """
+        active_imports = conference_import_service.get_active_imports(request.user)
+
+        serializer = ActiveImportSerializer(active_imports, many=True)
+        return Response(serializer.data)
 
 
 class EventViewSet(viewsets.ModelViewSet):

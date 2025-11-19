@@ -180,3 +180,62 @@ export interface DashboardParams {
 export interface InstanceParams {
   venue?: string;
 }
+
+// Import to Notebook Types
+export interface ImportToNotebookRequest {
+  publication_ids: string[];
+  action: "add" | "create";
+  notebook_id?: string;
+  notebook_name?: string;
+}
+
+export interface SkippedItem {
+  publication_id: string;
+  title: string;
+  reason: string;
+  existing_item_id?: string;
+}
+
+export interface ImportedItem {
+  publication_id: string;
+  title: string;
+  kb_item_id: string;
+  url: string;
+}
+
+export interface FailedItem {
+  publication_id: string;
+  title: string;
+  url: string;
+  reason: string;
+}
+
+export interface ImportResponse {
+  success: boolean;
+  total_requested: number;
+  imported: number;
+  failed: number;
+  skipped: number;
+  skipped_no_url: SkippedItem[];
+  skipped_duplicate: SkippedItem[];
+  successful_imports: ImportedItem[];
+  failed_imports: FailedItem[];
+  batch_job_id: string | null;
+  appended_to_batch: boolean;
+  message: string;
+  notebook_id?: string;
+  notebook_name?: string;
+}
+
+export interface ActiveImport {
+  batch_job_id: string;
+  notebook_id: string;
+  notebook_name: string;
+  status: "pending" | "processing" | "completed" | "failed" | "partially_completed";
+  total_items: number;
+  completed_items: number;
+  failed_items: number;
+  progress_percentage: number;
+  created_at: string;
+  updated_at: string;
+}

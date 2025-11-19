@@ -6,6 +6,7 @@ import { DashboardCharts } from '../components/DashboardCharts';
 import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
 import { SessionTypeView } from '../components/SessionTypeView';
 import ConferenceSelectionDrawer from '../components/ConferenceSelectionDrawer';
+import { ImportStatusPanel } from '../components/ImportStatusPanel';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
 import { AlertCircle, Calendar, Filter } from 'lucide-react';
 import AppLayout from '@/shared/components/layout/AppLayout';
@@ -409,6 +410,9 @@ export default function ConferenceDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Import Status Panel */}
+      <ImportStatusPanel />
     </AppLayout>
   );
 }

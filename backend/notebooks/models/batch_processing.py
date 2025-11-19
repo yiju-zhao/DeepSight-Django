@@ -27,6 +27,7 @@ class BatchJob(BaseModel):
         ("url_parse", "URL Parse"),
         ("url_parse_media", "URL Parse with Media"),
         ("file_upload", "File Upload"),
+        ("conference_import", "Conference Import"),
     ]
 
     notebook = models.ForeignKey(

@@ -10,6 +10,9 @@ import {
   PaginatedResponse,
   DashboardParams,
   InstanceParams,
+  ImportToNotebookRequest,
+  ImportResponse,
+  ActiveImport,
 } from '../types';
 
 export interface IConferenceService {
@@ -18,6 +21,8 @@ export interface IConferenceService {
   getPublications(params?: { instance?: number; page?: number; page_size?: number; search?: string; ordering?: string }): Promise<PaginatedResponse<PublicationTableItem>>;
   getDashboard(params: DashboardParams): Promise<DashboardResponse>;
   getOverview(): Promise<ConferenceOverview>;
+  importToNotebook(request: ImportToNotebookRequest): Promise<ImportResponse>;
+  getImportStatus(): Promise<ActiveImport[]>;
 }
 
 export class ConferenceService implements IConferenceService {
@@ -66,6 +71,20 @@ export class ConferenceService implements IConferenceService {
   async getOverview(): Promise<ConferenceOverview> {
     // Note: This is currently unused in ConferenceDashboard but kept for compatibility
     return apiClient.get(`${this.baseEndpoint}/overview/general/`);
+  }
+
+  /**
+   * Import publications to a notebook
+   */
+  async importToNotebook(request: ImportToNotebookRequest): Promise<ImportResponse> {
+    return apiClient.post(`${this.baseEndpoint}/publications/import-to-notebook/`, request);
+  }
+
+  /**
+   * Get active and recent import jobs status
+   */
+  async getImportStatus(): Promise<ActiveImport[]> {
+    return apiClient.get(`${this.baseEndpoint}/publications/import-status/`);
   }
 }
 
