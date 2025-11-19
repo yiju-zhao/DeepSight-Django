@@ -93,7 +93,7 @@ const HomePage = () => {
               </Link>
 
               {/* Feature 4: Conference */}
-              <Link to="/conference" className="group">
+              <Link to="/dashboard/conference" className="group">
                 <div className="bg-white p-8 rounded-2xl shadow-huawei-sm hover:shadow-huawei-md transition-all duration-300 card-hoverable h-full border border-transparent hover:border-gray-100">
                   <div className="w-12 h-12 bg-black/5 rounded-xl flex items-center justify-center mb-6 group-hover:bg-accent-red/10 transition-colors">
                     <Users className="w-6 h-6 text-foreground group-hover:text-accent-red transition-colors" />
@@ -134,19 +134,62 @@ const HomePage = () => {
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="py-24 bg-black text-white">
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to dive deeper?</h2>
-            <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto">
-              Join thousands of researchers and developers using DeepSight to transform their data into actionable intelligence.
-            </p>
-            <Link
-              to="/signup"
-              className="inline-block px-8 py-4 bg-accent-red text-white text-base font-semibold rounded-lg hover:bg-accent-red-hover transition-colors duration-300 shadow-lg hover:shadow-xl"
-            >
-              Start Your Journey
-            </Link>
+        {/* Usage Flow Section */}
+        <section className="py-24 bg-black text-white overflow-hidden">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-6">Ready to dive deeper?</h2>
+              <p className="text-gray-400 text-lg">See how DeepSight transforms your workflow</p>
+            </div>
+
+            <div className="relative max-w-4xl mx-auto">
+              {/* Connecting Line */}
+              <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gradient-to-r from-gray-800 via-accent-red to-gray-800 hidden md:block -translate-y-1/2 opacity-30"></div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12 relative z-10">
+                {/* Step 1: Ingest */}
+                <div className="flex flex-col items-center text-center group">
+                  <div className="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center mb-6 relative group-hover:border-accent-red transition-colors duration-300 shadow-lg shadow-black/50">
+                    <div className="absolute inset-0 bg-accent-red/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <Database className="w-8 h-8 text-gray-400 group-hover:text-accent-red transition-colors duration-300" />
+                    <div className="absolute -top-3 -right-3 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-sm font-bold border border-black">1</div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Ingest</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
+                    Connect your data sources and ingest structured or unstructured data effortlessly.
+                  </p>
+                </div>
+
+                {/* Step 2: Analyze */}
+                <div className="flex flex-col items-center text-center group">
+                  <div className="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center mb-6 relative group-hover:border-accent-red transition-colors duration-300 shadow-lg shadow-black/50">
+                    <div className="absolute inset-0 bg-accent-red/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <BarChart2 className="w-8 h-8 text-gray-400 group-hover:text-accent-red transition-colors duration-300 animate-pulse" />
+                    <div className="absolute -top-3 -right-3 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-sm font-bold border border-black">2</div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Analyze</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
+                    Run advanced analytics and deep learning models to process your data.
+                  </p>
+                </div>
+
+                {/* Step 3: Insight */}
+                <div className="flex flex-col items-center text-center group">
+                  <div className="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center mb-6 relative group-hover:border-accent-red transition-colors duration-300 shadow-lg shadow-black/50">
+                    <div className="absolute inset-0 bg-accent-red/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                    <div className="relative">
+                      <div className="absolute inset-0 bg-accent-red blur-lg opacity-20 animate-pulse"></div>
+                      <Search className="w-8 h-8 text-gray-400 group-hover:text-accent-red transition-colors duration-300 relative z-10" />
+                    </div>
+                    <div className="absolute -top-3 -right-3 w-8 h-8 bg-gray-800 rounded-full flex items-center justify-center text-sm font-bold border border-black">3</div>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Insight</h3>
+                  <p className="text-gray-400 text-sm leading-relaxed max-w-xs">
+                    Uncover hidden patterns and actionable insights to drive your decisions.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>
