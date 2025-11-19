@@ -19,6 +19,7 @@ import { useGenerationManager } from "@/features/notebook/hooks/studio/useGenera
 import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
 import { useQueryClient } from '@tanstack/react-query';
 import { studioKeys } from '@/features/notebook/hooks/studio/useStudio';
+import { useNotebookSettings } from '@/features/notebook/contexts/NotebookSettingsContext';
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused UI components
@@ -48,9 +49,9 @@ import type { ReportStudioItem, PodcastStudioItem } from '@/features/notebook/ty
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Main container component focused on orchestration and state coordination
-const StudioPanel: React.FC<StudioPanelProps> = ({ 
-  notebookId, 
-  sourcesListRef, 
+const StudioPanel: React.FC<StudioPanelProps> = ({
+  notebookId,
+  sourcesListRef,
   onSelectionChange,
   onOpenModal,
   onCloseModal,
@@ -59,6 +60,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 }) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { reportConfig, podcastConfig, updateReportConfig, updatePodcastConfig } = useNotebookSettings();
 
   // ====== SINGLE RESPONSIBILITY: UI State Management ======
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
@@ -115,7 +117,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
           const currentReportJobs = reportJobs.data?.jobs || [];
           const completedReport = currentReportJobs.find((job: any) =>
             (job.id === jobData.id || job.id === jobData.jobId ||
-             job.job_id === jobData.id || job.job_id === jobData.jobId) &&
+              job.job_id === jobData.id || job.job_id === jobData.jobId) &&
             job.status === 'completed'
           );
 
@@ -154,27 +156,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const podcastGeneration = useGenerationManager(notebookId, 'podcast', handlePodcastComplete);
 
   // Initialize default configs
-  useEffect(() => {
-    reportGeneration.updateConfig({
-      topic: '',
-      article_title: '',
-      model_provider: 'openai',
-      retriever: 'tavily',
-      prompt_type: 'general',
-      include_image: false,
-      include_domains: false,
-      time_range: 'ALL',
-      model: 'gpt-4'
-    });
-
-    podcastGeneration.updateConfig({
-      title: '',
-      description: '',
-      topic: '',
-      language: 'en',
-      model: 'gpt-4'
-    });
-  }, [reportGeneration.updateConfig, podcastGeneration.updateConfig]);
+  // Initialize default configs - REMOVED (Handled in Context)
+  // useEffect(() => {
+  //   reportGeneration.updateConfig({ ... });
+  //   podcastGeneration.updateConfig({ ... });
+  // }, [reportGeneration.updateConfig, podcastGeneration.updateConfig]);
 
   // Cleanup SSE connections on unmount
   useEffect(() => {
@@ -231,9 +217,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const handleGenerateReport = useCallback(async (configOverrides?: Partial<any>) => {
     try {
       const config = {
+        ...reportConfig,
         ...configOverrides,
         source_ids: selectedFiles.map((f: FileItem) => f.id),
-        model: configOverrides?.model || reportGeneration.config.model || 'gpt-4'
+        model: configOverrides?.model || reportConfig.model || 'gpt-4'
       };
 
       reportGeneration.generate(config);
@@ -245,15 +232,16 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [reportGeneration.generate, reportGeneration.config.model, selectedFiles, toast]);
+  }, [reportGeneration.generate, reportConfig, selectedFiles, toast]);
 
   // ====== SINGLE RESPONSIBILITY: Podcast generation handler ======
   const handleGeneratePodcast = useCallback(async (configOverrides?: Partial<any>) => {
     try {
       const config = {
+        ...podcastConfig,
         ...configOverrides,
         source_file_ids: selectedFiles.map((f: FileItem) => f.id),
-        model: configOverrides?.model || podcastGeneration.config.model || 'gpt-4'
+        model: configOverrides?.model || podcastConfig.model || 'gpt-4'
       };
 
       podcastGeneration.generate(config);
@@ -265,7 +253,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [podcastGeneration.generate, podcastGeneration.config.model, selectedFiles, toast]);
+  }, [podcastGeneration.generate, podcastConfig, selectedFiles, toast]);
 
   // ====== CANCELLATION HANDLING ======
   // Cancellation is now handled through delete buttons on generating report/podcast cards
@@ -355,17 +343,17 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       if (!reportId) {
         throw new Error('Report ID not found');
       }
-      
+
       // Add a small delay to ensure any pending save operations complete
       // This prevents race conditions between save and download
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       const filename = `${report.title || report.article_title || 'report'}.pdf`;
-      
+
       // Use notebookService.downloadReportPdf directly instead of studioService.downloadFile
       // This ensures we're using the correct PDF download endpoint
       const blob = await studioService.downloadReportPdf(reportId, notebookId);
-      
+
       // Create download link
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -374,12 +362,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       // Clean up the blob URL
       setTimeout(() => {
         window.URL.revokeObjectURL(url);
       }, 1000);
-      
+
       toast({
         title: "Download Started",
         description: "Your report is being downloaded as PDF"
@@ -387,7 +375,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       toast({
-        title: "Download Failed", 
+        title: "Download Failed",
         description: errorMessage,
         variant: "destructive"
       });
@@ -420,8 +408,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   const handleDeleteReport = useCallback(async (report: ReportItem) => {
     const isGenerating = (report.status === 'running' || report.status === 'pending') ||
-                        (reportGeneration.activeJob && reportGeneration.activeJob.jobId === report.id &&
-                         (reportGeneration.activeJob.status === 'running' || reportGeneration.activeJob.status === 'pending'));
+      (reportGeneration.activeJob && reportGeneration.activeJob.jobId === report.id &&
+        (reportGeneration.activeJob.status === 'running' || reportGeneration.activeJob.status === 'pending'));
 
     const confirmMessage = isGenerating
       ? 'Are you sure you want to cancel and delete this report?'
@@ -464,8 +452,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   const handleDeletePodcast = useCallback(async (podcast: PodcastItem) => {
     const isGenerating = (podcast.status === 'running' || podcast.status === 'pending' || podcast.status === 'generating') ||
-                        (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === podcast.id &&
-                         (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'pending'));
+      (podcastGeneration.activeJob && podcastGeneration.activeJob.jobId === podcast.id &&
+        (podcastGeneration.activeJob.status === 'running' || podcastGeneration.activeJob.status === 'pending'));
 
     const confirmMessage = isGenerating
       ? 'Are you sure you want to cancel and delete this podcast?'
@@ -651,23 +639,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   size="sm"
                   className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
                   onClick={() => {
-                    // Import AdvancedSettingsModal component dynamically
-                    import('./AdvancedSettingsModal').then(({ default: AdvancedSettingsModal }) => {
-                      const settingsContent = (
-                        <AdvancedSettingsModal
-                          isOpen={true}
-                          onClose={() => onCloseModal('advancedSettings')}
-                          reportConfig={reportGeneration.config}
-                          podcastConfig={podcastGeneration.config}
-                          onReportConfigChange={reportGeneration.updateConfig}
-                          onPodcastConfigChange={podcastGeneration.updateConfig}
-                          availableModels={reportModels.data || {}}
-                        />
-                      );
-                      onOpenModal('advancedSettings', settingsContent);
-                    });
+                    // Open unified settings modal
+                    onOpenModal('notebookSettings', null);
                   }}
-                  title="Advanced Settings"
+                  title="Settings"
                 >
                   <Settings className="h-3 w-3" />
                 </Button>
@@ -697,8 +672,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
             </div>
             <div className="grid grid-cols-2 gap-4">
               <ReportGenerationForm
-                config={reportGeneration.config}
-                onConfigChange={reportGeneration.updateConfig}
+                config={reportConfig}
+                onConfigChange={updateReportConfig}
                 availableModels={reportModels.data || {}}
                 generationState={{
                   state: reportGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
@@ -713,8 +688,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
               />
 
               <PodcastGenerationForm
-                config={podcastGeneration.config}
-                onConfigChange={podcastGeneration.updateConfig}
+                config={podcastConfig}
+                onConfigChange={updatePodcastConfig}
                 generationState={{
                   state: podcastGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
                   progress: podcastGeneration.progress,

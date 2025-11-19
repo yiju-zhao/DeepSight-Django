@@ -104,36 +104,37 @@ export default function DeepdivePage() {
   return (
     <AppLayout>
       <NotebookLayout
-      notebookTitle={currentNotebook?.name}
-      sourcesRemovedTrigger={sourcesRemovedTrigger}
-      sourcesPanel={
-        <SourcesPanel 
-          notebookId={notebookId}
-          onSelectionChange={handleSelectionChange}
-          onToggleCollapse={handleToggleCollapse}
-          isCollapsed={isCollapsed}
-          onOpenModal={handleOpenModal}
-          onCloseModal={handleCloseModal}
-          onSourcesRemoved={handleSourcesRemoved}
-          ref={sourcesListRef}
-        />
-      }
-      chatPanel={
-        <SessionChatPanel 
-          notebookId={notebookId}
-          sourcesListRef={sourcesListRef}
-          onSelectionChange={handleSelectionChange}
-        />
-      }
-      studioPanel={
-        <StudioPanel 
-          notebookId={notebookId}
-          sourcesListRef={sourcesListRef}
-          onSelectionChange={handleSelectionChange}
-          onOpenModal={handleOpenModal}
-          onCloseModal={handleCloseModal}
-        />
-      }
+        notebookId={notebookId}
+        notebookTitle={currentNotebook?.name}
+        sourcesRemovedTrigger={sourcesRemovedTrigger}
+        sourcesPanel={
+          <SourcesPanel
+            notebookId={notebookId}
+            onSelectionChange={handleSelectionChange}
+            onToggleCollapse={handleToggleCollapse}
+            isCollapsed={isCollapsed}
+            onOpenModal={handleOpenModal}
+            onCloseModal={handleCloseModal}
+            onSourcesRemoved={handleSourcesRemoved}
+            ref={sourcesListRef}
+          />
+        }
+        chatPanel={
+          <SessionChatPanel
+            notebookId={notebookId}
+            sourcesListRef={sourcesListRef}
+            onSelectionChange={handleSelectionChange}
+          />
+        }
+        studioPanel={
+          <StudioPanel
+            notebookId={notebookId}
+            sourcesListRef={sourcesListRef}
+            onSelectionChange={handleSelectionChange}
+            onOpenModal={handleOpenModal}
+            onCloseModal={handleCloseModal}
+          />
+        }
       />
     </AppLayout>
   );

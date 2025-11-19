@@ -39,7 +39,8 @@ export const useGenerationManager = (
   const sseControllerRef = useRef<AbortController | null>(null); // retained for API compatibility; unused
 
   // Local state for form config (not job state)
-  const [config, setConfig] = useState<GenerationConfig>({});
+  // REMOVED: Config is now managed externally via NotebookSettingsContext
+  // const [config, setConfig] = useState<GenerationConfig>({});
 
   // Query for active job (replaces localStorage jobStorage)
   const activeJobQuery = useQuery({
@@ -133,8 +134,8 @@ export const useGenerationManager = (
 
   // Generation mutation
   const generateMutation = useMutation({
-    mutationFn: async (configOverrides: Partial<GenerationConfig>) => {
-      const finalConfig = { ...config, ...configOverrides, notebook_id: notebookId };
+    mutationFn: async (config: GenerationConfig) => {
+      const finalConfig = { ...config, notebook_id: notebookId };
 
       if (type === 'report') {
         return studioService.generateReport(finalConfig, notebookId);
@@ -152,7 +153,7 @@ export const useGenerationManager = (
         return studioService.generatePodcast(formData, notebookId);
       }
     },
-    onSuccess: (response) => {
+    onSuccess: (response, variables) => {
       // Backend returns report_id, not job_id
       const jobId = response.report_id || response.job_id || response.id;
 
@@ -166,7 +167,7 @@ export const useGenerationManager = (
         jobId,
         type,
         status: 'pending',
-        config,
+        config: variables, // Use the config passed to mutate
         startTime: new Date().toISOString(),
       };
 
@@ -185,8 +186,8 @@ export const useGenerationManager = (
           progress: `Starting ${type} generation...`,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          title: (config as any).title || (config as any).article_title || (config as any).topic || `New ${type}`,
-          article_title: (config as any).article_title || (config as any).topic || `New ${type}`,
+          title: (variables as any).title || (variables as any).article_title || (variables as any).topic || `New ${type}`,
+          article_title: (variables as any).article_title || (variables as any).topic || `New ${type}`,
         };
 
         const existingJobs = old?.jobs || [];
@@ -235,10 +236,10 @@ export const useGenerationManager = (
     },
   });
 
-  // Config management
-  const updateConfig = useCallback((updates: Partial<GenerationConfig>) => {
-    setConfig(prev => ({ ...prev, ...updates }));
-  }, []);
+  // Config management - REMOVED
+  // const updateConfig = useCallback((updates: Partial<GenerationConfig>) => {
+  //   setConfig(prev => ({ ...prev, ...updates }));
+  // }, []);
 
   // Cleanup on unmount
   const cleanup = useCallback(() => {
@@ -251,7 +252,7 @@ export const useGenerationManager = (
   return {
     // State
     activeJob: activeJobQuery.data,
-    config,
+    // config, // REMOVED
     isGenerating: !!activeJobQuery.data && (activeJobQuery.data.status === 'running' || activeJobQuery.data.status === 'generating' || activeJobQuery.data.status === 'pending'),
     progress: '',
     error: null,
@@ -259,7 +260,7 @@ export const useGenerationManager = (
     // Actions
     generate: generateMutation.mutate,
     cancel: cancelMutation.mutateAsync, // Use mutateAsync so it returns a Promise for await
-    updateConfig,
+    // updateConfig, // REMOVED
     cleanup,
 
     // Loading states
