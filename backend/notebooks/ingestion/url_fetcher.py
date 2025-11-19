@@ -178,24 +178,11 @@ class UrlFetcher:
             )
 
         try:
-            # Configure content filter and markdown generator
-            pruning_filter = self._crawl4ai_filter(
-                threshold=0.48, 
-                threshold_type="fixed", 
-                min_word_threshold=80
-            )
-            
-            md_generator = self._crawl4ai_gen(
-                content_filter=pruning_filter,
-                options={
-                    "ignore_links": True,
-                    "escape_html": True
-                }
-            )
-
-            config = self._crawl4ai_config(
-                markdown_generator=md_generator,
-                excluded_tags=["header", "footer", "nav", "aside"]
+            config = CrawlerRunConfig(  
+                excluded_tags=["nav", "header", "footer"],  
+                markdown_generator=DefaultMarkdownGenerator(  
+                    content_filter=PruningContentFilter(threshold=0.5)  
+                )  
             )
 
             async with self._crawl4ai(verbose=False) as crawler:
