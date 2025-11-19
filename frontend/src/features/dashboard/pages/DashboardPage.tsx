@@ -1,15 +1,8 @@
-/**
- * Refactored Dashboard Page - Modern TanStack Query approach
- * Uses React Query for better caching, error handling, and loading states
- *
- * This component is now focused on orchestration and layout, with
- * specific responsibilities delegated to focused sub-components.
- */
-
 import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ReportEditor from '@/features/report/components/ReportEditor';
-import AppLayout from '@/shared/components/layout/AppLayout';
+import Header from '@/shared/components/layout/Header';
+import Footer from '@/shared/components/layout/Footer';
 
 // Import TanStack Query hooks and components
 import { useDashboardData, Report, Podcast } from '../queries';
@@ -89,61 +82,75 @@ export default function DashboardPage() {
   // Loading state
   if (loading) {
     return (
-      <AppLayout>
-        <LoadingState />
-      </AppLayout>
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-grow pt-[var(--header-height)]">
+          <LoadingState />
+        </main>
+        <Footer />
+      </div>
     );
   }
 
   // Error state
   if (error) {
     return (
-      <AppLayout>
-        <div className="p-8 bg-transparent min-h-screen">
-          <MainPageHeader
-            label="DEEPSIGHT"
-            title="Dashboard"
-            subtitle="Overview of your research projects and analytics"
-            icon={<BarChart3 className="w-6 h-6 text-[#1E1E1E]" />}
-          />
-          <div className="max-w-4xl mx-auto">
-            <EmptyState
-              icon="⚠️"
-              title="Something went wrong"
-              description={error}
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-grow pt-[var(--header-height)]">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <MainPageHeader
+              label="DEEPSIGHT"
+              title="Dashboard"
+              subtitle="Overview of your research projects and analytics"
+              icon={<BarChart3 className="w-6 h-6 text-[#1E1E1E]" />}
             />
+            <div className="max-w-4xl mx-auto mt-12">
+              <EmptyState
+                icon="⚠️"
+                title="Something went wrong"
+                description={error}
+              />
+            </div>
           </div>
-        </div>
-      </AppLayout>
+        </main>
+        <Footer />
+      </div>
     );
   }
 
   // Show report editor if a report is selected
   if (selectedReport) {
     return (
-      <AppLayout>
-        <ReportEditor
-          report={selectedReport}
-          onBack={handleBackToList}
-          onDelete={handleDeleteReport}
-          onSave={handleSaveReport}
-        />
-      </AppLayout>
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-grow pt-[var(--header-height)]">
+          <ReportEditor
+            report={selectedReport}
+            onBack={handleBackToList}
+            onDelete={handleDeleteReport}
+            onSave={handleSaveReport}
+          />
+        </main>
+        <Footer />
+      </div>
     );
   }
 
   return (
-    <AppLayout>
-      <div className="flex flex-col min-h-screen bg-transparent">
-        <MainPageHeader
-          label="DEEPSIGHT"
-          title="Dashboard"
-          subtitle="Overview of your research projects and analytics"
-          icon={<BarChart3 className="w-6 h-6 text-[#1E1E1E]" />}
-        />
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
 
-        <div className="flex-1 px-4 md:px-10 lg:px-20 py-6 md:py-8">
-          <div className="max-w-7xl mx-auto space-y-10 md:space-y-20">
+      <main className="flex-grow pt-[var(--header-height)]">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <MainPageHeader
+            label="DEEPSIGHT"
+            title="Dashboard"
+            subtitle="Overview of your research projects and analytics"
+            icon={<BarChart3 className="w-6 h-6 text-[#1E1E1E]" />}
+          />
+
+          <div className="mt-12 space-y-20">
             {/* Conference Overview Stats Section */}
             <section className="animate-slide-up">
               <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
@@ -171,7 +178,9 @@ export default function DashboardPage() {
             */}
           </div>
         </div>
-      </div>
-    </AppLayout>
+      </main>
+
+      <Footer />
+    </div>
   );
 }

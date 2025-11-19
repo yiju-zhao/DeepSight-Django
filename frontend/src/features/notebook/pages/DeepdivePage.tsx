@@ -7,7 +7,7 @@ import NotebookLayout from "@/features/notebook/components/layout/NotebookLayout
 import SourcesPanel from "@/features/notebook/components/panels/SourcesPanel";
 import SessionChatPanel from "@/features/notebook/components/panels/SessionChatPanel";
 import StudioPanel from "@/features/notebook/components/panels/StudioPanel";
-import AppLayout from "@/shared/components/layout/AppLayout";
+import Header from "@/shared/components/layout/Header";
 import "highlight.js/styles/github.css";
 
 /**
@@ -102,40 +102,43 @@ export default function DeepdivePage() {
   }
 
   return (
-    <AppLayout>
-      <NotebookLayout
-        notebookId={notebookId}
-        notebookTitle={currentNotebook?.name}
-        sourcesRemovedTrigger={sourcesRemovedTrigger}
-        sourcesPanel={
-          <SourcesPanel
-            notebookId={notebookId}
-            onSelectionChange={handleSelectionChange}
-            onToggleCollapse={handleToggleCollapse}
-            isCollapsed={isCollapsed}
-            onOpenModal={handleOpenModal}
-            onCloseModal={handleCloseModal}
-            onSourcesRemoved={handleSourcesRemoved}
-            ref={sourcesListRef}
-          />
-        }
-        chatPanel={
-          <SessionChatPanel
-            notebookId={notebookId}
-            sourcesListRef={sourcesListRef}
-            onSelectionChange={handleSelectionChange}
-          />
-        }
-        studioPanel={
-          <StudioPanel
-            notebookId={notebookId}
-            sourcesListRef={sourcesListRef}
-            onSelectionChange={handleSelectionChange}
-            onOpenModal={handleOpenModal}
-            onCloseModal={handleCloseModal}
-          />
-        }
-      />
-    </AppLayout>
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
+      <Header />
+      <main className="flex-1 pt-[var(--header-height)] min-h-0">
+        <NotebookLayout
+          notebookId={notebookId}
+          notebookTitle={currentNotebook?.name}
+          sourcesRemovedTrigger={sourcesRemovedTrigger}
+          sourcesPanel={
+            <SourcesPanel
+              notebookId={notebookId}
+              onSelectionChange={handleSelectionChange}
+              onToggleCollapse={handleToggleCollapse}
+              isCollapsed={isCollapsed}
+              onOpenModal={handleOpenModal}
+              onCloseModal={handleCloseModal}
+              onSourcesRemoved={handleSourcesRemoved}
+              ref={sourcesListRef}
+            />
+          }
+          chatPanel={
+            <SessionChatPanel
+              notebookId={notebookId}
+              sourcesListRef={sourcesListRef}
+              onSelectionChange={handleSelectionChange}
+            />
+          }
+          studioPanel={
+            <StudioPanel
+              notebookId={notebookId}
+              sourcesListRef={sourcesListRef}
+              onSelectionChange={handleSelectionChange}
+              onOpenModal={handleOpenModal}
+              onCloseModal={handleCloseModal}
+            />
+          }
+        />
+      </main>
+    </div>
   );
 }

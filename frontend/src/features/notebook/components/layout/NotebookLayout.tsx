@@ -107,7 +107,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   return (
     <NotebookSettingsProvider>
-      <div className="h-screen bg-white flex flex-col relative overflow-hidden">
+      <div className="h-full bg-white flex flex-col relative overflow-hidden">
         {/* Header */}
         <NotebookHeader
           notebookTitle={notebookTitle}
