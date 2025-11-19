@@ -634,18 +634,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   <RefreshCw className={`h-3 w-3 mr-1 ${reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
-                  onClick={() => {
-                    // Open unified settings modal
-                    onOpenModal('notebookSettings', null);
-                  }}
-                  title="Settings"
-                >
-                  <Settings className="h-3 w-3" />
-                </Button>
+
                 <Button
                   variant="ghost"
                   size="sm"

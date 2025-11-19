@@ -17,7 +17,7 @@ interface ModalsState {
   filePreview: ModalState;
   uploadModal: ModalState;
   addSourceModal: ModalState;
-  advancedSettings: ModalState;
+
   gallerySettings: ModalState;
   customizeReport: ModalState;
   customizePodcast: ModalState;
@@ -57,7 +57,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     filePreview: { isOpen: false, data: null },
     uploadModal: { isOpen: false, data: null },
     addSourceModal: { isOpen: false, data: null },
-    advancedSettings: { isOpen: false, data: null },
+
     gallerySettings: { isOpen: false, data: null },
     customizeReport: { isOpen: false, data: null },
     customizePodcast: { isOpen: false, data: null },
@@ -243,27 +243,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             </motion.div>
           )}
 
-          {/* Advanced Settings Modal */}
-          {modals.advancedSettings.isOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] bg-black/60 flex items-center justify-center p-4"
-              onClick={() => closeModal('advancedSettings')}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                transition={{ type: "spring", duration: 0.3 }}
-                className="bg-white p-6 rounded-xl w-full max-w-4xl shadow-2xl max-h-[90vh] overflow-y-auto"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {modals.advancedSettings.data}
-              </motion.div>
-            </motion.div>
-          )}
+
 
           {/* Gallery Settings Modal */}
           {modals.gallerySettings.isOpen && (
