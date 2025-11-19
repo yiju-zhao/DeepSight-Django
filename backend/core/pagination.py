@@ -189,23 +189,19 @@ class NotebookPagination(PageNumberPagination):
         return Response(
             OrderedDict(
                 [
-                    ("data", data),
+                    ("count", self.page.paginator.count),
+                    ("total_pages", self.page.paginator.num_pages),
+                    ("current_page", self.page.number),
+                    ("page_size", self.get_page_size(self.request)),
+                    ("next", self.get_next_link()),
+                    ("previous", self.get_previous_link()),
+                    ("results", data),
                     (
-                        "meta",
+                        "stats",
                         {
-                            "pagination": {
-                                "count": self.page.paginator.count,
-                                "page": self.page.number,
-                                "pages": self.page.paginator.num_pages,
-                                "pageSize": self.get_page_size(self.request),
-                                "hasNext": self.get_next_link() is not None,
-                                "hasPrevious": self.get_previous_link() is not None,
-                            },
-                            "stats": {
-                                "total_notebooks": self.page.paginator.count,
-                                "active_notebooks": active_notebooks,
-                                "total_items_across_notebooks": total_items,
-                            },
+                            "total_notebooks": self.page.paginator.count,
+                            "active_notebooks": active_notebooks,
+                            "total_items_across_notebooks": total_items,
                         },
                     ),
                 ]

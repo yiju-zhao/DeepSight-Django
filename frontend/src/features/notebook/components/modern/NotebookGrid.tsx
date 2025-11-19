@@ -57,7 +57,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
   // Memoized notebooks data
   const notebooks = useMemo(() => {
     if (!notebooksResponse) return [];
-    return Array.isArray(notebooksResponse) ? notebooksResponse : (notebooksResponse as any)?.data || [];
+    return Array.isArray(notebooksResponse) ? notebooksResponse : (notebooksResponse as any)?.results || [];
   }, [notebooksResponse]);
 
   // Handle create notebook submission

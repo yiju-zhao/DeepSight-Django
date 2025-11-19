@@ -44,8 +44,32 @@ export const ImportToNotebookWizard: React.FC<ImportToNotebookWizardProps> = ({
   const fetchNotebooks = async () => {
     try {
       setLoading(true);
-      const response = await notebooksApi.getAll({ page_size: 100 });
-      setNotebooks(response.results || []);
+      let allNotebooks: Notebook[] = [];
+      let page = 1;
+      let hasMore = true;
+
+      // Fetch all pages of notebooks
+      while (hasMore) {
+        const response = await notebooksApi.getAll({ page, page_size: 100 });
+
+        // Standard DRF pagination format
+        const notebooks = Array.isArray(response) ? response : (response as any)?.results || [];
+        allNotebooks = [...allNotebooks, ...notebooks];
+
+        // Check if there are more pages using next link
+        const hasNextPage = (response as any)?.next !== null && (response as any)?.next !== undefined;
+        hasMore = hasNextPage === true;
+        page++;
+
+        // Safety check: prevent infinite loop if something goes wrong
+        if (page > 100) {
+          console.warn('Stopped fetching notebooks after 100 pages (10,000 notebooks)');
+          break;
+        }
+      }
+
+      setNotebooks(allNotebooks);
+      setError('');
     } catch (err: any) {
       setError('Failed to load notebooks');
       console.error('Error fetching notebooks:', err);
