@@ -193,14 +193,12 @@ class ReportJobDetailView(APIView):
                     {"detail": "Job not found"}, status=status.HTTP_404_NOT_FOUND
                 )
 
-            response_data = {
-                "report_id": str(report.id),
-                "status": report.status,
-                "result": job_data.get("result"),
-                "error": report.error_message,
-                "created_at": report.created_at.isoformat(),
-                "updated_at": report.updated_at.isoformat(),
-            }
+            # Use format_report_data for consistent response format
+            response_data = ReportViewHelper.format_report_data(report)
+            # Add job-specific data
+            response_data["result"] = job_data.get("result")
+            response_data["progress"] = job_data.get("progress", "")
+
             return Response(response_data)
         except Http404:
             return Response(

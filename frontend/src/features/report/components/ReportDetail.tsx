@@ -46,15 +46,21 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
   const [editableContent, setEditableContent] = useState<string>('');
 
   useEffect(() => {
-    // Add defensive check: only fetch if we have a valid report ID
-    if (!content && report.status === 'completed' && report.id) {
+    // If content prop is provided, use it
+    if (content) {
+      setReportContent(content);
+      setEditableContent(content.markdown_content || content.content || '');
+      setIsLoadingContent(false);
+    }
+    // Otherwise, fetch if needed
+    else if (!reportContent && report.status === 'completed' && report.id) {
       const loadContent = async () => {
         try {
           setIsLoadingContent(true);
           const reportService = new ReportService();
-          const content = await reportService.getReportContent(report.id);
-          setReportContent(content);
-          setEditableContent(content.markdown_content || content.content || '');
+          const fetchedContent = await reportService.getReportContent(report.id);
+          setReportContent(fetchedContent);
+          setEditableContent(fetchedContent.markdown_content || fetchedContent.content || '');
         } catch (error) {
           console.error('Failed to load report content:', error);
         } finally {
@@ -62,10 +68,8 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
         }
       };
       loadContent();
-    } else if (reportContent) {
-      setEditableContent(reportContent.markdown_content || reportContent.content || '');
     }
-  }, [report.id, report.status, content, reportContent]);
+  }, [report.id, report.status, content]);
 
   const handleContentChange = (newContent: string) => {
     setEditableContent(newContent);

@@ -23,11 +23,18 @@ export default function ReportDetailPage() {
 
   // Fetch report content (only if report is completed)
   const {
-    data: contentData,
+    data: contentResponse,
     isLoading: loadingContent,
   } = useReportContent(reportId || '', {
     enabled: !!reportId && report?.status === 'completed',
   });
+
+  // Map ReportContentResponse to ReportContent for the component
+  const contentData = contentResponse ? {
+    content: contentResponse.content,
+    markdown_content: contentResponse.content, // Backend returns markdown in content field
+    title: contentResponse.article_title,
+  } : undefined;
 
   // Mutations
   const deleteReportMutation = useDeleteReport();
