@@ -10,6 +10,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from django.core.exceptions import ValidationError
+
 from .models import Event, Instance, Publication, Session, Venue
 from .serializers import (
     ActiveImportSerializer,
@@ -152,9 +154,22 @@ class PublicationViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_404_NOT_FOUND,
                 )
         else:  # action == "create"
-            # Create new notebook
+            # Create new notebook using service layer to ensure RAGFlow dataset is created
             notebook_name = validated_data["notebook_name"]
-            notebook = Notebook.objects.create(user=request.user, name=notebook_name)
+            from notebooks.services import NotebookService
+
+            notebook_service = NotebookService()
+            try:
+                notebook = notebook_service.create_notebook(
+                    user=request.user,
+                    name=notebook_name,
+                    description=f"Created from conference publication import",
+                )
+            except ValidationError as e:
+                return Response(
+                    {"error": f"Failed to create notebook: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         # Import publications using service
         result = conference_import_service.import_publications_to_notebook(
