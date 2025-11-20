@@ -176,7 +176,7 @@ export function useDashboardData(options?: { enabled?: boolean }) {
     queries: [
       {
         queryKey: queryKeys.reports.list(),
-        queryFn: async (): Promise<Report[]> => {
+        queryFn: async (): Promise<{ reports: Report[] }> => {
           const response = await apiClient.get('/reports/');
           // Handle different response formats
           let reports: any[] = [];
@@ -188,10 +188,12 @@ export function useDashboardData(options?: { enabled?: boolean }) {
           }
 
           // Map report_id to id for UI compatibility (API uses report_id, UI expects id)
-          return reports.map(r => ({
+          const mappedReports = reports.map(r => ({
             ...r,
             id: r.report_id || r.job_id || r.id, // Use report_id as canonical id, fallback to job_id or id if present
           }));
+
+          return { reports: mappedReports };
         },
         enabled: options?.enabled ?? true,
         // No refetchInterval - SSE handles real-time updates via useNotebookJobStream
@@ -241,7 +243,7 @@ export function useDashboardData(options?: { enabled?: boolean }) {
 
   return {
     // Data
-    reports: reportsQuery.data ?? [],
+    reports: reportsQuery.data?.reports ?? [],
     podcasts: podcastsQuery.data ?? [],
     confsOverview: conferencesQuery.data ?? null,
     orgsOverview: organizationsQuery.data ?? null,
