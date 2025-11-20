@@ -10,7 +10,7 @@ const PodcastFilters: React.FC<PodcastFiltersProps> = ({
   filters,
   onFiltersChange
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const handleFilterChange = (key: keyof PodcastFiltersType, value: any) => {
     onFiltersChange({

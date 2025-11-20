@@ -10,7 +10,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
   filters,
   onFiltersChange
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   const handleFilterChange = (key: keyof ReportFiltersType, value: any) => {
     onFiltersChange({
