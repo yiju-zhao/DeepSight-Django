@@ -131,6 +131,11 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
     // Single URL mode handling
     if (urls.length === 1) {
       const singleUrl = urls[0];
+      if (!singleUrl) {
+        setError('Invalid URL provided.');
+        setIsUploading(false);
+        return;
+      }
       try {
       const uploadFileId = `link_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
           // Get display name for URL

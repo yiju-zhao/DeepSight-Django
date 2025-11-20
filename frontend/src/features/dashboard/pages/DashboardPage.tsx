@@ -87,6 +87,14 @@ export default function DashboardPage() {
     navigate('/conference');
   }, [navigate]);
 
+  const handleNavigateToReports = useCallback(() => {
+    navigate('/report');
+  }, [navigate]);
+
+  const handleNavigateToPodcasts = useCallback(() => {
+    navigate('/podcast');
+  }, [navigate]);
+
   // Loading state
   if (loading) {
     return (
@@ -127,24 +135,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Show report editor if a report is selected
-  if (selectedReport) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <main className="flex-grow pt-[var(--header-height)]">
-          <ReportEditor
-            report={selectedReport}
-            onBack={handleBackToList}
-            onDelete={handleDeleteReport}
-            onSave={handleSaveReport}
-          />
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
@@ -170,13 +160,13 @@ export default function DashboardPage() {
               <ConferenceSection onNavigateToConferences={handleNavigateToConferences} />
             </section>
 
-            {/* Reports & Podcasts Grid Section (Hidden) */}
-            {/*
+            {/* Reports & Podcasts Grid Section */}
             <section className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-slide-up-delay-1">
               <div>
                 <ReportsSection
                   reports={reports}
                   onReportSelect={handleReportSelect}
+                  onViewAll={handleNavigateToReports}
                   loading={reportsQuery.isLoading}
                 />
               </div>
@@ -185,11 +175,11 @@ export default function DashboardPage() {
                 <PodcastsSection
                   podcasts={podcasts}
                   onPodcastSelect={handlePodcastSelect}
+                  onViewAll={handleNavigateToPodcasts}
                   loading={loading}
                 />
               </div>
             </section>
-            */}
           </div>
         </div>
       </main>
