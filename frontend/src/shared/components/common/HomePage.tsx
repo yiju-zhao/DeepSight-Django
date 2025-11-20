@@ -93,7 +93,7 @@ const HomePage = () => {
               </Link>
 
               {/* Feature 4: Conference */}
-              <Link to="/dashboard/conference" className="group">
+              <Link to="/conference" className="group">
                 <div className="bg-white p-8 rounded-2xl shadow-huawei-sm hover:shadow-huawei-md transition-all duration-300 card-hoverable h-full border border-transparent hover:border-gray-100">
                   <div className="w-12 h-12 bg-black/5 rounded-xl flex items-center justify-center mb-6 group-hover:bg-accent-red/10 transition-colors">
                     <Users className="w-6 h-6 text-foreground group-hover:text-accent-red transition-colors" />

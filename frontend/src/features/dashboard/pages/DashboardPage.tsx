@@ -84,7 +84,7 @@ export default function DashboardPage() {
   }, [refetch]);
 
   const handleNavigateToConferences = useCallback(() => {
-    navigate('/dashboard/conference');
+    navigate('/conference');
   }, [navigate]);
 
   // Loading state

@@ -71,7 +71,7 @@ const AppNavigation: React.FC<AppNavigationProps> = ({ className = '' }) => {
           icon: <BarChart3 className="h-4 w-4" />
         },
         {
-          path: '/dashboard/conference',
+          path: '/conference',
           label: 'Conference Analysis',
           icon: <TrendingUp className="h-4 w-4" />
         }
