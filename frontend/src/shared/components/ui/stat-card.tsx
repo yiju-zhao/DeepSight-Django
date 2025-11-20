@@ -16,9 +16,9 @@ const StatCard = React.forwardRef<HTMLDivElement, StatCardProps>(
       <div
         ref={ref}
         className={cn(
-          'flex flex-col items-center justify-center p-6 bg-white rounded-lg border border-border',
-          'transition-all duration-300',
-          'hover:shadow-huawei-sm hover:-translate-y-0.5',
+          'flex flex-col items-center justify-center p-8 bg-white rounded-2xl',
+          'shadow-huawei-sm hover:shadow-huawei-md transition-all duration-300',
+          'card-hoverable border border-transparent hover:border-gray-100',
           className
         )}
         {...props}
