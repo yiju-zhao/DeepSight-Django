@@ -342,7 +342,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
   return (
     <>
       {/* Header - Fixed at top */}
-      <div className="sticky top-0 z-50 bg-white pt-8 pb-4 -mt-8 -mx-8 px-8 border-b border-[#F7F7F7]">
+      <div className="sticky top-0 z-50 bg-white pt-6 pb-4 px-8 border-b border-[#F7F7F7]">
         <div className="flex items-center justify-between mb-1">
           <div>
             <h2 className="text-[20px] font-bold text-[#1E1E1E]">Add Source</h2>
@@ -386,7 +386,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
 
       {/* Main Upload Area */}
       <div
-        className={`border-2 border-dashed rounded-2xl p-8 mb-8 text-center transition-all duration-200 mt-8 ${isDragOver
+        className={`border-2 border-dashed rounded-2xl p-8 mb-8 text-center transition-all duration-200 mt-8 mx-8 ${isDragOver
           ? 'border-[#CE0E2D] bg-[#FEF2F2]'
           : 'border-[#E3E3E3] bg-[#F9FAFB] hover:border-[#B1B1B1]'
           }`}
@@ -423,7 +423,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
       </div>
 
       {/* Upload Options */}
-      <div className="space-y-6 pb-4">
+      <div className="space-y-6 pb-8 px-8">
         {/* Link Section */}
         <div className="bg-white border border-[#E3E3E3] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
           <div className="flex items-center space-x-3 mb-5">

@@ -235,7 +235,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 20 }}
                 transition={{ duration: 0.3 }}
-                className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto scrollbar-hide shadow-2xl"
+                className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto scrollbar-hide shadow-2xl"
                 onClick={(e) => e.stopPropagation()}
               >
                 {modals.addSourceModal.data}
