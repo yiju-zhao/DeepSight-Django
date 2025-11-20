@@ -342,7 +342,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
   return (
     <>
       {/* Header - Fixed at top */}
-      <div className="sticky top-0 z-50 bg-white pt-6 pb-4 -mt-8 -mx-8 px-8 border-b border-[#F7F7F7]">
+      <div className="sticky top-0 z-50 bg-white pt-8 pb-4 -mt-8 -mx-8 px-8 border-b border-[#F7F7F7]">
         <div className="flex items-center justify-between mb-1">
           <div>
             <h2 className="text-[20px] font-bold text-[#1E1E1E]">Add Source</h2>
