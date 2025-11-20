@@ -114,6 +114,9 @@ class ReportGenerationService:
                         logger.info(
                             f"Parsed custom requirements for report {report_id}"
                         )
+                        # Reload the report object to get the updated parsed_requirements
+                        report.refresh_from_db()
+
                 except Exception as e:
                     logger.warning(
                         f"Failed to parse custom requirements: {e}. Continuing without parsing."
@@ -127,6 +130,7 @@ class ReportGenerationService:
                     "report_id": str(report.id),
                     "user_id": str(report.user.pk),
                     "figure_data": figure_data,
+                    "parsed_requirements": report.parsed_requirements,  # Ensure parsed requirements are included
                     **content_data,
                 }
             )
