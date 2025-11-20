@@ -7,6 +7,8 @@ import ReportDetail from "@/features/report/components/ReportDetail";
 import { Report, ReportFilters as ReportFiltersType } from "@/features/report/types/type";
 import { Report as QueryReport } from "@/features/report/hooks/useReports";
 import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
+import Header from '@/shared/components/layout/Header';
+import { FileText, Sparkles } from 'lucide-react';
 
 const ReportPage: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
@@ -170,138 +172,155 @@ const ReportPage: React.FC = () => {
 
   if (showDetail && selectedReport) {
     return (
-      <ReportDetail
-        report={selectedReport}
-        isLoading={isLoading}
-        onDownload={handleDownloadReport}
-        onDelete={handleDeleteReport}
-        onEdit={handleEditReport}
-        onBack={handleBackToList}
-      />
+      <div className="min-h-screen bg-background flex flex-col">
+        <Header />
+        <main className="flex-grow pt-[var(--header-height)]">
+          <ReportDetail
+            report={selectedReport}
+            isLoading={isLoading}
+            onDownload={handleDownloadReport}
+            onDelete={handleDeleteReport}
+            onEdit={handleEditReport}
+            onBack={handleBackToList}
+          />
+        </main>
+      </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Research Reports</h1>
-          <p className="mt-2 text-gray-600">
-            Generate and manage your research reports
-          </p>
-        </div>
-
-        {/* Stats */}
-        <div className="mb-6">
-          <ReportStats stats={stats} />
-        </div>
-
-        {/* Filters and Controls */}
-        <div className="mb-6 bg-white rounded-lg shadow p-6">
-          <ReportFilters
-            filters={filters}
-            onFiltersChange={handleFiltersChange}
-            stats={stats}
-          />
-
-          {/* Search and View Controls */}
-          <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="flex-1 max-w-md">
-              <input
-                type="text"
-                placeholder="Search reports..."
-                value={searchTerm}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+    <div className="min-h-screen bg-background flex flex-col">
+      <Header />
+      <main className="flex-grow pt-[var(--header-height)]">
+        {/* Modern Page Header */}
+        <section className="relative bg-white border-b border-gray-100">
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white/20 pointer-events-none" />
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
+            <div className="max-w-3xl">
+              <div className="flex items-center gap-2 mb-4">
+                <span className="px-3 py-1 rounded-full bg-emerald-50 text-xs font-medium text-emerald-600 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" />
+                  Intelligence
+                </span>
+              </div>
+              <h1 className="text-4xl font-bold text-[#1E1E1E] tracking-tight mb-4">
+                Research Reports
+              </h1>
+              <p className="text-lg text-gray-500 leading-relaxed">
+                Generate, manage, and analyze your AI-powered research reports.
+              </p>
             </div>
+          </div>
+        </section>
 
-            <div className="flex items-center gap-4">
-              {/* Sort Order */}
-              <select
-                value={sortOrder}
-                onChange={(e) => handleSortChange(e.target.value as 'recent' | 'oldest' | 'title')}
-                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="recent">Most Recent</option>
-                <option value="oldest">Oldest First</option>
-                <option value="title">Title A-Z</option>
-              </select>
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Stats */}
+          <div className="mb-8">
+            <ReportStats stats={stats} />
+          </div>
 
-              {/* View Mode */}
-              <div className="flex border border-gray-300 rounded-md">
-                <button
-                  onClick={() => handleViewModeChange('grid')}
-                  className={`px-3 py-2 ${
-                    viewMode === 'grid'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  } rounded-l-md`}
+          {/* Filters and Controls */}
+          <div className="mb-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <ReportFilters
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+              stats={stats}
+            />
+
+            {/* Search and View Controls */}
+            <div className="mt-6 pt-6 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex-1 max-w-md">
+                <input
+                  type="text"
+                  placeholder="Search reports..."
+                  value={searchTerm}
+                  onChange={(e) => handleSearchChange(e.target.value)}
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black/20 transition-all"
+                />
+              </div>
+
+              <div className="flex items-center gap-4">
+                {/* Sort Order */}
+                <select
+                  value={sortOrder}
+                  onChange={(e) => handleSortChange(e.target.value as 'recent' | 'oldest' | 'title')}
+                  className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black/20 transition-all text-sm font-medium text-gray-700"
                 >
-                  Grid
-                </button>
-                <button
-                  onClick={() => handleViewModeChange('list')}
-                  className={`px-3 py-2 ${
-                    viewMode === 'list'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-50'
-                  } rounded-r-md`}
-                >
-                  List
-                </button>
+                  <option value="recent">Most Recent</option>
+                  <option value="oldest">Oldest First</option>
+                  <option value="title">Title A-Z</option>
+                </select>
+
+                {/* View Mode */}
+                <div className="flex bg-gray-100 p-1 rounded-lg">
+                  <button
+                    onClick={() => handleViewModeChange('grid')}
+                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'grid'
+                        ? 'bg-white text-black shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
+                      }`}
+                  >
+                    Grid
+                  </button>
+                  <button
+                    onClick={() => handleViewModeChange('list')}
+                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'list'
+                        ? 'bg-white text-black shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900'
+                      }`}
+                  >
+                    List
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Error Display */}
-        {error && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-md p-4">
-            <div className="flex">
+          {/* Error Display */}
+          {error && (
+            <div className="mb-8 bg-red-50 border border-red-100 rounded-xl p-4 flex items-center gap-3">
               <div className="flex-shrink-0">
                 <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
                 </svg>
               </div>
-              <div className="ml-3">
-                <p className="text-sm text-red-800">{error instanceof Error ? error.message : 'An error occurred'}</p>
-              </div>
+              <p className="text-sm text-red-800 font-medium">
+                {error instanceof Error ? error.message : 'An error occurred while loading reports'}
+              </p>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Reports List */}
-        <div className="bg-white rounded-lg shadow">
-          <ReportList
-            reports={filteredReports}
-            isLoading={isLoading}
-            onSelectReport={handleSelectReport}
-            onDownloadReport={handleDownloadReport}
-            onDeleteReport={handleDeleteReport}
-            onEditReport={handleEditReport}
-            selectedReportId={selectedReport?.id}
-            viewMode={viewMode}
-          />
+          {/* Reports List */}
+          <div className="bg-transparent">
+            <ReportList
+              reports={filteredReports}
+              isLoading={isLoading}
+              onSelectReport={handleSelectReport}
+              onDownloadReport={handleDownloadReport}
+              onDeleteReport={handleDeleteReport}
+              onEditReport={handleEditReport}
+              selectedReportId={selectedReport?.id}
+              viewMode={viewMode}
+            />
+          </div>
+
+          {/* Empty State */}
+          {!isLoading && filteredReports.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-dashed border-gray-200">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                <FileText className="w-8 h-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">No reports found</h3>
+              <p className="text-gray-500 text-center max-w-sm">
+                {searchTerm || Object.keys(filters).length > 0
+                  ? 'Try adjusting your search or filters to find what you are looking for.'
+                  : 'Get started by creating your first research report in the Notebook.'
+                }
+              </p>
+            </div>
+          )}
         </div>
-
-        {/* Empty State */}
-        {!isLoading && filteredReports.length === 0 && (
-          <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No reports found</h3>
-            <p className="mt-1 text-sm text-gray-500">
-              {searchTerm || Object.keys(filters).length > 0
-                ? 'Try adjusting your search or filters.'
-                : 'Get started by creating your first research report.'
-              }
-            </p>
-          </div>
-        )}
-      </div>
+      </main>
     </div>
   );
 };

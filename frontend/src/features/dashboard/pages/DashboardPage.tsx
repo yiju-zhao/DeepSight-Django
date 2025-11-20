@@ -92,7 +92,7 @@ export default function DashboardPage() {
               iconBg="bg-emerald-600"
               stats={[
                 { label: 'Total Reports', value: reports.length },
-                { label: 'Latest', value: reports[0]?.title || 'No reports yet', isText: true },
+                { label: 'Latest', value: reports[0]?.title || reports[0]?.article_title || 'No reports yet', isText: true },
               ]}
               onClick={() => handleNavigate('/report')}
               actionLabel="View Reports"
