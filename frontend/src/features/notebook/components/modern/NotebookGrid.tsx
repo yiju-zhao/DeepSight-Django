@@ -102,14 +102,7 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
       accessorKey: 'name',
       header: 'Name',
       cell: ({ row }) => (
-        <div className="flex flex-col">
-          <span className="font-medium text-gray-900">{row.original.name}</span>
-          {row.original.description && (
-            <span className="text-sm text-gray-500 mt-1">
-              {row.original.description}
-            </span>
-          )}
-        </div>
+        <span className="font-medium text-gray-900">{row.original.name}</span>
       ),
     },
     {
@@ -163,11 +156,6 @@ export const NotebookGrid: React.FC<NotebookGridProps> = ({ className }) => {
                 <h3 className="text-lg font-semibold text-[#1E1E1E] truncate group-hover:text-[#CE0E2D] transition-colors">
                   {notebook.name}
                 </h3>
-                {notebook.description && (
-                  <p className="text-sm text-[#666666] mt-1 line-clamp-2">
-                    {notebook.description}
-                  </p>
-                )}
               </div>
               <button
                 onClick={(e) => {

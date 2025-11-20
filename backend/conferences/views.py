@@ -163,7 +163,7 @@ class PublicationViewSet(viewsets.ModelViewSet):
                 notebook = notebook_service.create_notebook(
                     user=request.user,
                     name=notebook_name,
-                    description=f"Created from conference publication import",
+                    description="",
                 )
             except ValidationError as e:
                 return Response(

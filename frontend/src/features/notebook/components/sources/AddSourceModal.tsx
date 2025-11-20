@@ -342,7 +342,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
   return (
     <>
       {/* Header - Fixed at top */}
-      <div className="sticky top-0 z-10 bg-white pt-6 pb-4 -mt-8 -mx-8 px-8 border-b border-[#F7F7F7]">
+      <div className="sticky top-0 z-50 bg-white pt-6 pb-4 -mt-8 -mx-8 px-8 border-b border-[#F7F7F7]">
         <div className="flex items-center justify-between mb-1">
           <div>
             <h2 className="text-[20px] font-bold text-[#1E1E1E]">Add Source</h2>
@@ -387,8 +387,8 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
       {/* Main Upload Area */}
       <div
         className={`border-2 border-dashed rounded-2xl p-8 mb-8 text-center transition-all duration-200 mt-8 ${isDragOver
-            ? 'border-[#CE0E2D] bg-[#FEF2F2]'
-            : 'border-[#E3E3E3] bg-[#F9FAFB] hover:border-[#B1B1B1]'
+          ? 'border-[#CE0E2D] bg-[#FEF2F2]'
+          : 'border-[#E3E3E3] bg-[#F9FAFB] hover:border-[#B1B1B1]'
           }`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -437,8 +437,8 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
             <div className="grid grid-cols-3 gap-3">
               <button
                 className={`flex items-center justify-center space-x-2 p-2.5 rounded-lg transition-all duration-200 border ${urlProcessingType === 'website'
-                    ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
-                    : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
+                  ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
+                  : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
                   }`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -453,8 +453,8 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
               </button>
               <button
                 className={`flex items-center justify-center space-x-2 p-2.5 rounded-lg transition-all duration-200 border ${urlProcessingType === 'document'
-                    ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
-                    : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
+                  ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
+                  : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
                   }`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -469,8 +469,8 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
               </button>
               <button
                 className={`flex items-center justify-center space-x-2 p-2.5 rounded-lg transition-all duration-200 border ${urlProcessingType === 'media'
-                    ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
-                    : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
+                  ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
+                  : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
                   }`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -489,10 +489,10 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
               <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
                 <textarea
                   placeholder={`Enter one or more URLs (one per line)${urlProcessingType === 'media'
-                      ? '\nExample:\nhttps://youtube.com/watch?v=...\nhttps://vimeo.com/...'
-                      : urlProcessingType === 'document'
-                        ? '\nExample:\nhttps://example.com/doc1.pdf\nhttps://example.com/doc2.pptx'
-                        : '\nExample:\nhttps://example.com/article1\nhttps://example.com/article2'
+                    ? '\nExample:\nhttps://youtube.com/watch?v=...\nhttps://vimeo.com/...'
+                    : urlProcessingType === 'document'
+                      ? '\nExample:\nhttps://example.com/doc1.pdf\nhttps://example.com/doc2.pptx'
+                      : '\nExample:\nhttps://example.com/article1\nhttps://example.com/article2'
                     }`}
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
@@ -569,8 +569,8 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
           <div className="space-y-4">
             <button
               className={`w-full flex items-center justify-center space-x-2 p-2.5 rounded-lg transition-all duration-200 border ${activeTab === 'text'
-                  ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
-                  : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
+                ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
+                : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
                 }`}
               onClick={(e) => {
                 e.preventDefault();
