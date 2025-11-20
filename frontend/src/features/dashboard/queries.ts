@@ -97,10 +97,10 @@ export function useReports(options?: { enabled?: boolean }) {
         reports = (response as any).reports || [];
       }
 
-      // Map job_id to id for UI compatibility (API uses job_id, UI expects id)
+      // Map report_id to id for UI compatibility (API uses report_id, UI expects id)
       return reports.map(r => ({
         ...r,
-        id: r.job_id || r.id, // Use job_id as canonical id, fallback to id if already present
+        id: r.report_id || r.job_id || r.id, // Use report_id as canonical id, fallback to job_id or id if present
       }));
     },
     enabled: options?.enabled ?? true,
@@ -187,10 +187,10 @@ export function useDashboardData(options?: { enabled?: boolean }) {
             reports = (response as any).reports || [];
           }
 
-          // Map job_id to id for UI compatibility (API uses job_id, UI expects id)
+          // Map report_id to id for UI compatibility (API uses report_id, UI expects id)
           return reports.map(r => ({
             ...r,
-            id: r.job_id || r.id, // Use job_id as canonical id, fallback to id if already present
+            id: r.report_id || r.job_id || r.id, // Use report_id as canonical id, fallback to job_id or id if present
           }));
         },
         enabled: options?.enabled ?? true,

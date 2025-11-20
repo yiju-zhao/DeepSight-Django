@@ -76,7 +76,19 @@ export function useReportsList(notebookId?: string, options?: {
     queryKey: queryKeys.reports.list(filters),
     queryFn: async (): Promise<ReportListResponse> => {
       const params = notebookId ? { notebook: notebookId } : undefined;
-      return apiClient.get('/reports/', { params });
+      const response = await apiClient.get('/reports/', { params });
+
+      // Normalize response: ensure we have a reports array with mapped IDs
+      let reports = response?.reports || (Array.isArray(response) ? response : []);
+
+      // Map report_id to job_id for consistency (API uses report_id, but the Report type expects job_id)
+      reports = reports.map((r: any) => ({
+        ...r,
+        job_id: r.report_id || r.job_id || r.id,
+        report_id: r.report_id || r.job_id || r.id,
+      }));
+
+      return { reports };
     },
     enabled: options?.enabled ?? true,
     refetchInterval: options?.refetchInterval,

@@ -41,6 +41,8 @@ const Header = () => {
     const dashboardSubLinks = [
         { name: 'Overview', path: '/dashboard' },
         { name: 'Conference', path: '/conference' },
+        { name: 'Intelligence Report', path: '/report' },
+        { name: 'AI Podcast', path: '/podcast' },
     ];
 
     return (
