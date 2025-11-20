@@ -179,24 +179,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
           )}
         </AnimatePresence>
       </div>
-
-      {/* Loading Overlay for Critical Operations */}
-      <AnimatePresence>
-        {isLoading && sessions.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50"
-          >
-            <div className="text-center">
-              <div className="w-12 h-12 border-3 border-red-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-base font-medium text-gray-900 mb-2">Setting up your chat</p>
-              <p className="text-sm text-gray-500">Initializing AI agent and knowledge base...</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

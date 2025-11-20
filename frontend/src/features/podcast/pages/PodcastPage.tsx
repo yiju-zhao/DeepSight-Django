@@ -157,7 +157,7 @@ const PodcastPage: React.FC = () => {
         {/* Modern Page Header */}
         <section className="relative bg-white border-b border-gray-100">
           <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white/20 pointer-events-none" />
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
             <div className="max-w-3xl">
               <div className="flex items-center gap-2 mb-4">
                 <span className="px-3 py-1 rounded-full bg-purple-50 text-xs font-medium text-purple-600 flex items-center gap-1">
