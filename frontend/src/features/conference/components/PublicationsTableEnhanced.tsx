@@ -21,14 +21,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Settings,
-  Eye,
   Filter,
 } from 'lucide-react';
 import { splitSemicolonValues, formatTruncatedList } from '@/shared/utils/utils';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Button } from '@/shared/components/ui/button';
 import ExportButton from './ExportButton';
-import PublicationDetailModal from './PublicationDetailModal';
 import { ImportToNotebookWizard } from './ImportToNotebookWizard';
 import { useFavorites } from '../hooks/useFavorites';
 import type { ImportResponse } from '../types';
@@ -47,7 +45,6 @@ interface PublicationsTableProps {
   onSortChange: (field: SortField, direction: SortDirection) => void;
   isFiltered: boolean;
   isLoading?: boolean;
-  onViewDetails?: (publication: PublicationTableItem) => void;
 }
 
 interface ColumnVisibility {
@@ -99,7 +96,6 @@ interface PublicationRowProps {
   onToggleSelect: () => void;
   isFavorite: boolean;
   onToggleFavorite: () => void;
-  onViewDetails: () => void;
 }
 
 const PublicationRow = memo(({
@@ -109,7 +105,6 @@ const PublicationRow = memo(({
   onToggleSelect,
   isFavorite,
   onToggleFavorite,
-  onViewDetails,
 }: PublicationRowProps) => {
   const keywords = useMemo(() => splitSemicolonValues(publication.keywords), [publication.keywords]);
   const authors = useMemo(() => splitSemicolonValues(publication.authors), [publication.authors]);
@@ -122,7 +117,7 @@ const PublicationRow = memo(({
   const affiliationsDisplay = useMemo(() => formatTruncatedList(affiliations, 2), [affiliations]);
 
   return (
-    <tr className="group border-b border-[#E3E3E3] hover:bg-[#F5F5F5] transition-all duration-200">
+    <tr className="group border-b border-[#E3E3E3]">
       {/* Selection Checkbox */}
       <td className="py-4 px-4 w-12">
         <Checkbox
@@ -139,7 +134,7 @@ const PublicationRow = memo(({
           className={`p-1.5 rounded-md transition-all duration-200 ${
             isFavorite
               ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
-              : 'text-[#666666] hover:text-amber-500 hover:bg-amber-50 opacity-0 group-hover:opacity-100'
+              : 'text-[#666666] hover:text-amber-500 hover:bg-amber-50'
           }`}
           title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
         >
@@ -154,7 +149,7 @@ const PublicationRow = memo(({
       {/* Title - Always visible */}
       <td className="py-4 px-4">
         <div className="space-y-1.5">
-          <div className="font-medium text-foreground text-sm hover:text-primary cursor-pointer transition-colors" onClick={onViewDetails}>
+          <div className="font-medium text-foreground text-sm">
             {publication.title}
           </div>
           {columnVisibility.keywords && keywords.length > 0 && (
@@ -273,14 +268,6 @@ const PublicationRow = memo(({
                 <ExternalLink className="h-4 w-4" />
               </a>
             )}
-
-            <button
-              onClick={onViewDetails}
-              className="p-1.5 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md transition-all opacity-0 group-hover:opacity-100"
-              title="View Details"
-            >
-              <Eye className="h-4 w-4" />
-            </button>
           </div>
         </td>
       )}
@@ -301,7 +288,6 @@ interface TableBodyProps {
   onToggleSelect: (id: string) => void;
   favorites: Set<string>;
   onToggleFavorite: (id: string) => void;
-  onViewDetails: (publication: PublicationTableItem) => void;
 }
 
 const TableBody = memo(({
@@ -311,7 +297,6 @@ const TableBody = memo(({
   onToggleSelect,
   favorites,
   onToggleFavorite,
-  onViewDetails,
 }: TableBodyProps) => (
   <tbody>
     {data.map((publication) => (
@@ -323,7 +308,6 @@ const TableBody = memo(({
         onToggleSelect={() => onToggleSelect(String(publication.id))}
         isFavorite={favorites.has(String(publication.id))}
         onToggleFavorite={() => onToggleFavorite(String(publication.id))}
-        onViewDetails={() => onViewDetails(publication)}
       />
     ))}
   </tbody>
@@ -349,13 +333,10 @@ const PublicationsTableComponent = ({
   onSortChange,
   isFiltered,
   isLoading,
-  onViewDetails,
 }: PublicationsTableProps) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showAffiliationFilter, setShowAffiliationFilter] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [selectedPublication, setSelectedPublication] = useState<PublicationTableItem | null>(null);
-  const [showDetailModal, setShowDetailModal] = useState(false);
   const [showImportWizard, setShowImportWizard] = useState(false);
 
   const { favorites, toggleFavorite } = useFavorites();
@@ -450,16 +431,6 @@ const PublicationsTableComponent = ({
   const totalPages = Math.ceil(pagination.count / 20);
   const allSelected = data.length > 0 && selectedIds.size === data.length;
   const someSelected = selectedIds.size > 0 && selectedIds.size < data.length;
-
-  const handleViewDetails = (publication: PublicationTableItem) => {
-    setSelectedPublication(publication);
-    setShowDetailModal(true);
-
-    // Also call the optional callback if provided
-    if (onViewDetails) {
-      onViewDetails(publication);
-    }
-  };
 
   const handleImportComplete = (response: ImportResponse) => {
     // Clear selection after successful import
@@ -695,7 +666,6 @@ const PublicationsTableComponent = ({
               onToggleSelect={toggleSelect}
               favorites={favorites}
               onToggleFavorite={toggleFavorite}
-              onViewDetails={handleViewDetails}
             />
           </table>
         </div>
@@ -749,16 +719,6 @@ const PublicationsTableComponent = ({
           Showing {data.length} of {pagination.count.toLocaleString()} publications
         </div>
       </div>
-
-      {/* Publication Detail Modal */}
-      <PublicationDetailModal
-        publication={selectedPublication}
-        isOpen={showDetailModal}
-        onClose={() => {
-          setShowDetailModal(false);
-          setSelectedPublication(null);
-        }}
-      />
 
       {/* Import To Notebook Wizard */}
       <ImportToNotebookWizard
