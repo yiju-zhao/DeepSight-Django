@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useReportsList, useDeleteReport } from '@/features/report/hooks/useReports';
 import ReportList from "@/features/report/components/ReportList";
 import ReportFilters from "@/features/report/components/ReportFilters";
-import ReportStats from "@/features/report/components/ReportStats";
+
 import ReportDetail from "@/features/report/components/ReportDetail";
 import { Report, ReportFilters as ReportFiltersType } from "@/features/report/types/type";
 import { Report as QueryReport } from "@/features/report/hooks/useReports";
@@ -214,17 +214,11 @@ const ReportPage: React.FC = () => {
         </section>
 
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          {/* Stats */}
-          <div className="mb-8">
-            <ReportStats stats={stats} />
-          </div>
-
           {/* Filters and Controls */}
           <div className="mb-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <ReportFilters
               filters={filters}
               onFiltersChange={handleFiltersChange}
-              stats={stats}
             />
 
             {/* Search and View Controls */}
@@ -256,8 +250,8 @@ const ReportPage: React.FC = () => {
                   <button
                     onClick={() => handleViewModeChange('grid')}
                     className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'grid'
-                        ? 'bg-white text-black shadow-sm'
-                        : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
                       }`}
                   >
                     Grid
@@ -265,8 +259,8 @@ const ReportPage: React.FC = () => {
                   <button
                     onClick={() => handleViewModeChange('list')}
                     className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'list'
-                        ? 'bg-white text-black shadow-sm'
-                        : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
                       }`}
                   >
                     List

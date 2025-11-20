@@ -1,16 +1,14 @@
 import React from 'react';
-import { ReportFilters as ReportFiltersType, ReportStats } from '../types/type';
+import { ReportFilters as ReportFiltersType } from '../types/type';
 
 interface ReportFiltersProps {
   filters: ReportFiltersType;
   onFiltersChange: (filters: ReportFiltersType) => void;
-  stats?: ReportStats;
 }
 
 const ReportFilters: React.FC<ReportFiltersProps> = ({
   filters,
-  onFiltersChange,
-  stats
+  onFiltersChange
 }) => {
   const handleFilterChange = (key: keyof ReportFiltersType, value: any) => {
     onFiltersChange({
@@ -40,41 +38,6 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Status Filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Status
-          </label>
-          <select
-            value={filters.status || ''}
-            onChange={(e) => handleFilterChange('status', e.target.value || undefined)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Statuses</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-            <option value="running">Running</option>
-            <option value="pending">Pending</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
-        </div>
-
-        {/* Model Provider Filter */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Model Provider
-          </label>
-          <select
-            value={filters.model_provider || ''}
-            onChange={(e) => handleFilterChange('model_provider', e.target.value || undefined)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="">All Providers</option>
-            <option value="openai">OpenAI</option>
-            <option value="google">Google</option>
-          </select>
-        </div>
-
         {/* Date Range Filter */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -102,52 +65,6 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({
           </div>
         </div>
       </div>
-
-      {/* Quick Filter Buttons */}
-      {stats && (
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => handleFilterChange('status', 'completed')}
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              filters.status === 'completed'
-                ? 'bg-green-100 text-green-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Completed ({stats.completed})
-          </button>
-          <button
-            onClick={() => handleFilterChange('status', 'running')}
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              filters.status === 'running'
-                ? 'bg-blue-100 text-blue-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Running ({stats.running})
-          </button>
-          <button
-            onClick={() => handleFilterChange('status', 'failed')}
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              filters.status === 'failed'
-                ? 'bg-red-100 text-red-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Failed ({stats.failed})
-          </button>
-          <button
-            onClick={() => handleFilterChange('status', 'pending')}
-            className={`px-3 py-1 rounded-full text-xs font-medium ${
-              filters.status === 'pending'
-                ? 'bg-yellow-100 text-yellow-800'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Pending ({stats.pending})
-          </button>
-        </div>
-      )}
     </div>
   );
 };

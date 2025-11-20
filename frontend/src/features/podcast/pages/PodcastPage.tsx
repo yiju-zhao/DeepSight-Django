@@ -9,7 +9,7 @@ import {
 import { PodcastService } from '@/features/podcast/services/PodcastService';
 import PodcastList from "@/features/podcast/components/PodcastList";
 import PodcastFilters from "@/features/podcast/components/PodcastFilters";
-import PodcastStats from "@/features/podcast/components/PodcastStats";
+
 import PodcastDetail from "@/features/podcast/components/PodcastDetail";
 import { Podcast, PodcastFilters as PodcastFiltersType } from "@/features/podcast/types/type";
 import { config } from "@/config";
@@ -176,19 +176,11 @@ const PodcastPage: React.FC = () => {
         </section>
 
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          {/* Stats */}
-          {stats && (
-            <div className="mb-8">
-              <PodcastStats stats={stats} />
-            </div>
-          )}
-
           {/* Filters and Controls */}
           <div className="mb-8 bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <PodcastFilters
               filters={filters}
               onFiltersChange={handleFiltersChange}
-              stats={stats || { total: 0, completed: 0, failed: 0, pending: 0, generating: 0, cancelled: 0 }}
             />
 
             {/* Search and View Controls */}
@@ -220,8 +212,8 @@ const PodcastPage: React.FC = () => {
                   <button
                     onClick={() => handleViewModeChange('grid')}
                     className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'grid'
-                        ? 'bg-white text-black shadow-sm'
-                        : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
                       }`}
                   >
                     Grid
@@ -229,8 +221,8 @@ const PodcastPage: React.FC = () => {
                   <button
                     onClick={() => handleViewModeChange('list')}
                     className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${viewMode === 'list'
-                        ? 'bg-white text-black shadow-sm'
-                        : 'text-gray-500 hover:text-gray-900'
+                      ? 'bg-white text-black shadow-sm'
+                      : 'text-gray-500 hover:text-gray-900'
                       }`}
                   >
                     List
