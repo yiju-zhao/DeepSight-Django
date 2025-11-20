@@ -35,7 +35,7 @@ interface PodcastGenerationFormProps {
   // Configuration props
   config: PodcastConfig;
   onConfigChange: (config: Partial<PodcastConfig>) => void;
-  
+
   // Generation state props
   generationState: {
     state: GenerationState;
@@ -43,11 +43,11 @@ interface PodcastGenerationFormProps {
     error?: string;
   };
   onGenerate: (configOverrides?: Partial<PodcastConfig>) => void;
-  
+
   // File selection props
   selectedFiles: FileItem[];
   selectedSources: any[];
-  
+
   // Modal props
   onOpenModal: (modalType: string, data: React.ReactNode) => void;
   onCloseModal: (modalType: string) => void;
@@ -59,7 +59,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
   // Configuration props
   config,
   onConfigChange,
-  
+
   // Generation state props
   generationState,
   onGenerate,
@@ -67,7 +67,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
   // File selection props
   selectedFiles,
   selectedSources,
-  
+
   // Modal props
   onOpenModal,
   onCloseModal,
@@ -80,9 +80,9 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
 
   const containerClasses = [
     'rounded-2xl relative overflow-hidden transition-all duration-200 min-h-[140px] flex flex-col justify-between',
-    'bg-white border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px]',
+    'bg-white border border-[#E3E3E3] shadow-[0_4px_8px_rgba(0,0,0,0.04)]',
     canGenerate && !isGenerating
-      ? 'cursor-pointer hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] hover:border-[#CE0E2D]'
+      ? 'cursor-pointer hover:shadow-[0_12px_20px_rgba(0,0,0,0.12)] hover:border-[#CE0E2D] group'
       : '',
     isGenerating ? 'ring-1 ring-[#CE0E2D]' : ''
   ].join(' ');
@@ -103,7 +103,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
             aria-busy={isGenerating}
           >
             <div className="absolute top-4 left-4">
-              <div className="w-8 h-8 bg-[#F5F5F5] rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#F5F5F5] rounded-full flex items-center justify-center group-hover:bg-[#FEF2F2] transition-colors">
                 <MessageSquare className="h-4 w-4 text-[#CE0E2D]" />
               </div>
             </div>
@@ -138,8 +138,8 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
             </div>
 
             <div className="p-5 pt-16">
-              <h3 className="text-sm font-semibold text-[#1E1E1E]">AI Podcast</h3>
-              <p className="text-xs text-[#666666] mt-1">Create an audio conversation from your notebook sources.</p>
+              <h3 className="text-[14px] font-bold text-[#1E1E1E] mb-1">AI Podcast</h3>
+              <p className="text-[12px] text-[#666666] leading-[1.5]">Create an audio conversation from your notebook sources.</p>
             </div>
           </div>
         </TooltipTrigger>

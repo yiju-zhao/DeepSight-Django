@@ -130,19 +130,17 @@ const CustomMessage: React.FC = () => {
               className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`flex space-x-4 ${
-                  isUser
+                className={`flex space-x-4 ${isUser
                     ? 'max-w-[80%] flex-row-reverse space-x-reverse'
                     : 'w-full'
-                }`}
+                  }`}
               >
                 {/* Avatar */}
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    isUser
-                      ? 'bg-black text-white'
-                      : 'bg-white text-[#666666]'
-                  }`}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUser
+                      ? 'bg-[#1E1E1E] text-white'
+                      : 'bg-[#CE0E2D] text-white'
+                    }`}
                 >
                   {isUser ? (
                     <User className="h-4 w-4" />
@@ -154,11 +152,11 @@ const CustomMessage: React.FC = () => {
                 {/* Message Content */}
                 <div className={`group relative ${isUser ? '' : 'w-full'}`}>
                   {isUser ? (
-                    <div className="px-4 py-2.5 rounded-2xl bg-[#F5F5F5] text-[#1E1E1E]">
-                      <p className="text-sm leading-6">{text}</p>
+                    <div className="px-5 py-3 rounded-2xl bg-[#F5F5F5] text-[#1E1E1E]">
+                      <p className="text-[14px] leading-[1.6]">{text}</p>
                     </div>
                   ) : (
-                    <div className="px-4 py-3 rounded-2xl bg-white shadow-md">
+                    <div className="px-6 py-4 rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-[#F7F7F7]">
                       <MarkdownContent content={text} />
                     </div>
                   )}
@@ -210,10 +208,10 @@ const CustomComposer: React.FC = () => {
   };
 
   return (
-    <div className="flex-shrink-0 px-6 py-4 bg-white shadow-inner">
-      <div className="bg-[#F7F7F7] rounded-2xl focus-within:ring-2 focus-within:ring-black shadow-sm">
+    <div className="flex-shrink-0 px-6 py-4 bg-white border-t border-[#F7F7F7]">
+      <div className="bg-[#F7F7F7] rounded-[24px] focus-within:ring-1 focus-within:ring-[#E5E5E5] transition-all duration-200">
         <div className="flex items-end space-x-3 px-4 py-3">
-          <div className="flex-1 min-h-[40px]">
+          <div className="flex-1 min-h-[24px] flex items-center">
             <Textarea
               ref={textareaRef}
               value={inputValue}
@@ -223,7 +221,7 @@ const CustomComposer: React.FC = () => {
               }}
               onKeyDown={handleKeyPress}
               placeholder="Type your message..."
-              className="border-0 resize-none shadow-none focus-visible:ring-0 p-0 max-h-[120px] scrollbar-thin scrollbar-thumb-gray-300"
+              className="border-0 resize-none shadow-none focus-visible:ring-0 p-0 max-h-[120px] min-h-[24px] scrollbar-thin scrollbar-thumb-gray-300 bg-transparent text-[14px] placeholder:text-[#999999]"
               disabled={isSending}
             />
           </div>
@@ -231,12 +229,12 @@ const CustomComposer: React.FC = () => {
             onClick={handleSend}
             disabled={!inputValue.trim() || isSending}
             size="sm"
-            className="px-4 py-2 bg-[#CE0E2D] hover:bg-[#A20A22] text-white rounded-xl shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="h-8 w-8 p-0 rounded-full bg-[#CE0E2D] hover:bg-[#A20A22] text-white shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 mb-0.5"
           >
             {isSending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4 ml-0.5" />
             )}
           </Button>
         </div>

@@ -56,7 +56,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
 
   return (
     <TooltipProvider>
-      <div className="flex items-center bg-white px-4 gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 border-b border-[#E3E3E3]">
+      <div className="flex items-center bg-white px-6 gap-2 overflow-x-auto scrollbar-hide border-b border-[#F7F7F7]">
         <AnimatePresence>
           {sessions.map((session) => {
             const isActive = session.id === activeSessionId;
@@ -69,11 +69,10 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
-                className={`group relative flex items-center gap-1.5 px-3 py-2.5 cursor-pointer transition-colors ${
-                  isActive
-                    ? 'text-gray-900'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
+                className={`group relative flex items-center gap-2 px-1 py-3 cursor-pointer transition-colors ${isActive
+                    ? 'text-[#1E1E1E]'
+                    : 'text-[#666666] hover:text-[#1E1E1E]'
+                  }`}
                 onClick={() => !isEditing && onSwitchSession(session.id)}
               >
                 {/* Session Title / Edit Input */}
@@ -84,12 +83,12 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                     onChange={(e) => setEditingTitle(e.target.value)}
                     onKeyDown={handleKeyPress}
                     onBlur={handleSaveEdit}
-                    className="h-6 px-1 py-0 text-sm border-none bg-transparent focus:ring-1 focus:ring-red-300 min-w-[100px] max-w-[200px]"
+                    className="h-6 px-1 py-0 text-[14px] border-none bg-transparent focus:ring-0 min-w-[100px] max-w-[200px] font-medium"
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
                   <span
-                    className="text-sm font-medium truncate max-w-[200px]"
+                    className={`text-[14px] font-medium truncate max-w-[200px] ${isActive ? 'font-bold' : ''}`}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
                       handleStartEdit(session.id, session.title);
@@ -104,16 +103,15 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`h-5 w-5 p-0 rounded hover:bg-white transition-opacity ${
-                      isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
-                    }`}
+                    className={`h-4 w-4 p-0 rounded-full hover:bg-[#F5F5F5] transition-opacity ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                      }`}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
                       onCloseSession(session.id);
                     }}
                   >
-                    <X className="h-3 w-3" />
+                    <X className="h-3 w-3 text-[#666666]" />
                   </Button>
                 )}
 
@@ -121,7 +119,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-0.5 bg-red-600"
+                    className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#CE0E2D]"
                     transition={{ type: "spring", duration: 0.3 }}
                   />
                 )}
@@ -134,17 +132,17 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="flex-shrink-0 h-9 px-3 text-xs font-medium text-gray-600 hover:text-gray-900 hover:bg-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-shrink-0 h-8 px-3 text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-2"
           onClick={onCreateSession}
           disabled={isLoading || !hasFiles}
           title={!hasFiles ? "Upload and parse at least one source to enable chat" : ""}
         >
           {isLoading ? (
-            <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
           ) : (
-            <Plus className="h-3 w-3 mr-1.5" />
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
           )}
-          New
+          New Chat
         </Button>
       </div>
     </TooltipProvider>

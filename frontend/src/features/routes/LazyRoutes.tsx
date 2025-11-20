@@ -41,6 +41,11 @@ export const ReportPage = createLazyRoute(
   'Reports'
 );
 
+export const ReportDetailPage = createLazyRoute(
+  () => import("@/features/report/pages/ReportDetailPage"),
+  'Report Detail'
+);
+
 export const PodcastPage = createLazyRoute(
   () => import("@/features/podcast/pages/PodcastPage"),
   'Podcasts'
@@ -71,6 +76,7 @@ export const lazyRoutes = [
   ConferencePage,
   ConferenceDashboard,
   ReportPage,
+  ReportDetailPage,
   PodcastPage,
   OrganizationPage,
   LoginPage,

@@ -546,12 +546,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   return (
     <div className="flex flex-col h-full relative">
       {/* ====== SINGLE RESPONSIBILITY: Header rendering ====== */}
-      <div className={PANEL_HEADERS.container}>
+      <div className={`${PANEL_HEADERS.container} ${PANEL_HEADERS.separator}`}>
         <div className={PANEL_HEADERS.layout}>
           <div className={PANEL_HEADERS.titleContainer}>
-            <div className={PANEL_HEADERS.iconContainer}>
-              <Palette className={PANEL_HEADERS.icon} />
-            </div>
+            {/* Icon removed per Huawei style guide */}
             <h3 className={PANEL_HEADERS.title}>
               {isReportPreview ? 'Studio/Report' : 'Studio'}
             </h3>
@@ -564,10 +562,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
+                    className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
                     onClick={() => setViewMode('edit')}
                   >
-                    <Edit className="h-3 w-3 mr-1" />
+                    <Edit className="h-3.5 w-3.5 mr-1.5" />
                     Edit
                   </Button>
                 )}
@@ -576,19 +574,19 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
+                      className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
                       onClick={handlePreviewEdits}
                     >
-                      <Eye className="h-3 w-3 mr-1" />
+                      <Eye className="h-3.5 w-3.5 mr-1.5" />
                       Preview
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
+                      className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
                       onClick={() => handleSaveFile(selectedFileContent)}
                     >
-                      <Save className="h-3 w-3 mr-1" />
+                      <Save className="h-3.5 w-3.5 mr-1.5" />
                       Save
                     </Button>
                   </>
@@ -597,17 +595,17 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs text-gray-500 hover:text-gray-700"
+                    className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
                     onClick={() => handleDownloadReport(selectedFile)}
                   >
-                    <Download className="h-3 w-3 mr-1" />
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
                     Download
                   </Button>
                 )}
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-[#B1B1B1] hover:text-[#666666]"
+                  className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-md transition-colors"
                   onClick={toggleExpanded}
                 >
                   {isStudioExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -615,7 +613,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-[#B1B1B1] hover:text-[#666666]"
+                  className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-md transition-colors"
                   onClick={handleCloseFile}
                 >
                   <X className="h-4 w-4" />
@@ -627,18 +625,18 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
+                  className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
                   onClick={handleRefresh}
                   disabled={reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading}
                 >
-                  <RefreshCw className={`h-3 w-3 mr-1 ${reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
 
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 w-7 p-0 text-[#B1B1B1] hover:text-[#666666]"
+                  className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-md transition-colors"
                   onClick={toggleExpanded}
                 >
                   {isStudioExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -651,11 +649,11 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
       {/* ====== SINGLE RESPONSIBILITY: Main content area ====== */}
       {!isReportPreview ? (
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#F5F5F5]">
           {/* ====== FIXED SECTIONS: Generation Forms ====== */}
-          <div className="flex-shrink-0 px-4 py-4 bg-white shadow-sm">
-            <div className="mb-3">
-              <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
+          <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-[#F7F7F7]">
+            <div className="mb-4">
+              <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-[#1E1E1E]">
                 Generation
               </p>
             </div>

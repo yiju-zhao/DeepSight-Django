@@ -2,7 +2,7 @@
 
 export interface Report {
   id: string;
-  job_id?: string;
+  report_id?: string;
   title: string;
   article_title?: string;
   description?: string;
@@ -30,6 +30,8 @@ export interface Report {
   processing_logs?: string[];
   main_report_object_key?: string;
   figure_data_object_key?: string;
+  has_files?: boolean;
+  has_content?: boolean;
 }
 
 export interface ReportState {
@@ -67,7 +69,7 @@ export interface ReportGenerationRequest {
 }
 
 export interface ReportGenerationResponse {
-  job_id: string;
+  report_id: string;
   status: string;
   message: string;
 }
@@ -103,7 +105,7 @@ export interface ReportStats {
 
 export interface ReportCardProps {
   report: Report;
-  onSelect: (report: Report) => void;
+  onSelect?: (report: Report) => void; // Optional now - uses navigation instead
   onDownload: (report: Report) => void;
   onDelete: (report: Report) => void;
   onEdit?: (report: Report) => void;
@@ -113,7 +115,7 @@ export interface ReportCardProps {
 export interface ReportListProps {
   reports: Report[];
   isLoading: boolean;
-  onSelectReport: (report: Report) => void;
+  onSelectReport?: (report: Report) => void; // Optional now - uses navigation instead
   onDownloadReport: (report: Report) => void;
   onDeleteReport: (report: Report) => void;
   onEditReport?: (report: Report) => void;

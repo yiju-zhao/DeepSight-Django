@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Report, ReportListProps } from '../types/type';
 import ReportCard from './ReportCard';
 
@@ -12,6 +13,7 @@ const ReportList: React.FC<ReportListProps> = ({
   selectedReportId,
   viewMode
 }) => {
+  const navigate = useNavigate();
   if (isLoading) {
     return (
       <div className="p-6">
@@ -59,7 +61,13 @@ const ReportList: React.FC<ReportListProps> = ({
             className={`p-6 hover:bg-gray-50 cursor-pointer relative overflow-hidden ${
               selectedReportId === report.id ? 'bg-blue-50' : ''
             }`}
-            onClick={() => onSelectReport(report)}
+            onClick={() => {
+              navigate(`/report/${report.id}`);
+              // Keep backward compatibility
+              if (onSelectReport) {
+                onSelectReport(report);
+              }
+            }}
           >
             {/* Sweep animation overlay for generating state */}
             {(report.status === 'running' || report.status === 'pending') && (

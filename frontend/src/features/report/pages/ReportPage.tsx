@@ -2,30 +2,17 @@ import React, { useState, useMemo } from 'react';
 import { useReportsList, useDeleteReport } from '@/features/report/hooks/useReports';
 import ReportList from "@/features/report/components/ReportList";
 import ReportFilters from "@/features/report/components/ReportFilters";
-
-import ReportDetail from "@/features/report/components/ReportDetail";
 import { Report, ReportFilters as ReportFiltersType } from "@/features/report/types/type";
 import { Report as QueryReport } from "@/features/report/hooks/useReports";
 import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
 import Header from '@/shared/components/layout/Header';
 import { FileText, Sparkles } from 'lucide-react';
-import { ReportService } from '@/features/report/services/ReportService';
-import { useToast } from '@/shared/components/ui/use-toast';
-import { useQueryClient } from '@tanstack/react-query';
 
 const ReportPage: React.FC = () => {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
-  const [showDetail, setShowDetail] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'recent' | 'oldest' | 'title'>('recent');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState<ReportFiltersType>({});
-
-  // Edit mode states
-  const [detailViewMode, setDetailViewMode] = useState<'preview' | 'edit'>('preview');
-  const [editedContent, setEditedContent] = useState<string>('');
 
   // Fetch reports using React Query
   // No automatic polling - SSE handles real-time updates
@@ -53,34 +40,36 @@ const ReportPage: React.FC = () => {
   // Map API reports (QueryReport) to UI domain type (Report)
   const mappedReports: Report[] = useMemo(() => {
     return reports.map((r: QueryReport): Report => ({
-      id: r.job_id, // Use job_id as canonical id for actions
-      job_id: r.job_id,
-      title: r.title,
+      id: r.report_id || r.id, // Use report_id as canonical id (backend returns report_id)
+      report_id: r.report_id,
+      title: r.title || r.article_title, // Fallback to article_title if title not provided
       article_title: r.article_title,
-      description: undefined,
-      content: r.has_content ? '' : undefined,
-      markdown_content: undefined,
+      description: '',
+      content: r.has_content ? '' : '',
+      markdown_content: '',
       status: r.status,
-      progress: r.progress,
-      topic: undefined,
-      model_provider: undefined,
-      retriever: undefined,
-      prompt_type: undefined,
-      include_image: undefined,
-      include_domains: undefined,
-      time_range: undefined,
-      notebook_id: undefined,
-      source_ids: undefined,
+      progress: r.progress || '', // Provide default empty string instead of undefined
+      topic: '',
+      model_provider: '',
+      retriever: '',
+      prompt_type: '',
+      include_image: false,
+      include_domains: false, // Type is boolean, not array
+      time_range: '',
+      notebook_id: '',
+      source_ids: [],
       created_at: r.created_at,
       updated_at: r.updated_at,
-      user: undefined,
-      error_message: r.error,
-      result_metadata: undefined,
-      file_metadata: undefined,
-      generated_files: undefined,
-      processing_logs: undefined,
-      main_report_object_key: undefined,
-      figure_data_object_key: undefined,
+      user: undefined, // Type is string | undefined, not null
+      error_message: r.error || '',
+      result_metadata: null,
+      file_metadata: null,
+      generated_files: [],
+      processing_logs: [],
+      main_report_object_key: '',
+      figure_data_object_key: '',
+      has_files: r.has_files,
+      has_content: r.has_content,
     }));
   }, [reports]);
 
@@ -135,19 +124,6 @@ const ReportPage: React.FC = () => {
     }
   }, [mappedReports, searchTerm, filters, sortOrder]);
 
-  const handleSelectReport = (report: Report) => {
-    setSelectedReport(report);
-    setShowDetail(true);
-    setDetailViewMode('preview');
-    setEditedContent('');
-  };
-
-  const handleBackToList = () => {
-    setShowDetail(false);
-    setSelectedReport(null);
-    setDetailViewMode('preview');
-    setEditedContent('');
-  };
 
   const handleSearchChange = (term: string) => {
     setSearchTerm(term);
@@ -178,65 +154,6 @@ const ReportPage: React.FC = () => {
     }
   };
 
-  const handleEditReport = (report: Report) => {
-    setDetailViewMode('edit');
-  };
-
-  const handleSaveReport = async (content: string) => {
-    if (!selectedReport) return;
-
-    try {
-      const reportService = new ReportService();
-      await reportService.updateReport(selectedReport.id, content);
-
-      // Update local state
-      setEditedContent(content);
-
-      // Invalidate queries to refresh the report list
-      queryClient.invalidateQueries({ queryKey: ['reports'] });
-
-      toast({
-        title: "Report Saved",
-        description: "Your changes have been saved successfully"
-      });
-
-      // Switch back to preview mode
-      setDetailViewMode('preview');
-    } catch (error) {
-      console.error('Failed to save report:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      toast({
-        title: "Save Failed",
-        description: `Failed to save: ${errorMessage}`,
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleContentChange = (content: string) => {
-    setEditedContent(content);
-  };
-
-  if (showDetail && selectedReport) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Header />
-        <main className="flex-grow pt-[var(--header-height)]">
-          <ReportDetail
-            report={selectedReport}
-            isLoading={isLoading}
-            viewMode={detailViewMode}
-            onDownload={handleDownloadReport}
-            onDelete={handleDeleteReport}
-            onEdit={handleEditReport}
-            onSave={handleSaveReport}
-            onContentChange={handleContentChange}
-            onBack={handleBackToList}
-          />
-        </main>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -339,11 +256,11 @@ const ReportPage: React.FC = () => {
             <ReportList
               reports={filteredReports}
               isLoading={isLoading}
-              onSelectReport={handleSelectReport}
+              onSelectReport={undefined}
               onDownloadReport={handleDownloadReport}
               onDeleteReport={handleDeleteReport}
-              onEditReport={handleEditReport}
-              selectedReportId={selectedReport?.id}
+              onEditReport={undefined}
+              selectedReportId={undefined}
               viewMode={viewMode}
             />
           </div>

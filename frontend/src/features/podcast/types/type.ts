@@ -2,7 +2,6 @@
 
 export interface Podcast {
   id: string;
-  job_id?: string;
   title: string;
   description?: string;
   audio_url?: string;  // Django streaming endpoint (e.g., /api/v1/podcasts/{id}/audio/)
@@ -50,7 +49,7 @@ export interface PodcastGenerationRequest {
 }
 
 export interface PodcastGenerationResponse {
-  job_id: string;
+  id: string;
   status: string;
   message: string;
 }

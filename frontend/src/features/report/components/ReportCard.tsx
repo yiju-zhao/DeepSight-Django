@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Report, ReportCardProps } from "../types/type";
 
 export default function ReportCard({
@@ -9,9 +10,17 @@ export default function ReportCard({
   onEdit,
   isSelected
 }: ReportCardProps) {
+  const navigate = useNavigate();
+
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onSelect(report);
+    // Use navigation to detail page instead of callback
+    navigate(`/report/${report.id}`);
+
+    // Keep backward compatibility - call onSelect if provided
+    if (onSelect) {
+      onSelect(report);
+    }
   };
 
   const handleDownload = (e: React.MouseEvent) => {

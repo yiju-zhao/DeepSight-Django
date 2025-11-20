@@ -57,14 +57,14 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
   config,
   onConfigChange,
   availableModels,
-  
+
   // Generation state props
   generationState,
   onGenerate,
 
   // File selection props
   selectedFiles,
-  
+
   // Modal props
   onOpenModal,
   onCloseModal,
@@ -83,9 +83,9 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
 
   const containerClasses = [
     'rounded-2xl relative overflow-hidden transition-all duration-200 min-h-[140px] flex flex-col justify-between',
-    'bg-white border border-[#E3E3E3] shadow-[rgba(0,0,0,0.04)_0px_4px_8px]',
+    'bg-white border border-[#E3E3E3] shadow-[0_4px_8px_rgba(0,0,0,0.04)]',
     canGenerate && !isGenerating
-      ? 'cursor-pointer hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] hover:border-[#CE0E2D]'
+      ? 'cursor-pointer hover:shadow-[0_12px_20px_rgba(0,0,0,0.12)] hover:border-[#CE0E2D] group'
       : '',
     isGenerating ? 'ring-1 ring-[#CE0E2D]' : ''
   ].join(' ');
@@ -106,7 +106,7 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
             aria-busy={isGenerating}
           >
             <div className="absolute top-4 left-4">
-              <div className="w-8 h-8 bg-[#F5F5F5] rounded-full flex items-center justify-center">
+              <div className="w-8 h-8 bg-[#F5F5F5] rounded-full flex items-center justify-center group-hover:bg-[#FEF2F2] transition-colors">
                 <Search className="h-4 w-4 text-[#CE0E2D]" />
               </div>
             </div>
@@ -141,8 +141,8 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
             </div>
 
             <div className="p-5 pt-16">
-              <h3 className="text-sm font-semibold text-[#1E1E1E]">Research Report</h3>
-              <p className="text-xs text-[#666666] mt-1">Generate an AI-powered conference or paper summary.</p>
+              <h3 className="text-[14px] font-bold text-[#1E1E1E] mb-1">Research Report</h3>
+              <p className="text-[12px] text-[#666666] leading-[1.5]">Generate an AI-powered conference or paper summary.</p>
             </div>
           </div>
         </TooltipTrigger>

@@ -77,9 +77,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
       <div className={`${PANEL_HEADERS.container} ${PANEL_HEADERS.separator}`}>
         <div className={PANEL_HEADERS.layout}>
           <div className={PANEL_HEADERS.titleContainer}>
-            <div className={PANEL_HEADERS.iconContainer}>
-              <MessageCircle className={PANEL_HEADERS.icon} />
-            </div>
+            {/* Icon removed per Huawei style guide */}
             <h3 className={PANEL_HEADERS.title}>Chat</h3>
           </div>
           <div className={PANEL_HEADERS.actionsContainer}>

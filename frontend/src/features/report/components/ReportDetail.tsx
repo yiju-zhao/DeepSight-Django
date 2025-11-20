@@ -46,7 +46,8 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
   const [editableContent, setEditableContent] = useState<string>('');
 
   useEffect(() => {
-    if (!content && report.status === 'completed') {
+    // Add defensive check: only fetch if we have a valid report ID
+    if (!content && report.status === 'completed' && report.id) {
       const loadContent = async () => {
         try {
           setIsLoadingContent(true);

@@ -90,14 +90,14 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
   }, [currentPodcast.id, currentPodcast.status, currentPodcast.audio_url]);
 
   return (
-    <div className={`p-4 ${onClose ? '' : 'border border-gray-200 rounded-lg'} bg-white`}>
+    <div className={`p-4 ${onClose ? '' : 'border border-[#E3E3E3] rounded-lg'} bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)]`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-gray-900 truncate text-sm">
+          <h4 className="font-bold text-[#1E1E1E] truncate text-[14px]">
             {currentPodcast.title || 'Untitled Panel Discussion'}
           </h4>
-          <div className="flex items-center space-x-3 text-xs text-gray-500 mt-0.5">
+          <div className="flex items-center space-x-3 text-[12px] text-[#666666] mt-1">
             <span>{formatDate(currentPodcast.created_at)}</span>
             {(currentPodcast as any).file_size && (
               <>
@@ -113,7 +113,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
             variant="ghost"
             size="sm"
             onClick={() => onDownload(currentPodcast)}
-            className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+            className="h-8 w-8 p-0 text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-full"
             title="Download audio"
           >
             <Download className="h-4 w-4" />
@@ -124,7 +124,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
               variant="ghost"
               size="sm"
               onClick={onClose}
-              className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700"
+              className="h-8 w-8 p-0 text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-full"
               title="Close player"
             >
               <X className="h-4 w-4" />
@@ -134,7 +134,7 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
               variant="ghost"
               size="sm"
               onClick={() => onDelete(currentPodcast)}
-              className="h-8 w-8 p-0 text-gray-500 hover:text-red-600"
+              className="h-8 w-8 p-0 text-[#B1B1B1] hover:text-[#CE0E2D] hover:bg-[#FEF2F2] rounded-full"
               title="Delete podcast"
             >
               <Trash2 className="h-4 w-4" />
@@ -164,8 +164,8 @@ const PodcastAudioPlayer: React.FC<PodcastAudioPlayerProps> = ({
           {currentPodcast.status !== 'completed'
             ? `Podcast ${currentPodcast.status}...`
             : !currentPodcast.audio_url
-            ? 'Audio file not found'
-            : 'Audio not available'}
+              ? 'Audio file not found'
+              : 'Audio not available'}
         </div>
       )}
     </div>

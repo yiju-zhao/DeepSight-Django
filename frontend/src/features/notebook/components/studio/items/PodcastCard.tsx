@@ -57,26 +57,28 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
     <div className="relative">
       {/* Header */}
       <div
-        className="relative overflow-hidden cursor-pointer group bg-violet-50/50 rounded-lg px-3 transition-colors duration-150 hover:bg-violet-50/70"
+        className="relative overflow-hidden cursor-pointer group bg-white rounded-lg px-4 border border-[#E3E3E3] hover:border-[#CE0E2D] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-150"
         onClick={() => onToggleExpand(item)}
       >
-        <div className="flex items-center justify-between py-3 h-14">
+        <div className="flex items-center justify-between py-3 h-16">
           <div className="flex items-center space-x-4 flex-1 min-w-0">
             {/* Icon */}
-            <div className="w-6 h-6 flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 bg-[#F5F5F5] rounded-full group-hover:bg-[#FEF2F2] transition-colors">
               {getStatusIcon()}
             </div>
 
             {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
-                <h4 className="text-sm font-medium truncate text-gray-900">
+                <h4 className="text-[14px] font-medium truncate text-[#1E1E1E]">
                   {item.title}
                 </h4>
                 {getStatusBadge()}
               </div>
-              {item.error && (
-                <p className="text-xs text-red-500 mt-0.5 truncate">{item.error}</p>
+              {item.error ? (
+                <p className="text-[12px] text-[#CE0E2D] mt-0.5 truncate">{item.error}</p>
+              ) : (
+                <p className="text-[12px] text-[#666666] mt-0.5 truncate">AI Podcast</p>
               )}
             </div>
           </div>
@@ -86,13 +88,13 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              className="h-6 w-6 p-0 text-gray-400 hover:text-red-600 hover:bg-violet-50/70 rounded-md"
+              className="h-8 w-8 p-0 text-[#B1B1B1] hover:text-[#CE0E2D] hover:bg-[#FEF2F2] rounded-full"
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(item);
               }}
             >
-              <Trash2 className="h-3.5 w-3.5" />
+              <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         </div>

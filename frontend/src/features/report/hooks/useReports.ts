@@ -12,7 +12,7 @@ import { notifications, operationCallbacks } from '@/shared/utils/notifications'
 
 // Types
 export interface Report {
-  job_id: string;
+  id: string; // Canonical ID (same as report_id)
   report_id: string;
   status: 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
   progress: string;
@@ -30,7 +30,6 @@ export interface ReportListResponse {
 }
 
 export interface ReportContentResponse {
-  job_id: string;
   report_id: string;
   content: string;
   article_title: string;
@@ -53,7 +52,6 @@ export interface ReportGenerationRequest {
 }
 
 export interface CreateReportResponse {
-  job_id: string;
   report_id: string;
   status: string;
   message: string;
@@ -81,11 +79,11 @@ export function useReportsList(notebookId?: string, options?: {
       // Normalize response: ensure we have a reports array with mapped IDs
       let reports = response?.reports || (Array.isArray(response) ? response : []);
 
-      // Map report_id to job_id for consistency (API uses report_id, but the Report type expects job_id)
+      // Ensure id and report_id are consistent
       reports = reports.map((r: any) => ({
         ...r,
-        job_id: r.report_id || r.job_id || r.id,
-        report_id: r.report_id || r.job_id || r.id,
+        id: r.report_id || r.id, // Canonical ID (same as report_id)
+        report_id: r.report_id || r.id,
       }));
 
       return { reports };
@@ -101,13 +99,13 @@ export function useReportsList(notebookId?: string, options?: {
  * Hook to fetch a single report's details
  * No automatic polling - SSE handles real-time updates via useNotebookJobStream
  */
-export function useReport(jobId: string, options?: { enabled?: boolean }) {
+export function useReport(reportId: string, options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: queryKeys.reports.detail(jobId),
+    queryKey: queryKeys.reports.detail(reportId),
     queryFn: async (): Promise<Report> => {
-      return apiClient.get(`/reports/${jobId}/`);
+      return apiClient.get(`/reports/${reportId}/`);
     },
-    enabled: (options?.enabled ?? true) && !!jobId,
+    enabled: (options?.enabled ?? true) && !!reportId,
     // No refetchInterval - SSE handles real-time updates
     // Detail will be invalidated by useNotebookJobStream when job status changes
   });
@@ -116,13 +114,13 @@ export function useReport(jobId: string, options?: { enabled?: boolean }) {
 /**
  * Hook to fetch report content
  */
-export function useReportContent(jobId: string, options?: { enabled?: boolean }) {
+export function useReportContent(reportId: string, options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: queryKeys.reports.content(jobId),
+    queryKey: queryKeys.reports.content(reportId),
     queryFn: async (): Promise<ReportContentResponse> => {
-      return apiClient.get(`/reports/${jobId}/content/`);
+      return apiClient.get(`/reports/${reportId}/content/`);
     },
-    enabled: (options?.enabled ?? true) && !!jobId,
+    enabled: (options?.enabled ?? true) && !!reportId,
     // Content is relatively stable once completed
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
@@ -169,8 +167,8 @@ export function useUpdateReport() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ jobId, content }: { jobId: string; content: string }) => {
-      return apiClient.put(`/reports/${jobId}/`, { content });
+    mutationFn: async ({ reportId, content }: { reportId: string; content: string }) => {
+      return apiClient.put(`/reports/${reportId}/`, { content });
     },
     ...operationCallbacks.update('report'),
   });
@@ -183,14 +181,14 @@ export function useCancelReport() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (jobId: string) => {
-      return apiClient.post(`/reports/${jobId}/cancel/`);
+    mutationFn: async (reportId: string) => {
+      return apiClient.post(`/reports/${reportId}/cancel/`);
     },
-    onSuccess: (data, jobId) => {
+    onSuccess: (data, reportId) => {
       notifications.info.cancelled('Report');
 
       // Invalidate related queries
-      queryInvalidations.invalidateReport(jobId).forEach(key => {
+      queryInvalidations.invalidateReport(reportId).forEach(key => {
         queryClient.invalidateQueries({ queryKey: key });
       });
       queryInvalidations.invalidateReportLists().forEach(key => {
@@ -210,14 +208,14 @@ export function useDeleteReport() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (jobId: string) => {
-      return apiClient.delete(`/reports/${jobId}/`);
+    mutationFn: async (reportId: string) => {
+      return apiClient.delete(`/reports/${reportId}/`);
     },
-    onSuccess: (data, jobId) => {
+    onSuccess: (data, reportId) => {
       notifications.success.deleted('Report');
 
       // Remove from cache and invalidate lists
-      queryClient.removeQueries({ queryKey: queryKeys.reports.detail(jobId) });
+      queryClient.removeQueries({ queryKey: queryKeys.reports.detail(reportId) });
       queryInvalidations.invalidateReportLists().forEach(key => {
         queryClient.invalidateQueries({ queryKey: key });
       });
@@ -244,18 +242,18 @@ export function useReportsUtils() {
     queryClient.invalidateQueries({ queryKey: queryKeys.reports.list(filters) });
   };
 
-  const refreshReport = (jobId: string) => {
-    queryInvalidations.invalidateReport(jobId).forEach(key => {
+  const refreshReport = (reportId: string) => {
+    queryInvalidations.invalidateReport(reportId).forEach(key => {
       queryClient.invalidateQueries({ queryKey: key });
     });
   };
 
-  const getReportFromCache = (jobId: string): Report | undefined => {
-    return queryClient.getQueryData(queryKeys.reports.detail(jobId));
+  const getReportFromCache = (reportId: string): Report | undefined => {
+    return queryClient.getQueryData(queryKeys.reports.detail(reportId));
   };
 
-  const updateReportInCache = (jobId: string, updater: (old: Report | undefined) => Report) => {
-    queryClient.setQueryData(queryKeys.reports.detail(jobId), updater);
+  const updateReportInCache = (reportId: string, updater: (old: Report | undefined) => Report) => {
+    queryClient.setQueryData(queryKeys.reports.detail(reportId), updater);
   };
 
   return {

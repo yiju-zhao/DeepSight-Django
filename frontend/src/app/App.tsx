@@ -14,6 +14,7 @@ import {
   ConferencePage,
   ConferenceDashboard,
   ReportPage,
+  ReportDetailPage,
   PodcastPage,
   OrganizationPage,
   LoginPage,
@@ -73,6 +74,7 @@ function AppRoutes() {
           </PrivateRoute>
         }
       />
+      <Route path="/report/:reportId" element={<ReportDetailPage.Component />} />
       <Route path="/report" element={<ReportPage.Component />} />
       <Route path="/podcast" element={<PodcastPage.Component />} />
       <Route path="/organization" element={<OrganizationPage.Component />} />

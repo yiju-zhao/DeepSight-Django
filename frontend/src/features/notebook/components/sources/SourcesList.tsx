@@ -20,7 +20,7 @@ import { useToast } from "@/shared/components/ui/use-toast";
 const fileIcons: FileIcons = {
   pdf: FileIcon,
   txt: FileText,
-  md: FileText, 
+  md: FileText,
   ppt: Presentation,
   pptx: Presentation,
   docx: FileText,
@@ -50,19 +50,19 @@ interface SourcesListRef {
 // Helper function to get principle file icon with visual indicator
 const getPrincipleFileIcon = (source: Source): React.ComponentType<any> => {
   // Enhanced URL detection with multiple fallbacks
-  const isUrl = source.ext === 'url' || 
-                source.metadata?.source_url || 
-                source.metadata?.extraction_type === 'url_extractor' ||
-                source.metadata?.processing_method === 'media' ||
-                source.metadata?.processing_method === 'web_scraping_no_crawl4ai' ||
-                source.metadata?.processing_method === 'crawl4ai_only' ||
-                source.metadata?.file_extension === '.md' && source.metadata?.original_filename?.includes('_20');
-  
+  const isUrl = source.ext === 'url' ||
+    source.metadata?.source_url ||
+    source.metadata?.extraction_type === 'url_extractor' ||
+    source.metadata?.processing_method === 'media' ||
+    source.metadata?.processing_method === 'web_scraping_no_crawl4ai' ||
+    source.metadata?.processing_method === 'crawl4ai_only' ||
+    source.metadata?.file_extension === '.md' && source.metadata?.original_filename?.includes('_20');
+
   if (isUrl) {
     const processingType = source.metadata?.processing_method || source.metadata?.processing_type;
     return processingType === 'media' ? (fileIcons.media ?? FileIcon) : (fileIcons.website ?? Globe);
   }
-  
+
   // For regular files, use the file extension
   const icon = fileIcons[source.ext || 'unknown'];
   return icon ?? FileIcon;
@@ -184,7 +184,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   const {
     updateSelectedFiles
   } = useFileSelection(ref as any);
-  
+
   // Set notebook ID for upload tracking
   useEffect(() => {
     // Sync list on mount and when notebook changes
@@ -194,22 +194,22 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   // Get original filename from metadata
   const getOriginalFilename = (metadata: FileMetadata) => {
     return metadata.original_filename ||
-           metadata.metadata?.original_filename ||
-           metadata.metadata?.filename ||
-           metadata.filename ||
-           metadata.title ||
-           'Unknown File';
+      metadata.metadata?.original_filename ||
+      metadata.metadata?.filename ||
+      metadata.filename ||
+      metadata.title ||
+      'Unknown File';
   };
 
   // Get principle file extension
   const getPrincipleFileExtension = (metadata: FileMetadata) => {
     // Enhanced URL detection with multiple fallbacks
     const isUrl = metadata.source_url ||
-                  metadata.extraction_type === 'url_extractor' ||
-                  metadata.processing_method === 'media' ||
-                  metadata.processing_method === 'web_scraping_no_crawl4ai' ||
-                  metadata.processing_method === 'crawl4ai_only' ||
-                  metadata.file_extension === '.md' && metadata.original_filename?.includes('_20');
+      metadata.extraction_type === 'url_extractor' ||
+      metadata.processing_method === 'media' ||
+      metadata.processing_method === 'web_scraping_no_crawl4ai' ||
+      metadata.processing_method === 'crawl4ai_only' ||
+      metadata.file_extension === '.md' && metadata.original_filename?.includes('_20');
 
     if (isUrl) {
       return 'url';
@@ -219,12 +219,12 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
     let originalExt = "unknown";
     if (metadata.file_extension) {
       originalExt = metadata.file_extension.startsWith('.') ?
-                   metadata.file_extension.substring(1) :
-                   metadata.file_extension;
+        metadata.file_extension.substring(1) :
+        metadata.file_extension;
     } else if (metadata.metadata?.file_extension) {
       originalExt = metadata.metadata.file_extension.startsWith('.') ?
-                   metadata.metadata.file_extension.substring(1) :
-                   metadata.metadata.file_extension;
+        metadata.metadata.file_extension.substring(1) :
+        metadata.metadata.file_extension;
     } else if (metadata.original_filename) {
       const parts = metadata.original_filename.split('.');
       if (parts.length > 1) {
@@ -253,11 +253,11 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   // Generate principle title for sources
   const generatePrincipleTitle = (metadata: FileMetadata) => {
     const isUrl = metadata.source_url ||
-                  metadata.extraction_type === 'url_extractor' ||
-                  metadata.processing_method === 'media' ||
-                  metadata.processing_method === 'web_scraping_no_crawl4ai' ||
-                  metadata.processing_method === 'crawl4ai_only' ||
-                  metadata.file_extension === '.md' && metadata.original_filename?.includes('_20');
+      metadata.extraction_type === 'url_extractor' ||
+      metadata.processing_method === 'media' ||
+      metadata.processing_method === 'web_scraping_no_crawl4ai' ||
+      metadata.processing_method === 'crawl4ai_only' ||
+      metadata.file_extension === '.md' && metadata.original_filename?.includes('_20');
 
     if (isUrl) {
       const domain = metadata.source_url ? getDomainFromUrl(metadata.source_url) : 'Unknown Domain';
@@ -634,18 +634,18 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       return 'Uploading…';
     }
     const isUrl = source.metadata?.source_url ||
-                  source.metadata?.extraction_type === 'url_extractor' ||
-                  source.metadata?.processing_method === 'media' ||
-                  source.metadata?.processing_method === 'web_scraping_no_crawl4ai' ||
-                  source.metadata?.processing_method === 'crawl4ai_only' ||
-                  source.metadata?.file_extension === '.md' && source.metadata?.original_filename?.includes('_20');
+      source.metadata?.extraction_type === 'url_extractor' ||
+      source.metadata?.processing_method === 'media' ||
+      source.metadata?.processing_method === 'web_scraping_no_crawl4ai' ||
+      source.metadata?.processing_method === 'crawl4ai_only' ||
+      source.metadata?.file_extension === '.md' && source.metadata?.original_filename?.includes('_20');
 
     if (isUrl) {
       const originalUrl = source.originalFile?.sourceUrl ||
-                         source.metadata?.source_url ||
-                         (source.metadata?.original_filename?.includes('_20') ?
-                           `https://${source.metadata.original_filename.match(/^([^_]+)/)?.[1] || 'unknown'}` :
-                           'Unknown URL');
+        source.metadata?.source_url ||
+        (source.metadata?.original_filename?.includes('_20') ?
+          `https://${source.metadata.original_filename.match(/^([^_]+)/)?.[1] || 'unknown'}` :
+          'Unknown URL');
       return `Original URL: ${originalUrl}`;
     }
     return `Original file: ${source.originalFile?.filename || source.title || ''}`;
@@ -696,37 +696,35 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       <div className={`${PANEL_HEADERS.container} ${PANEL_HEADERS.separator} flex-shrink-0`}>
         <div className={PANEL_HEADERS.layout}>
           <div className={PANEL_HEADERS.titleContainer}>
-            <div className={PANEL_HEADERS.iconContainer}>
-              <Database className={PANEL_HEADERS.icon} />
-            </div>
+            {/* Icon removed per Huawei style guide for cleaner headers */}
             <h3 className={PANEL_HEADERS.title}>Sources</h3>
           </div>
           <div className={PANEL_HEADERS.actionsContainer}>
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
+              className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 handleGroupToggle();
               }}
             >
-              <Group className="h-3 w-3 mr-1" />
+              <Group className="h-3.5 w-3.5 mr-1.5" />
               Group
             </Button>
             {onToggleCollapse && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 text-[#B1B1B1] hover:text-[#666666]"
+                className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-md transition-colors"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   onToggleCollapse();
                 }}
               >
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-5 w-5" />
               </Button>
             )}
           </div>
@@ -785,15 +783,14 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
                 {sources.length > 0 && selectedCount === sources.length ? 'Deselect All' : 'Select All'}
               </Button>
             </div>
-            
+
             <Button
               variant="ghost"
               size="sm"
-              className={`h-6 px-2 text-xs transition-colors ${
-                selectedCount > 0 
+              className={`h-6 px-2 text-xs transition-colors ${selectedCount > 0
                   ? 'text-[#666666] hover:text-[#CE0E2D]'
                   : 'text-[#D4D4D4] cursor-not-allowed'
-              }`}
+                }`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -887,7 +884,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             ))}
           </div>
         )}
-        
+
         {/* Empty/Loading States */}
         {!isLoading && sources.length === 0 && (
           <div className="p-10 text-center">
@@ -898,7 +895,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             <p className="text-xs text-[#666666]">Add files to get started.</p>
           </div>
         )}
-        
+
         {isLoading && sources.length === 0 && (
           <div className="p-10 text-center">
             <RefreshCw className="h-6 w-6 text-[#B1B1B1] animate-spin mx-auto mb-3" />
