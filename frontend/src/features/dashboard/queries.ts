@@ -89,15 +89,19 @@ export function useReports(options?: { enabled?: boolean }) {
       const response = await apiClient.get('/reports/');
 
       // Handle different response formats
+      let reports: any[] = [];
       if (Array.isArray(response)) {
-        return response;
+        reports = response;
+      } else if (response && typeof response === 'object' && 'reports' in response) {
+        // If response has a reports property, use that
+        reports = (response as any).reports || [];
       }
-      // If response has a reports property, use that
-      if (response && typeof response === 'object' && 'reports' in response) {
-        return (response as any).reports || [];
-      }
-      // Default to empty array
-      return [];
+
+      // Map job_id to id for UI compatibility (API uses job_id, UI expects id)
+      return reports.map(r => ({
+        ...r,
+        id: r.job_id || r.id, // Use job_id as canonical id, fallback to id if already present
+      }));
     },
     enabled: options?.enabled ?? true,
     // No refetchInterval - SSE handles real-time updates via useNotebookJobStream
@@ -175,15 +179,19 @@ export function useDashboardData(options?: { enabled?: boolean }) {
         queryFn: async (): Promise<Report[]> => {
           const response = await apiClient.get('/reports/');
           // Handle different response formats
+          let reports: any[] = [];
           if (Array.isArray(response)) {
-            return response;
+            reports = response;
+          } else if (response && typeof response === 'object' && 'reports' in response) {
+            // If response has a reports property, use that
+            reports = (response as any).reports || [];
           }
-          // If response has a reports property, use that
-          if (response && typeof response === 'object' && 'reports' in response) {
-            return (response as any).reports || [];
-          }
-          // Default to empty array
-          return [];
+
+          // Map job_id to id for UI compatibility (API uses job_id, UI expects id)
+          return reports.map(r => ({
+            ...r,
+            id: r.job_id || r.id, // Use job_id as canonical id, fallback to id if already present
+          }));
         },
         enabled: options?.enabled ?? true,
         // No refetchInterval - SSE handles real-time updates via useNotebookJobStream
