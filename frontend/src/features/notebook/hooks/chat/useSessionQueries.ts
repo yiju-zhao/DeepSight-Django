@@ -83,8 +83,9 @@ export const useSessionMessagesQuery = (
 
 /**
  * Query hook for available models
+ * Optional enabled parameter for lazy loading (only fetch when needed)
  */
-export const useModelsQuery = (notebookId: string) => {
+export const useModelsQuery = (notebookId: string, enabled: boolean = true) => {
   return useQuery({
     queryKey: sessionKeys.models(notebookId),
     queryFn: async (): Promise<ModelsResponse> => {
@@ -94,7 +95,7 @@ export const useModelsQuery = (notebookId: string) => {
         current_model: response.current_model || response.default_model || null,
       };
     },
-    enabled: !!notebookId,
+    enabled: !!notebookId && enabled, // Only fetch when notebookId exists AND explicitly enabled
     staleTime: 5 * 60_000, // 5 minutes
   });
 };

@@ -1328,6 +1328,12 @@ class RagflowService:
             data = response.json()
 
             if data.get("code") != 0:
+                # Handle "chat doesn't exist" (code 102) as normal "not found" case
+                if data.get("code") == 102:
+                    logger.debug(f"No chats found (code 102): {data.get('message')} - this is normal for new notebooks")
+                    return []  # Return empty list instead of raising error
+
+                # For other error codes, raise exception
                 error_msg = data.get("message", "Failed to list chats")
                 raise RagFlowChatError(
                     f"Failed to list chats: {error_msg}",
@@ -1341,6 +1347,9 @@ class RagflowService:
             logger.info(f"Retrieved {len(chats)} chat assistants")
             return chats
 
+        except RagFlowChatError:
+            # Re-raise RagFlowChatError as-is (already has proper logging context)
+            raise
         except Exception as e:
             logger.error(f"Failed to list chats: {e}")
             raise RagFlowChatError(

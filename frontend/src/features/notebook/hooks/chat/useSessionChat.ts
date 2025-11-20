@@ -42,7 +42,11 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   // QUERIES (Server State from React Query)
   // ============================================
   const sessionsQuery = useSessionsQuery(notebookId);
-  const modelsQuery = useModelsQuery(notebookId);
+
+  // Lazy load models: only fetch when sessions exist to avoid unnecessary API calls
+  // Models will be fetched when user creates first session or when sessions already exist
+  const hasSessions = (sessionsQuery.data?.allIds.length ?? 0) > 0;
+  const modelsQuery = useModelsQuery(notebookId, hasSessions);
 
   // ============================================
   // UI STATE (Only This!)
