@@ -107,7 +107,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
 
   return (
     <NotebookSettingsProvider>
-      <div className="h-full bg-gray-50 flex flex-col relative overflow-hidden">
+      <div className="h-screen bg-white flex flex-col relative overflow-hidden">
         {/* Header */}
         <NotebookHeader
           notebookTitle={notebookTitle}
@@ -128,7 +128,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             }}
           >
             {/* Sources Panel */}
-            <div className="bg-white rounded-2xl shadow-huawei-sm hover:shadow-huawei-md transition-all duration-300 overflow-hidden min-h-0 relative border border-transparent hover:border-gray-100">
+            <div className="bg-white rounded-2xl shadow-md transition-all duration-300 overflow-hidden min-h-0 relative">
               {!isSourcesCollapsed && !isStudioExpanded ? (
                 <div>
                   {React.cloneElement(sourcesPanel, {
@@ -152,19 +152,19 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
                     }}
                     title={isStudioExpanded ? "Minimize Studio & Expand Sources Panel" : "Expand Sources Panel"}
                   >
-                    <Database className="h-4 w-4 text-gray-400 group-hover:text-accent-red transition-all duration-200" />
+                    <Database className="h-4 w-4 text-gray-400 group-hover:text-gray-600 transition-all duration-200" />
                   </div>
                 </div>
               )}
             </div>
 
             {/* Chat Panel */}
-            <div className="bg-white rounded-2xl shadow-huawei-sm hover:shadow-huawei-md transition-all duration-300 overflow-hidden min-h-0 border border-transparent hover:border-gray-100">
+            <div className="bg-white rounded-2xl shadow-md transition-all duration-300 overflow-hidden min-h-0">
               {React.cloneElement(chatPanel, panelProps)}
             </div>
 
             {/* Studio Panel */}
-            <div className="bg-white rounded-2xl shadow-huawei-sm hover:shadow-huawei-md transition-all duration-300 overflow-auto min-h-0 border border-transparent hover:border-gray-100">
+            <div className="bg-white rounded-2xl shadow-md transition-all duration-300 overflow-auto min-h-0">
               {React.cloneElement(studioPanel, {
                 ...panelProps,
                 onToggleExpand: handleStudioToggleExpand,
