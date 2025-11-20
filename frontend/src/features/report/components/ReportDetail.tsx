@@ -23,7 +23,9 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  HelpCircle
+  HelpCircle,
+  Save,
+  Eye
 } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 
@@ -31,13 +33,17 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
   report,
   content,
   isLoading,
+  viewMode = 'preview',
   onDownload,
   onDelete,
   onEdit,
+  onSave,
+  onContentChange,
   onBack
 }) => {
   const [reportContent, setReportContent] = useState<ReportContent | null>(content || null);
   const [isLoadingContent, setIsLoadingContent] = useState(!content);
+  const [editableContent, setEditableContent] = useState<string>('');
 
   useEffect(() => {
     if (!content && report.status === 'completed') {
@@ -47,6 +53,7 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
           const reportService = new ReportService();
           const content = await reportService.getReportContent(report.id);
           setReportContent(content);
+          setEditableContent(content.markdown_content || content.content || '');
         } catch (error) {
           console.error('Failed to load report content:', error);
         } finally {
@@ -54,8 +61,19 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
         }
       };
       loadContent();
+    } else if (reportContent) {
+      setEditableContent(reportContent.markdown_content || reportContent.content || '');
     }
-  }, [report.id, report.status, content]);
+  }, [report.id, report.status, content, reportContent]);
+
+  const handleContentChange = (newContent: string) => {
+    setEditableContent(newContent);
+    onContentChange?.(newContent);
+  };
+
+  const handleSave = () => {
+    onSave?.(editableContent);
+  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString(undefined, {
@@ -117,7 +135,7 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
-                {report.status === 'completed' && (
+                {viewMode === 'preview' && report.status === 'completed' && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -129,7 +147,7 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
                   </Button>
                 )}
 
-                {onEdit && (
+                {viewMode === 'preview' && onEdit && report.status === 'completed' && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -139,6 +157,29 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
                     <Edit className="h-4 w-4 mr-2" />
                     Edit
                   </Button>
+                )}
+
+                {viewMode === 'edit' && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSave}
+                      className="h-9"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Save
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => onEdit?.(report)}
+                      className="h-9"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      Preview
+                    </Button>
+                  </>
                 )}
 
                 <Button
@@ -225,6 +266,18 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
                 </div>
                 <div className="h-64 bg-gray-50 rounded-xl"></div>
               </div>
+            ) : viewMode === 'edit' ? (
+              <div className="space-y-4">
+                <textarea
+                  value={editableContent}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  className="w-full min-h-[600px] p-6 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black/20 transition-all font-mono text-sm leading-relaxed resize-y"
+                  placeholder="Enter your report content in Markdown format..."
+                />
+                <p className="text-xs text-gray-500">
+                  Tip: Use Markdown syntax for formatting. Click Preview to see the rendered output.
+                </p>
+              </div>
             ) : reportContent ? (
               <div className="prose max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-blue-600 prose-img:rounded-xl prose-pre:bg-gray-900 prose-pre:text-gray-50 prose-pre:border prose-pre:border-gray-800">
                 <ReactMarkdown
@@ -238,7 +291,7 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
                     h1: () => null
                   }}
                 >
-                  {reportContent.markdown_content || reportContent.content || ''}
+                  {editableContent || reportContent.markdown_content || reportContent.content || ''}
                 </ReactMarkdown>
               </div>
             ) : (

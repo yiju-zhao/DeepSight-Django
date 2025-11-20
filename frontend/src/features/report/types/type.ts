@@ -125,9 +125,12 @@ export interface ReportDetailProps {
   report: Report;
   content?: ReportContent;
   isLoading: boolean;
+  viewMode?: 'preview' | 'edit';
   onDownload: (report: Report) => void;
   onDelete: (report: Report) => void;
   onEdit?: (report: Report) => void;
+  onSave?: (content: string) => void;
+  onContentChange?: (content: string) => void;
   onBack: () => void;
 }
 

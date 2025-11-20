@@ -9,14 +9,23 @@ import { Report as QueryReport } from "@/features/report/hooks/useReports";
 import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
 import Header from '@/shared/components/layout/Header';
 import { FileText, Sparkles } from 'lucide-react';
+import { ReportService } from '@/features/report/services/ReportService';
+import { useToast } from '@/shared/components/ui/use-toast';
+import { useQueryClient } from '@tanstack/react-query';
 
 const ReportPage: React.FC = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [showDetail, setShowDetail] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortOrder, setSortOrder] = useState<'recent' | 'oldest' | 'title'>('recent');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filters, setFilters] = useState<ReportFiltersType>({});
+
+  // Edit mode states
+  const [detailViewMode, setDetailViewMode] = useState<'preview' | 'edit'>('preview');
+  const [editedContent, setEditedContent] = useState<string>('');
 
   // Fetch reports using React Query
   // No automatic polling - SSE handles real-time updates
@@ -129,11 +138,15 @@ const ReportPage: React.FC = () => {
   const handleSelectReport = (report: Report) => {
     setSelectedReport(report);
     setShowDetail(true);
+    setDetailViewMode('preview');
+    setEditedContent('');
   };
 
   const handleBackToList = () => {
     setShowDetail(false);
     setSelectedReport(null);
+    setDetailViewMode('preview');
+    setEditedContent('');
   };
 
   const handleSearchChange = (term: string) => {
@@ -166,8 +179,42 @@ const ReportPage: React.FC = () => {
   };
 
   const handleEditReport = (report: Report) => {
-    // This would navigate to edit mode
-    console.log('Editing report:', report.id);
+    setDetailViewMode('edit');
+  };
+
+  const handleSaveReport = async (content: string) => {
+    if (!selectedReport) return;
+
+    try {
+      const reportService = new ReportService();
+      await reportService.updateReport(selectedReport.id, content);
+
+      // Update local state
+      setEditedContent(content);
+
+      // Invalidate queries to refresh the report list
+      queryClient.invalidateQueries({ queryKey: ['reports'] });
+
+      toast({
+        title: "Report Saved",
+        description: "Your changes have been saved successfully"
+      });
+
+      // Switch back to preview mode
+      setDetailViewMode('preview');
+    } catch (error) {
+      console.error('Failed to save report:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      toast({
+        title: "Save Failed",
+        description: `Failed to save: ${errorMessage}`,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleContentChange = (content: string) => {
+    setEditedContent(content);
   };
 
   if (showDetail && selectedReport) {
@@ -178,9 +225,12 @@ const ReportPage: React.FC = () => {
           <ReportDetail
             report={selectedReport}
             isLoading={isLoading}
+            viewMode={detailViewMode}
             onDownload={handleDownloadReport}
             onDelete={handleDeleteReport}
             onEdit={handleEditReport}
+            onSave={handleSaveReport}
+            onContentChange={handleContentChange}
             onBack={handleBackToList}
           />
         </main>

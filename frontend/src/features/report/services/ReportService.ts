@@ -2,13 +2,13 @@
 // Handles all report-related API operations and business logic
 
 import { ApiClient } from "@/shared/utils/generation";
-import { 
-  Report, 
-  ReportGenerationRequest, 
-  ReportGenerationResponse, 
-  ReportContent, 
+import {
+  Report,
+  ReportGenerationRequest,
+  ReportGenerationResponse,
+  ReportContent,
   ReportFilters,
-  ReportStats 
+  ReportStats
 } from "@/features/report/types/type";
 
 export interface IReportService {
@@ -18,6 +18,7 @@ export interface IReportService {
   generateReport(config: ReportGenerationRequest): Promise<ReportGenerationResponse>;
   cancelReport(id: string): Promise<void>;
   deleteReport(id: string): Promise<void>;
+  updateReport(id: string, content: string): Promise<any>;
   downloadReport(id: string, filename?: string): Promise<void>;
   getReportStats(): Promise<ReportStats>;
   getAvailableModels(): Promise<any>;
@@ -53,12 +54,12 @@ export class ReportService implements IReportService {
       }
 
       const response = await this.api.get(endpoint);
-      
+
       // Handle different response formats
       if (response.reports) return response.reports;
       if (response.jobs) return response.jobs;
       if (Array.isArray(response)) return response;
-      
+
       return [];
     } catch (error) {
       console.error('Failed to fetch reports:', error);
@@ -119,6 +120,21 @@ export class ReportService implements IReportService {
     } catch (error) {
       console.error('Failed to delete report:', error);
       throw new Error('Failed to delete report');
+    }
+  }
+
+  async updateReport(id: string, content: string): Promise<any> {
+    try {
+      if (!content) {
+        throw new Error('content is required for updating report');
+      }
+
+      const endpoint = `/reports/${id}/`;
+      const response = await this.api.put(endpoint, { content });
+      return response;
+    } catch (error) {
+      console.error('Failed to update report:', error);
+      throw new Error('Failed to update report');
     }
   }
 
