@@ -3,7 +3,6 @@
  */
 
 import React, { useMemo } from 'react';
-import { Bot } from 'lucide-react';
 import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { useExternalStoreRuntime } from '@assistant-ui/react';
 import type { AppendMessage } from '@assistant-ui/react';
@@ -65,22 +64,9 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
     onSendMessage(suggestion);
   };
 
+  // Don't render anything if no session (prevents flash of "no session selected")
   if (!session) {
-    return (
-      <div className="h-full flex items-center justify-center bg-white">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#F5F5F5] rounded-2xl mb-3">
-            <Bot className="h-8 w-8 text-[#7F7F7F]" strokeWidth={1.5} />
-          </div>
-          <p className="text-sm text-[#1E1E1E] font-semibold">
-            No session selected
-          </p>
-          <p className="text-xs text-[#666666] mt-1">
-            Create or select a session in the tabs above to start chatting.
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (
