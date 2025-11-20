@@ -1,9 +1,28 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Podcast, PodcastDetailProps } from '../types/type';
 import { PodcastService } from '../services/PodcastService';
 import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
 import { queryKeys } from '@/shared/queries/keys';
 import { useQueryClient } from '@tanstack/react-query';
+import {
+  ArrowLeft,
+  Download,
+  Edit,
+  Trash2,
+  Calendar,
+  Clock,
+  Tag,
+  Mic,
+  Globe,
+  Play,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  HelpCircle,
+  FileText
+} from 'lucide-react';
+import { Button } from "@/shared/components/ui/button";
 
 const PodcastDetail: React.FC<PodcastDetailProps> = ({
   podcast,
@@ -52,11 +71,17 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
   }, [currentPodcast.status, currentPodcast.audio_url]);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return new Date(dateString).toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const formatDuration = (seconds?: number) => {
-    if (!seconds) return '';
+    if (!seconds) return '—';
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
@@ -67,202 +92,193 @@ const PodcastDetail: React.FC<PodcastDetailProps> = ({
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'completed': return 'text-green-600 bg-green-100';
-      case 'failed': return 'text-red-600 bg-red-100';
-      case 'generating': return 'text-blue-600 bg-blue-100';
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      case 'cancelled': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'completed': return { color: 'text-emerald-600 bg-emerald-50', icon: CheckCircle2 };
+      case 'failed': return { color: 'text-red-600 bg-red-50', icon: XCircle };
+      case 'generating': return { color: 'text-blue-600 bg-blue-50', icon: Loader2 };
+      case 'pending': return { color: 'text-amber-600 bg-amber-50', icon: Clock };
+      case 'cancelled': return { color: 'text-gray-600 bg-gray-50', icon: AlertCircle };
+      default: return { color: 'text-gray-600 bg-gray-50', icon: HelpCircle };
     }
   };
 
+  const statusConfig = getStatusConfig(currentPodcast.status);
+  const StatusIcon = statusConfig.icon;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={onBack}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {currentPodcast.title || 'Untitled Podcast'}
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  Created on {formatDate(currentPodcast.created_at)}
-                </p>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-[1000px] mx-auto px-6 py-8">
+        {/* Back Navigation */}
+        <div className="mb-6">
+          <button
+            onClick={onBack}
+            className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
+            Back to Podcasts
+          </button>
+        </div>
+
+        {/* Header Section */}
+        <div className="mb-8 border-b border-gray-100 pb-8">
+          <div className="flex flex-col gap-4">
+            {/* Title */}
+            <h1 className="text-4xl font-bold text-gray-900 leading-tight tracking-tight">
+              {currentPodcast.title || 'Untitled Podcast'}
+            </h1>
+
+            {/* Actions Row */}
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
+                  <StatusIcon className={`w-3.5 h-3.5 mr-1.5 ${currentPodcast.status === 'generating' ? 'animate-spin' : ''}`} />
+                  {currentPodcast.status.charAt(0).toUpperCase() + currentPodcast.status.slice(1)}
+                </span>
+                <span className="text-sm text-gray-500 flex items-center">
+                  <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                  {formatDate(currentPodcast.created_at)}
+                </span>
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(currentPodcast.status)}`}>
-                {currentPodcast.status}
-              </span>
-              
-              {currentPodcast.status === 'completed' && onPlay && (
-                <button
-                  onClick={() => onPlay(currentPodcast)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700"
+
+              <div className="flex items-center gap-2">
+                {currentPodcast.status === 'completed' && onPlay && (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => onPlay(currentPodcast)}
+                    className="h-9 bg-purple-600 hover:bg-purple-700 text-white border-transparent"
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Play
+                  </Button>
+                )}
+
+                {currentPodcast.status === 'completed' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDownload(currentPodcast)}
+                    className="h-9"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                )}
+
+                {onEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(currentPodcast)}
+                    className="h-9"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDelete(currentPodcast)}
+                  className="h-9 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
                 >
-                  <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1m4 0h1m-6 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Play
-                </button>
-              )}
-              
-              {currentPodcast.status === 'completed' && (
-                <button
-                  onClick={() => onDownload(currentPodcast)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                >
-                  <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Download
-                </button>
-              )}
-              
-              {onEdit && (
-                <button
-                  onClick={() => onEdit(currentPodcast)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit
-                </button>
-              )}
-              
-              <button
-                onClick={() => onDelete(currentPodcast)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-              >
-                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete
-              </button>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Podcast Metadata */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Podcast Details</h2>
-          </div>
-          <div className="px-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Topic</h3>
-                <p className="mt-1 text-sm text-gray-900">{currentPodcast.topic || "No topic specified"}</p>
+        {/* Compact Metadata Grid */}
+        <div className="mb-10 bg-gray-50/50 rounded-xl border border-gray-100 p-5">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-8">
+            <div className="space-y-1">
+              <div className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <Tag className="w-3.5 h-3.5 mr-1.5" />
+                Topic
               </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Description</h3>
-                <p className="mt-1 text-sm text-gray-900">{currentPodcast.description || "No description"}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Duration</h3>
-                <p className="mt-1 text-sm text-gray-900">
-                  {currentPodcast.duration ? formatDuration(currentPodcast.duration) : 'Not available'}
-                </p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Created</h3>
-                <p className="mt-1 text-sm text-gray-900">{formatDate(currentPodcast.created_at)}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
-                <p className="mt-1 text-sm text-gray-900">{formatDate(currentPodcast.updated_at)}</p>
-              </div>
+              <p className="text-sm font-medium text-gray-900 truncate" title={currentPodcast.topic}>
+                {currentPodcast.topic || "—"}
+              </p>
             </div>
-            
-            {/* Language */}
-            {currentPodcast.language && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-gray-500">Language</h3>
-                <div className="mt-2">
-                  <div className="bg-gray-50 p-3 rounded-lg inline-block">
-                    <p className="text-sm font-medium text-gray-900">
-                      {currentPodcast.language === 'en' ? 'English' : currentPodcast.language === 'zh' ? '中文 (Chinese)' : currentPodcast.language}
-                    </p>
-                  </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <Clock className="w-3.5 h-3.5 mr-1.5" />
+                Duration
+              </div>
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {currentPodcast.duration ? formatDuration(currentPodcast.duration) : '—'}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <Globe className="w-3.5 h-3.5 mr-1.5" />
+                Language
+              </div>
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {currentPodcast.language === 'en' ? 'English' : currentPodcast.language === 'zh' ? 'Chinese' : currentPodcast.language || '—'}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <Mic className="w-3.5 h-3.5 mr-1.5" />
+                Description
+              </div>
+              <p className="text-sm font-medium text-gray-900 truncate" title={currentPodcast.description}>
+                {currentPodcast.description || "—"}
+              </p>
+            </div>
+          </div>
+
+          {currentPodcast.error_message && (
+            <div className="mt-4 pt-4 border-t border-gray-200/60">
+              <div className="flex items-start gap-2 text-red-600 bg-red-50/50 p-3 rounded-lg">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <span className="font-medium block mb-0.5">Error</span>
+                  {currentPodcast.error_message}
                 </div>
               </div>
-            )}
-            
-            {currentPodcast.progress && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-gray-500">Progress</h3>
-                <p className="mt-1 text-sm text-gray-900">{currentPodcast.progress}</p>
-              </div>
-            )}
-            
-            {currentPodcast.error_message && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-red-500">Error</h3>
-                <p className="mt-1 text-sm text-red-600">{currentPodcast.error_message}</p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Audio Player */}
+        {/* Audio Player Section */}
         {currentPodcast.status === 'completed' && audioUrl && (
-          <div className="bg-white rounded-lg shadow mb-6">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Audio Player</h2>
-            </div>
-            <div className="px-6 py-4">
-              <div className="space-y-4">
-                <audio
-                  controls
-                  className="w-full"
-                  src={audioUrl}
-                >
-                  Your browser does not support the audio element.
-                </audio>
-
-                {currentPodcast.file_metadata?.duration_seconds && (
-                  <div className="flex items-center text-sm text-gray-500">
-                    <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Duration: {formatDuration(currentPodcast.file_metadata.duration_seconds)}
-                  </div>
-                )}
-              </div>
+          <div className="mb-10">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+              <Play className="w-4 h-4 mr-2 text-gray-400" />
+              Audio Player
+            </h3>
+            <div className="bg-gray-50 rounded-xl p-6 border border-gray-100">
+              <audio
+                controls
+                className="w-full"
+                src={audioUrl}
+              >
+                Your browser does not support the audio element.
+              </audio>
             </div>
           </div>
         )}
 
-        {/* Conversation Text */}
+        {/* Transcript Section */}
         {currentPodcast.conversation_text && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Conversation Transcript</h2>
-            </div>
-            <div className="px-6 py-4">
-              <div className="prose max-w-none">
-                <pre className="whitespace-pre-wrap text-sm text-gray-900 bg-gray-50 p-4 rounded-lg">
-                  {currentPodcast.conversation_text}
-                </pre>
-              </div>
+          <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-gray-900 flex items-center">
+              <FileText className="w-4 h-4 mr-2 text-gray-400" />
+              Conversation Transcript
+            </h3>
+            <div className="prose max-w-none">
+              <pre className="whitespace-pre-wrap text-sm text-gray-700 bg-gray-50 p-6 rounded-xl border border-gray-100 font-sans leading-relaxed">
+                {currentPodcast.conversation_text}
+              </pre>
             </div>
           </div>
         )}
