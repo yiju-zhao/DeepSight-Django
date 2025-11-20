@@ -35,7 +35,7 @@ export default function DashboardPage() {
         <main className="flex-grow pt-[var(--header-height)] flex items-center justify-center">
           <LoadingState />
         </main>
-        <Footer />
+
       </div>
     );
   }
@@ -116,7 +116,7 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      <Footer />
+
     </div>
   );
 }
