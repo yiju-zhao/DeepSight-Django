@@ -42,10 +42,14 @@ const NotebookHeader: React.FC<NotebookHeaderProps> = ({
             )}
 
             <div className="flex items-center space-x-3">
-              {/* Icon Container */}
-              <div className="w-8 h-8 flex items-center justify-center">
+              {/* Icon Container - Clickable to navigate back to notebook list */}
+              <button
+                onClick={() => navigate('/deepdive')}
+                className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-[#F7F7F7] transition-all duration-300"
+                title="Back to DeepDive"
+              >
                 <BookOpen className="w-5 h-5 text-[#CE0E2D]" />
-              </div>
+              </button>
 
               {/* Title Section - Compact */}
               <h1 className="text-[16px] md:text-[18px] font-semibold text-[#1E1E1E] leading-tight">

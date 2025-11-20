@@ -102,7 +102,7 @@ export default function DeepdivePage() {
   }
 
   return (
-    <AppLayout>
+    <AppLayout showNavigation={false}>
       <NotebookLayout
         notebookId={notebookId}
         notebookTitle={currentNotebook?.name}
