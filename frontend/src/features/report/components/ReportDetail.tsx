@@ -1,6 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { Report, ReportDetailProps, ReportContent } from '../types/type';
 import { ReportService } from '../services/ReportService';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeRaw from 'rehype-raw';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
+import {
+  ArrowLeft,
+  Download,
+  Edit,
+  Trash2,
+  Calendar,
+  Clock,
+  Tag,
+  Cpu,
+  Search,
+  FileText,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  HelpCircle
+} from 'lucide-react';
+import { Button } from "@/shared/components/ui/button";
 
 const ReportDetail: React.FC<ReportDetailProps> = ({
   report,
@@ -33,194 +58,209 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
   }, [report.id, report.status, content]);
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return new Date(dateString).toLocaleString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
-      case 'completed': return 'text-green-600 bg-green-100';
-      case 'failed': return 'text-red-600 bg-red-100';
-      case 'running': return 'text-blue-600 bg-blue-100';
-      case 'pending': return 'text-yellow-600 bg-yellow-100';
-      case 'cancelled': return 'text-gray-600 bg-gray-100';
-      default: return 'text-gray-600 bg-gray-100';
+      case 'completed': return { color: 'text-emerald-600 bg-emerald-50', icon: CheckCircle2 };
+      case 'failed': return { color: 'text-red-600 bg-red-50', icon: XCircle };
+      case 'running': return { color: 'text-blue-600 bg-blue-50', icon: Loader2 };
+      case 'pending': return { color: 'text-amber-600 bg-amber-50', icon: Clock };
+      case 'cancelled': return { color: 'text-gray-600 bg-gray-50', icon: AlertCircle };
+      default: return { color: 'text-gray-600 bg-gray-50', icon: HelpCircle };
     }
   };
 
+  const statusConfig = getStatusConfig(report.status);
+  const StatusIcon = statusConfig.icon;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={onBack}
-                className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">
-                  {report.title || report.article_title || 'Untitled Report'}
-                </h1>
-                <p className="text-gray-600 mt-1">
-                  Created on {formatDate(report.created_at)}
-                </p>
+    <div className="min-h-screen bg-white">
+      <div className="max-w-[1000px] mx-auto px-6 py-8">
+        {/* Back Navigation */}
+        <div className="mb-6">
+          <button
+            onClick={onBack}
+            className="flex items-center text-sm text-gray-500 hover:text-gray-900 transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
+            Back to Reports
+          </button>
+        </div>
+
+        {/* Header Section */}
+        <div className="mb-8 border-b border-gray-100 pb-8">
+          <div className="flex flex-col gap-4">
+            {/* Title */}
+            <h1 className="text-4xl font-bold text-gray-900 leading-tight tracking-tight">
+              {report.title || report.article_title || 'Untitled Report'}
+            </h1>
+
+            {/* Actions Row */}
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-3">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusConfig.color}`}>
+                  <StatusIcon className={`w-3.5 h-3.5 mr-1.5 ${report.status === 'running' ? 'animate-spin' : ''}`} />
+                  {report.status.charAt(0).toUpperCase() + report.status.slice(1)}
+                </span>
+                <span className="text-sm text-gray-500 flex items-center">
+                  <Calendar className="w-3.5 h-3.5 mr-1.5" />
+                  {formatDate(report.created_at)}
+                </span>
               </div>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(report.status)}`}>
-                {report.status}
-              </span>
-              
-              {report.status === 'completed' && (
-                <button
-                  onClick={() => onDownload(report)}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+
+              <div className="flex items-center gap-2">
+                {report.status === 'completed' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onDownload(report)}
+                    className="h-9"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download
+                  </Button>
+                )}
+
+                {onEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => onEdit(report)}
+                    className="h-9"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Edit
+                  </Button>
+                )}
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onDelete(report)}
+                  className="h-9 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 hover:border-red-300"
                 >
-                  <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  Download
-                </button>
-              )}
-              
-              {onEdit && (
-                <button
-                  onClick={() => onEdit(report)}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                  </svg>
-                  Edit
-                </button>
-              )}
-              
-              <button
-                onClick={() => onDelete(report)}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
-              >
-                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Delete
-              </button>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Report Metadata */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Report Details</h2>
+        {/* Compact Metadata Grid */}
+        <div className="mb-10 bg-gray-50/50 rounded-xl border border-gray-100 p-5">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-8">
+            <div className="space-y-1">
+              <div className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <Tag className="w-3.5 h-3.5 mr-1.5" />
+                Topic
+              </div>
+              <p className="text-sm font-medium text-gray-900 truncate" title={report.topic}>
+                {report.topic || "—"}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <Cpu className="w-3.5 h-3.5 mr-1.5" />
+                Model
+              </div>
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {report.model_provider || "—"}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <Search className="w-3.5 h-3.5 mr-1.5" />
+                Retriever
+              </div>
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {report.retriever || "—"}
+              </p>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex items-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <FileText className="w-3.5 h-3.5 mr-1.5" />
+                Sources
+              </div>
+              <p className="text-sm font-medium text-gray-900">
+                {report.source_ids?.length || 0} files
+              </p>
+            </div>
           </div>
-          <div className="px-6 py-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Topic</h3>
-                <p className="mt-1 text-sm text-gray-900">{report.topic || "No topic specified"}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Model Provider</h3>
-                <p className="mt-1 text-sm text-gray-900">{report.model_provider || "Not specified"}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Retriever</h3>
-                <p className="mt-1 text-sm text-gray-900">{report.retriever || "Not specified"}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Prompt Type</h3>
-                <p className="mt-1 text-sm text-gray-900">{report.prompt_type || "Not specified"}</p>
-              </div>
 
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Sources</h3>
-                <p className="mt-1 text-sm text-gray-900">
-                  {report.source_ids && report.source_ids.length > 0
-                    ? `${report.source_ids.length} ${report.source_ids.length === 1 ? 'source' : 'sources'}`
-                    : "No sources"}
-                </p>
-              </div>
-
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Created</h3>
-                <p className="mt-1 text-sm text-gray-900">{formatDate(report.created_at)}</p>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium text-gray-500">Last Updated</h3>
-                <p className="mt-1 text-sm text-gray-900">{formatDate(report.updated_at)}</p>
+          {report.error_message && (
+            <div className="mt-4 pt-4 border-t border-gray-200/60">
+              <div className="flex items-start gap-2 text-red-600 bg-red-50/50 p-3 rounded-lg">
+                <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                <div className="text-sm">
+                  <span className="font-medium block mb-0.5">Error</span>
+                  {report.error_message}
+                </div>
               </div>
             </div>
-            
-            {report.progress && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-gray-500">Progress</h3>
-                <p className="mt-1 text-sm text-gray-900">{report.progress}</p>
-              </div>
-            )}
-            
-            {report.error_message && (
-              <div className="mt-4">
-                <h3 className="text-sm font-medium text-red-500">Error</h3>
-                <p className="mt-1 text-sm text-red-600">{report.error_message}</p>
-              </div>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* Report Content */}
+        {/* Content Section */}
         {report.status === 'completed' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Report Content</h2>
-            </div>
-            <div className="px-6 py-4">
-              {isLoadingContent ? (
-                <div className="animate-pulse space-y-4">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+          <div className="space-y-8">
+            {isLoadingContent ? (
+              <div className="space-y-6 animate-pulse max-w-3xl">
+                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                <div className="space-y-3">
+                  <div className="h-4 bg-gray-100 rounded"></div>
+                  <div className="h-4 bg-gray-100 rounded"></div>
+                  <div className="h-4 bg-gray-100 rounded w-5/6"></div>
                 </div>
-              ) : reportContent ? (
-                <div className="prose max-w-none">
-                  {reportContent.markdown_content ? (
-                    <div 
-                      className="markdown-content"
-                      dangerouslySetInnerHTML={{ __html: reportContent.markdown_content }}
-                    />
-                  ) : (
-                    <pre className="whitespace-pre-wrap text-sm text-gray-900">
-                      {reportContent.content}
-                    </pre>
-                  )}
-                </div>
-              ) : (
-                <p className="text-gray-500">No content available</p>
-              )}
-            </div>
+                <div className="h-64 bg-gray-50 rounded-xl"></div>
+              </div>
+            ) : reportContent ? (
+              <div className="prose prose-lg max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-blue-600 prose-img:rounded-xl prose-pre:bg-gray-900 prose-pre:text-gray-50 prose-pre:border prose-pre:border-gray-800">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[
+                    rehypeHighlight,
+                    rehypeRaw,
+                    [rehypeKatex, { strict: false }]
+                  ]}
+                >
+                  {reportContent.markdown_content || reportContent.content || ''}
+                </ReactMarkdown>
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 rounded-xl border border-dashed border-gray-200">
+                <p className="text-gray-500">No content available for this report.</p>
+              </div>
+            )}
           </div>
         )}
 
         {/* Processing Logs */}
         {report.processing_logs && report.processing_logs.length > 0 && (
-          <div className="bg-white rounded-lg shadow mt-6">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h2 className="text-lg font-medium text-gray-900">Processing Logs</h2>
-            </div>
-            <div className="px-6 py-4">
-              <div className="space-y-2">
+          <div className="mt-16 pt-8 border-t border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+              <Cpu className="w-4 h-4 mr-2 text-gray-400" />
+              Processing Logs
+            </h3>
+            <div className="bg-gray-900 rounded-xl p-4 overflow-hidden">
+              <div className="font-mono text-xs text-gray-300 space-y-1.5 max-h-60 overflow-y-auto custom-scrollbar">
                 {report.processing_logs.map((log, index) => (
-                  <div key={index} className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                    {log}
+                  <div key={index} className="flex gap-3">
+                    <span className="text-gray-600 shrink-0 select-none">
+                      {(index + 1).toString().padStart(2, '0')}
+                    </span>
+                    <span>{log}</span>
                   </div>
                 ))}
               </div>
