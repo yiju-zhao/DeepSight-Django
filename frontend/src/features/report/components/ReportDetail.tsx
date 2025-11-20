@@ -234,6 +234,9 @@ const ReportDetail: React.FC<ReportDetailProps> = ({
                     rehypeRaw,
                     [rehypeKatex, { strict: false }]
                   ]}
+                  components={{
+                    h1: () => null
+                  }}
                 >
                   {reportContent.markdown_content || reportContent.content || ''}
                 </ReactMarkdown>
