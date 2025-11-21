@@ -44,9 +44,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
   const [extractError, setExtractError] = useState<string | null>(null);
   const [extractResult, setExtractResult] = useState<ExtractResult | null>(null);
   const [images, setImages] = useState<GalleryImage[]>([]);
-  const [visibleCount, setVisibleCount] = useState(40);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const API_BASE_URL = config.API_BASE_URL;
 
@@ -193,25 +191,10 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
     }
   };
 
-  const handleLoadMore = () => {
-    setVisibleCount((prev) => Math.min(prev + 40, images.length));
-  };
-
-  // Calculate how many images to display based on expand/collapse state
-  const getDisplayCount = () => {
-    if (isExpanded) {
-      return visibleCount; // Show all loaded images when expanded
-    } else {
-      // Show only first row (approximately 6 images for 140px grid)
-      return Math.min(6, images.length);
-    }
-  };
-
   // Fetch blobs lazily for visible images
   useEffect(() => {
     const fetchBlobs = async () => {
-      const subset = images.slice(0, getDisplayCount());
-      const needFetch = subset.filter((img) => !img.blobUrl && !img.loading);
+      const needFetch = images.filter((img) => !img.blobUrl && !img.loading);
 
       await Promise.all(
         needFetch.map(async (img) => {
@@ -248,7 +231,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
     if (images.length) {
       fetchBlobs();
     }
-  }, [visibleCount, images, API_BASE_URL, notebookId, videoFileId, isExpanded]);
+  }, [images, API_BASE_URL, notebookId, videoFileId]);
 
   const handleExtract = async () => {
     if (!videoFileId || !notebookId) return;

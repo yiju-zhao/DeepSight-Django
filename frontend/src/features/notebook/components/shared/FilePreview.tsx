@@ -1037,7 +1037,10 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div
+        className={`bg-white rounded-xl shadow-2xl w-full h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 transition-[max-width] ease-in-out ${state.hasGalleryImages ? 'max-w-[90vw]' : 'max-w-5xl'
+          }`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#F7F7F7] bg-white shrink-0">
           <div className="flex items-center space-x-3 overflow-hidden">
@@ -1108,10 +1111,10 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
           {/* Side Gallery Panel */}
           {preview?.type === PREVIEW_TYPES.TEXT_CONTENT && (
             <div
-              className={`border-l border-[#F7F7F7] bg-[#F9FAFB] overflow-y-auto transition-all duration-300 ease-in-out ${state.hasGalleryImages ? 'w-80 p-4 opacity-100' : 'w-0 p-0 opacity-0 overflow-hidden border-none'
+              className={`border-l border-[#F7F7F7] bg-[#F9FAFB] overflow-y-auto transition-all duration-300 ease-in-out ${state.hasGalleryImages ? 'w-[22rem] p-4 opacity-100' : 'w-0 p-0 opacity-0 overflow-hidden border-none'
                 }`}
             >
-              <div className="w-72"> {/* Fixed width container to prevent layout shift during transition */}
+              <div className="w-[20rem]"> {/* Fixed width container to prevent layout shift during transition */}
                 <GallerySection
                   notebookId={notebookId}
                   videoFileId={source.file_id || ''}
