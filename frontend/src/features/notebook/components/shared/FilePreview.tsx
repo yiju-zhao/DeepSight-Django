@@ -626,39 +626,9 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     const baseContent = state.resolvedContent || preview.content;
     const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
 
-    // Determine the appropriate icon based on file extension
-    const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
-    const isPresentation = ['.ppt', '.pptx'].includes(fileExt);
-    const IconComponent = isPresentation ? Presentation : FileText;
-    const iconColor = isPresentation ? 'text-[#CE0E2D]' : 'text-[#1E1E1E]';
-
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7]">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
-              <IconComponent className={`h-5 w-5 ${iconColor}`} />
-            </div>
-            <div>
-              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview.title}</h3>
-              <div className="flex items-center space-x-2 mt-1">
-                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
-                  <HardDrive className="h-3 w-3 mr-1" />
-                  {preview.wordCount} words
-                </Badge>
-                {preview.fileSize && (
-                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
-                    {preview.fileSize}
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
-          <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
-        </div>
+      <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
+        <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
       </div>
     );
   };
@@ -875,54 +845,16 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
 
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7]">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
-              <FileText className="h-5 w-5 text-[#CE0E2D]" />
-            </div>
-            <div>
-              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview.title}</h3>
-              <div className="flex items-center space-x-2 mt-1">
-                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
-                  PDF Document
-                </Badge>
-                {preview.wordCount && (
-                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
-                    <HardDrive className="h-3 w-3 mr-1" />
-                    {preview.wordCount} words
-                  </Badge>
-                )}
-                {preview.fileSize && (
-                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
-                    {preview.fileSize}
-                  </Badge>
-                )}
-              </div>
-            </div>
+      <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
+        {processedContent ? (
+          <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
+        ) : (
+          <div className="text-center py-8">
+            <FileText className="h-12 w-12 text-[#B1B1B1] mx-auto mb-4" />
+            <p className="text-[#666666] text-[14px]">No text content extracted from this PDF</p>
+            <p className="text-[#999999] text-[13px] mt-2">Click "Open PDF" button to view the original file</p>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => window.open(preview?.pdfUrl, '_blank')}
-            className="h-[32px] px-[16px] text-[13px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
-          >
-            <ExternalLink className="h-3 w-3 mr-2" />
-            Open PDF
-          </Button>
-        </div>
-
-        <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
-          {processedContent ? (
-            <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
-          ) : (
-            <div className="text-center py-8">
-              <FileText className="h-12 w-12 text-[#B1B1B1] mx-auto mb-4" />
-              <p className="text-[#666666] text-[14px]">No text content extracted from this PDF</p>
-              <p className="text-[#999999] text-[13px] mt-2">Click "Open PDF" above to view the original file</p>
-            </div>
-          )}
-        </div>
+        )}
       </div>
     );
   };
@@ -1118,6 +1050,17 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                     Copy Markdown
                   </>
                 )}
+              </Button>
+            )}
+            {preview?.isPdfPreview && preview?.pdfUrl && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.open(preview?.pdfUrl, '_blank')}
+                className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
+              >
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                Open PDF
               </Button>
             )}
             <Button
