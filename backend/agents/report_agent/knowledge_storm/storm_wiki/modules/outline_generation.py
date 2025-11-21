@@ -30,6 +30,7 @@ class StormOutlineGenerationModule(OutlineGenerationModule):
         return_draft_outline=False,
         topic: str | None = None,
         output_dir: str | None = None,
+        user_requirements: str | None = None,
     ) -> StormArticle | tuple[StormArticle, StormArticle]:
         if callback_handler is not None:
             callback_handler.on_information_organization_start()
@@ -49,6 +50,7 @@ class StormOutlineGenerationModule(OutlineGenerationModule):
             callback_handler=callback_handler,
             topic=topic,
             output_dir=output_dir,
+            user_requirements=user_requirements,
         )
 
         # Post-process the outline to filter headings up to level 3
@@ -125,6 +127,7 @@ class WriteOutline(dspy.Module):
         callback_handler: BaseCallbackHandler = None,
         topic: str | None = None,
         output_dir: str | None = None,
+        user_requirements: str | None = None,
     ):
         trimmed_dlg_history = [
             turn
@@ -150,8 +153,11 @@ class WriteOutline(dspy.Module):
         with dspy.settings.context(lm=self.engine):
             if old_outline is None:
                 # Generate initial outline
+                user_reqs = user_requirements if user_requirements else "N/A"
                 old_outline = ArticleTextProcessing.clean_up_outline(
-                    self.draft_page_outline(text_input=text_input, topic=topic).outline
+                    self.draft_page_outline(
+                        text_input=text_input, topic=topic, user_requirements=user_reqs
+                    ).outline
                 )
                 if callback_handler:
                     callback_handler.on_direct_outline_generation_end(
@@ -187,6 +193,7 @@ class WriteOutline(dspy.Module):
                     old_outline = rated_outline
 
             # Generate final outline using conversation history and outline score if available
+            user_reqs = user_requirements if user_requirements else "N/A"
             if outline_score_json:
                 outline = ArticleTextProcessing.clean_up_outline(
                     self.write_page_outline(
@@ -195,6 +202,7 @@ class WriteOutline(dspy.Module):
                         conv=conv,
                         topic=topic,
                         outline_score=outline_score_json,
+                        user_requirements=user_reqs,
                     ).outline
                 )
             else:
@@ -205,6 +213,7 @@ class WriteOutline(dspy.Module):
                         conv=conv,
                         topic=topic,
                         outline_score="",
+                        user_requirements=user_reqs,
                     ).outline
                 )
 
@@ -219,6 +228,11 @@ class WritePageOutline(dspy.Signature):
         prefix="The text input (or 'N/A' if not available): ", format=str
     )
     topic = dspy.InputField(prefix="Topic to focus on:\n", format=str)
+    user_requirements = dspy.InputField(
+        prefix="User's custom requirements for the report (or 'N/A' if not specified):\n",
+        format=str,
+        optional=True,
+    )
     outline = dspy.OutputField(
         prefix="Write the report outline based on the topic:\n", format=str
     )
@@ -246,6 +260,11 @@ class WritePageOutlineFromConv(dspy.Signature):
     outline_score = dspy.InputField(
         prefix="Outline section ratings (higher scores indicate more important sections):\n",
         format=str,
+    )
+    user_requirements = dspy.InputField(
+        prefix="User's custom requirements for the report (or 'N/A' if not specified):\n",
+        format=str,
+        optional=True,
     )
     outline = dspy.OutputField(
         prefix="Write the tech report outline based on the topic (Use '#' for level 1 headings, '##' for level 2, '###' for level 3, and make sure every heading ends with a period):\n",

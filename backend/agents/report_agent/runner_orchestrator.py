@@ -143,34 +143,33 @@ class RunnerOrchestrator:
         processing_logs = []
 
         try:
-            # Enhance topic with custom requirements if provided
-            enhanced_topic = config.topic
+            # Format custom requirements for outline generation
+            formatted_requirements = None
             if config.parsed_requirements:
                 try:
                     from .prompt_enhancer import PromptEnhancer
 
-                    enhanced_topic = PromptEnhancer.enhance_topic_for_outline(
-                        base_topic=config.topic or "",
-                        parsed_requirements=config.parsed_requirements,
+                    formatted_requirements = PromptEnhancer.format_requirements_text(
+                        config.parsed_requirements
                     )
 
                     req_summary = PromptEnhancer.get_summary(config.parsed_requirements)
                     self.logger.info(
-                        f"Enhanced topic with custom requirements: {req_summary}"
+                        f"Formatted custom requirements for outline: {req_summary}"
                     )
                     processing_logs.append(
                         f"Custom requirements applied: {req_summary}"
                     )
                 except Exception as e:
                     self.logger.warning(
-                        f"Failed to enhance topic with requirements: {e}"
+                        f"Failed to format requirements: {e}"
                     )
-                    # Continue with original topic if enhancement fails
-                    enhanced_topic = config.topic
+                    # Continue without requirements if formatting fails
+                    formatted_requirements = None
 
             # Execute the pipeline
             runner.run(
-                user_input=enhanced_topic,
+                user_input=config.topic,
                 do_research=config.do_research,
                 do_generate_outline=config.do_generate_outline,
                 do_generate_article=config.do_generate_article,
@@ -178,6 +177,7 @@ class RunnerOrchestrator:
                 remove_duplicate=config.remove_duplicate,
                 old_outline_path=config.old_outline_path,
                 skip_rewrite_outline=config.skip_rewrite_outline,
+                user_requirements=formatted_requirements,
             )
 
             runner.is_polishing_complete = True

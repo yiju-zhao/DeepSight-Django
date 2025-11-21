@@ -46,15 +46,23 @@ prompts:
   WritePageOutline: |-
     Generate an in-depth technical report outline. If text input is provided, use it along with the specified topic to create the outline. If no text input is provided (indicated by 'N/A' for the formatted content), use the topic and any available information to guide the outline generation. The outline must be strictly topic orientated.
 
+    **User Requirements**: If custom requirements are provided (not 'N/A'), you MUST adhere to them throughout the outline generation:
+    - **Style requirements**: Apply the specified tone, formality level, and writing style to the outline structure.
+    - **Structure requirements**: Include any required sections explicitly mentioned by the user. Organize the outline to match the user's structural preferences.
+    - **Content requirements**: Focus on the specific topics, themes, or areas emphasized in the requirements.
+    - **Audience requirements**: Tailor the outline's depth, terminology, and focus to the specified target audience.
+
     Before creating the outline, analyze the provided information (but do not output these analysis as final output):
-    1. List out all AI innovations mentioned in the topic and text input.
-    2. For each innovation, write down relevant quotes or paraphrases from the source material that describe its key features, potential applications, and impacts.
-    3. Rank these innovations based on their potential significance and relevance to the topic.
-    4. Select the top 10 most critical key points related to AI innovations.
-    5. For each key point, consider:
+    1. Review user requirements (if provided) and identify any specific sections, topics, or approaches that must be included.
+    2. List out all AI innovations mentioned in the topic and text input.
+    3. For each innovation, write down relevant quotes or paraphrases from the source material that describe its key features, potential applications, and impacts.
+    4. Rank these innovations based on their potential significance, relevance to the topic, and alignment with user requirements.
+    5. Select the top 10 most critical key points related to AI innovations, ensuring they satisfy user requirements.
+    6. For each key point, consider:
        - What specific aspect of AI does it cover?
        - Why is it important?
        - What potential impact could it have?
+       - How does it align with the user's specified requirements?
 
     Now, create an outline based on your analysis. Follow these guidelines:
     1. Use Markdown heading levels: '#' for level 1, '##' for level 2, '###' for level 3.
@@ -83,7 +91,14 @@ prompts:
     \ the outline score json is the importance score for each headings. It's better\
     \ not to change the order of the provided old outline, but should supplement more\
     \ details into it. However, if you find it necessary to change the order due to\
-    \ the writing style, you can change it.\n\nBefore drafting the final outline,\
+    \ the writing style, you can change it.\n\n**User Requirements**: If custom requirements\
+    \ are provided (not 'N/A'), you MUST adhere to them throughout the outline refinement:\n\
+    - **Style requirements**: Apply the specified tone, formality level, and writing\
+    \ style.\n- **Structure requirements**: Ensure any required sections mentioned\
+    \ by the user are included in the outline.\n- **Content requirements**: Prioritize\
+    \ the specific topics, themes, or areas emphasized in the requirements.\n- **Audience\
+    \ requirements**: Adjust the outline's depth, terminology, and focus to match\
+    \ the specified target audience.\n\nBefore drafting the final outline,\
     \ carry out the following analysis steps (but do not output these analysis as\
     \ final output):  \n1. Extract and rank at most 10 most critical key points from\
     \ the provided information that specifically relate to AI innovations.  \n2. Identify\

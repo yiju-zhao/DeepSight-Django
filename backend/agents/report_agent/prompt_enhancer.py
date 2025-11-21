@@ -258,6 +258,73 @@ Please generate the outline considering both the research topic and user require
 
         return "Custom requirements provided"
 
+    @staticmethod
+    def format_requirements_text(
+        parsed_requirements: Optional[dict[str, Any]] = None
+    ) -> str:
+        """
+        Format parsed requirements as text for outline generation prompts.
+
+        Args:
+            parsed_requirements: Parsed structured requirements
+
+        Returns:
+            Formatted requirements text suitable for outline generation input
+        """
+        if not parsed_requirements:
+            return "N/A"
+
+        sections = []
+
+        # Style requirements
+        style = parsed_requirements.get("style", {})
+        if style:
+            style_parts = []
+            if style.get("tone"):
+                style_parts.append(f"tone: {style['tone']}")
+            if style.get("formality"):
+                style_parts.append(f"formality: {style['formality']}")
+            if style.get("complexity"):
+                style_parts.append(f"complexity: {style['complexity']}")
+            if style_parts:
+                sections.append(f"Style: {', '.join(style_parts)}")
+
+        # Structure requirements
+        structure = parsed_requirements.get("structure", {})
+        if structure:
+            struct_parts = []
+            if structure.get("required_sections"):
+                sections_list = structure["required_sections"]
+                struct_parts.append(
+                    f"Required sections: {', '.join(sections_list)}"
+                )
+            if structure.get("section_order"):
+                struct_parts.append(f"Section order: {structure['section_order']}")
+            if struct_parts:
+                sections.append(f"Structure: {'; '.join(struct_parts)}")
+
+        # Content requirements
+        content = parsed_requirements.get("content", {})
+        if content:
+            content_parts = []
+            if content.get("focus_areas"):
+                focus_list = content["focus_areas"]
+                content_parts.append(f"Focus on: {', '.join(focus_list)}")
+            if content.get("depth"):
+                content_parts.append(f"Depth: {content['depth']}")
+            if content_parts:
+                sections.append(f"Content: {'; '.join(content_parts)}")
+
+        # Audience requirements
+        audience = parsed_requirements.get("audience", "")
+        if audience:
+            sections.append(f"Target audience: {audience}")
+
+        if sections:
+            return "\n".join(sections)
+
+        return "N/A"
+
 
 def enhance_topic_with_requirements(
     topic: str,

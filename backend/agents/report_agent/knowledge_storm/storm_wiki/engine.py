@@ -539,6 +539,7 @@ class STORMWikiRunner(Engine):
         old_outline: StormArticle | None = None,
         callback_handler: BaseCallbackHandler = None,
         topic: str | None = None,
+        user_requirements: str | None = None,
     ) -> StormArticle:
         combined_input_content = self._get_formatted_inputs()
         outline, draft_outline = self.storm_outline_generation_module.generate_outline(
@@ -549,6 +550,7 @@ class STORMWikiRunner(Engine):
             callback_handler=callback_handler,
             topic=topic,
             output_dir=self.article_output_dir,
+            user_requirements=user_requirements,
         )
         outline.dump_outline_to_file(
             os.path.join(self.article_output_dir, "storm_gen_outline.txt")
@@ -753,6 +755,7 @@ class STORMWikiRunner(Engine):
         callback_handler: BaseCallbackHandler = BaseCallbackHandler(),
         old_outline_path: str | None = None,
         skip_rewrite_outline: bool = False,
+        user_requirements: str | None = None,
     ) -> None:
         """Run the STORM Wiki engine."""
         if not hasattr(self, "article_title") or not self.article_title:
@@ -867,6 +870,7 @@ class STORMWikiRunner(Engine):
                 old_outline=old_outline,
                 callback_handler=callback_handler,
                 topic=self.generated_topic,
+                user_requirements=user_requirements,
             )
         draft_article = None
         if do_generate_article:
