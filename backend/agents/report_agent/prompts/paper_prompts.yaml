@@ -47,12 +47,20 @@ prompts:
     If an outline is provided, make sure the personas' expertise covers the thematic sections.
   WritePageOutline: |-
     Generate an in-depth technical report outline that follows a logical progression from problem/innovation to methodology, results, and future implications, without using explicit, generic headings like "Introduction" or "Conclusion". If text input is provided, use it along with the specified topic to create the outline. If no text input is provided (indicated by 'N/A' for the formatted content), use the topic and any available information to guide the outline generation. The outline must be strictly topic-oriented.
-    
-    Before creating the outline, analyze the provided information to structure the narrative logically (but do not output this analysis):
-    1.  Identify the core innovation or problem statement. This will form the opening sections of the outline.
-    2.  List the key components of the methodology, architecture, or process. These will form the middle sections, detailing *how* the innovation is achieved.
-    3.  Pinpoint the main results, performance benchmarks, or key findings. This will follow the methodology, showing the outcome.
-    4.  Determine the broader significance, applications, or future research directions. This will form the concluding part of the narrative.
+
+    **CRITICAL REQUIREMENT - Fixed Report Structure**: This report MUST follow a fixed 4-section structure with these exact level-1 headings IN THIS ORDER:
+    1. # 总体总结.
+    2. # 技术背景.
+    3. # 关键技术以及成果.
+    4. # 业务(AI算力业务)启示.
+
+    For each of these 4 level-1 headings, add level-2 (##) and level-3 (###) sub-headings as needed to organize the content based on the analysis below. Do NOT create any level-1 headings beyond these 4 required sections. The section titles MUST use the exact Chinese text shown above.
+
+    Before creating the outline, analyze the provided information to structure the narrative logically under the 4 fixed sections (but do not output this analysis):
+    1.  Identify the core innovation or problem statement. This content goes under "总体总结" (Overall Summary).
+    2.  List the key components of the methodology, architecture, or process. This content goes under "技术背景" (Technical Background) and "关键技术以及成果" (Key Technologies and Achievements).
+    3.  Pinpoint the main results, performance benchmarks, or key findings. This content goes under "关键技术以及成果" (Key Technologies and Achievements).
+    4.  Determine the broader significance, applications, or future research directions for AI computing business. This content goes under "业务(AI算力业务)启示" (Business Insights for AI Computing).
 
     Now, create an outline based on your analysis. Follow these guidelines:
     1. Use Markdown heading levels: '#' for level 1, '##' for level 2, '###' for level 3.
@@ -67,6 +75,14 @@ prompts:
   WritePageOutlineFromConv: |-
     You are an expert report editor. Your task is to extract key technical points from provided materials and use them to improve a technical report outline. The revised outline should be highly relevant to an AI hardware tech company audience and follow a logical progression from problem/innovation to methodology, results, and future implications.
     Note that the outline score json is the importance score for each heading. It's better not to change the order of the provided old outline, but you should supplement more details into it. However, if you find it necessary to change the order to improve the narrative flow, you are permitted to do so.
+
+    **CRITICAL REQUIREMENT - Fixed Report Structure**: The refined outline MUST maintain a fixed 4-section structure with these exact level-1 headings IN THIS ORDER:
+    1. # 总体总结.
+    2. # 技术背景.
+    3. # 关键技术以及成果.
+    4. # 业务(AI算力业务)启示.
+
+    Ensure the refined outline preserves these 4 level-1 headings with their exact Chinese titles. You may refine, reorganize, or add level-2 (##) and level-3 (###) sub-headings under each of the 4 main sections to improve clarity and depth, but do NOT remove or modify the 4 required level-1 section titles.
 
     Before drafting the final outline, carry out the following analysis steps (but do not output these analysis as final output):
     1.  Extract and rank up to 10 of the most critical key points from the provided information that specifically relate to AI innovations.

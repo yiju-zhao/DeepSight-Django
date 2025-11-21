@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
 import { Button } from "@/shared/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
+import { Label } from "@/shared/components/ui/label";
 import { Search, MessageSquare, X } from 'lucide-react';
 import { COLORS } from "@/features/notebook/config/uiConfig";
 
@@ -91,6 +99,30 @@ const CustomizeModal: React.FC<CustomizeModalProps> = ({
           <X className="h-5 w-5" />
         </button>
       </div>
+
+      {type === 'report' && (
+        <div className="mb-6">
+          <Label className="text-sm font-medium text-gray-700 mb-2 block">
+            Report Template
+          </Label>
+          <Select
+            value={(config as any).prompt_type || 'general'}
+            onValueChange={(value) => onConfigChange({ prompt_type: value })}
+          >
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Select a template" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="general">General</SelectItem>
+              <SelectItem value="paper">Research Paper</SelectItem>
+              <SelectItem value="financial">Financial Report</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-gray-500 mt-1.5">
+            Choose the structure and style for your research report
+          </p>
+        </div>
+      )}
 
       <div className="mb-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">
