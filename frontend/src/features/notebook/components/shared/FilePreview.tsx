@@ -870,9 +870,13 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   const renderPdfContentPreview = () => {
     if (!preview) return null;
 
+    // Process markdown content from the PDF
+    const baseContent = state.resolvedContent || preview.content;
+    const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
+
     return (
-      <div className="h-full flex flex-col">
-        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7] mb-4">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7]">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
               <FileText className="h-5 w-5 text-[#CE0E2D]" />
@@ -883,9 +887,14 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                 <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
                   PDF Document
                 </Badge>
-                {preview.fileSize && (
+                {preview.wordCount && (
                   <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
                     <HardDrive className="h-3 w-3 mr-1" />
+                    {preview.wordCount} words
+                  </Badge>
+                )}
+                {preview.fileSize && (
+                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
                     {preview.fileSize}
                   </Badge>
                 )}
@@ -899,16 +908,20 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             className="h-[32px] px-[16px] text-[13px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
           >
             <ExternalLink className="h-3 w-3 mr-2" />
-            Open in New Tab
+            Open PDF
           </Button>
         </div>
 
-        <div className="flex-1 bg-[#F5F5F5] rounded-lg border border-[#E3E3E3] overflow-hidden">
-          <iframe
-            src={preview.pdfUrl}
-            className="w-full h-full"
-            title="PDF Preview"
-          />
+        <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
+          {processedContent ? (
+            <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
+          ) : (
+            <div className="text-center py-8">
+              <FileText className="h-12 w-12 text-[#B1B1B1] mx-auto mb-4" />
+              <p className="text-[#666666] text-[14px]">No text content extracted from this PDF</p>
+              <p className="text-[#999999] text-[13px] mt-2">Click "Open PDF" above to view the original file</p>
+            </div>
+          )}
         </div>
       </div>
     );
