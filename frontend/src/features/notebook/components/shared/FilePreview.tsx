@@ -288,85 +288,53 @@ const fixMalformedLaTeX = (latex: string): string => {
     return `$$${content.trim()}$$`;
   });
 
-  // Fix 1: Remove unnecessary outer \begin{array}{c} wrapper
-  // This handles the pattern where an outer array{c} wraps equation content
-  fixed = fixed.replace(/\$\$\s*\\begin\{array\}\{([^}]+)\}\s*([\s\S]+?)\s*\$\$/g, (match, colSpec, content) => {
-    // Count array environments in the content
-    const contentBeginCount = (content.match(/\\begin\{array\}/g) || []).length;
-    const contentEndCount = (content.match(/\\end\{array\}/g) || []).length;
+  // Fix 1: Remove unnecessary outer \begin{array}{c} wrapper without proper closing
+  // Pattern: $$\begin{array}{c} [content without matching \end{array}] $$
+  fixed = fixed.replace(/\$\$\s*\\begin\{array\}\{([^}]+)\}\s*([\s\S]+?)\s*\$\$(?![\s\S]*?\\end\{array\})/g, (match, colSpec, content) => {
+    // Check if content has properly closed array environments
+    const beginCount = (content.match(/\\begin\{array\}/g) || []).length;
+    const endCount = (content.match(/\\end\{array\}/g) || []).length;
 
-    // Case 1: Outer array{c} is never closed - remove it
-    if (contentBeginCount === contentEndCount && contentBeginCount > 0) {
-      // Inner arrays are balanced, outer wrapper has no closing \end{array}
+    // If the inner arrays are balanced and outer array is not closed, remove outer wrapper
+    if (beginCount === endCount && beginCount > 0) {
       return `$$${content.trim()}$$`;
     }
-
-    // Case 2: Content has unbalanced arrays - might need fixing
-    if (contentBeginCount < contentEndCount) {
-      // More \end{array} than \begin{array} - likely the last \end{array} is for outer wrapper
-      // Remove the last \end{array} and the outer \begin{array}
-      const lastEndIndex = content.lastIndexOf('\\end{array}');
-      if (lastEndIndex !== -1) {
-        const contentWithoutLastEnd = content.substring(0, lastEndIndex) + content.substring(lastEndIndex + 11);
-        return `$$${contentWithoutLastEnd.trim()}$$`;
-      }
-    }
-
     return match;
   });
 
-  // Fix 2: Fix \left( or \left[ with matrix content
-  // This handles cases like:
-  // - \left( {...} & {...} \\ {...} & {...} \right) - missing both \begin and \end{array}
-  // - \left( {...} & {...} \\ {...} & {...} \end{array} \right) - missing \begin{array}
-  fixed = fixed.replace(/\\left([(\[])\s*([\s\S]*?)\s*\\right([)\]])/g, (match, leftDelim, content, rightDelim) => {
-    // Check if this looks like a matrix (has & or \\)
-    if (content.includes('&') || content.includes('\\\\')) {
-      // Check if it has \end{array} but no \begin{array} (malformed case)
-      const hasEndArray = content.includes('\\end{array}');
-      const hasBeginArray = content.includes('\\begin{array}');
+  // Fix 2: Fix \left( or \left[ with matrix content but missing \begin{array}
+  // This handles cases like \left( {...} & {...} \\ {...} & {...} \right)
+  fixed = fixed.replace(/\\left([(\[])\s*\{?\s*([^)\]]+)\s*\}?\s*\\right([)\]])/g, (match, leftDelim, content, rightDelim) => {
+    // Check if this looks like a matrix (has & or \\) and doesn't already have \begin{array}
+    if ((content.includes('&') || content.includes('\\\\')) && !content.includes('\\begin{array}')) {
+      // First, clean up excessive braces before parsing
+      let cleanContent = content;
 
-      if (hasEndArray && !hasBeginArray) {
-        // Has \end{array} but no \begin{array} - remove the orphaned \end{array}
-        let cleanContent = content.replace(/\s*\\end\{array\}\s*/g, ' ');
-
-        // Clean up braces
-        for (let i = 0; i < 3; i++) {
-          cleanContent = cleanContent.replace(/\{\s*\{\s*([^{}]+?)\s*\}\s*\}/g, '{$1}');
-        }
-        cleanContent = cleanContent.replace(/\{\s*([^{}\\]+?)\s*\}/g, '$1');
-        cleanContent = cleanContent.replace(/\{\s*(\\[a-zA-Z]+(?:\{[^}]*\})*)\s*\}/g, '$1');
-
-        // Count columns
-        const rows = cleanContent.split('\\\\').filter((r: string) => r.trim());
-        if (rows.length > 0) {
-          const firstRow = rows[0].trim();
-          const colCount = (firstRow.match(/&/g) || []).length + 1;
-          const colSpec = 'c'.repeat(colCount);
-          cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
-          return `\\left${leftDelim}\\begin{array}{${colSpec}} ${cleanContent} \\end{array}\\right${rightDelim}`;
-        }
-      } else if (!hasBeginArray && !hasEndArray) {
-        // Has neither - add both
-        let cleanContent = content;
-
-        // Clean up braces
-        for (let i = 0; i < 3; i++) {
-          cleanContent = cleanContent.replace(/\{\s*\{\s*([^{}]+?)\s*\}\s*\}/g, '{$1}');
-        }
-        cleanContent = cleanContent.replace(/\{\s*([^{}\\]+?)\s*\}/g, '$1');
-        cleanContent = cleanContent.replace(/\{\s*(\\[a-zA-Z]+(?:\{[^}]*\})*)\s*\}/g, '$1');
-
-        // Count columns
-        const rows = cleanContent.split('\\\\').filter((r: string) => r.trim());
-        if (rows.length > 0) {
-          const firstRow = rows[0].trim();
-          const colCount = (firstRow.match(/&/g) || []).length + 1;
-          const colSpec = 'c'.repeat(colCount);
-          cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
-          return `\\left${leftDelim}\\begin{array}{${colSpec}} ${cleanContent} \\end{array}\\right${rightDelim}`;
-        }
+      // Remove multiple layers of braces: { { x } } -> x
+      for (let i = 0; i < 3; i++) {
+        cleanContent = cleanContent.replace(/\{\s*\{\s*([^{}]+?)\s*\}\s*\}/g, '{$1}');
       }
+
+      // Remove single-level braces around simple content: { x } -> x
+      // But be careful not to remove braces that are part of LaTeX commands
+      cleanContent = cleanContent.replace(/\{\s*([^{}\\]+?)\s*\}/g, '$1');
+
+      // Remove braces around LaTeX commands with arguments: { \frac{a}{b} } -> \frac{a}{b}
+      cleanContent = cleanContent.replace(/\{\s*(\\[a-zA-Z]+(?:\{[^}]*\})*)\s*\}/g, '$1');
+
+      // Split by rows to count columns
+      const rows = cleanContent.split('\\\\').filter((r: string) => r.trim());
+      if (rows.length === 0) return match;
+
+      // Count columns from first row
+      const firstRow = rows[0].trim();
+      const colCount = (firstRow.match(/&/g) || []).length + 1;
+      const colSpec = 'c'.repeat(colCount);
+
+      // Clean up multiple spaces
+      cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
+
+      return `\\left${leftDelim}\\begin{array}{${colSpec}} ${cleanContent} \\end{array}\\right${rightDelim}`;
     }
     return match;
   });
