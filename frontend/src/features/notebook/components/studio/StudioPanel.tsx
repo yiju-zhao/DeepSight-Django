@@ -181,14 +181,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       queryClient.invalidateQueries({ queryKey: studioKeys.reportJobs(nbId) });
       queryClient.invalidateQueries({ queryKey: studioKeys.podcastJobs(nbId) });
     },
-    onJobEvent: (event) => {
-      if (!notebookId) return;
-      if (event.entity === 'report') {
-        queryClient.invalidateQueries({ queryKey: studioKeys.reportJobs(notebookId) });
-      } else if (event.entity === 'podcast') {
-        queryClient.invalidateQueries({ queryKey: studioKeys.podcastJobs(notebookId) });
-      }
-    },
+    // Note: Query invalidation is handled by useNotebookJobStream internally
+    // to avoid duplicate invalidations that can cause race conditions
   });
 
 
