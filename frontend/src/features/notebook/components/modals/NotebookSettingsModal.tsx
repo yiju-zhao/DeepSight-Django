@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, X, MessageSquare, Palette } from 'lucide-react';
+import { Settings, X, MessageSquare, Palette, RotateCcw } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { COLORS } from "@/features/notebook/config/uiConfig";
-import { useNotebookSettings } from '@/features/notebook/contexts/NotebookSettingsContext';
+import { useNotebookSettings, DEFAULT_REPORT_CONFIG, DEFAULT_PODCAST_CONFIG } from '@/features/notebook/contexts/NotebookSettingsContext';
 import { useModelsQuery, useSelectModelMutation } from '@/features/notebook/hooks/chat/useSessionQueries';
 import { useToast } from "@/shared/components/ui/use-toast";
 
@@ -34,22 +34,16 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
     const availableModels = modelsQuery.data?.available_models || [];
     const currentModel = modelsQuery.data?.current_model || '';
 
-    // Local state for Studio settings (to support Save/Cancel pattern)
-    const [localReportConfig, setLocalReportConfig] = useState(reportConfig);
-    const [localPodcastConfig, setLocalPodcastConfig] = useState(podcastConfig);
-
     // Xinference models state
     const [xinferenceModels, setXinferenceModels] = useState<any[]>([]);
     const [loadingXinferenceModels, setLoadingXinferenceModels] = useState(false);
 
-    // Sync local state when modal opens
+    // Fetch Xinference models when modal opens
     useEffect(() => {
         if (isOpen) {
-            setLocalReportConfig(reportConfig);
-            setLocalPodcastConfig(podcastConfig);
             fetchXinferenceModels();
         }
-    }, [isOpen, reportConfig, podcastConfig]);
+    }, [isOpen]);
 
     const fetchXinferenceModels = async () => {
         setLoadingXinferenceModels(true);
@@ -67,11 +61,11 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
 
     // Handlers
     const handleReportConfigChange = (updates: Partial<typeof reportConfig>) => {
-        setLocalReportConfig(prev => ({ ...prev, ...updates }));
+        updateReportConfig(updates);
     };
 
     const handlePodcastConfigChange = (updates: Partial<typeof podcastConfig>) => {
-        setLocalPodcastConfig(prev => ({ ...prev, ...updates }));
+        updatePodcastConfig(updates);
     };
 
     const handleChatModelChange = async (model: string) => {
@@ -90,14 +84,15 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
         }
     };
 
-    const handleSave = () => {
-        updateReportConfig(localReportConfig);
-        updatePodcastConfig(localPodcastConfig);
-        onClose();
-        toast({
-            title: 'Settings Saved',
-            description: 'Studio settings have been updated',
-        });
+    const handleReset = () => {
+        if (activeTab === 'studio') {
+            updateReportConfig(DEFAULT_REPORT_CONFIG);
+            updatePodcastConfig(DEFAULT_PODCAST_CONFIG);
+            toast({
+                title: 'Settings Reset',
+                description: 'Studio settings have been reset to defaults',
+            });
+        }
     };
 
     if (!isOpen) return null;
@@ -116,12 +111,25 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                     </div>
                     <h2 className="text-[18px] font-bold text-[#1E1E1E]">Notebook Settings</h2>
                 </div>
-                <button
-                    onClick={onClose}
-                    className="h-8 w-8 flex items-center justify-center text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-full transition-colors"
-                >
-                    <X className="h-5 w-5" />
-                </button>
+                <div className="flex items-center space-x-2">
+                    {activeTab === 'studio' && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleReset}
+                            className="h-8 px-3 text-[#666666] hover:text-[#CE0E2D] hover:bg-[#FEF2F2] rounded-lg transition-colors text-[13px] font-medium"
+                        >
+                            <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
+                            Reset
+                        </Button>
+                    )}
+                    <button
+                        onClick={onClose}
+                        className="h-8 w-8 flex items-center justify-center text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-full transition-colors"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
             </div>
 
             {/* Tabs */}
@@ -198,7 +206,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                     <div className="relative">
                                         <select
                                             className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
-                                            value={localReportConfig.model_provider || ''}
+                                            value={reportConfig.model_provider || ''}
                                             onChange={(e) => handleReportConfigChange({ model_provider: e.target.value, model_uid: undefined })}
                                         >
                                             <option value="openai">OpenAI</option>
@@ -212,7 +220,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                     </div>
                                 </div>
 
-                                {localReportConfig.model_provider === 'xinference' && (
+                                {reportConfig.model_provider === 'xinference' && (
                                     <div className="space-y-2">
                                         <label className="block text-[13px] font-medium text-[#1E1E1E]">Xinference Model</label>
                                         {loadingXinferenceModels ? (
@@ -221,7 +229,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                             <div className="relative">
                                                 <select
                                                     className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
-                                                    value={localReportConfig.model_uid || ''}
+                                                    value={reportConfig.model_uid || ''}
                                                     onChange={(e) => handleReportConfigChange({ model_uid: e.target.value })}
                                                 >
                                                     <option value="">Select a model</option>
@@ -244,7 +252,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                     <div className="relative">
                                         <select
                                             className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
-                                            value={localReportConfig.retriever || 'tavily'}
+                                            value={reportConfig.retriever || 'tavily'}
                                             onChange={(e) => handleReportConfigChange({ retriever: e.target.value })}
                                         >
                                             <option value="searxng">SearXNG</option>
@@ -263,7 +271,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                     <div className="relative">
                                         <select
                                             className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
-                                            value={localReportConfig.time_range || 'ALL'}
+                                            value={reportConfig.time_range || 'ALL'}
                                             onChange={(e) => handleReportConfigChange({ time_range: e.target.value })}
                                         >
                                             <option value="ALL">All Time</option>
@@ -289,7 +297,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                 <div className="relative">
                                     <select
                                         className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
-                                        value={localReportConfig.prompt_type || 'general'}
+                                        value={reportConfig.prompt_type || 'general'}
                                         onChange={(e) => handleReportConfigChange({ prompt_type: e.target.value })}
                                     >
                                         <option value="general">General</option>
@@ -308,13 +316,13 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                             </div>
 
                             <div className="flex flex-col space-y-3 pt-2">
-                                {localReportConfig.retriever === 'tavily' && (
+                                {reportConfig.retriever === 'tavily' && (
                                     <div className="flex items-center space-x-3 p-3 bg-[#F9FAFB] rounded-xl border border-[#E3E3E3]">
                                         <input
                                             type="checkbox"
                                             id="white-domain"
                                             className="h-4 w-4 accent-[#CE0E2D] border-gray-300 rounded focus:ring-[#CE0E2D]"
-                                            checked={localReportConfig.include_domains || false}
+                                            checked={reportConfig.include_domains || false}
                                             onChange={(e) => handleReportConfigChange({ include_domains: e.target.checked })}
                                         />
                                         <label htmlFor="white-domain" className="text-[13px] font-medium text-[#1E1E1E] cursor-pointer select-none">Include Whitelist Domains</label>
@@ -325,7 +333,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                         type="checkbox"
                                         id="include-image"
                                         className="h-4 w-4 accent-[#CE0E2D] border-gray-300 rounded focus:ring-[#CE0E2D]"
-                                        checked={localReportConfig.include_image || false}
+                                        checked={reportConfig.include_image || false}
                                         onChange={(e) => handleReportConfigChange({ include_image: e.target.checked })}
                                     />
                                     <label htmlFor="include-image" className="text-[13px] font-medium text-[#1E1E1E] cursor-pointer select-none">Include Images in Report</label>
@@ -341,7 +349,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                 <div className="relative">
                                     <select
                                         className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
-                                        value={localPodcastConfig.language || 'en'}
+                                        value={podcastConfig.language || 'en'}
                                         onChange={(e) => handlePodcastConfigChange({ language: e.target.value })}
                                     >
                                         <option value="en">English</option>
@@ -358,25 +366,6 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                     </div>
                 )}
             </div>
-
-            {/* Footer (Only for Studio tab since Chat saves immediately) */}
-            {activeTab === 'studio' && (
-                <div className="flex justify-end space-x-4 px-6 py-4 border-t border-[#F7F7F7] bg-white">
-                    <Button
-                        variant="outline"
-                        onClick={onClose}
-                        className="h-9 px-5 border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E] rounded-lg font-medium transition-colors"
-                    >
-                        Cancel
-                    </Button>
-                    <Button
-                        onClick={handleSave}
-                        className="h-9 px-5 bg-[#CE0E2D] hover:bg-[#A30B24] text-white rounded-lg font-medium transition-colors shadow-sm"
-                    >
-                        Save Changes
-                    </Button>
-                </div>
-            )}
         </div>
     );
 };

@@ -30,28 +30,32 @@ interface NotebookSettingsContextType {
     updatePodcastConfig: (updates: Partial<PodcastConfig>) => void;
 }
 
+export const DEFAULT_REPORT_CONFIG: ReportConfig = {
+    topic: '',
+    article_title: '',
+    model_provider: 'openai',
+    retriever: 'tavily',
+    prompt_type: 'general',
+    include_image: false,
+    include_domains: false,
+    time_range: 'ALL',
+    model: 'gpt-4'
+};
+
+export const DEFAULT_PODCAST_CONFIG: PodcastConfig = {
+    title: '',
+    description: '',
+    topic: '',
+    language: 'en',
+    model: 'gpt-4'
+};
+
 const NotebookSettingsContext = createContext<NotebookSettingsContextType | undefined>(undefined);
 
 export const NotebookSettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [reportConfig, setReportConfig] = useState<ReportConfig>({
-        topic: '',
-        article_title: '',
-        model_provider: 'openai',
-        retriever: 'tavily',
-        prompt_type: 'general',
-        include_image: false,
-        include_domains: false,
-        time_range: 'ALL',
-        model: 'gpt-4'
-    });
+    const [reportConfig, setReportConfig] = useState<ReportConfig>(DEFAULT_REPORT_CONFIG);
 
-    const [podcastConfig, setPodcastConfig] = useState<PodcastConfig>({
-        title: '',
-        description: '',
-        topic: '',
-        language: 'en',
-        model: 'gpt-4'
-    });
+    const [podcastConfig, setPodcastConfig] = useState<PodcastConfig>(DEFAULT_PODCAST_CONFIG);
 
     const updateReportConfig = useCallback((updates: Partial<ReportConfig>) => {
         setReportConfig(prev => ({ ...prev, ...updates }));
