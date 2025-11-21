@@ -441,22 +441,30 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
           const url = img.image_url || img.imageUrl;
           const orig = img.original_filename || '';
           const base = orig.split('/').pop();
-          if (base && url) byName[base] = url;
+          if (base && img.id) byName[base] = img.id;
         });
 
         let replaced = content;
         // Replace markdown image links ![alt](images/filename)
         replaced = replaced.replace(/!\[[^\\]*\]\((?:\.?\/)?images\/(.+?)\)/g, (m, p1) => {
           const name = String(p1).split(/[?#]/)[0]?.split('/').pop() || String(p1);
-          const url = byName[name];
-          return url ? m.replace(/\((?:\.?\/)?images\/(.+?)\)/, `(${url})`) : m;
+          const imgId = byName[name];
+          if (imgId) {
+            const inlineUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${source.file_id}/image/${imgId}/inline/`;
+            return m.replace(/\((?:\.?\/)?images\/(.+?)\)/, `(${inlineUrl})`);
+          }
+          return m;
         });
 
         // Replace HTML <img src="images/filename">
         replaced = replaced.replace(/<img([^>]*?)src=["'](?:\.?\/)?images\/(.+?)["']([^>]*?)>/g, (m, pre, p1, post) => {
           const name = String(p1).split(/[?#]/)[0]?.split('/').pop() || String(p1);
-          const url = byName[name];
-          return url ? m.replace(/src=["'][^"']+["']/, `src="${url}"`) : m;
+          const imgId = byName[name];
+          if (imgId) {
+            const inlineUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${source.file_id}/image/${imgId}/inline/`;
+            return m.replace(/src=["'][^"']+["']/, `src="${inlineUrl}"`);
+          }
+          return m;
         });
 
         updateState({ resolvedContent: replaced });
@@ -1083,11 +1091,18 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
               </Button>
             )}
 
-            {(preview?.isPdfPreview || preview?.type === PREVIEW_TYPES.PDF_VIEWER) && preview?.pdfUrl && (
+            {(preview?.isPdfPreview || preview?.type === PREVIEW_TYPES.PDF_VIEWER) && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => window.open(preview.pdfUrl, '_blank')}
+                onClick={() => {
+                  // Use direct inline URL for reliable opening in new tab
+                  const fileId = source.file_id || source.id;
+                  if (fileId) {
+                    const url = getFileUrl(String(fileId), 'inline');
+                    window.open(url, '_blank');
+                  }
+                }}
                 className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
               >
                 <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
