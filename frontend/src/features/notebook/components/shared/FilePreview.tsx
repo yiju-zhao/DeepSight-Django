@@ -223,12 +223,131 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
 };
 
 // Function to process markdown content - simplified after legacy removal
+// Function to preprocess LaTeX content to ensure proper rendering
+const preprocessLaTeX = (content: string): string => {
+  if (!content) return content;
+
+  // 1. Protect existing math blocks to avoid double wrapping
+  const protectedBlocks: string[] = [];
+  const protect = (text: string) => {
+    protectedBlocks.push(text);
+    return `__MATH_BLOCK_${protectedBlocks.length - 1}__`;
+  };
+
+  let processed = content
+    // Protect $$...$$
+    .replace(/\$\$([\s\S]*?)\$\$/g, (match) => protect(match))
+    // Protect $...$ (be careful with single $ used as currency)
+    // We only protect if it looks like math (no spaces around content, or standard latex patterns)
+    .replace(/(\$)(?!\s)([^$\n]+?)(?<!\s)(\$)/g, (match) => protect(match))
+    // Protect \[...\]
+    .replace(/\\\[([\s\S]*?)\\\]/g, (match) => protect(match))
+    // Protect \(...\)
+    .replace(/\\\(([\s\S]*?)\\\)/g, (match) => protect(match));
+
+  // 2. Wrap bare LaTeX environments in $$
+  // List of common environments that might appear bare
+  const environments = [
+    'array', 'matrix', 'pmatrix', 'bmatrix', 'vmatrix', 'Vmatrix',
+    'align', 'align*', 'equation', 'equation*', 'gather', 'gather*',
+    'cases'
+  ];
+
+  environments.forEach(env => {
+    // Regex to find \begin{env}...\end{env} that are NOT already wrapped (because we protected wrapped ones)
+    // We look for the pattern and wrap it
+    const regex = new RegExp(`\\\\begin\\{${env}\\}([\\s\\S]*?)\\\\end\\{${env}\\}`, 'g');
+    processed = processed.replace(regex, (match) => {
+      return `$$\n${match}\n$$`;
+    });
+  });
+
+  // 3. Restore protected blocks
+  protectedBlocks.forEach((block, index) => {
+    processed = processed.replace(`__MATH_BLOCK_${index}__`, () => block);
+  });
+
+  return processed;
+};
+
+// Function to fix malformed LaTeX syntax in math blocks
+const fixMalformedLaTeX = (latex: string): string => {
+  if (!latex) return latex;
+
+  let fixed = latex;
+
+  // Fix 1: Remove unnecessary outer \begin{array}{c} wrapper without proper closing
+  // Pattern: $\begin{array}{c} [content without matching \end{array}] $
+  fixed = fixed.replace(/\$\\begin\{array\}\{([^}]+)\}\s*([\s\S]+?)\$(?![\s\S]*?\\end\{array\}\s*\$)/g, (match, colSpec, content) => {
+    // Check if content has properly closed array environments
+    const beginCount = (content.match(/\\begin\{array\}/g) || []).length;
+    const endCount = (content.match(/\\end\{array\}/g) || []).length;
+
+    // If the inner arrays are balanced and outer array is not closed, remove outer wrapper
+    if (beginCount === endCount && beginCount > 0) {
+      return `$${content.trim()}$`;
+    }
+    return match;
+  });
+
+  // Fix 2: Fix \left( or \left[ with matrix content but missing \begin{array}
+  // This handles cases like \left( {...} & {...} \\ {...} & {...} \right)
+  fixed = fixed.replace(/\\left([(\[])\s*\{?\s*([^)\]]+)\s*\}?\s*\\right([)\]])/g, (match, leftDelim, content, rightDelim) => {
+    // Check if this looks like a matrix (has & or \\) and doesn't already have \begin{array}
+    if ((content.includes('&') || content.includes('\\\\')) && !content.includes('\\begin{array}')) {
+      // Split by rows to count columns
+      const rows = content.split('\\\\').filter((r: string) => r.trim());
+      if (rows.length === 0) return match;
+
+      // Count columns from first row
+      const firstRow = rows[0].trim();
+      const colCount = (firstRow.match(/&/g) || []).length + 1;
+      const colSpec = 'c'.repeat(colCount);
+
+      // Clean up content: remove excessive braces around individual cells
+      let cleanContent = content;
+      // Remove single-level braces around content like { \cos \theta }
+      cleanContent = cleanContent.replace(/\{\s*([^{}]+?)\s*\}/g, '$1');
+      // Clean up multiple spaces
+      cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
+
+      return `\\left${leftDelim}\\begin{array}{${colSpec}} ${cleanContent} \\end{array}\\right${rightDelim}`;
+    }
+    return match;
+  });
+
+  // Fix 3: Clean up excessive nested braces { { } } more aggressively
+  // Do this multiple times to handle deeply nested braces
+  for (let i = 0; i < 3; i++) {
+    fixed = fixed.replace(/\{\s*\{\s*([^{}]+?)\s*\}\s*\}/g, '{$1}');
+  }
+
+  // Fix 4: Remove spaces around array delimiters
+  fixed = fixed.replace(/\\begin\s*\{\s*array\s*\}\s*\{\s*([^}]+?)\s*\}/g, '\\begin{array}{$1}');
+  fixed = fixed.replace(/\\end\s*\{\s*array\s*\}/g, '\\end{array}');
+
+  // Fix 5: Clean up spaces in column specifications
+  fixed = fixed.replace(/\\begin\{array\}\{([^}]+)\}/g, (match, spec) => {
+    const cleanSpec = spec.replace(/\s+/g, '');
+    return `\\begin{array}{${cleanSpec}}`;
+  });
+
+  return fixed;
+};
+
+// Function to process markdown content - simplified after legacy removal
 const processMarkdownContent = (content: string, fileId: string, notebookId: string, useMinIOUrls = false): string => {
   if (!content) return content;
 
+  // Fix malformed LaTeX syntax first
+  const withFixedSyntax = fixMalformedLaTeX(content);
+
+  // Preprocess LaTeX to fix rendering issues with bare environments
+  const withFixedMath = preprocessLaTeX(withFixedSyntax);
+
   // Modern approach: MinIO URLs are already resolved by backend or resolvedContent mechanism
   // No additional processing needed as images are handled by the resolvedContent effect
-  return content;
+  return withFixedMath;
 };
 
 // Memoized markdown content component (same as StudioPanel)
@@ -276,7 +395,12 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
             strict: false,
             throwOnError: false,
             errorColor: '#CE0E2D',
-            trust: true,
+            fleqn: false,
+            output: 'html',
+            displayMode: false,
+            globalGroup: true,
+            maxSize: 500,
+            maxExpand: 1000,
             macros: {
               '\\abs': '\\left|#1\\right|',
               '\\pmb': '\\boldsymbol{#1}',
@@ -286,7 +410,9 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
               '\\CC': '\\mathbb{C}',
               '\\ZZ': '\\mathbb{Z}',
               '\\QQ': '\\mathbb{Q}',
-            }
+            },
+            // Trust all commands for PDF rendering
+            trust: (context: any) => true
           }]
         ]}
         components={{
@@ -486,6 +612,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       case PREVIEW_TYPES.VIDEO_INFO: {
         if ((preview as any).hasTranscript && preview.content) {
           const processed = processMarkdownContent(preview.content as string, fileId, nid, useMinIOUrls);
+
           return processed && processed.trim().length > 0 ? processed : null;
         }
         return null;
