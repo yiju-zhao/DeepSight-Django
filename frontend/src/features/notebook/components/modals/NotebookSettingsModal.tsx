@@ -109,12 +109,12 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
     return (
         <div className="flex flex-col h-full bg-white rounded-2xl overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-8 py-6 border-b border-[#F7F7F7]">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#F7F7F7]">
                 <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-[#F5F5F5] rounded-lg flex items-center justify-center">
                         <Settings className="h-5 w-5 text-[#1E1E1E]" />
                     </div>
-                    <h2 className="text-[20px] font-bold text-[#1E1E1E]">Notebook Settings</h2>
+                    <h2 className="text-[18px] font-bold text-[#1E1E1E]">Notebook Settings</h2>
                 </div>
                 <button
                     onClick={onClose}
@@ -125,9 +125,9 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
             </div>
 
             {/* Tabs */}
-            <div className="flex border-b border-[#F7F7F7] px-8">
+            <div className="flex border-b border-[#F7F7F7] px-6">
                 <button
-                    className={`py-4 px-1 mr-8 text-[14px] font-medium border-b-2 transition-all ${activeTab === 'chat'
+                    className={`py-3 px-1 mr-6 text-[14px] font-medium border-b-2 transition-all ${activeTab === 'chat'
                         ? 'border-[#CE0E2D] text-[#CE0E2D]'
                         : 'border-transparent text-[#666666] hover:text-[#1E1E1E]'
                         }`}
@@ -139,7 +139,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                     </div>
                 </button>
                 <button
-                    className={`py-4 px-1 text-[14px] font-medium border-b-2 transition-all ${activeTab === 'studio'
+                    className={`py-3 px-1 text-[14px] font-medium border-b-2 transition-all ${activeTab === 'studio'
                         ? 'border-[#CE0E2D] text-[#CE0E2D]'
                         : 'border-transparent text-[#666666] hover:text-[#1E1E1E]'
                         }`}
@@ -153,16 +153,16 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-8">
+            <div className="flex-1 overflow-y-auto p-6">
                 {activeTab === 'chat' && (
-                    <div className="space-y-8 max-w-2xl animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="space-y-6">
-                            <h3 className="text-[16px] font-bold text-[#1E1E1E] border-b border-[#F7F7F7] pb-3">Model Configuration</h3>
-                            <div className="space-y-3">
-                                <label className="block text-[14px] font-medium text-[#1E1E1E]">Chat Model</label>
+                    <div className="space-y-6 max-w-2xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="space-y-4">
+                            <h3 className="text-[15px] font-bold text-[#1E1E1E] border-b border-[#F7F7F7] pb-2">Model Configuration</h3>
+                            <div className="space-y-2">
+                                <label className="block text-[13px] font-medium text-[#1E1E1E]">Chat Model</label>
                                 <div className="relative">
                                     <select
-                                        className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
+                                        className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
                                         value={currentModel}
                                         onChange={(e) => handleChatModelChange(e.target.value)}
                                         disabled={selectModelMutation.isPending}
@@ -173,7 +173,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                             </option>
                                         ))}
                                     </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                                         <svg className="w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                                         </svg>
@@ -188,23 +188,23 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                 )}
 
                 {activeTab === 'studio' && (
-                    <div className="space-y-10 max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className="space-y-8 max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-300 pb-6">
                         {/* Report Settings */}
-                        <div className="space-y-6">
-                            <h3 className="text-[16px] font-bold text-[#1E1E1E] border-b border-[#F7F7F7] pb-3">Report Generation</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-3">
-                                    <label className="block text-[14px] font-medium text-[#1E1E1E]">AI Model Provider</label>
+                        <div className="space-y-4">
+                            <h3 className="text-[15px] font-bold text-[#1E1E1E] border-b border-[#F7F7F7] pb-2">Report Generation</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <label className="block text-[13px] font-medium text-[#1E1E1E]">AI Model Provider</label>
                                     <div className="relative">
                                         <select
-                                            className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
+                                            className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
                                             value={localReportConfig.model_provider || ''}
                                             onChange={(e) => handleReportConfigChange({ model_provider: e.target.value, model_uid: undefined })}
                                         >
                                             <option value="openai">OpenAI</option>
                                             <option value="xinference">Xinference</option>
                                         </select>
-                                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                                             <svg className="w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                                             </svg>
@@ -213,14 +213,14 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                 </div>
 
                                 {localReportConfig.model_provider === 'xinference' && (
-                                    <div className="space-y-3">
-                                        <label className="block text-[14px] font-medium text-[#1E1E1E]">Xinference Model</label>
+                                    <div className="space-y-2">
+                                        <label className="block text-[13px] font-medium text-[#1E1E1E]">Xinference Model</label>
                                         {loadingXinferenceModels ? (
-                                            <div className="text-[14px] text-[#999999] p-4 border border-[#E3E3E3] rounded-xl bg-[#F9FAFB]">Loading...</div>
+                                            <div className="text-[14px] text-[#999999] p-2.5 border border-[#E3E3E3] rounded-xl bg-[#F9FAFB]">Loading...</div>
                                         ) : (
                                             <div className="relative">
                                                 <select
-                                                    className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
+                                                    className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
                                                     value={localReportConfig.model_uid || ''}
                                                     onChange={(e) => handleReportConfigChange({ model_uid: e.target.value })}
                                                 >
@@ -229,7 +229,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                                         <option key={model.uid} value={model.uid}>{model.display_name || model.name}</option>
                                                     ))}
                                                 </select>
-                                                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                                                <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                                                     <svg className="w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                                                     </svg>
@@ -239,18 +239,18 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                     </div>
                                 )}
 
-                                <div className="space-y-3">
-                                    <label className="block text-[14px] font-medium text-[#1E1E1E]">Search Engine</label>
+                                <div className="space-y-2">
+                                    <label className="block text-[13px] font-medium text-[#1E1E1E]">Search Engine</label>
                                     <div className="relative">
                                         <select
-                                            className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
+                                            className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
                                             value={localReportConfig.retriever || 'tavily'}
                                             onChange={(e) => handleReportConfigChange({ retriever: e.target.value })}
                                         >
                                             <option value="searxng">SearXNG</option>
                                             <option value="tavily">Tavily</option>
                                         </select>
-                                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                                             <svg className="w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                                             </svg>
@@ -258,11 +258,11 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="space-y-3">
-                                    <label className="block text-[14px] font-medium text-[#1E1E1E]">Time Range</label>
+                                <div className="space-y-2">
+                                    <label className="block text-[13px] font-medium text-[#1E1E1E]">Time Range</label>
                                     <div className="relative">
                                         <select
-                                            className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
+                                            className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
                                             value={localReportConfig.time_range || 'ALL'}
                                             onChange={(e) => handleReportConfigChange({ time_range: e.target.value })}
                                         >
@@ -272,7 +272,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                             <option value="month">Last 30 Days</option>
                                             <option value="year">Last Year</option>
                                         </select>
-                                        <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                                        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                                             <svg className="w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                                             </svg>
@@ -282,13 +282,13 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                             </div>
 
                             {/* Report Template Selector */}
-                            <div className="col-span-1 md:col-span-2 space-y-3">
-                                <label className="block text-[14px] font-medium text-[#1E1E1E]">
+                            <div className="col-span-1 md:col-span-2 space-y-2">
+                                <label className="block text-[13px] font-medium text-[#1E1E1E]">
                                     Report Template
                                 </label>
                                 <div className="relative">
                                     <select
-                                        className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
+                                        className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
                                         value={localReportConfig.prompt_type || 'general'}
                                         onChange={(e) => handleReportConfigChange({ prompt_type: e.target.value })}
                                     >
@@ -296,7 +296,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                         <option value="paper">Research Paper</option>
                                         <option value="financial">Financial Report</option>
                                     </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                                         <svg className="w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                                         </svg>
@@ -307,47 +307,47 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                 </p>
                             </div>
 
-                            <div className="flex flex-col space-y-4 pt-2">
+                            <div className="flex flex-col space-y-3 pt-2">
                                 {localReportConfig.retriever === 'tavily' && (
-                                    <div className="flex items-center space-x-3 p-4 bg-[#F9FAFB] rounded-xl border border-[#E3E3E3]">
+                                    <div className="flex items-center space-x-3 p-3 bg-[#F9FAFB] rounded-xl border border-[#E3E3E3]">
                                         <input
                                             type="checkbox"
                                             id="white-domain"
-                                            className="h-5 w-5 accent-[#CE0E2D] border-gray-300 rounded focus:ring-[#CE0E2D]"
+                                            className="h-4 w-4 accent-[#CE0E2D] border-gray-300 rounded focus:ring-[#CE0E2D]"
                                             checked={localReportConfig.include_domains || false}
                                             onChange={(e) => handleReportConfigChange({ include_domains: e.target.checked })}
                                         />
-                                        <label htmlFor="white-domain" className="text-[14px] font-medium text-[#1E1E1E] cursor-pointer select-none">Include Whitelist Domains</label>
+                                        <label htmlFor="white-domain" className="text-[13px] font-medium text-[#1E1E1E] cursor-pointer select-none">Include Whitelist Domains</label>
                                     </div>
                                 )}
-                                <div className="flex items-center space-x-3 p-4 bg-[#F9FAFB] rounded-xl border border-[#E3E3E3]">
+                                <div className="flex items-center space-x-3 p-3 bg-[#F9FAFB] rounded-xl border border-[#E3E3E3]">
                                     <input
                                         type="checkbox"
                                         id="include-image"
-                                        className="h-5 w-5 accent-[#CE0E2D] border-gray-300 rounded focus:ring-[#CE0E2D]"
+                                        className="h-4 w-4 accent-[#CE0E2D] border-gray-300 rounded focus:ring-[#CE0E2D]"
                                         checked={localReportConfig.include_image || false}
                                         onChange={(e) => handleReportConfigChange({ include_image: e.target.checked })}
                                     />
-                                    <label htmlFor="include-image" className="text-[14px] font-medium text-[#1E1E1E] cursor-pointer select-none">Include Images in Report</label>
+                                    <label htmlFor="include-image" className="text-[13px] font-medium text-[#1E1E1E] cursor-pointer select-none">Include Images in Report</label>
                                 </div>
                             </div>
                         </div>
 
                         {/* Podcast Settings */}
-                        <div className="space-y-6">
-                            <h3 className="text-[16px] font-bold text-[#1E1E1E] border-b border-[#F7F7F7] pb-3">Podcast Generation</h3>
-                            <div className="space-y-3 max-w-md">
-                                <label className="block text-[14px] font-medium text-[#1E1E1E]">Language</label>
+                        <div className="space-y-4">
+                            <h3 className="text-[15px] font-bold text-[#1E1E1E] border-b border-[#F7F7F7] pb-2">Podcast Generation</h3>
+                            <div className="space-y-2 max-w-md">
+                                <label className="block text-[13px] font-medium text-[#1E1E1E]">Language</label>
                                 <div className="relative">
                                     <select
-                                        className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
+                                        className="w-full p-2.5 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
                                         value={localPodcastConfig.language || 'en'}
                                         onChange={(e) => handlePodcastConfigChange({ language: e.target.value })}
                                     >
                                         <option value="en">English</option>
                                         <option value="zh">Chinese (中文)</option>
                                     </select>
-                                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
                                         <svg className="w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
                                         </svg>
@@ -361,17 +361,17 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
 
             {/* Footer (Only for Studio tab since Chat saves immediately) */}
             {activeTab === 'studio' && (
-                <div className="flex justify-end space-x-4 px-8 py-6 border-t border-[#F7F7F7] bg-white">
+                <div className="flex justify-end space-x-4 px-6 py-4 border-t border-[#F7F7F7] bg-white">
                     <Button
                         variant="outline"
                         onClick={onClose}
-                        className="h-10 px-6 border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E] rounded-lg font-medium transition-colors"
+                        className="h-9 px-5 border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E] rounded-lg font-medium transition-colors"
                     >
                         Cancel
                     </Button>
                     <Button
                         onClick={handleSave}
-                        className="h-10 px-6 bg-[#CE0E2D] hover:bg-[#A30B24] text-white rounded-lg font-medium transition-colors shadow-sm"
+                        className="h-9 px-5 bg-[#CE0E2D] hover:bg-[#A30B24] text-white rounded-lg font-medium transition-colors shadow-sm"
                     >
                         Save Changes
                     </Button>
