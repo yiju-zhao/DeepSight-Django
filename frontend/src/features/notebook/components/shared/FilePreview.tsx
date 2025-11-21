@@ -276,16 +276,28 @@ const fixMalformedLaTeX = (latex: string): string => {
 
   let fixed = latex;
 
+  // Fix 0: Handle $ \n formula \n $ format (dollar signs with newlines)
+  // Convert $\nformula\n$ to $$formula$$ for proper display math recognition
+  fixed = fixed.replace(/\$\s*\n\s*([\s\S]+?)\n\s*\$/g, (match, content) => {
+    // This is a display math block, convert to $$...$$
+    return `$$${content.trim()}$$`;
+  });
+
+  // Also handle cases where $ is followed immediately by newline
+  fixed = fixed.replace(/\$\n([\s\S]+?)\n\$/g, (match, content) => {
+    return `$$${content.trim()}$$`;
+  });
+
   // Fix 1: Remove unnecessary outer \begin{array}{c} wrapper without proper closing
-  // Pattern: $\begin{array}{c} [content without matching \end{array}] $
-  fixed = fixed.replace(/\$\\begin\{array\}\{([^}]+)\}\s*([\s\S]+?)\$(?![\s\S]*?\\end\{array\}\s*\$)/g, (match, colSpec, content) => {
+  // Pattern: $$\begin{array}{c} [content without matching \end{array}] $$
+  fixed = fixed.replace(/\$\$\s*\\begin\{array\}\{([^}]+)\}\s*([\s\S]+?)\s*\$\$(?![\s\S]*?\\end\{array\})/g, (match, colSpec, content) => {
     // Check if content has properly closed array environments
     const beginCount = (content.match(/\\begin\{array\}/g) || []).length;
     const endCount = (content.match(/\\end\{array\}/g) || []).length;
 
     // If the inner arrays are balanced and outer array is not closed, remove outer wrapper
     if (beginCount === endCount && beginCount > 0) {
-      return `$${content.trim()}$`;
+      return `$$${content.trim()}$$`;
     }
     return match;
   });
@@ -295,8 +307,23 @@ const fixMalformedLaTeX = (latex: string): string => {
   fixed = fixed.replace(/\\left([(\[])\s*\{?\s*([^)\]]+)\s*\}?\s*\\right([)\]])/g, (match, leftDelim, content, rightDelim) => {
     // Check if this looks like a matrix (has & or \\) and doesn't already have \begin{array}
     if ((content.includes('&') || content.includes('\\\\')) && !content.includes('\\begin{array}')) {
+      // First, clean up excessive braces before parsing
+      let cleanContent = content;
+
+      // Remove multiple layers of braces: { { x } } -> x
+      for (let i = 0; i < 3; i++) {
+        cleanContent = cleanContent.replace(/\{\s*\{\s*([^{}]+?)\s*\}\s*\}/g, '{$1}');
+      }
+
+      // Remove single-level braces around simple content: { x } -> x
+      // But be careful not to remove braces that are part of LaTeX commands
+      cleanContent = cleanContent.replace(/\{\s*([^{}\\]+?)\s*\}/g, '$1');
+
+      // Remove braces around LaTeX commands with arguments: { \frac{a}{b} } -> \frac{a}{b}
+      cleanContent = cleanContent.replace(/\{\s*(\\[a-zA-Z]+(?:\{[^}]*\})*)\s*\}/g, '$1');
+
       // Split by rows to count columns
-      const rows = content.split('\\\\').filter((r: string) => r.trim());
+      const rows = cleanContent.split('\\\\').filter((r: string) => r.trim());
       if (rows.length === 0) return match;
 
       // Count columns from first row
@@ -304,10 +331,6 @@ const fixMalformedLaTeX = (latex: string): string => {
       const colCount = (firstRow.match(/&/g) || []).length + 1;
       const colSpec = 'c'.repeat(colCount);
 
-      // Clean up content: remove excessive braces around individual cells
-      let cleanContent = content;
-      // Remove single-level braces around content like { \cos \theta }
-      cleanContent = cleanContent.replace(/\{\s*([^{}]+?)\s*\}/g, '$1');
       // Clean up multiple spaces
       cleanContent = cleanContent.replace(/\s+/g, ' ').trim();
 
