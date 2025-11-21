@@ -41,7 +41,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
   const [imgSrc, setImgSrc] = useState(src);
   const [imgError, setImgError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const createdBlobUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -74,11 +74,11 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
     };
 
     // Check if it's a MinIO URL (pre-signed URLs with X-Amz-Signature or minio host)
-    const isMinIOUrl = src.includes('X-Amz-Signature') || 
-                       src.includes('X-Amz-Algorithm') ||
-                       (src.includes('minio') && src.includes(':9000')) ||
-                       (src.includes('localhost:9000'));
-    
+    const isMinIOUrl = src.includes('X-Amz-Signature') ||
+      src.includes('X-Amz-Algorithm') ||
+      (src.includes('minio') && src.includes(':9000')) ||
+      (src.includes('localhost:9000'));
+
     if (isMinIOUrl) {
       // Best practice: convert to API inline image and fetch via backend
       (async () => {
@@ -142,7 +142,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
               (img.original_filename && img.original_filename.includes(srcName)) ||
               (img.image_url && img.image_url.includes(srcName)) ||
               (img.imageUrl && img.imageUrl.includes(srcName))
-            ) || images.find((img: any) => img.image_url) ;
+            ) || images.find((img: any) => img.image_url);
 
             if (match && (match.image_url || match.imageUrl)) {
               const resolved = match.image_url || match.imageUrl;
@@ -183,20 +183,20 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
   return (
     <span className="my-4 inline-block w-full">
       {isLoading && (
-        <span className="bg-gray-100 border border-gray-200 rounded-lg p-4 text-center text-gray-500 block">
+        <span className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4 text-center text-[#666666] block">
           <span className="inline-flex items-center justify-center space-x-2">
             <Loader2 className="h-5 w-5 animate-spin" />
-            <span className="text-sm">Loading image...</span>
+            <span className="text-[14px]">Loading image...</span>
           </span>
         </span>
       )}
-      
+
       {!isLoading && !imgError && (
-        <img 
-          src={imgSrc} 
-          alt={alt || 'Image'} 
+        <img
+          src={imgSrc}
+          alt={alt || 'Image'}
           title={title}
-          className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+          className="max-w-full h-auto rounded-lg border border-[#E3E3E3] shadow-sm"
           style={{ maxHeight: '500px' }}
           onError={(e) => {
             console.error('Image failed to load:', { src: imgSrc, alt, title });
@@ -209,13 +209,13 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       )}
 
       {!isLoading && imgError && (
-        <span className="bg-gray-100 border border-gray-200 rounded-lg p-4 text-center text-gray-500 block">
+        <span className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4 text-center text-[#666666] block">
           <span className="inline-flex items-center justify-center space-x-2">
             <File className="h-5 w-5" />
-            <span className="text-sm">Image could not be loaded</span>
+            <span className="text-[14px]">Image could not be loaded</span>
           </span>
-          {alt && <span className="text-xs mt-1 text-gray-400 block">{alt}</span>}
-          <span className="text-xs mt-1 text-gray-400 break-all block">URL: {src}</span>
+          {alt && <span className="text-[12px] mt-1 text-[#7B7B7B] block">{alt}</span>}
+          <span className="text-[12px] mt-1 text-[#7B7B7B] break-all block">URL: {src}</span>
         </span>
       )}
     </span>
@@ -266,7 +266,7 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
   }, [content]);
 
   return (
-    <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900">
+    <div className="prose prose-sm max-w-none prose-headings:text-[#1E1E1E] prose-p:text-[#1E1E1E] prose-strong:text-[#1E1E1E] prose-a:text-[#2788D9] prose-code:text-[#CE0E2D] prose-pre:bg-[#24272A]">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[
@@ -275,7 +275,7 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
           [rehypeKatex, {
             strict: false,
             throwOnError: false,
-            errorColor: '#cc0000',
+            errorColor: '#CE0E2D',
             trust: true,
             macros: {
               '\\abs': '\\left|#1\\right|',
@@ -290,26 +290,26 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
           }]
         ]}
         components={{
-          h1: ({children}) => <h1 className="text-3xl font-bold text-gray-900 mb-6 pb-3 border-b">{children}</h1>,
-          h2: ({children}) => <h2 className="text-2xl font-semibold text-gray-800 mt-8 mb-4">{children}</h2>,
-          h3: ({children}) => <h3 className="text-xl font-medium text-gray-800 mt-6 mb-3">{children}</h3>,
-          p: ({children}) => <p className="text-gray-700 leading-relaxed mb-4">{children}</p>,
-          ul: ({children}) => <ul className="list-disc pl-6 mb-4 space-y-2">{children}</ul>,
-          ol: ({children}) => <ol className="list-decimal pl-6 mb-4 space-y-2">{children}</ol>,
-          li: ({children}) => <li className="text-gray-700">{children}</li>,
-          blockquote: ({children}) => <blockquote className="border-l-4 border-blue-200 pl-4 italic text-gray-600 my-4">{children}</blockquote>,
-          code: ({children}) => <code className="bg-gray-100 px-1 py-0.5 rounded text-sm font-mono text-gray-800">{children}</code>,
-          pre: ({children}) => <pre className="bg-gray-900 text-gray-100 p-4 rounded-lg overflow-x-auto my-4">{children}</pre>,
+          h1: ({ children }) => <h1 className="text-[28px] font-bold text-[#1E1E1E] mb-6 pb-3 border-b border-[#E3E3E3]">{children}</h1>,
+          h2: ({ children }) => <h2 className="text-[24px] font-bold text-[#1E1E1E] mt-8 mb-4">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-[20px] font-semibold text-[#1E1E1E] mt-6 mb-3">{children}</h3>,
+          p: ({ children }) => <p className="text-[16px] text-[#1E1E1E] leading-[1.6] mb-4">{children}</p>,
+          ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-2 text-[#1E1E1E]">{children}</ul>,
+          ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-[#1E1E1E]">{children}</ol>,
+          li: ({ children }) => <li className="text-[#1E1E1E]">{children}</li>,
+          blockquote: ({ children }) => <blockquote className="border-l-4 border-[#E3E3E3] pl-4 italic text-[#666666] my-4">{children}</blockquote>,
+          code: ({ children }) => <code className="bg-[#F5F5F5] px-1 py-0.5 rounded text-[14px] font-mono text-[#1E1E1E]">{children}</code>,
+          pre: ({ children }) => <pre className="bg-[#24272A] text-[#F5F5F5] p-4 rounded-lg overflow-x-auto my-4">{children}</pre>,
           img: ({ src, alt, title, ...props }) => {
             if (!src) return null;
             return <AuthenticatedImage src={src} alt={alt} title={title} notebookId={notebookId} fileId={fileId} />;
           },
-          a: ({href, children}) => (
+          a: ({ href, children }) => (
             <a
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 underline break-all"
+              className="text-[#2788D9] hover:underline break-all"
             >
               {children}
             </a>
@@ -355,7 +355,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     source,
     notebookId,
     useMinIOUrls,
-    isOpen && !!source && !!source.metadata?.file_extension && supportsPreview(source.metadata.file_extension, source.metadata)
+    isOpen && !!source && !!source.metadata?.file_extension && supportsPreview(source.metadata.file_extension || '', source.metadata || {})
   );
 
   // Simplified state for UI-only concerns
@@ -554,8 +554,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
-            <p className="text-gray-500">Loading preview...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-[#666666] mx-auto mb-4" />
+            <p className="text-[#666666] text-[14px]">Loading preview...</p>
           </div>
         </div>
       );
@@ -565,14 +565,14 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <File className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-red-600 mb-2">Preview Error</p>
-            <p className="text-gray-500 text-sm">{error?.message || 'Unknown error'}</p>
+            <File className="h-12 w-12 text-[#B1B1B1] mx-auto mb-4" />
+            <p className="text-[#CE0E2D] mb-2 font-medium">Preview Error</p>
+            <p className="text-[#666666] text-[14px] mb-4">{error?.message || 'Unknown error'}</p>
             <Button
               variant="outline"
               size="sm"
               onClick={() => refetch()}
-              className="mt-3"
+              className="h-[32px] px-[16px] text-[13px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
@@ -586,8 +586,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Eye className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No preview available</p>
+            <Eye className="h-12 w-12 text-[#B1B1B1] mx-auto mb-4" />
+            <p className="text-[#666666] text-[14px]">No preview available</p>
           </div>
         </div>
       );
@@ -630,39 +630,33 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
     const isPresentation = ['.ppt', '.pptx'].includes(fileExt);
     const IconComponent = isPresentation ? Presentation : FileText;
-    const iconColor = isPresentation ? 'text-orange-500' : 'text-blue-500';
+    const iconColor = isPresentation ? 'text-[#CE0E2D]' : 'text-[#1E1E1E]';
 
     return (
-      <div className="space-y-4">
-        <div className="flex items-center space-x-2 mb-4">
-          <IconComponent className={`h-5 w-5 ${iconColor}`} />
-          <h3 className="font-medium text-gray-900">{preview.title}</h3>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7]">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
+              <IconComponent className={`h-5 w-5 ${iconColor}`} />
+            </div>
+            <div>
+              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview.title}</h3>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                  <HardDrive className="h-3 w-3 mr-1" />
+                  {preview.wordCount} words
+                </Badge>
+                {preview.fileSize && (
+                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                    {preview.fileSize}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
 
-
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Badge variant="secondary">
-            <HardDrive className="h-3 w-3 mr-1" />
-            {preview.wordCount} words
-          </Badge>
-          <Badge variant="secondary">
-            <FileText className="h-3 w-3 mr-1" />
-            {preview.lines || 0} lines
-          </Badge>
-          {preview.fileSize && (
-            <Badge variant="secondary">
-              <HardDrive className="h-3 w-3 mr-1" />
-              {preview.fileSize}
-            </Badge>
-          )}
-          {preview.format && (
-            <Badge variant="secondary">
-              {preview.format}
-            </Badge>
-          )}
-        </div>
-
-        <div className="bg-gray-50 rounded-lg p-6 max-h-[600px] overflow-y-auto">
+        <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
           <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
         </div>
       </div>
@@ -671,55 +665,58 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
   const renderUrlPreview = () => {
     if (!preview) return null;
-    
+
     return (
-      <div className="space-y-4">
-        <div className="flex items-center space-x-2 mb-4">
-          <Globe className="h-5 w-5 text-green-500" />
-          <h3 className="font-medium text-gray-900">{preview.title}</h3>
-        </div>
-        
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Badge variant="secondary">
-            {preview.processingType === 'media' ? 'Media' : 'Website'}
-          </Badge>
-          <Badge variant="secondary">
-            <HardDrive className="h-3 w-3 mr-1" />
-            {Math.round((preview.contentLength || 0) / 1000)}k chars
-          </Badge>
-          {preview.extractedAt && (
-            <Badge variant="secondary">
-              <Calendar className="h-3 w-3 mr-1" />
-              {formatDate(preview.extractedAt)}
-            </Badge>
-          )}
-          {preview.domain && (
-            <Badge variant="secondary">
-              <Globe className="h-3 w-3 mr-1" />
-              {preview.domain}
-            </Badge>
-          )}
+      <div className="space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7]">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
+              <Globe className="h-5 w-5 text-[#1E1E1E]" />
+            </div>
+            <div>
+              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview.title}</h3>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                  {preview.processingType === 'media' ? 'Media' : 'Website'}
+                </Badge>
+                {preview.domain && (
+                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                    <Globe className="h-3 w-3 mr-1" />
+                    {preview.domain}
+                  </Badge>
+                )}
+                {preview.extractedAt && (
+                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {formatDate(preview.extractedAt)}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.open(preview?.url, '_blank')}
+            className="h-[32px] px-[16px] text-[13px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
+          >
+            <ExternalLink className="h-3 w-3 mr-2" />
+            Open Original
+          </Button>
         </div>
 
-        <div className="bg-gray-50 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium text-gray-700">Source URL:</span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => window.open(preview?.url, '_blank')}
-              className="h-6 px-2 text-xs"
-            >
-              <ExternalLink className="h-3 w-3 mr-1" />
-              Open
-            </Button>
+        <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm">
+          <div className="mb-4">
+            <span className="text-[12px] font-medium text-[#666666] uppercase tracking-wider">Source URL</span>
+            <p className="text-[14px] text-[#2788D9] break-all mt-1 hover:underline cursor-pointer" onClick={() => window.open(preview?.url, '_blank')}>
+              {preview?.url}
+            </p>
           </div>
-          <p className="text-sm text-blue-600 break-all">{preview?.url}</p>
-          
+
           {preview?.content && (
-            <div className="mt-4">
-              <span className="text-sm font-medium text-gray-700">Description:</span>
-              <p className="text-sm text-gray-600 mt-1">{preview?.content}</p>
+            <div>
+              <span className="text-[12px] font-medium text-[#666666] uppercase tracking-wider">Content Preview</span>
+              <p className="text-[14px] text-[#1E1E1E] mt-2 leading-[1.6]">{preview?.content}</p>
             </div>
           )}
         </div>
@@ -729,462 +726,143 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
   const renderAudioPreview = () => {
     if (!preview) return null;
-    
+
     return (
       <div className="space-y-6">
-      {/* Audio Player Section */}
-      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-200">
-        <div className="flex items-center space-x-3 mb-3">
-          <div className="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center">
-            <Music className="h-5 w-5 text-white" />
+        {/* Audio Player Section */}
+        <div className="bg-[#F5F5F5] rounded-lg p-6 border border-[#E3E3E3]">
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="w-12 h-12 bg-[#1E1E1E] rounded-full flex items-center justify-center">
+              <Music className="h-6 w-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h4 className="text-[16px] font-bold text-[#1E1E1E]">Audio Player</h4>
+              <p className="text-[13px] text-[#666666]">Click play to listen to the audio file</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h4 className="text-sm font-medium text-gray-900">Audio Player</h4>
-            <p className="text-xs text-gray-600">Click play to listen to the audio file</p>
-          </div>
+
+          {/* Audio Element */}
+          <audio
+            controls
+            className="w-full h-10 rounded-lg"
+            preload="metadata"
+            controlsList="nodownload"
+            onError={(e: React.SyntheticEvent<HTMLAudioElement>) => {
+              console.error('Audio load error:', e);
+              updateState({ audioError: true });
+            }}
+            onLoadedMetadata={() => {
+              updateState({ audioLoaded: true, audioError: false });
+            }}
+            onCanPlay={() => {
+              updateState({ audioLoaded: true, audioError: false });
+            }}
+          >
+            <source
+              src={preview.audioUrl}
+              type={getAudioMimeType(preview.format)}
+            />
+            <source
+              src={preview.audioUrl}
+              type={`audio/${preview.format.toLowerCase()}`}
+            />
+            Your browser does not support the audio element.
+          </audio>
+
+          {state.audioError && (
+            <div className="mt-3 flex items-center text-[12px] text-[#CE0E2D]">
+              <AlertCircle className="h-3 w-3 mr-1.5" />
+              Audio file could not be loaded
+            </div>
+          )}
         </div>
-        
-        {/* Audio Element */}
-        <audio 
-          controls 
-          className="w-full h-10 rounded-lg"
-          preload="metadata"
-          controlsList="nodownload"
-          onError={(e: React.SyntheticEvent<HTMLAudioElement>) => {
-            console.error('Audio load error:', e);
-            const audioElement = e.target as HTMLAudioElement;
-            console.error('Audio error details:', {
-              error: audioElement.error,
-              networkState: audioElement.networkState,
-              readyState: audioElement.readyState,
-              src: audioElement.src
-            });
-            updateState({ audioError: true });
-          }}
-          onLoadedMetadata={() => {
-            updateState({ audioLoaded: true, audioError: false });
-          }}
-          onCanPlay={() => {
-            updateState({ audioLoaded: true, audioError: false });
-          }}
-        >
-          <source 
-            src={preview.audioUrl} 
-            type={getAudioMimeType(preview.format)} 
-          />
-          {/* Fallback source with generic MIME type */}
-          <source 
-            src={preview.audioUrl} 
-            type={`audio/${preview.format.toLowerCase()}`} 
-          />
-          Your browser does not support the audio element.
-        </audio>
-        
-        {state.audioError && (
-          <div className="mt-2 text-xs text-center">
-            <span className="text-red-500">⚠️ Audio file could not be loaded</span>
-          </div>
-        )}
-      </div>
-      
-      {/* Transcript Content Display */}
-      {preview.hasTranscript && (
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex items-center justify-between">
+
+        {/* Transcript Content Display */}
+        {preview.hasTranscript && (
+          <div className="bg-white rounded-lg border border-[#E3E3E3] shadow-sm">
+            <div className="p-4 border-b border-[#F7F7F7] flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
-                  <FileText className="h-4 w-4 text-white" />
+                <div className="w-8 h-8 bg-[#F5F5F5] rounded-full flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-[#1E1E1E]" />
                 </div>
-                <div className="flex-1">
-                  <h4 className="text-base font-semibold text-gray-900">Audio Transcript</h4>
-                  {/* Document Stats */}
-                  <div className="flex flex-wrap gap-2 mt-2 -ml-1">
-                    <Badge variant="secondary">
-                      <FileText className="h-3 w-3 mr-1" />
-                      {preview.wordCount} words
-                    </Badge>
-                  </div>
-                </div>
+                <h4 className="text-[16px] font-bold text-[#1E1E1E]">Transcript</h4>
               </div>
             </div>
-          </div>
-          <div className="p-6 max-h-[600px] overflow-y-auto">
-            <MarkdownContent content={preview.content} notebookId={notebookId} fileId={source.file_id || ''} />
-          </div>
-        </div>
-      )}
-
-      {/* File Information */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-900 mb-3">File Information</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <span className="text-sm font-medium text-gray-700">Format:</span>
-            <p className="text-sm text-gray-600">{preview.format}</p>
-          </div>
-          <div>
-            <span className="text-sm font-medium text-gray-700">File Size:</span>
-            <p className="text-sm text-gray-600">{preview.fileSize}</p>
-          </div>
-          {preview.duration !== 'Unknown' && (
-            <div>
-              <span className="text-sm font-medium text-gray-700">Duration:</span>
-              <p className="text-sm text-gray-600">{preview.duration}</p>
+            <div className="p-6 max-h-[500px] overflow-y-auto">
+              <MarkdownContent
+                content={processMarkdownContent(preview.content as string, source.file_id || '', notebookId, useMinIOUrls)}
+                notebookId={notebookId}
+                fileId={source.file_id || ''}
+              />
             </div>
-          )}
-          {preview.sampleRate !== 'Unknown' && (
-            <div>
-              <span className="text-sm font-medium text-gray-700">Sample Rate:</span>
-              <p className="text-sm text-gray-600">{preview.sampleRate}</p>
-            </div>
-          )}
-          {preview.language && preview.language !== 'Unknown' && (
-            <div>
-              <span className="text-sm font-medium text-gray-700">Language:</span>
-              <p className="text-sm text-gray-600 capitalize">{preview.language}</p>
-            </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )}
       </div>
     );
   };
 
   const renderVideoPreview = () => {
     if (!preview) return null;
-    
-    // Format-specific compatibility info
-    const getFormatCompatibility = (format: string) => {
-      const formatLower = format.toLowerCase();
-      const compatibilityInfo: Record<string, {
-        supported: boolean | string;
-        reason: string;
-        suggestion?: string;
-      }> = {
-        'mkv': {
-          supported: true,
-          reason: 'MKV files have limited browser support',
-          suggestion: 'If playback fails, try downloading the file and playing in VLC or another media player'
-        },
-        'flv': {
-          supported: false,
-          reason: 'FLV format is no longer supported by modern browsers',
-          suggestion: 'Consider converting to MP4 format for web playback'
-        },
-        'wmv': {
-          supported: false,
-          reason: 'WMV files are not supported in most browsers',
-          suggestion: 'Try downloading the file and playing in a Windows media player'
-        },
-        'avi': {
-          supported: 'partial',
-          reason: 'AVI support depends on the internal codecs used',
-          suggestion: 'If playback fails, download and use a dedicated media player'
-        },
-        'webm': {
-          supported: true,
-          reason: 'WebM is well-supported in modern browsers'
-        },
-        'mp4': {
-          supported: true,
-          reason: 'MP4 is universally supported'
-        },
-        'mov': {
-          supported: 'partial',
-          reason: 'MOV support varies by browser and codec',
-          suggestion: 'If playback fails, try Safari or download the file'
-        }
-      };
-      
-      return compatibilityInfo[formatLower] || {
-        supported: 'unknown',
-        reason: 'Browser support for this format may vary'
-      };
-    };
-
-    const compatibility = getFormatCompatibility(preview.format);
-    const isUnsupported = compatibility.supported === false;
 
     return (
       <div className="space-y-6">
-        {/* Video Section */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center">
-                <Video className="h-5 w-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-sm font-medium text-gray-900">
-                  {isUnsupported ? 'Video File' : 'Video Player'}
-                </h4>
-                <p className="text-xs text-gray-600">
-                  {isUnsupported 
-                    ? 'Preview not available in browser' 
-                    : compatibility.supported === true 
-                      ? 'Click play to watch the video file'
-                      : 'Browser compatibility may be limited'}
-                </p>
-              </div>
-            </div>
-            {/* Download Button */}
-            <Button
-              size="sm"
-              variant={isUnsupported ? "default" : "outline"}
-              onClick={async () => {
-                try {
-                  if (!preview?.videoUrl) return;
-                  // Use downloadFileSecurely utility
-                  const title = preview?.title || 'video';
-                  const cleanTitle = title.replace(/\.[^/.]+$/, ''); // Remove any existing extension
-                  const filename = `${cleanTitle}.${preview?.format?.toLowerCase()}`;
-                  await downloadFileSecurely(preview.videoUrl, filename);
-                } catch (error) {
-                  console.error('Download failed:', error);
-                }
-              }}
-              className="text-xs"
-            >
-              <HardDrive className="h-3 w-3 mr-1" />
-              Download
-            </Button>
-          </div>
+        {/* Video Player Section */}
+        <div className="bg-black rounded-lg overflow-hidden shadow-md">
+          <video
+            controls
+            className="w-full aspect-video"
+            preload="metadata"
+            controlsList="nodownload"
+            onError={(e: React.SyntheticEvent<HTMLVideoElement>) => {
+              console.error('Video load error:', e);
+              updateState({ videoError: true });
+            }}
+            onLoadedMetadata={() => {
+              updateState({ videoLoaded: true, videoError: false });
+            }}
+            onCanPlay={() => {
+              updateState({ videoLoaded: true, videoError: false });
+            }}
+          >
+            <source
+              src={preview.videoUrl}
+              type={getVideoMimeType(preview.format)}
+            />
+            <source
+              src={preview.videoUrl}
+              type={`video/${preview.format.toLowerCase()}`}
+            />
+            Your browser does not support the video element.
+          </video>
 
-          {/* Format Not Supported Message */}
-          {isUnsupported ? (
-            <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-              <div className="flex">
-                <AlertCircle className="h-5 w-5 text-blue-400 mr-3 mt-0.5 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm text-blue-800 font-medium">
-                    {compatibility.reason}
-                  </p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    {compatibility.suggestion}
-                  </p>
-                </div>
-              </div>
+          {state.videoError && (
+            <div className="p-4 bg-[#FEF2F2] text-[#CE0E2D] text-[13px] flex items-center justify-center">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              Video file could not be loaded
             </div>
-          ) : (
-            /* Show video player for supported/partially supported formats */
-            <>
-              {/* Format Compatibility Warning for partial support */}
-              {compatibility.supported === 'partial' && !state.videoError && (
-                <div className="mb-3 bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
-                  <div className="flex">
-                    <AlertCircle className="h-4 w-4 text-yellow-400 mr-2 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm text-yellow-800 font-medium">{compatibility.reason}</p>
-                      {compatibility.suggestion && (
-                        <p className="text-xs text-yellow-700 mt-1">{compatibility.suggestion}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Video Element */}
-              <video 
-                controls 
-                className="w-full rounded-lg bg-black"
-                preload="metadata"
-                controlsList="nodownload"
-                style={{ maxHeight: '400px' }}
-                onError={(e: React.SyntheticEvent<HTMLVideoElement>) => {
-                  console.error('Video load error:', e);
-                  const videoElement = e.target as HTMLVideoElement;
-                  console.error('Video error details:', {
-                    error: videoElement.error,
-                    networkState: videoElement.networkState,
-                    readyState: videoElement.readyState,
-                    src: videoElement.src,
-                    format: preview?.format
-                  });
-                  updateState({ videoError: true });
-                }}
-                onLoadedMetadata={() => {
-                  updateState({ videoLoaded: true, videoError: false });
-                }}
-                onCanPlay={() => {
-                  updateState({ videoLoaded: true, videoError: false });
-                }}
-              >
-                <source 
-                  src={preview.videoUrl} 
-                  type={getVideoMimeType(preview.format)} 
-                />
-                {/* Fallback source with generic MIME type */}
-                <source 
-                  src={preview.videoUrl} 
-                  type={`video/${preview.format.toLowerCase()}`} 
-                />
-                Your browser does not support the video element.
-              </video>
-              
-              {/* Enhanced Error Display */}
-              {state.videoError && (
-                <div className="mt-3 bg-red-50 border-l-4 border-red-400 p-3 rounded">
-                  <div className="flex">
-                    <AlertCircle className="h-4 w-4 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
-                    <div className="flex-1">
-                      <p className="text-sm text-red-800 font-medium">
-                        Video file could not be loaded
-                      </p>
-                      <p className="text-xs text-red-700 mt-1">
-                        {compatibility.reason}
-                        {compatibility.suggestion && ` ${compatibility.suggestion}`}
-                      </p>
-                      <div className="mt-2 flex space-x-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => window.open(preview?.videoUrl, '_blank')}
-                          className="text-xs bg-white hover:bg-gray-50"
-                        >
-                          <HardDrive className="h-3 w-3 mr-1" />
-                          Download Video
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            updateState({ videoError: false });
-                            // Force video reload by recreating the element
-                            const video = document.querySelector('video');
-                            if (video) {
-                              video.load();
-                            }
-                          }}
-                          className="text-xs"
-                        >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Retry
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
           )}
         </div>
-        
-        {source.file_id && <GallerySection videoFileId={source.file_id} notebookId={notebookId} onOpenModal={openModal} onCloseModal={closeModal} />}
 
         {/* Transcript Content Display */}
         {preview.hasTranscript && (
-          <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg p-4 border border-slate-200">
-            <div className="flex items-center space-x-3 mb-3">
-              <div className="w-10 h-10 bg-slate-500 rounded-full flex items-center justify-center">
-                <FileText className="h-5 w-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-sm font-medium text-gray-900">Video Transcript</h4>
-                <p className="text-xs text-gray-600">{preview.wordCount} words</p>
+          <div className="bg-white rounded-lg border border-[#E3E3E3] shadow-sm">
+            <div className="p-4 border-b border-[#F7F7F7] flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-[#F5F5F5] rounded-full flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-[#1E1E1E]" />
+                </div>
+                <h4 className="text-[16px] font-bold text-[#1E1E1E]">Transcript</h4>
               </div>
             </div>
-            <div className="bg-white rounded-lg p-4 max-h-[400px] overflow-y-auto">
-              <MarkdownContent content={preview.content} />
+            <div className="p-6 max-h-[500px] overflow-y-auto">
+              <MarkdownContent
+                content={processMarkdownContent(preview.content as string, source.file_id || '', notebookId, useMinIOUrls)}
+                notebookId={notebookId}
+                fileId={source.file_id || ''}
+              />
             </div>
           </div>
         )}
-
-        {/* File Information */}
-        <div className="bg-gray-50 rounded-lg p-4">
-          <h4 className="text-sm font-medium text-gray-900 mb-3">Video Information</h4>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <span className="text-sm font-medium text-gray-700">Format:</span>
-              <p className="text-sm text-gray-600">{preview.format}</p>
-            </div>
-            <div>
-              <span className="text-sm font-medium text-gray-700">File Size:</span>
-              <p className="text-sm text-gray-600">{preview.fileSize}</p>
-            </div>
-            {preview.duration !== 'Unknown' && (
-              <div>
-                <span className="text-sm font-medium text-gray-700">Duration:</span>
-                <p className="text-sm text-gray-600">{preview.duration}</p>
-              </div>
-            )}
-            {preview.resolution !== 'Unknown' && (
-              <div>
-                <span className="text-sm font-medium text-gray-700">Resolution:</span>
-                <p className="text-sm text-gray-600">{preview.resolution}</p>
-              </div>
-            )}
-            {preview.language && preview.language !== 'Unknown' && (
-              <div>
-                <span className="text-sm font-medium text-gray-700">Language:</span>
-                <p className="text-sm text-gray-600 capitalize">{preview.language}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Generic document preview renderer for PDF and Excel files
-  const renderDocumentPreview = (config: {
-    documentType: 'pdf' | 'excel';
-    title: string;
-    icon: React.ComponentType<any>;
-    colorScheme: {
-      gradient: string;
-      border: string;
-      iconBg: string;
-    };
-    badges: React.ReactNode[];
-    actionButton: {
-      label: string;
-      icon: React.ComponentType<any>;
-      onClick: () => Promise<void>;
-    };
-    content: string;
-  }) => {
-    if (!preview) return null;
-
-    const { documentType, title, icon: Icon, colorScheme, badges, actionButton, content } = config;
-
-    return (
-      <div className="space-y-6">
-        {/* Document Header with Action Buttons */}
-        <div className={`bg-gradient-to-r ${colorScheme.gradient} rounded-lg p-4 border ${colorScheme.border}`}>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center space-x-3">
-              <div className={`w-10 h-10 ${colorScheme.iconBg} rounded-full flex items-center justify-center flex-shrink-0`}>
-                <Icon className="h-5 w-5 text-white" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-base font-semibold text-gray-900 mb-3">{title}</h4>
-                {/* Document Stats */}
-                <div className="flex flex-wrap gap-2 -ml-1">
-                  {badges}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 h-full pt-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={actionButton.onClick}
-                className="text-xs font-medium"
-              >
-                <actionButton.icon className="h-3 w-3 mr-1.5" />
-                {actionButton.label}
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        {/* Parsed Content Display */}
-        <div className="bg-white rounded-lg border border-gray-200">
-          <div className="p-6 max-h-[600px] overflow-y-auto">
-            <MarkdownContent content={content} notebookId={notebookId} fileId={source.file_id || ''} />
-          </div>
-        </div>
       </div>
     );
   };
@@ -1192,423 +870,272 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   const renderPdfContentPreview = () => {
     if (!preview) return null;
 
-    return renderDocumentPreview({
-      documentType: 'pdf',
-      title: 'PDF Document',
-      icon: FileText,
-      colorScheme: {
-        gradient: 'from-red-50 to-orange-50',
-        border: 'border-red-200',
-        iconBg: 'bg-red-500',
-      },
-      badges: [
-        <Badge key="words" variant="secondary">
-          <FileText className="h-3 w-3 mr-1" />
-          {preview.wordCount} words
-        </Badge>,
-        <Badge key="size" variant="secondary">
-          <HardDrive className="h-3 w-3 mr-1" />
-          {preview.fileSize}
-        </Badge>,
-      ],
-      actionButton: {
-        label: 'Open PDF',
-        icon: FileText,
-        onClick: async () => {
-          try {
-            if (!source.id || !notebookId) {
-              console.error('Missing file ID or notebook ID for PDF view');
-              return;
-            }
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7] mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
+              <FileText className="h-5 w-5 text-[#CE0E2D]" />
+            </div>
+            <div>
+              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview.title}</h3>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                  PDF Document
+                </Badge>
+                {preview.fileSize && (
+                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                    <HardDrive className="h-3 w-3 mr-1" />
+                    {preview.fileSize}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.open(preview?.pdfUrl, '_blank')}
+            className="h-[32px] px-[16px] text-[13px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
+          >
+            <ExternalLink className="h-3 w-3 mr-2" />
+            Open in New Tab
+          </Button>
+        </div>
 
-            const pdfUrl = getFileUrl(source.id, 'inline');
-            console.log('Opening PDF with URL:', pdfUrl);
-
-            // Try direct URL first (works best for authenticated endpoints)
-            try {
-              const testResponse = await fetch(pdfUrl, {
-                method: 'HEAD',
-                credentials: 'include'
-              });
-
-              if (testResponse.ok) {
-                window.open(pdfUrl, '_blank');
-                return;
-              }
-            } catch (directError) {
-              console.log('Direct URL failed, trying blob approach:', directError);
-            }
-
-            // Fallback: Create blob URL
-            const response = await fetch(pdfUrl, {
-              credentials: 'include'
-            });
-
-            if (!response.ok) {
-              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-
-            const blob = await response.blob();
-
-            if (!blob.type.includes('pdf') && blob.size > 0) {
-              console.warn('Response may not be a PDF:', blob.type);
-            }
-
-            const result = createSecureBlob([blob], { type: 'application/pdf' });
-            const newTab = window.open(result.url, '_blank');
-
-            if (!newTab) {
-              throw new Error('Popup blocked - please allow popups for this site');
-            }
-
-            setTimeout(() => {
-              result.revoke();
-            }, 5000);
-
-          } catch (error) {
-            console.error('PDF open failed:', error);
-            alert(`Failed to open PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
-        }
-      },
-      content: processMarkdownContent(preview.content, source.file_id || '', notebookId, useMinIOUrls),
-    });
+        <div className="flex-1 bg-[#F5F5F5] rounded-lg border border-[#E3E3E3] overflow-hidden">
+          <iframe
+            src={preview.pdfUrl}
+            className="w-full h-full"
+            title="PDF Preview"
+          />
+        </div>
+      </div>
+    );
   };
 
   const renderExcelContentPreview = () => {
     if (!preview) return null;
 
-    const fileExt = source?.metadata?.file_extension?.toLowerCase() || '';
+    const processedContent = processMarkdownContent(preview.content as string, source.file_id || '', notebookId, useMinIOUrls);
 
-    // Create badges for Excel metadata
-    const excelBadges = [];
-
-    if (preview.metadata?.sheet_count) {
-      excelBadges.push(
-        <Badge key="sheets" variant="secondary">
-          <FileSpreadsheet className="h-3 w-3 mr-1" />
-          {preview.metadata.sheet_count} {preview.metadata.sheet_count === 1 ? 'sheet' : 'sheets'}
-        </Badge>
-      );
-    }
-
-    if (preview.metadata?.total_rows !== undefined) {
-      excelBadges.push(
-        <Badge key="rows" variant="secondary">
-          <FileText className="h-3 w-3 mr-1" />
-          {preview.metadata.total_rows} rows
-        </Badge>
-      );
-    }
-
-    if (preview.metadata?.total_columns !== undefined) {
-      excelBadges.push(
-        <Badge key="columns" variant="secondary">
-          <FileText className="h-3 w-3 mr-1" />
-          {preview.metadata.total_columns} columns
-        </Badge>
-      );
-    }
-
-    if (preview.fileSize) {
-      excelBadges.push(
-        <Badge key="size" variant="secondary">
-          <HardDrive className="h-3 w-3 mr-1" />
-          {preview.fileSize}
-        </Badge>
-      );
-    }
-
-    return renderDocumentPreview({
-      documentType: 'excel',
-      title: 'Excel Spreadsheet',
-      icon: FileSpreadsheet,
-      colorScheme: {
-        gradient: 'from-green-50 to-emerald-50',
-        border: 'border-green-200',
-        iconBg: 'bg-green-600',
-      },
-      badges: excelBadges,
-      actionButton: {
-        label: 'Download Excel',
-        icon: FileSpreadsheet,
-        onClick: async () => {
-          try {
-            if (!source.id || !notebookId) {
-              console.error('Missing file ID or notebook ID for Excel download');
-              return;
-            }
-
-            const excelUrl = getFileUrl(source.id, 'raw');
-            console.log('Downloading Excel with URL:', excelUrl);
-
-            // Create a download for Excel file since browsers can't preview it natively
-            const title = preview?.title || 'spreadsheet';
-            const cleanTitle = title.replace(/\.[^/.]+$/, ''); // Remove any existing extension
-            const extension = fileExt.replace('.', '').toLowerCase();
-            const filename = `${cleanTitle}.${extension}`;
-
-            await downloadFileSecurely(excelUrl, filename);
-
-          } catch (error) {
-            console.error('Excel download failed:', error);
-            alert(`Failed to download Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
-          }
-        }
-      },
-      content: processMarkdownContent(preview.content, source.file_id || '', notebookId, useMinIOUrls),
-    });
-  };
-
-  const renderPdfMetadataPreview = () => {
-    if (!preview) return null;
-    
     return (
-    <div className="space-y-6">
-      {/* PDF Error State */}
-      <div className="bg-gradient-to-r from-red-50 to-orange-50 rounded-lg p-4 border border-red-200">
-        <div className="flex items-center justify-between mb-3">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7]">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-red-500 rounded-full flex items-center justify-center">
-              <FileText className="h-5 w-5 text-white" />
+            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
+              <FileSpreadsheet className="h-5 w-5 text-[#107C41]" />
             </div>
-            <div className="flex-1">
-              <h4 className="text-sm font-medium text-gray-900">PDF Document</h4>
-              <p className="text-xs text-gray-600">Parsed content not available - processing may be in progress</p>
+            <div>
+              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview.title}</h3>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                  Spreadsheet
+                </Badge>
+                {preview.fileSize && (
+                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                    <HardDrive className="h-3 w-3 mr-1" />
+                    {preview.fileSize}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="default"
-            onClick={async () => {
-              try {
-                if (!source.id || !notebookId) {
-                  console.error('Missing file ID or notebook ID for PDF view');
-                  return;
-                }
-
-                const pdfUrl = getFileUrl(source.id, 'inline');
-                console.log('Opening PDF with URL:', pdfUrl);
-
-                // Try direct URL first (works best for authenticated endpoints)
-                try {
-                  // Test if the URL is accessible
-                  const testResponse = await fetch(pdfUrl, {
-                    method: 'HEAD',
-                    credentials: 'include'
-                  });
-
-                  if (testResponse.ok) {
-                    // Direct URL works - open it directly
-                    window.open(pdfUrl, '_blank');
-                    return;
-                  }
-                } catch (directError) {
-                  console.log('Direct URL failed, trying blob approach:', directError);
-                }
-
-                // Fallback: Create blob URL
-                const response = await fetch(pdfUrl, {
-                  credentials: 'include'
-                });
-
-                if (!response.ok) {
-                  throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-
-                const blob = await response.blob();
-
-                // Verify it's actually a PDF
-                if (!blob.type.includes('pdf') && blob.size > 0) {
-                  console.warn('Response may not be a PDF:', blob.type);
-                }
-
-                const result = createSecureBlob([blob], { type: 'application/pdf' });
-
-                // Open blob URL in new tab
-                const newTab = window.open(result.url, '_blank');
-
-                if (!newTab) {
-                  throw new Error('Popup blocked - please allow popups for this site');
-                }
-
-                // Clean up blob URL after a delay
-                setTimeout(() => {
-                  result.revoke();
-                }, 5000);
-
-              } catch (error) {
-                console.error('PDF open failed:', error);
-                alert(`Failed to open PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
-              }
-            }}
-            className="text-xs"
-          >
-            <FileText className="h-3 w-3 mr-1" />
-            Open PDF
-          </Button>
         </div>
-        
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 rounded">
-          <p className="text-sm text-yellow-800">
-            {preview.error || "PDF content could not be extracted. Click 'Open PDF' to view the original document."}
-          </p>
+
+        <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px] overflow-x-auto">
+          <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
         </div>
       </div>
-      
-      {/* PDF Information */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h4 className="text-sm font-medium text-gray-900 mb-3">Document Information</h4>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <span className="text-sm font-medium text-gray-700">Format:</span>
-            <p className="text-sm text-gray-600">{preview.format}</p>
-          </div>
-          <div>
-            <span className="text-sm font-medium text-gray-700">File Size:</span>
-            <p className="text-sm text-gray-600">{preview.fileSize}</p>
-          </div>
-          {preview.pageCount !== 'Unknown' && (
-            <div>
-              <span className="text-sm font-medium text-gray-700">Pages:</span>
-              <p className="text-sm text-gray-600">{preview.pageCount}</p>
-            </div>
-          )}
-          {preview.uploadedAt && (
-            <div>
-              <span className="text-sm font-medium text-gray-700">Uploaded:</span>
-              <p className="text-sm text-gray-600">{formatDate(preview.uploadedAt)}</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
     );
   };
 
   const renderMetadataPreview = () => {
     if (!preview) return null;
-    
+
     return (
       <div className="space-y-6">
-      {/* File Information */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <div className="flex items-center space-x-2 mb-3">
-          <File className="h-5 w-5 text-gray-500" />
-          <h4 className="text-sm font-medium text-gray-900">File Information</h4>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <span className="text-sm font-medium text-gray-700">Format:</span>
-            <p className="text-sm text-gray-600">{preview.format}</p>
-          </div>
-          <div>
-            <span className="text-sm font-medium text-gray-700">File Size:</span>
-            <p className="text-sm text-gray-600">{preview.fileSize}</p>
-          </div>
-          <div>
-            <span className="text-sm font-medium text-gray-700">Status:</span>
-            <p className="text-sm text-gray-600 capitalize">{preview.processingStatus}</p>
-          </div>
-          {preview.uploadedAt && (
+        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7]">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
+              <File className="h-5 w-5 text-[#666666]" />
+            </div>
             <div>
-              <span className="text-sm font-medium text-gray-700">Uploaded:</span>
-              <p className="text-sm text-gray-600">{formatDate(preview.uploadedAt)}</p>
-            </div>
-          )}
-        </div>
-        
-        {preview.featuresAvailable && preview.featuresAvailable.length > 0 && (
-          <div className="mt-4">
-            <span className="text-sm font-medium text-gray-700">Available Features:</span>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {preview.featuresAvailable.map((feature: string) => (
-                <Badge key={feature} variant="outline" className="text-xs">
-                  {feature}
+              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview.title}</h3>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                  {preview.format || 'Unknown Format'}
                 </Badge>
-              ))}
+                {preview.fileSize && (
+                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                    <HardDrive className="h-3 w-3 mr-1" />
+                    {preview.fileSize}
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
-        )}
-      </div>
+        </div>
+
+        <div className="bg-[#F5F5F5] rounded-lg p-8 text-center border border-[#E3E3E3]">
+          <File className="h-16 w-16 text-[#B1B1B1] mx-auto mb-4" />
+          <h4 className="text-[18px] font-medium text-[#1E1E1E] mb-2">Preview Not Available</h4>
+          <p className="text-[#666666] text-[14px] max-w-md mx-auto">
+            This file type cannot be previewed directly. You can download it to view locally.
+          </p>
+          <div className="mt-6">
+            <Button
+              variant="default"
+              className="bg-[#000000] text-white hover:bg-[#333333] h-[40px] px-[24px] text-[13px] font-medium rounded-md"
+              onClick={() => {
+                const fileId = source.file_id || source.id;
+                if (fileId) {
+                  const url = getFileUrl(String(fileId), 'raw');
+                  downloadFileSecurely(url, source.title || 'download');
+                }
+              }}
+            >
+              Download File
+            </Button>
+          </div>
+        </div>
       </div>
     );
   };
 
-  // Clean up blob URLs when component closes
-  useEffect(() => {
-    if (!isOpen) {
-      blobManager.cleanup();
-    }
-  }, [isOpen, blobManager]);
+  const renderPdfMetadataPreview = () => {
+    // Fallback for PDF when content extraction fails but we have metadata
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7]">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
+              <FileText className="h-5 w-5 text-[#CE0E2D]" />
+            </div>
+            <div>
+              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview?.title || source.title}</h3>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                  PDF Document
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-[#F5F5F5] rounded-lg p-8 text-center border border-[#E3E3E3]">
+          <FileText className="h-16 w-16 text-[#B1B1B1] mx-auto mb-4" />
+          <h4 className="text-[18px] font-medium text-[#1E1E1E] mb-2">Preview Unavailable</h4>
+          <p className="text-[#666666] text-[14px] max-w-md mx-auto mb-6">
+            We couldn't load the preview for this PDF. You can try opening it in a new tab or downloading it.
+          </p>
+          <div className="flex items-center justify-center space-x-4">
+            <Button
+              variant="outline"
+              className="h-[40px] px-[24px] text-[13px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
+              onClick={() => {
+                // Try to construct a direct URL
+                const fileId = source.file_id || source.id;
+                if (fileId) {
+                  const url = getFileUrl(String(fileId), 'inline');
+                  window.open(url, '_blank');
+                }
+              }}
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open in New Tab
+            </Button>
+            <Button
+              variant="default"
+              className="bg-[#000000] text-white hover:bg-[#333333] h-[40px] px-[24px] text-[13px] font-medium rounded-md"
+              onClick={() => {
+                const fileId = source.file_id || source.id;
+                if (fileId) {
+                  const url = getFileUrl(String(fileId), 'raw');
+                  downloadFileSecurely(url, source.title || 'download');
+                }
+              }}
+            >
+              Download PDF
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (!isOpen) return null;
 
   return (
-    <>
-      {/* Header */}
-      <div className="flex items-center justify-between p-6 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          {preview && React.createElement(getPreviewIcon(preview.type), {
-            className: "h-6 w-6 text-gray-700"
-          })}
-          <div className="flex-1">
-            <div className="flex items-center space-x-2">
-              <h2 className="text-lg font-semibold text-gray-900">Preview</h2>
-              {/* RAGFlow KnowledgeBase Status Badge */}
-              {source?.ragflow_processing_status === 'completed' && (
-                <Badge className="bg-green-100 text-green-700 border-green-300 hover:bg-green-100">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  RAGFlow KnowledgeBase
-                </Badge>
-              )}
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#F7F7F7] bg-white shrink-0">
+          <div className="flex items-center space-x-3 overflow-hidden">
+            <div className="p-2 bg-[#F5F5F5] rounded-lg shrink-0">
+              {React.createElement(getPreviewIcon(preview?.type || PREVIEW_TYPES.METADATA), {
+                className: "h-5 w-5 text-[#1E1E1E]"
+              })}
             </div>
-            <p className="text-sm text-gray-500">{source?.title || "Unknown file"}</p>
+            <div className="min-w-0">
+              <h2 className="text-[18px] font-bold text-[#1E1E1E] truncate">
+                {source.title}
+              </h2>
+              <p className="text-[12px] text-[#666666] truncate">
+                {source.ext?.toUpperCase() || 'FILE'} • {formatDate(source.createdAt)}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 shrink-0 ml-4">
+            {canCopy && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyAsMarkdown}
+                className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
+              >
+                {state.copyStatus === 'copied' ? (
+                  <>
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    Copy Markdown
+                  </>
+                )}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onClose}
+              className="h-8 w-8 rounded-full hover:bg-[#F5F5F5] text-[#666666] hover:text-[#1E1E1E]"
+            >
+              <X className="h-5 w-5" />
+            </Button>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleCopyAsMarkdown}
-            disabled={!canCopy || state.copyStatus === 'copying'}
-            title={!canCopy ? 'Parsed content not available' : undefined}
-            className="text-xs"
-          >
-            <Copy className="h-3 w-3 mr-1" />
-            {state.copyStatus === 'copied' ? 'Copied' : 'Copy as Markdown'}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        </div>
-      </div>
 
-      {/* Content */}
-      <div className="p-6 overflow-y-auto max-h-[calc(95vh-120px)]">
-        {renderPreviewContent()}
-      </div>
-
-      {/* Render modals */}
-      {Object.entries(state.modals).map(([modalType, content]) => (
-        <div
-          key={modalType}
-          className="fixed inset-0 z-50 bg-black bg-opacity-50 flex items-center justify-center"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              closeModal(modalType);
-            }
-          }}
-        >
-          {content}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-white">
+          {renderPreviewContent()}
         </div>
-      ))}
-    </>
+
+        {/* Footer (Optional - for gallery or extra actions) */}
+        {preview?.type === PREVIEW_TYPES.TEXT_CONTENT && (
+          <div className="px-6 py-4 border-t border-[#F7F7F7] bg-[#F9FAFB] shrink-0">
+            <GallerySection
+              notebookId={notebookId}
+              videoFileId={source.file_id || ''}
+              onOpenModal={openModal}
+              onCloseModal={closeModal}
+            />
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
