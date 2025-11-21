@@ -57,19 +57,19 @@ export const PREVIEW_TYPES = {
  */
 export function getPreviewType(fileExtension: string, metadata: FileMetadata = {}): string {
   const ext = fileExtension.toLowerCase().replace('.', '');
-
+  
   if (FILE_CATEGORIES.TEXT.includes(ext)) {
     return PREVIEW_TYPES.TEXT_CONTENT;
   }
-
+  
   if (FILE_CATEGORIES.PDF.includes(ext)) {
     return PREVIEW_TYPES.PDF_VIEWER;
   }
-
+  
   if (FILE_CATEGORIES.PRESENTATION.includes(ext)) {
     return PREVIEW_TYPES.TEXT_CONTENT;
   }
-
+  
   if (FILE_CATEGORIES.DOCUMENT.includes(ext)) {
     return PREVIEW_TYPES.TEXT_CONTENT;
   }
@@ -81,15 +81,15 @@ export function getPreviewType(fileExtension: string, metadata: FileMetadata = {
   if (FILE_CATEGORIES.AUDIO.includes(ext)) {
     return PREVIEW_TYPES.AUDIO_INFO;
   }
-
+  
   if (FILE_CATEGORIES.VIDEO.includes(ext)) {
     return PREVIEW_TYPES.VIDEO_INFO;
   }
-
+  
   if (FILE_CATEGORIES.URL.includes(ext) || metadata.source_url) {
     return PREVIEW_TYPES.URL_INFO;
   }
-
+  
   return PREVIEW_TYPES.METADATA;
 }
 
@@ -109,7 +109,7 @@ export function getVideoMimeType(format: string): string {
     'ogv': 'video/ogg',
     'm4v': 'video/x-m4v'
   };
-
+  
   const normalizedFormat = format.toLowerCase().replace('.', '');
   return mimeTypeMap[normalizedFormat] || `video/${normalizedFormat}`;
 }
@@ -126,7 +126,7 @@ export function getAudioMimeType(format: string): string {
     'ogg': 'audio/ogg',
     'flac': 'audio/flac'
   };
-
+  
   const normalizedFormat = format.toLowerCase().replace('.', '');
   return mimeTypeMap[normalizedFormat] || `audio/${normalizedFormat}`;
 }
@@ -147,7 +147,7 @@ export function supportsPreview(fileExtension: string, metadata: FileMetadata = 
     ...FILE_CATEGORIES.VIDEO,
     ...FILE_CATEGORIES.URL
   ];
-
+  
   return allSupportedTypes.includes(ext) || Boolean(metadata.source_url);
 }
 
@@ -158,7 +158,7 @@ export async function generatePreview(source: FileSource, notebookId: string | n
   try {
     const { metadata, file_id } = source;
     const previewType = getPreviewType(metadata.file_extension || '', metadata);
-
+    
     switch (previewType) {
       case PREVIEW_TYPES.TEXT_CONTENT:
         return await generateTextPreview(file_id, metadata, source, useMinIOUrls, notebookId);
@@ -230,7 +230,7 @@ async function generateTextPreview(fileId: string, metadata: FileMetadata, sourc
       }
       content = response.data.content || '';
     }
-
+    
     return {
       type: PREVIEW_TYPES.TEXT_CONTENT,
       title: metadata.original_filename || 'Text Content',
@@ -254,12 +254,12 @@ async function generateTextPreview(fileId: string, metadata: FileMetadata, sourc
 async function generateUrlPreview(metadata: FileMetadata): Promise<any> {
   const sourceUrl = metadata.source_url || 'Unknown URL';
   const processingType = metadata.processing_method || 'website';
-
+  
   try {
     // Try to get additional metadata from processing results
     const urlInfo = metadata.processing_metadata?.url_info || {};
     const structuredData = metadata.processing_metadata?.structured_data || {};
-
+    
     return {
       type: PREVIEW_TYPES.URL_INFO,
       title: structuredData.title || urlInfo.domain || 'Website',
@@ -288,12 +288,12 @@ async function generateUrlPreview(metadata: FileMetadata): Promise<any> {
  */
 async function generateAudioPreview(fileId: string, metadata: FileMetadata, notebookId: string | null = null): Promise<any> {
   console.log('Generating audio preview for fileId:', fileId, 'metadata:', metadata, 'notebookId:', notebookId);
-
+  
   // Validate required data
   if (!fileId) {
     throw new Error('File ID is required for audio preview');
   }
-
+  
   // Create a blob URL for the audio file to handle authentication properly
   // Use inline endpoint to prevent forced download
   let audioUrl = null;
@@ -324,7 +324,7 @@ async function generateAudioPreview(fileId: string, metadata: FileMetadata, note
       `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/inline/` :
       `${API_BASE_URL}/notebooks/files/${fileId}/inline/`;
   }
-
+  
   // Check if we have parsed transcript content
   let transcriptContent = null;
   let hasTranscript = false;
@@ -346,7 +346,7 @@ async function generateAudioPreview(fileId: string, metadata: FileMetadata, note
   } catch (error) {
     console.log('No transcript available for audio file:', error);
   }
-
+  
   const previewData = {
     type: PREVIEW_TYPES.AUDIO_INFO,
     title: metadata.original_filename || 'Audio File',
@@ -362,7 +362,7 @@ async function generateAudioPreview(fileId: string, metadata: FileMetadata, note
     audioUrl: audioUrl,
     fileId: fileId
   };
-
+  
   console.log('Audio preview data generated:', previewData);
   return previewData;
 }
@@ -372,12 +372,12 @@ async function generateAudioPreview(fileId: string, metadata: FileMetadata, note
  */
 async function generateVideoPreview(fileId: string, metadata: FileMetadata, notebookId: string | null = null): Promise<any> {
   console.log('Generating video preview for fileId:', fileId, 'metadata:', metadata, 'notebookId:', notebookId);
-
+  
   // Validate required data
   if (!fileId) {
     throw new Error('File ID is required for video preview');
   }
-
+  
   // Create a blob URL for the video file to handle authentication properly
   // Use inline endpoint to prevent forced download
   let videoUrl = null;
@@ -408,7 +408,7 @@ async function generateVideoPreview(fileId: string, metadata: FileMetadata, note
       `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/inline/` :
       `${API_BASE_URL}/notebooks/files/${fileId}/inline/`;
   }
-
+  
   // Check if we have parsed transcript content
   let transcriptContent = null;
   let hasTranscript = false;
@@ -430,7 +430,7 @@ async function generateVideoPreview(fileId: string, metadata: FileMetadata, note
   } catch (error) {
     console.log('No transcript available for video file:', error);
   }
-
+  
   const previewData = {
     type: PREVIEW_TYPES.VIDEO_INFO,
     title: metadata.original_filename || 'Video File',
@@ -446,7 +446,7 @@ async function generateVideoPreview(fileId: string, metadata: FileMetadata, note
     videoUrl: videoUrl,
     fileId: fileId
   };
-
+  
   console.log('Video preview data generated:', previewData);
   return previewData;
 }
@@ -504,7 +504,7 @@ async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebo
     console.log('No parsed content available for PDF file:', err);
     error = 'PDF content extraction failed or not available';
   }
-
+  
   // Return appropriate preview type based on content availability
   if (hasParsedContent) {
     return {
@@ -572,7 +572,7 @@ function extractDomain(url: string): string {
  */
 function formatFileSize(bytes: number): string {
   if (!bytes || bytes === 0) return 'Unknown size';
-
+  
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
@@ -583,7 +583,7 @@ function formatFileSize(bytes: number): string {
  */
 export function formatDate(dateString: string): string {
   if (!dateString) return 'Unknown date';
-
+  
   try {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
@@ -596,7 +596,7 @@ export function formatDate(dateString: string): string {
   } catch (error) {
     return 'Invalid date';
   }
-}
+} 
 
 /**
  * Fetch file content with direct MinIO URLs for images
@@ -633,7 +633,7 @@ export async function generateTextPreviewWithMinIOUrls(fileId: string, metadata:
       const contentData = await getFileContentWithMinIOUrls(fileId, 86400, notebookId);
       content = contentData.content || '';
     }
-
+    
     return {
       type: PREVIEW_TYPES.TEXT_CONTENT,
       title: metadata.original_filename || 'Text Content',
