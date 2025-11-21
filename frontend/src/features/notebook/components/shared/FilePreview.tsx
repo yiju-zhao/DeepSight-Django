@@ -222,13 +222,35 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
   );
 };
 
+// Helper to fix common malformed LaTeX patterns
+const fixMalformedLatex = (content: string): string => {
+  if (!content) return content;
+
+  // Fix: Missing \begin{array} in \left( ... \end{array} \right) blocks
+  // This looks for patterns like: \left( { ... } & { ... } \\ ... \end{array} \right)
+  // and inserts \begin{array}{cc} if it's missing
+  return content.replace(
+    /\\left\(\s*((?:(?!\\begin\{array\}).)*?)\\end\{array\}\s*\\right\)/gs,
+    (match, inner) => {
+      // If we already have a begin array, don't touch it (though regex above tries to avoid it)
+      if (inner.includes('\\begin{array}')) return match;
+
+      // Heuristic: default to {cc} as it's a common 2x2 matrix pattern in this context
+      return `\\left( \\begin{array}{cc} ${inner} \\end{array} \\right)`;
+    }
+  );
+};
+
 // Function to process markdown content - simplified after legacy removal
 const processMarkdownContent = (content: string, fileId: string, notebookId: string, useMinIOUrls = false): string => {
   if (!content) return content;
 
+  // Fix malformed LaTeX before processing
+  let processed = fixMalformedLatex(content);
+
   // Modern approach: MinIO URLs are already resolved by backend or resolvedContent mechanism
   // No additional processing needed as images are handled by the resolvedContent effect
-  return content;
+  return processed;
 };
 
 // Memoized markdown content component (same as StudioPanel)
@@ -334,6 +356,7 @@ interface FilePreviewState {
   };
   resolvedContent?: string | null;
   copyStatus: 'idle' | 'copying' | 'copied';
+  hasGalleryImages: boolean;
 }
 
 interface FilePreviewComponentProps {
@@ -366,7 +389,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     videoLoaded: false,
     modals: {},
     resolvedContent: null,
-    copyStatus: 'idle'
+    copyStatus: 'idle',
+    hasGalleryImages: false
   });
 
   // Create blob manager for automatic cleanup
@@ -1074,22 +1098,31 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-white">
-          {renderPreviewContent()}
-        </div>
-
-        {/* Footer (Optional - for gallery or extra actions) */}
-        {preview?.type === PREVIEW_TYPES.TEXT_CONTENT && (
-          <div className="px-6 py-4 border-t border-[#F7F7F7] bg-[#F9FAFB] shrink-0">
-            <GallerySection
-              notebookId={notebookId}
-              videoFileId={source.file_id || ''}
-              onOpenModal={openModal}
-              onCloseModal={closeModal}
-            />
+        {/* Content Body - Flex Row */}
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          {/* Main Content */}
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-white">
+            {renderPreviewContent()}
           </div>
-        )}
+
+          {/* Side Gallery Panel */}
+          {preview?.type === PREVIEW_TYPES.TEXT_CONTENT && (
+            <div
+              className={`border-l border-[#F7F7F7] bg-[#F9FAFB] overflow-y-auto transition-all duration-300 ease-in-out ${state.hasGalleryImages ? 'w-80 p-4 opacity-100' : 'w-0 p-0 opacity-0 overflow-hidden border-none'
+                }`}
+            >
+              <div className="w-72"> {/* Fixed width container to prevent layout shift during transition */}
+                <GallerySection
+                  notebookId={notebookId}
+                  videoFileId={source.file_id || ''}
+                  onOpenModal={openModal}
+                  onCloseModal={closeModal}
+                  onImagesLoaded={(hasImages) => updateState({ hasGalleryImages: hasImages })}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
