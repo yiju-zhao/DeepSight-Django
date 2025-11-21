@@ -281,6 +281,32 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                 </div>
                             </div>
 
+                            {/* Report Template Selector */}
+                            <div className="col-span-1 md:col-span-2 space-y-3">
+                                <label className="block text-[14px] font-medium text-[#1E1E1E]">
+                                    Report Template
+                                </label>
+                                <div className="relative">
+                                    <select
+                                        className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[14px] text-[#1E1E1E] appearance-none focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] transition-all"
+                                        value={localReportConfig.prompt_type || 'general'}
+                                        onChange={(e) => handleReportConfigChange({ prompt_type: e.target.value })}
+                                    >
+                                        <option value="general">General</option>
+                                        <option value="paper">Research Paper</option>
+                                        <option value="financial">Financial Report</option>
+                                    </select>
+                                    <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
+                                        <svg className="w-4 h-4 text-[#666666]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <p className="text-[12px] text-[#999999]">
+                                    Choose the structure and style for your research report
+                                </p>
+                            </div>
+
                             <div className="flex flex-col space-y-4 pt-2">
                                 {localReportConfig.retriever === 'tavily' && (
                                     <div className="flex items-center space-x-3 p-4 bg-[#F9FAFB] rounded-xl border border-[#E3E3E3]">

@@ -1111,10 +1111,10 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
           {/* Side Gallery Panel */}
           {preview?.type === PREVIEW_TYPES.TEXT_CONTENT && (
             <div
-              className={`border-l border-[#F7F7F7] bg-[#F9FAFB] overflow-y-auto transition-all duration-300 ease-in-out ${state.hasGalleryImages ? 'w-[26rem] p-4 opacity-100' : 'w-0 p-0 opacity-0 overflow-hidden border-none'
+              className={`border-l border-[#F7F7F7] bg-[#F9FAFB] transition-all duration-300 ease-in-out flex flex-col ${state.hasGalleryImages ? 'w-[26rem] p-4 opacity-100' : 'w-0 p-0 opacity-0 overflow-hidden border-none'
                 }`}
             >
-              <div className="w-[24rem]"> {/* Fixed width container to prevent layout shift during transition */}
+              <div className="w-full h-full overflow-hidden"> {/* Full width/height container */}
                 <GallerySection
                   notebookId={notebookId}
                   videoFileId={source.file_id || ''}
