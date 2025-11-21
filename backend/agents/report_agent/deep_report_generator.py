@@ -341,6 +341,7 @@ class ReportGenerationConfig:
             csv_date_filter=config_dict.get("csv_date_filter", ""),
             text_input=config_dict.get("text_input"),
             figure_data=config_dict.get("figure_data"),
+            parsed_requirements=config_dict.get("parsed_requirements"),
         )
 
 
