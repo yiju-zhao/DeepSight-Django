@@ -657,13 +657,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         </div>
 
         <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
-          {processedContent ? (
-            <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
-          ) : (
-            <div className="flex items-center justify-center h-full min-h-[300px] text-[#666666]">
-              <p>No content available for preview.</p>
-            </div>
-          )}
+          <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
         </div>
       </div>
     );
@@ -878,6 +872,37 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
     return (
       <div className="h-full flex flex-col">
+        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7] mb-4">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
+              <FileText className="h-5 w-5 text-[#CE0E2D]" />
+            </div>
+            <div>
+              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview.title}</h3>
+              <div className="flex items-center space-x-2 mt-1">
+                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                  PDF Document
+                </Badge>
+                {preview.fileSize && (
+                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                    <HardDrive className="h-3 w-3 mr-1" />
+                    {preview.fileSize}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => window.open(preview?.pdfUrl, '_blank')}
+            className="h-[32px] px-[16px] text-[13px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
+          >
+            <ExternalLink className="h-3 w-3 mr-2" />
+            Open in New Tab
+          </Button>
+        </div>
+
         <div className="flex-1 bg-[#F5F5F5] rounded-lg border border-[#E3E3E3] overflow-hidden">
           <iframe
             src={preview.pdfUrl}
@@ -1082,19 +1107,6 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                 )}
               </Button>
             )}
-
-            {(preview?.isPdfPreview || preview?.type === PREVIEW_TYPES.PDF_VIEWER) && preview?.pdfUrl && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(preview.pdfUrl, '_blank')}
-                className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
-              >
-                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                Open in New Tab
-              </Button>
-            )}
-
             <Button
               variant="ghost"
               size="icon"
