@@ -222,13 +222,63 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
   );
 };
 
+// Function to preprocess LaTeX content to ensure proper rendering
+const preprocessLaTeX = (content: string): string => {
+  if (!content) return content;
+
+  // 1. Protect existing math blocks to avoid double wrapping
+  const protectedBlocks: string[] = [];
+  const protect = (text: string) => {
+    protectedBlocks.push(text);
+    return `__MATH_BLOCK_${protectedBlocks.length - 1}__`;
+  };
+
+  let processed = content
+    // Protect $$...$$
+    .replace(/\$\$([\s\S]*?)\$\$/g, (match) => protect(match))
+    // Protect $...$ (be careful with single $ used as currency)
+    // We only protect if it looks like math (no spaces around content, or standard latex patterns)
+    .replace(/(\$)(?!\s)([^$\n]+?)(?<!\s)(\$)/g, (match) => protect(match))
+    // Protect \[...\]
+    .replace(/\\\[([\s\S]*?)\\\]/g, (match) => protect(match))
+    // Protect \(...\)
+    .replace(/\\\(([\s\S]*?)\\\)/g, (match) => protect(match));
+
+  // 2. Wrap bare LaTeX environments in $$
+  // List of common environments that might appear bare
+  const environments = [
+    'array', 'matrix', 'pmatrix', 'bmatrix', 'vmatrix', 'Vmatrix',
+    'align', 'align*', 'equation', 'equation*', 'gather', 'gather*',
+    'cases'
+  ];
+
+  environments.forEach(env => {
+    // Regex to find \begin{env}...\end{env} that are NOT already wrapped (because we protected wrapped ones)
+    // We look for the pattern and wrap it
+    const regex = new RegExp(`\\\\begin\\{${env}\\}([\\s\\S]*?)\\\\end\\{${env}\\}`, 'g');
+    processed = processed.replace(regex, (match) => {
+      return `$$\n${match}\n$$`;
+    });
+  });
+
+  // 3. Restore protected blocks
+  protectedBlocks.forEach((block, index) => {
+    processed = processed.replace(`__MATH_BLOCK_${index}__`, block);
+  });
+
+  return processed;
+};
+
 // Function to process markdown content - simplified after legacy removal
 const processMarkdownContent = (content: string, fileId: string, notebookId: string, useMinIOUrls = false): string => {
   if (!content) return content;
 
+  // Preprocess LaTeX to fix rendering issues with bare environments
+  const withFixedMath = preprocessLaTeX(content);
+
   // Modern approach: MinIO URLs are already resolved by backend or resolvedContent mechanism
   // No additional processing needed as images are handled by the resolvedContent effect
-  return content;
+  return withFixedMath;
 };
 
 // Memoized markdown content component (same as StudioPanel)
