@@ -379,9 +379,6 @@ export default function ConferenceDashboard() {
                       onSortChange={handleSortChange}
                       isFiltered={!!debouncedPublicationSearch || selectedAffiliations.length > 0}
                       isLoading={publicationsLoading}
-                      onViewDetails={(publication) => {
-                        console.log('View details for:', publication.title);
-                      }}
                     />
                   </TabsContent>
                 </Tabs>
