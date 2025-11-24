@@ -185,22 +185,18 @@ class ChatService(NotebookBaseService):
             List of model identifiers (strings)
         """
         raw_models = getattr(settings, "RAGFLOW_CHAT_MODELS", "") or ""
-        default_model = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
 
         models: list[str] = []
         if raw_models:
             models = [m.strip() for m in raw_models.split(",") if m.strip()]
 
-        if default_model and default_model not in models:
-            models.insert(0, default_model)
-
-        # Fallback: ensure we always return at least the default model if configured
-        if not models and default_model:
-            models = [default_model]
-
         return models
 
     def get_current_chat_model(self, notebook: Notebook, user_id: int) -> dict:
+        # Get the first model from the configured RAGFLOW_CHAT_MODELS as the new default
+        available_models = self.get_available_chat_models()
+        new_default_model = available_models[0] if available_models else None
+
         """
         Get current chat model for a notebook by inspecting its RagFlow chat assistant.
 
@@ -227,14 +223,14 @@ class ChatService(NotebookBaseService):
                 if not existing_chats:
                     # No chat assistant exists yet - return default model
                     default_model = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
-                    return {"success": True, "model": default_model}
+                    return {"success": True, "model": new_default_model}
 
                 chat = existing_chats[0]
             except Exception as e:
                 logger.debug(f"No existing chat assistant found: {e}")
                 # Return default model if no chat exists
                 default_model = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
-                return {"success": True, "model": default_model}
+                return {"success": True, "model": new_default_model}
 
             # Get model from existing chat
             model_name = None
@@ -245,7 +241,7 @@ class ChatService(NotebookBaseService):
                 model_name = None
 
             if not model_name:
-                model_name = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
+                model_name = new_default_model
 
             return {"success": True, "model": model_name}
         except Exception as e:

@@ -267,8 +267,7 @@ RAGFLOW_LOGIN_TOKEN = os.getenv("RAGFLOW_LOGIN_TOKEN")
 RAGFLOW_BASE_URL = os.getenv("RAGFLOW_BASE_URL", "https://demo.ragflow.io:9380")
 RAGFLOW_DEFAULT_CHUNK_METHOD = os.getenv("RAGFLOW_CHUNK_METHOD", "naive")
 RAGFLOW_DEFAULT_EMBEDDING_MODEL = os.getenv("RAGFLOW_EMBEDDING_MODEL")
-RAGFLOW_CHAT_MODEL = os.getenv("RAGFLOW_CHAT_MODEL", "deepseek-chat@DeepSeek")
-RAGFLOW_CHAT_MODELS = os.getenv("RAGFLOW_CHAT_MODELS")
+RAGFLOW_CHAT_MODELS = os.getenv("RAGFLOW_CHAT_MODELS", "deepseek-chat@DeepSeek")
 
 # ==============================================================================
 # CELERY CONFIGURATION

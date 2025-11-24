@@ -1008,7 +1008,7 @@ class ChatModelsView(APIView):
         return Response(
             {
                 "available_models": available_models,
-                "default_model": getattr(settings, "RAGFLOW_CHAT_MODEL", None),
+                "default_model": available_models[0] if available_models else None,
                 "current_model": current_model,
             }
         )
@@ -1037,7 +1037,7 @@ class ChatModelsView(APIView):
         return Response(
             {
                 "available_models": available_models,
-                "default_model": getattr(settings, "RAGFLOW_CHAT_MODEL", None),
+                "default_model": available_models[0] if available_models else None,
                 "current_model": result.get("model"),
             }
         )
