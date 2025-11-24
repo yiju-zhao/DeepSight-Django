@@ -146,20 +146,23 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             const name = event.payload?.title || event.payload?.filename || 'Source';
             const description = event.payload?.error || 'Upload failed';
             toast({ title: `${name} failed`, description, variant: 'destructive' });
+
             // Stop tracking placeholder on failure using file_id
-            const fileId = event.id;
+            // Try both event.id and payload.file_id to be safe
+            const fileId = event.id || event.payload?.file_id;
+
             if (fileId) {
               console.log('[SourcesList] Marking failed upload:', fileId);
               // Mark local upload item as failed (keep visible if server doesn't return an item)
               setLocalUploads(prev => {
                 const existing = prev[fileId];
                 if (!existing) return prev;
-                return { ...prev, [fileId]: { ...existing, parsing_status: 'failed' } };
+                return { ...prev, [fileId]: { ...existing, parsing_status: 'failed', error_message: description } };
               });
             }
           } else {
             // Intermediate updates: propagate parsing_status if present using file_id
-            const fileId = event.id;
+            const fileId = event.id || event.payload?.file_id;
             if (fileId && event.payload?.parsing_status) {
               const status = event.payload.parsing_status;
               setLocalUploads(prev => {
@@ -281,7 +284,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
   };
 
   // ✅ Derive sources directly from TanStack Query data with selection state
-  const sources = useMemo(() => {
+  const sources: Source[] = useMemo(() => {
     if (!parsedFilesResponse?.results) {
       return [];
     }
@@ -311,6 +314,37 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
       originalFile: getPrincipleFileInfo(metadata)
     }));
   }, [parsedFilesResponse, selectedIds]);
+
+  // ✅ Sync local uploads with server sources
+  // When server returns a source with the same ID as a local upload, remove the local placeholder
+  // This ensures we show the server's status (including 'failed') instead of the stale 'uploading' placeholder
+  useEffect(() => {
+    if (Object.keys(localUploads).length === 0 || sources.length === 0) return;
+
+    setLocalUploads(prev => {
+      const next = { ...prev };
+      let changed = false;
+
+      sources.forEach(source => {
+        const id = String(source.file_id || source.id);
+        if (next[id]) {
+          // If server has this item, and it's in a final state or at least known to server,
+          // we should trust the server's version (especially for failures)
+          // For 'failed' status, we definitely want to remove local placeholder so server item shows
+          if (source.parsing_status === 'failed' ||
+            source.parsing_status === 'done' ||
+            source.ragflow_processing_status === 'completed' ||
+            source.ragflow_processing_status === 'failed') {
+            console.log('[SourcesList] Syncing: Removing local placeholder for finalized item:', id, source.parsing_status);
+            delete next[id];
+            changed = true;
+          }
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [sources, localUploads]);
 
   // No enrichment merge: local upload items are removed on success to avoid duplicates
 
@@ -535,13 +569,16 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
 
       const failed: Source[] = [];
       results.forEach((res, idx) => {
+        const source = selectedSources[idx];
+        if (!source) return; // Skip if source is undefined
+
         if (res.status === 'rejected') {
-          failed.push(selectedSources[idx]);
+          failed.push(source);
         } else {
           const value: any = res.value;
           const ok = value?.success === true || (value && typeof value === 'object' && !value.error);
           if (!ok) {
-            failed.push(selectedSources[idx]);
+            failed.push(source);
           }
         }
       });
@@ -788,8 +825,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               variant="ghost"
               size="sm"
               className={`h-6 px-2 text-xs transition-colors ${selectedCount > 0
-                  ? 'text-[#666666] hover:text-[#CE0E2D]'
-                  : 'text-[#D4D4D4] cursor-not-allowed'
+                ? 'text-[#666666] hover:text-[#CE0E2D]'
+                : 'text-[#D4D4D4] cursor-not-allowed'
                 }`}
               onClick={(e) => {
                 e.preventDefault();

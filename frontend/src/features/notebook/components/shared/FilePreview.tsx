@@ -524,6 +524,40 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     return !!t && t.trim().length > 0;
   }, [getCopyableMarkdown]);
 
+  // Detect if source is a URL type
+  const isUrlSource = React.useMemo(() => {
+    return source.ext === 'url' ||
+      !!source.metadata?.source_url ||
+      source.metadata?.extraction_type === 'url_extractor' ||
+      source.metadata?.processing_method === 'media' ||
+      source.metadata?.processing_method === 'web_scraping_no_crawl4ai' ||
+      source.metadata?.processing_method === 'crawl4ai_only';
+  }, [source]);
+
+  // Resolve the URL to open
+  const openDocumentUrl = React.useMemo(() => {
+    if (isUrlSource) {
+      // Priority: source_url > url property
+      return source.metadata?.source_url || source.url || null;
+    } else if (source.file_id) {
+      // File source: construct MinIO inline URL
+      return `${API_BASE_URL}/notebooks/${notebookId}/files/${source.file_id}/inline/`;
+    }
+    return null;
+  }, [isUrlSource, source, notebookId]);
+
+  // Determine if button should be shown
+  const shouldShowOpenDocument = React.useMemo(() => {
+    return !!openDocumentUrl && openDocumentUrl.trim().length > 0;
+  }, [openDocumentUrl]);
+
+  // Handler function
+  const handleOpenDocument = () => {
+    if (openDocumentUrl) {
+      window.open(openDocumentUrl, '_blank', 'noopener,noreferrer');
+    }
+  };
+
   const handleCopyAsMarkdown = async () => {
     try {
       const text = getCopyableMarkdown();
@@ -651,7 +685,29 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
 
     return (
-      <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
+      <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
+        {canCopy && (
+          <div className="absolute top-4 right-4 z-10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyAsMarkdown}
+              className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5] bg-white shadow-sm"
+            >
+              {state.copyStatus === 'copied' ? (
+                <>
+                  <CheckCircle className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  Copy Markdown
+                </>
+              )}
+            </Button>
+          </div>
+        )}
         <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
       </div>
     );
@@ -869,7 +925,29 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
 
     return (
-      <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
+      <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
+        {canCopy && (
+          <div className="absolute top-4 right-4 z-10">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCopyAsMarkdown}
+              className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5] bg-white shadow-sm"
+            >
+              {state.copyStatus === 'copied' ? (
+                <>
+                  <CheckCircle className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                  Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5 mr-1.5" />
+                  Copy Markdown
+                </>
+              )}
+            </Button>
+          </div>
+        )}
         {processedContent ? (
           <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
         ) : (
@@ -912,7 +990,29 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
           </div>
         </div>
 
-        <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px] overflow-x-auto">
+        <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px] overflow-x-auto">
+          {canCopy && (
+            <div className="absolute top-4 right-4 z-10">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyAsMarkdown}
+                className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5] bg-white shadow-sm"
+              >
+                {state.copyStatus === 'copied' ? (
+                  <>
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    Copy Markdown
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
           <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
         </div>
       </div>
@@ -1059,24 +1159,15 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             </div>
           </div>
           <div className="flex items-center space-x-2 shrink-0 ml-4">
-            {canCopy && (
+            {shouldShowOpenDocument && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleCopyAsMarkdown}
+                onClick={handleOpenDocument}
                 className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
               >
-                {state.copyStatus === 'copied' ? (
-                  <>
-                    <CheckCircle className="h-3.5 w-3.5 mr-1.5 text-green-600" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5 mr-1.5" />
-                    Copy Markdown
-                  </>
-                )}
+                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                Open Document
               </Button>
             )}
             {preview?.isPdfPreview && preview?.pdfUrl && (
