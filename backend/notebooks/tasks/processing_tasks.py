@@ -35,11 +35,19 @@ logger = logging.getLogger(__name__)
 def _get_ingestion_orchestrator() -> IngestionOrchestrator:
     """Get configured ingestion orchestrator instance."""
     mineru_base_url = os.getenv("MINERU_BASE_URL", "http://localhost:8008")
+
+    # Whisper-FastAPI configuration (default provider)
+    whisper_api_base_url = os.getenv("WHISPER_API_BASE_URL", "http://localhost:5005")
+    transcription_provider = os.getenv("TRANSCRIPTION_PROVIDER", "whisper_fastapi")
+
+    # Xinference configuration (fallback provider)
     xinference_url = os.getenv("XINFERENCE_URL", "http://localhost:9997")
     model_uid = os.getenv("XINFERENCE_WHISPER_MODEL_UID", "Bella-whisper-large-v3-zh")
 
     return IngestionOrchestrator(
         mineru_base_url=mineru_base_url,
+        whisper_api_base_url=whisper_api_base_url,
+        transcription_provider=transcription_provider,
         xinference_url=xinference_url,
         model_uid=model_uid,
         logger=logger,

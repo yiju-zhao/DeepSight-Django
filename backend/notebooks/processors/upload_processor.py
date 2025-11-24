@@ -66,6 +66,11 @@ class UploadProcessor:
         self.mineru_base_url = mineru_base_url.rstrip("/")
 
         # Initialize new ingestion orchestrator
+        # Whisper-FastAPI configuration (default provider)
+        whisper_api_base_url = os.getenv("WHISPER_API_BASE_URL", "http://localhost:5005")
+        transcription_provider = os.getenv("TRANSCRIPTION_PROVIDER", "whisper_fastapi")
+
+        # Xinference configuration (fallback provider)
         xinference_url = os.getenv("XINFERENCE_URL", "http://localhost:9997")
         model_uid = os.getenv(
             "XINFERENCE_WHISPER_MODEL_UID", "Bella-whisper-large-v3-zh"
@@ -73,6 +78,8 @@ class UploadProcessor:
 
         self.ingestion_orchestrator = IngestionOrchestrator(
             mineru_base_url=self.mineru_base_url,
+            whisper_api_base_url=whisper_api_base_url,
+            transcription_provider=transcription_provider,
             xinference_url=xinference_url,
             model_uid=model_uid,
             logger=self.logger,

@@ -16,7 +16,7 @@ from ..utils.helpers import clean_title
 from ..utils.storage import FileStorageService
 from .exceptions import IngestionError, ParseError, SourceError, StorageError
 from .parsers import MediaParser, DocuParser, ParseResult, TextParser, TableParser
-from .transcription import XinferenceProvider
+from .transcription import XinferenceProvider, WhisperFastapiProvider, TranscriptionClient
 from .url_fetcher import UrlFetcher
 
 
@@ -43,6 +43,8 @@ class IngestionOrchestrator:
         mineru_base_url: str = "http://localhost:8008",
         xinference_url: str = "http://localhost:9997",
         model_uid: str = "Bella-whisper-large-v3-zh",
+        whisper_api_base_url: str = "http://localhost:5005",
+        transcription_provider: str = "whisper_fastapi",
         logger: Optional[logging.Logger] = None,
     ):
         self.logger = logger or logging.getLogger(__name__)
@@ -50,13 +52,15 @@ class IngestionOrchestrator:
         # Initialize components
         self.url_fetcher = UrlFetcher(logger=self.logger)
 
-        # Initialize parsers
-        transcription_client = XinferenceProvider(
+        # Initialize transcription client based on provider
+        transcription_client = self._create_transcription_client(
+            provider=transcription_provider,
+            whisper_api_base_url=whisper_api_base_url,
             xinference_url=xinference_url,
             model_uid=model_uid,
-            logger=self.logger,
         )
 
+        # Initialize parsers
         self.docu_parser = DocuParser(
             mineru_base_url=mineru_base_url,
             logger=self.logger,
@@ -78,7 +82,55 @@ class IngestionOrchestrator:
             logger=self.logger,
         )
 
-        self.logger.info("IngestionOrchestrator initialized")
+        self.logger.info(
+            f"IngestionOrchestrator initialized with {transcription_provider} transcription provider"
+        )
+
+    def _create_transcription_client(
+        self,
+        provider: str,
+        whisper_api_base_url: str,
+        xinference_url: str,
+        model_uid: str,
+    ) -> TranscriptionClient:
+        """
+        Factory method to create transcription client based on provider.
+
+        Args:
+            provider: Provider name ("whisper_fastapi" or "xinference")
+            whisper_api_base_url: Base URL for Whisper-FastAPI
+            xinference_url: Base URL for Xinference
+            model_uid: Model UID for Xinference
+
+        Returns:
+            Configured transcription client
+
+        Raises:
+            ValueError: If provider is not supported
+        """
+        if provider == "whisper_fastapi":
+            self.logger.info(
+                f"Creating WhisperFastapiProvider with base URL: {whisper_api_base_url}"
+            )
+            return WhisperFastapiProvider(
+                whisper_api_base_url=whisper_api_base_url,
+                vad_filter=True,
+                logger=self.logger,
+            )
+        elif provider == "xinference":
+            self.logger.info(
+                f"Creating XinferenceProvider with URL: {xinference_url}, model: {model_uid}"
+            )
+            return XinferenceProvider(
+                xinference_url=xinference_url,
+                model_uid=model_uid,
+                logger=self.logger,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported transcription provider: {provider}. "
+                f"Supported providers: whisper_fastapi, xinference"
+            )
 
     async def ingest_url(
         self,
