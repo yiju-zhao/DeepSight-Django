@@ -118,7 +118,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         {/* Main Content */}
         <main className="flex-1 flex flex-col min-h-0 bg-[#F5F5F5] overflow-hidden">
           <div
-            className={`w-full max-w-[1920px] mx-auto h-full ${RESPONSIVE_PANELS.mobile.gap} ${RESPONSIVE_PANELS.mobile.padding} md:${RESPONSIVE_PANELS.tablet.gap} md:${RESPONSIVE_PANELS.tablet.padding} lg:${RESPONSIVE_PANELS.desktop.gap} lg:${RESPONSIVE_PANELS.desktop.padding} grid transition-[grid-template-columns] duration-300 ease-out`}
+            className={`w-full mx-auto h-full ${RESPONSIVE_PANELS.mobile.gap} ${RESPONSIVE_PANELS.mobile.padding} md:${RESPONSIVE_PANELS.tablet.gap} md:${RESPONSIVE_PANELS.tablet.padding} lg:${RESPONSIVE_PANELS.desktop.gap} lg:${RESPONSIVE_PANELS.desktop.padding} grid transition-[grid-template-columns] duration-300 ease-out`}
             style={{
               gridTemplateColumns: isStudioExpanded
                 ? `56px 5fr 7fr` // Studio expanded: wider collapsed bar, balanced chat and studio
