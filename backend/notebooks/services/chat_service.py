@@ -440,8 +440,12 @@ class ChatService(NotebookBaseService):
             # Create new chat assistant
             logger.info(f"Creating chat assistant for dataset {dataset_id}")
 
+            available_models = self.get_available_chat_models()
+            default_model_name = available_models[0] if available_models else None
+            llm_config = {"model_name": default_model_name} if default_model_name else None
+
             chat = self.ragflow_service.create_chat(
-                name=chat_name, dataset_ids=[dataset_id]
+                name=chat_name, dataset_ids=[dataset_id], llm=llm_config
             )
 
             chat_id = chat.id
