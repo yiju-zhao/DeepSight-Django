@@ -16,7 +16,7 @@ import {
   Github,
   FileText,
   Star,
-  StarOff,
+
   Search,
   ChevronLeft,
   ChevronRight,
@@ -131,17 +131,16 @@ const PublicationRow = memo(({
       <td className="py-4 px-2 w-12">
         <button
           onClick={onToggleFavorite}
-          className={`p-1.5 rounded-md transition-all duration-200 ${
-            isFavorite
-              ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
-              : 'text-[#666666] hover:text-amber-500 hover:bg-amber-50'
-          }`}
+          className={`p-1.5 rounded-md transition-all duration-200 ${isFavorite
+            ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
+            : 'text-[#666666] hover:text-amber-500 hover:bg-amber-50'
+            }`}
           title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
         >
           {isFavorite ? (
             <Star className="h-4 w-4 fill-current" />
           ) : (
-            <StarOff className="h-4 w-4" />
+            <Star className="h-4 w-4" />
           )}
         </button>
       </td>
@@ -338,6 +337,7 @@ const PublicationsTableComponent = ({
   const [showAffiliationFilter, setShowAffiliationFilter] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showImportWizard, setShowImportWizard] = useState(false);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
   const { favorites, toggleFavorite } = useFavorites();
 
@@ -361,12 +361,18 @@ const PublicationsTableComponent = ({
     }));
   };
 
+  // Filter data based on favorites
+  const filteredData = useMemo(() => {
+    if (!showFavoritesOnly) return data;
+    return data.filter(pub => favorites.has(String(pub.id)));
+  }, [data, showFavoritesOnly, favorites]);
+
   // Selection handlers
   const toggleSelectAll = () => {
-    if (selectedIds.size === data.length) {
+    if (selectedIds.size === filteredData.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(data.map((p) => String(p.id))));
+      setSelectedIds(new Set(filteredData.map((p) => String(p.id))));
     }
   };
 
@@ -429,8 +435,8 @@ const PublicationsTableComponent = ({
   }
 
   const totalPages = Math.ceil(pagination.count / 20);
-  const allSelected = data.length > 0 && selectedIds.size === data.length;
-  const someSelected = selectedIds.size > 0 && selectedIds.size < data.length;
+  const allSelected = filteredData.length > 0 && selectedIds.size === filteredData.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < filteredData.length;
 
   const handleImportComplete = (response: ImportResponse) => {
     // Clear selection after successful import
@@ -449,285 +455,294 @@ const PublicationsTableComponent = ({
 
   return (
     <>
-    <div className="bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] overflow-hidden">
-      {/* Header Section - HUAWEI Style */}
-      <div className="border-b border-[#E3E3E3] bg-[#F5F5F5] px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-[#1E1E1E]">
-              Publications
-            </h2>
-            <p className="text-sm text-[#666666] mt-1">
-              {pagination.count.toLocaleString()} total publications
-              {isFiltered && ' (filtered)'}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            {selectedIds.size > 0 && (
-              <span className="text-sm font-medium text-[#666666]">
-                {selectedIds.size} selected
-              </span>
-            )}
-
-            <Button
-              onClick={handleOpenImportWizard}
-              variant="outline"
-              size="sm"
-              disabled={selectedIds.size === 0}
-              className="flex items-center gap-2"
-            >
-              <FileText size={16} />
-              Import to Notebook ({selectedIds.size})
-            </Button>
-
-            <ExportButton
-              publications={data}
-              selectedPublications={selectedPublications}
-              variant="outline"
-              size="sm"
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="p-6">
-        {/* Controls - HUAWEI Style */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          <div className="relative flex-1 min-w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#666666]" size={18} />
-            <input
-              type="text"
-              placeholder="Search titles, authors, keywords..."
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-[#E3E3E3] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-all duration-300 text-sm text-[#1E1E1E] placeholder-[#666666]"
-            />
-          </div>
-
-          <select
-            value={`${sortField}-${sortDirection}`}
-            onChange={(e) => {
-              const [field, direction] = e.target.value.split('-') as [SortField, SortDirection];
-              onSortChange(field, direction);
-            }}
-            className="px-4 py-2.5 border border-[#E3E3E3] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-all duration-300 text-sm text-[#1E1E1E] cursor-pointer"
-          >
-            <option value="rating-desc">Sort by Rating (High to Low)</option>
-            <option value="rating-asc">Sort by Rating (Low to High)</option>
-            <option value="title-asc">Sort by Title (A to Z)</option>
-            <option value="title-desc">Sort by Title (Z to A)</option>
-          </select>
-
-          <div className="relative" ref={columnSettingsRef}>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowColumnSettings(!showColumnSettings)}
-            >
-              <Settings size={16} className="mr-2" />
-              Columns
-            </Button>
-
-            {showColumnSettings && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg z-10">
-                <div className="p-4">
-                  <h4 className="font-semibold text-sm text-foreground mb-3">Show/Hide Columns</h4>
-                  <div className="space-y-2">
-                    {Object.entries(columnVisibility).map(([key, visible]) => {
-                      const isRequired = key === 'title' || key === 'authors';
-                      const label = key.charAt(0).toUpperCase() + key.slice(1);
-
-                      return (
-                        <label
-                          key={key}
-                          className="flex items-center gap-2 py-1 px-2 rounded-md hover:bg-accent cursor-pointer"
-                        >
-                          <Checkbox
-                            checked={visible}
-                            onCheckedChange={() => toggleColumn(key as keyof ColumnVisibility)}
-                            disabled={isRequired}
-                          />
-                          <span className={`text-sm ${isRequired ? 'text-muted-foreground' : 'text-foreground'}`}>
-                            {label} {isRequired && '(Required)'}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr className="border-b border-border">
-                <th className="py-3 px-4 w-12">
-                  <Checkbox
-                    checked={allSelected || someSelected}
-                    onCheckedChange={toggleSelectAll}
-                  />
-                </th>
-                <th className="py-3 px-2 w-12">
-                  <Star className="h-4 w-4 text-muted-foreground" />
-                </th>
-                <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Title</th>
-                <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Authors</th>
-                {columnVisibility.affiliation && (
-                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">
-                    <div className="flex items-center gap-2">
-                      <span>Affiliation</span>
-                      <div className="relative" ref={affiliationFilterRef}>
-                        <button
-                          onClick={() => setShowAffiliationFilter(!showAffiliationFilter)}
-                          className={`p-1 rounded hover:bg-accent transition-colors ${
-                            selectedAffiliations.length > 0 ? 'text-primary' : 'text-muted-foreground'
-                          }`}
-                          title="Filter by affiliation"
-                        >
-                          <Filter className="h-4 w-4" />
-                        </button>
-
-                        {showAffiliationFilter && onAffiliationFilterChange && (
-                          <div className="absolute left-0 top-full mt-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-20 max-h-96 overflow-hidden flex flex-col">
-                            <div className="p-3 border-b border-border">
-                              <h4 className="font-semibold text-sm text-foreground mb-2">Filter by Affiliation</h4>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => onAffiliationFilterChange(uniqueAffiliations)}
-                                  className="flex-1"
-                                >
-                                  Select All
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => onAffiliationFilterChange([])}
-                                  className="flex-1"
-                                >
-                                  Clear All
-                                </Button>
-                              </div>
-                            </div>
-
-                            <div className="overflow-y-auto max-h-64 p-2">
-                              {uniqueAffiliations.map((affiliation) => (
-                                <label
-                                  key={affiliation}
-                                  className="flex items-center gap-2 py-2 px-2 rounded-md hover:bg-accent cursor-pointer"
-                                >
-                                  <Checkbox
-                                    checked={selectedAffiliations.includes(affiliation)}
-                                    onCheckedChange={(checked) => {
-                                      if (checked) {
-                                        onAffiliationFilterChange([...selectedAffiliations, affiliation]);
-                                      } else {
-                                        onAffiliationFilterChange(selectedAffiliations.filter(a => a !== affiliation));
-                                      }
-                                    }}
-                                  />
-                                  <span className="text-sm text-foreground flex-1">{affiliation}</span>
-                                </label>
-                              ))}
-                            </div>
-
-                            <div className="p-3 border-t border-border bg-muted/30">
-                              <div className="text-xs text-muted-foreground">
-                                {selectedAffiliations.length} of {uniqueAffiliations.length} selected
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </th>
-                )}
-                {columnVisibility.topic && (
-                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Topic</th>
-                )}
-                {columnVisibility.rating && (
-                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Rating</th>
-                )}
-                {columnVisibility.links && (
-                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Links</th>
-                )}
-              </tr>
-            </thead>
-            <TableBody
-              data={data}
-              columnVisibility={columnVisibility}
-              selectedIds={selectedIds}
-              onToggleSelect={toggleSelect}
-              favorites={favorites}
-              onToggleFavorite={toggleFavorite}
-            />
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-center gap-2 mt-6">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft size={16} className="mr-1" />
-              Previous
-            </Button>
-
-            <div className="flex gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-                if (page > totalPages) return null;
-
-                return (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => onPageChange(page)}
-                    className="min-w-[2.5rem]"
-                  >
-                    {page}
-                  </Button>
-                );
-              })}
+      <div className="bg-white rounded-lg shadow-[rgba(0,0,0,0.08)_0px_8px_12px] overflow-hidden">
+        {/* Header Section - HUAWEI Style */}
+        <div className="border-b border-[#E3E3E3] bg-[#F5F5F5] px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-[#1E1E1E]">
+                Publications
+              </h2>
+              <p className="text-sm text-[#666666] mt-1">
+                {pagination.count.toLocaleString()} total publications
+                {isFiltered && ' (filtered)'}
+              </p>
             </div>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-            >
-              Next
-              <ChevronRight size={16} className="ml-1" />
-            </Button>
+            <div className="flex items-center gap-3">
+              {selectedIds.size > 0 && (
+                <span className="text-sm font-medium text-[#666666]">
+                  {selectedIds.size} selected
+                </span>
+              )}
+
+              <Button
+                onClick={handleOpenImportWizard}
+                variant="outline"
+                size="sm"
+                disabled={selectedIds.size === 0}
+                className="flex items-center gap-2"
+              >
+                <FileText size={16} />
+                Import to Notebook ({selectedIds.size})
+              </Button>
+
+              <ExportButton
+                publications={data}
+                selectedPublications={selectedPublications}
+                variant="outline"
+                size="sm"
+              />
+            </div>
           </div>
-        )}
-
-        {/* Results Info - HUAWEI Style */}
-        <div className="text-sm text-[#666666] text-center mt-6">
-          Showing {data.length} of {pagination.count.toLocaleString()} publications
         </div>
-      </div>
 
-      {/* Import To Notebook Wizard */}
-      <ImportToNotebookWizard
-        isOpen={showImportWizard}
-        onClose={() => setShowImportWizard(false)}
-        selectedPublicationIds={Array.from(selectedIds)}
-        onImportComplete={handleImportComplete}
-      />
-    </div>
+        <div className="p-6">
+          {/* Controls - HUAWEI Style */}
+          <div className="flex flex-wrap gap-4 mb-6">
+            <div className="relative flex-1 min-w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#666666]" size={18} />
+              <input
+                type="text"
+                placeholder="Search titles, authors, keywords..."
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-[#E3E3E3] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-all duration-300 text-sm text-[#1E1E1E] placeholder-[#666666]"
+              />
+            </div>
+
+            <select
+              value={`${sortField}-${sortDirection}`}
+              onChange={(e) => {
+                const [field, direction] = e.target.value.split('-') as [SortField, SortDirection];
+                onSortChange(field, direction);
+              }}
+              className="px-4 py-2.5 border border-[#E3E3E3] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black/10 focus:border-black transition-all duration-300 text-sm text-[#1E1E1E] cursor-pointer"
+            >
+              <option value="rating-desc">Sort by Rating (High to Low)</option>
+              <option value="rating-asc">Sort by Rating (Low to High)</option>
+              <option value="title-asc">Sort by Title (A to Z)</option>
+              <option value="title-desc">Sort by Title (Z to A)</option>
+            </select>
+
+            <div className="relative" ref={columnSettingsRef}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowColumnSettings(!showColumnSettings)}
+              >
+                <Settings size={16} className="mr-2" />
+                Columns
+              </Button>
+
+              {showColumnSettings && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-popover border border-border rounded-lg shadow-lg z-10">
+                  <div className="p-4">
+                    <h4 className="font-semibold text-sm text-foreground mb-3">Show/Hide Columns</h4>
+                    <div className="space-y-2">
+                      {Object.entries(columnVisibility).map(([key, visible]) => {
+                        const isRequired = key === 'title' || key === 'authors';
+                        const label = key.charAt(0).toUpperCase() + key.slice(1);
+
+                        return (
+                          <label
+                            key={key}
+                            className="flex items-center gap-2 py-1 px-2 rounded-md hover:bg-accent cursor-pointer"
+                          >
+                            <Checkbox
+                              checked={visible}
+                              onCheckedChange={() => toggleColumn(key as keyof ColumnVisibility)}
+                              disabled={isRequired}
+                            />
+                            <span className={`text-sm ${isRequired ? 'text-muted-foreground' : 'text-foreground'}`}>
+                              {label} {isRequired && '(Required)'}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Table */}
+          <div className="overflow-x-auto rounded-lg border border-border">
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr className="border-b border-border">
+                  <th className="py-3 px-4 w-12">
+                    <Checkbox
+                      checked={allSelected || someSelected}
+                      onCheckedChange={toggleSelectAll}
+                    />
+                  </th>
+                  <th className="py-3 px-2 w-12">
+                    <button
+                      onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                      className={`p-1.5 rounded-md transition-all duration-200 ${showFavoritesOnly
+                          ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
+                          : 'text-muted-foreground hover:text-amber-500 hover:bg-amber-50'
+                        }`}
+                      title={showFavoritesOnly ? 'Show all publications' : 'Show favorites only'}
+                    >
+                      <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+                    </button>
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Title</th>
+                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Authors</th>
+                  {columnVisibility.affiliation && (
+                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">
+                      <div className="flex items-center gap-2">
+                        <span>Affiliation</span>
+                        <div className="relative" ref={affiliationFilterRef}>
+                          <button
+                            onClick={() => setShowAffiliationFilter(!showAffiliationFilter)}
+                            className={`p-1 rounded hover:bg-accent transition-colors ${selectedAffiliations.length > 0 ? 'text-primary' : 'text-muted-foreground'
+                              }`}
+                            title="Filter by affiliation"
+                          >
+                            <Filter className="h-4 w-4" />
+                          </button>
+
+                          {showAffiliationFilter && onAffiliationFilterChange && (
+                            <div className="absolute left-0 top-full mt-2 w-80 bg-popover border border-border rounded-lg shadow-lg z-20 max-h-96 overflow-hidden flex flex-col">
+                              <div className="p-3 border-b border-border">
+                                <h4 className="font-semibold text-sm text-foreground mb-2">Filter by Affiliation</h4>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => onAffiliationFilterChange(uniqueAffiliations)}
+                                    className="flex-1"
+                                  >
+                                    Select All
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => onAffiliationFilterChange([])}
+                                    className="flex-1"
+                                  >
+                                    Clear All
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="overflow-y-auto max-h-64 p-2">
+                                {uniqueAffiliations.map((affiliation) => (
+                                  <label
+                                    key={affiliation}
+                                    className="flex items-center gap-2 py-2 px-2 rounded-md hover:bg-accent cursor-pointer"
+                                  >
+                                    <Checkbox
+                                      checked={selectedAffiliations.includes(affiliation)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          onAffiliationFilterChange([...selectedAffiliations, affiliation]);
+                                        } else {
+                                          onAffiliationFilterChange(selectedAffiliations.filter(a => a !== affiliation));
+                                        }
+                                      }}
+                                    />
+                                    <span className="text-sm text-foreground flex-1">{affiliation}</span>
+                                  </label>
+                                ))}
+                              </div>
+
+                              <div className="p-3 border-t border-border bg-muted/30">
+                                <div className="text-xs text-muted-foreground">
+                                  {selectedAffiliations.length} of {uniqueAffiliations.length} selected
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </th>
+                  )}
+                  {columnVisibility.topic && (
+                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Topic</th>
+                  )}
+                  {columnVisibility.rating && (
+                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Rating</th>
+                  )}
+                  {columnVisibility.links && (
+                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Links</th>
+                  )}
+                </tr>
+              </thead>
+              <TableBody
+                data={filteredData}
+                columnVisibility={columnVisibility}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                favorites={favorites}
+                onToggleFavorite={toggleFavorite}
+              />
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 mt-6">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                <ChevronLeft size={16} className="mr-1" />
+                Previous
+              </Button>
+
+              <div className="flex gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
+                  if (page > totalPages) return null;
+
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => onPageChange(page)}
+                      className="min-w-[2.5rem]"
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Next
+                <ChevronRight size={16} className="ml-1" />
+              </Button>
+            </div>
+          )}
+
+          {/* Results Info - HUAWEI Style */}
+          <div className="text-sm text-[#666666] text-center mt-6">
+            Showing {filteredData.length} of {pagination.count.toLocaleString()} publications
+            {showFavoritesOnly && ' (favorites only)'}
+          </div>
+        </div>
+
+        {/* Import To Notebook Wizard */}
+        <ImportToNotebookWizard
+          isOpen={showImportWizard}
+          onClose={() => setShowImportWizard(false)}
+          selectedPublicationIds={Array.from(selectedIds)}
+          onImportComplete={handleImportComplete}
+        />
+      </div>
     </>
   );
 };
