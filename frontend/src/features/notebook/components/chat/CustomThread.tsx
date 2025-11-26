@@ -21,92 +21,127 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
 
+// Preprocess text to convert LaTeX delimiters
+// Convert [ ... ] to $$ ... $$ (display math)
+// Convert ( ... ) to $ ... $ (inline math) if they contain LaTeX
+const preprocessLaTeX = (text: string): string => {
+  // Replace [ ... ] with $$ ... $$
+  let processed = text.replace(/\[\s*(.*?)\s*\]/g, (match, content) => {
+    // Check if it looks like LaTeX (contains backslashes or common math symbols)
+    if (content.includes('\\') || /[∫∑∏∂∇α-ωΑ-Ω]/.test(content)) {
+      return `$$${content}$$`;
+    }
+    return match; // Keep original if not LaTeX
+  });
+
+  // Replace ( ... ) with $ ... $ for inline math (more conservative)
+  // Only if preceded/followed by space or specific LaTeX indicators
+  processed = processed.replace(/\(\s*(\\[a-zA-Z]+.*?)\s*\)/g, (match, content) => {
+    return `$${content}$`;
+  });
+
+  return processed;
+};
+
+
 // Memoized markdown content component
-const MarkdownContent = React.memo(({ content }: { content: string }) => (
-  <div className="prose prose-base max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[
-        [rehypeKatex, { strict: false, throwOnError: false, output: 'html' }],
-        rehypeHighlight,
-        rehypeRaw
-      ]}
-      components={{
-        h1: ({ children }) => (
-          <h1 className="text-lg font-semibold text-gray-900 mb-2 mt-4">
-            {children}
-          </h1>
-        ),
-        h2: ({ children }) => (
-          <h2 className="text-base font-semibold text-gray-900 mt-3 mb-1.5">
-            {children}
-          </h2>
-        ),
-        h3: ({ children }) => (
-          <h3 className="text-sm font-semibold text-gray-900 mt-2 mb-1.5">
-            {children}
-          </h3>
-        ),
-        p: ({ children }) => (
-          <p className="text-gray-800 leading-6 mb-2 text-sm">{children}</p>
-        ),
-        ul: ({ children }) => (
-          <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>
-        ),
-        ol: ({ children }) => (
-          <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>
-        ),
-        li: ({ children }) => (
-          <li className="text-gray-800 text-sm leading-6">{children}</li>
-        ),
-        blockquote: ({ children }) => (
-          <blockquote className="border-l-2 border-gray-200 pl-4 py-2 my-4 italic text-gray-700 rounded-r">
-            {children}
-          </blockquote>
-        ),
-        code: ({ children }) => (
-          <code className="bg-white px-1.5 py-0.5 rounded text-sm font-mono text-gray-900">
-            {children}
-          </code>
-        ),
-        pre: ({ children }) => (
-          <pre className="bg-gray-950 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 text-sm shadow-sm">
-            {children}
-          </pre>
-        ),
-        a: ({ href, children }) => (
-          <a
-            href={href}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-600 hover:text-blue-700 underline decoration-blue-400 hover:decoration-blue-600 transition-colors"
-          >
-            {children}
-          </a>
-        ),
-        table: ({ children }) => (
-          <div className="my-4 overflow-x-auto">
-            <table className="min-w-full border-collapse rounded-lg overflow-hidden">
+const MarkdownContent = React.memo(({ content }: { content: string }) => {
+  const processedContent = preprocessLaTeX(content);
+
+  return (
+    <div className="prose prose-base max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[
+          rehypeRaw,
+          [rehypeKatex, { strict: false, throwOnError: false, output: 'html' }],
+          rehypeHighlight
+        ]}
+        components={{
+          h1: ({ children }) => (
+            <h1 className="text-lg font-semibold text-gray-900 mb-2 mt-4">
               {children}
-            </table>
-          </div>
-        ),
-        th: ({ children }) => (
-          <th className="px-4 py-2 bg-gray-50 text-sm font-semibold text-left">
-            {children}
-          </th>
-        ),
-        td: ({ children }) => (
-          <td className="px-4 py-2 text-sm border-b border-gray-100">
-            {children}
-          </td>
-        ),
-      }}
-    >
-      {content}
-    </ReactMarkdown>
-  </div>
-));
+            </h1>
+          ),
+          h2: ({ children }) => (
+            <h2 className="text-base font-semibold text-gray-900 mt-3 mb-1.5">
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="text-sm font-semibold text-gray-900 mt-2 mb-1.5">
+              {children}
+            </h3>
+          ),
+          p: ({ children }) => (
+            <p className="text-gray-800 leading-6 mb-2 text-sm">{children}</p>
+          ),
+          ul: ({ children }) => (
+            <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>
+          ),
+          li: ({ children }) => (
+            <li className="text-gray-800 text-sm leading-6">{children}</li>
+          ),
+          blockquote: ({ children }) => (
+            <blockquote className="border-l-2 border-gray-200 pl-4 py-2 my-4 italic text-gray-700 rounded-r">
+              {children}
+            </blockquote>
+          ),
+          code: ({ inline, className, children, ...props }: any) => {
+            // Don't style math-related code elements
+            if (className?.includes('language-math')) {
+              return <code {...props}>{children}</code>;
+            }
+            return inline ? (
+              <code className="bg-white px-1.5 py-0.5 rounded text-sm font-mono text-gray-900">
+                {children}
+              </code>
+            ) : (
+              <code {...props}>{children}</code>
+            );
+          },
+          pre: ({ children }) => (
+            <pre className="bg-gray-950 text-gray-100 p-4 rounded-lg overflow-x-auto my-4 text-sm shadow-sm">
+              {children}
+            </pre>
+          ),
+          a: ({ href, children }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-700 underline decoration-blue-400 hover:decoration-blue-600 transition-colors"
+            >
+              {children}
+            </a>
+          ),
+          table: ({ children }) => (
+            <div className="my-4 overflow-x-auto">
+              <table className="min-w-full border-collapse rounded-lg overflow-hidden">
+                {children}
+              </table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th className="px-4 py-2 bg-gray-50 text-sm font-semibold text-left">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="px-4 py-2 text-sm border-b border-gray-100">
+              {children}
+            </td>
+          ),
+        }}
+      >
+        {processedContent}
+      </ReactMarkdown>
+    </div>
+  );
+});
 
 MarkdownContent.displayName = 'MarkdownContent';
 
@@ -114,14 +149,6 @@ MarkdownContent.displayName = 'MarkdownContent';
 const CustomMessage: React.FC = () => {
   const thread = useThread();
   const messages = thread.messages;
-
-  // Temporary test message for LaTeX rendering
-  // const testMessage = {
-  //   id: 'test-latex',
-  //   role: 'assistant',
-  //   content: [{ type: 'text', text: 'Here is a formula: $E=mc^2$ and a block: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$' }],
-  // };
-  // const messagesWithTest = [...messages, testMessage];
 
 
   return (
