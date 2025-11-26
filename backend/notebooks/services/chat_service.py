@@ -444,8 +444,19 @@ class ChatService(NotebookBaseService):
             default_model_name = available_models[0] if available_models else None
             llm_config = {"model_name": default_model_name} if default_model_name else None
 
+            # Default system prompt to ensure LaTeX rendering
+            DEFAULT_SYSTEM_PROMPT = (
+                "You are a helpful assistant. "
+                "When answering questions involving mathematics, please use LaTeX formatting. "
+                "Enclose inline math in `$` and block math in `$$`."
+            )
+            prompt_config = {"prompt": DEFAULT_SYSTEM_PROMPT}
+
             chat = self.ragflow_service.create_chat(
-                name=chat_name, dataset_ids=[dataset_id], llm=llm_config
+                name=chat_name,
+                dataset_ids=[dataset_id],
+                llm=llm_config,
+                prompt=prompt_config,
             )
 
             chat_id = chat.id
