@@ -26,7 +26,11 @@ const MarkdownContent = React.memo(({ content }: { content: string }) => (
   <div className="prose prose-base max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
     <ReactMarkdown
       remarkPlugins={[remarkGfm, remarkMath]}
-      rehypePlugins={[rehypeKatex, rehypeHighlight, rehypeRaw]}
+      rehypePlugins={[
+        [rehypeKatex, { strict: false, throwOnError: false, output: 'html' }],
+        rehypeHighlight,
+        rehypeRaw
+      ]}
       components={{
         h1: ({ children }) => (
           <h1 className="text-lg font-semibold text-gray-900 mb-2 mt-4">
@@ -111,6 +115,15 @@ const CustomMessage: React.FC = () => {
   const thread = useThread();
   const messages = thread.messages;
 
+  // Temporary test message for LaTeX rendering
+  // const testMessage = {
+  //   id: 'test-latex',
+  //   role: 'assistant',
+  //   content: [{ type: 'text', text: 'Here is a formula: $E=mc^2$ and a block: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$' }],
+  // };
+  // const messagesWithTest = [...messages, testMessage];
+
+
   return (
     <div className="px-6 py-6 space-y-5 max-w-3xl mx-auto">
       <AnimatePresence>
@@ -131,15 +144,15 @@ const CustomMessage: React.FC = () => {
             >
               <div
                 className={`flex space-x-4 ${isUser
-                    ? 'max-w-[80%] flex-row-reverse space-x-reverse'
-                    : 'w-full'
+                  ? 'max-w-[80%] flex-row-reverse space-x-reverse'
+                  : 'w-full'
                   }`}
               >
                 {/* Avatar */}
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUser
-                      ? 'bg-[#1E1E1E] text-white'
-                      : 'bg-[#CE0E2D] text-white'
+                    ? 'bg-[#1E1E1E] text-white'
+                    : 'bg-[#CE0E2D] text-white'
                     }`}
                 >
                   {isUser ? (
