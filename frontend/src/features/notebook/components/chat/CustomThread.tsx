@@ -25,19 +25,27 @@ import 'katex/dist/katex.min.css';
 // Convert [ ... ] to $$ ... $$ (display math)
 // Convert ( ... ) to $ ... $ (inline math) if they contain LaTeX
 const preprocessLaTeX = (text: string): string => {
-  // Replace [ ... ] with $$ ... $$
-  let processed = text.replace(/\[\s*(.*?)\s*\]/g, (match, content) => {
-    // Check if it looks like LaTeX (contains backslashes or common math symbols)
-    if (content.includes('\\') || /[∫∑∏∂∇α-ωΑ-Ω]/.test(content)) {
-      return `$$${content}$$`;
-    }
-    return match; // Keep original if not LaTeX
-  });
+  let processed = text;
 
-  // Replace ( ... ) with $ ... $ for inline math (more conservative)
-  // Only if preceded/followed by space or specific LaTeX indicators
-  processed = processed.replace(/\(\s*(\\[a-zA-Z]+.*?)\s*\)/g, (match, content) => {
-    return `$${content}$`;
+  // 1. Convert \[ ... \] to $$ ... $$ (display math)
+  // Use [\s\S] to match across newlines
+  processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$');
+
+  // 2. Convert \( ... \) to $ ... $ (inline math)
+  processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
+
+  // 3. Convert [ ... ] to $$ ... $$ (display math)
+  // Be careful not to match citations like [1] or [ID:0]
+  processed = processed.replace(/\[\s*([\s\S]*?)\s*\]/g, (match, content) => {
+    // If it looks like a citation (numbers or ID:...), ignore
+    if (/^(ID:)?\d+$/.test(content.trim()) || /^\d+(,\s*\d+)*$/.test(content.trim())) {
+      return match;
+    }
+    // Check if it looks like LaTeX (contains backslashes or common math symbols)
+    if (content.includes('\\') || /[=\+\-\*\/^∫∑∏∂∇α-ωΑ-Ω]/.test(content)) {
+      return `$$$$${content}$$$$`;
+    }
+    return match;
   });
 
   return processed;
