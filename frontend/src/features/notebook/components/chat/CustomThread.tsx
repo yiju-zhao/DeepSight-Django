@@ -21,41 +21,50 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
 
-// Preprocess text to convert LaTeX delimiters
-// Convert \[ ... \] to $$ ... $$ (display math)
-// Convert \( ... \) to $ ... $ (inline math)
-// Convert standalone [ ... ] on separate lines to $$ ... $$ (display math from backend)
-const preprocessLaTeX = (text: string): string => {
-  let processed = text;
+// Normalizer to convert backend-specific LaTeX formats to standard Markdown LaTeX
+// This follows a "First Principles" approach by respecting Markdown structure (code blocks)
+// before applying text transformations.
+const normalizeMarkdown = (text: string): string => {
+  // 1. Split text by code blocks to protect them from processing
+  // Capturing group (...) keeps the separators in the result array
+  const parts = text.split(/(```[\s\S]*?```|`[^`\n]+`)/g);
 
-  // 1. Convert \[ ... \] to $$ ... $$ (display math)
-  // Use [\s\S] to match across newlines
-  processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (match, content) => `$$${content}$$`);
-
-  // 2. Convert \( ... \) to $ ... $ (inline math)
-  processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, (match, content) => `$${content}$`);
-
-  // 3. Convert standalone [ ... ] to $$ ... $$ (display math)
-  // Only match when [ is at the start of a line (after optional whitespace)
-  // and ] is at the end of a line (before optional whitespace and newline)
-  // This avoids matching citations like [ID:0] or nested brackets in formulas
-  processed = processed.replace(/^\s*\[\s*([\s\S]*?)\s*\]\s*$/gm, (match, content) => {
-    // Skip if it looks like a citation: [ID:x] or [number]
-    const trimmed = content.trim();
-    if (/^ID:\d+$/.test(trimmed) || /^\d+$/.test(trimmed)) {
-      return match;
+  return parts.map((part) => {
+    // Check if this part is a code block (starts with `)
+    if (part.startsWith('`')) {
+      return part;
     }
-    // Convert to display math
-    return `$$${content}$$`;
-  });
 
-  return processed;
+    // Process non-code text
+    let processed = part;
+
+    // 1. Convert \[ ... \] to $$ ... $$ (display math)
+    processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (match, content) => `$$${content}$$`);
+
+    // 2. Convert \( ... \) to $ ... $ (inline math)
+    processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, (match, content) => `$${content}$`);
+
+    // 3. Convert standalone [ ... ] to $$ ... $$ (display math)
+    // Only match when [ is at the start of a line (ignoring whitespace)
+    // and ] is at the end of a line
+    processed = processed.replace(/^\s*\[\s*([\s\S]*?)\s*\]\s*$/gm, (match, content) => {
+      // Skip if it looks like a citation: [ID:x] or [number]
+      const trimmed = content.trim();
+      if (/^ID:\d+$/.test(trimmed) || /^\d+$/.test(trimmed)) {
+        return match;
+      }
+      // Convert to display math
+      return `$$${content}$$`;
+    });
+
+    return processed;
+  }).join('');
 };
 
 
 // Memoized markdown content component
 const MarkdownContent = React.memo(({ content }: { content: string }) => {
-  const processedContent = preprocessLaTeX(content);
+  const processedContent = normalizeMarkdown(content);
 
   return (
     <div className="prose prose-base max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
