@@ -40,7 +40,9 @@ const preprocessLaTeX = (text: string): string => {
 
 // Memoized markdown content component
 const MarkdownContent = React.memo(({ content }: { content: string }) => {
-  const processedContent = preprocessLaTeX(content);
+  // TEMPORARILY DISABLED for debugging - show raw data
+  // const processedContent = preprocessLaTeX(content);
+  const processedContent = content;
 
   return (
     <div className="prose prose-base max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
