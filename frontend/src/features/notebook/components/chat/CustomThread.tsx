@@ -30,10 +30,10 @@ const preprocessLaTeX = (text: string): string => {
 
   // 1. Convert \[ ... \] to $$ ... $$ (display math)
   // Use [\s\S] to match across newlines
-  processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, '$$$$1$$');
+  processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (match, content) => `$$${content}$$`);
 
   // 2. Convert \( ... \) to $ ... $ (inline math)
-  processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
+  processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, (match, content) => `$${content}$`);
 
   // 3. Convert standalone [ ... ] to $$ ... $$ (display math)
   // Only match when [ is at the start of a line (after optional whitespace)
