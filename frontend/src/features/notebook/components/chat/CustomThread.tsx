@@ -24,6 +24,7 @@ import 'katex/dist/katex.min.css';
 // Preprocess text to convert LaTeX delimiters
 // Convert \[ ... \] to $$ ... $$ (display math)
 // Convert \( ... \) to $ ... $ (inline math)
+// Convert standalone [ ... ] on separate lines to $$ ... $$ (display math from backend)
 const preprocessLaTeX = (text: string): string => {
   let processed = text;
 
@@ -34,15 +35,27 @@ const preprocessLaTeX = (text: string): string => {
   // 2. Convert \( ... \) to $ ... $ (inline math)
   processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
 
+  // 3. Convert standalone [ ... ] to $$ ... $$ (display math)
+  // Only match when [ is at the start of a line (after optional whitespace)
+  // and ] is at the end of a line (before optional whitespace and newline)
+  // This avoids matching citations like [ID:0] or nested brackets in formulas
+  processed = processed.replace(/^\s*\[\s*([\s\S]*?)\s*\]\s*$/gm, (match, content) => {
+    // Skip if it looks like a citation: [ID:x] or [number]
+    const trimmed = content.trim();
+    if (/^ID:\d+$/.test(trimmed) || /^\d+$/.test(trimmed)) {
+      return match;
+    }
+    // Convert to display math
+    return `$$${content}$$`;
+  });
+
   return processed;
 };
 
 
 // Memoized markdown content component
 const MarkdownContent = React.memo(({ content }: { content: string }) => {
-  // TEMPORARILY DISABLED for debugging - show raw data
-  // const processedContent = preprocessLaTeX(content);
-  const processedContent = content;
+  const processedContent = preprocessLaTeX(content);
 
   return (
     <div className="prose prose-base max-w-none prose-headings:font-semibold prose-p:text-gray-800 prose-strong:text-gray-900 prose-code:text-gray-800">
