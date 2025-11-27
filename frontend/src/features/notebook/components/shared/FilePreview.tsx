@@ -222,41 +222,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
   );
 };
 
-// Helper to fix common malformed LaTeX patterns
-const fixMalformedLatex = (content: string): string => {
-  if (!content) return content;
 
-  // Optimization: Quick check if we even need to run the expensive regex
-  if (!content.includes('\\left(') || !content.includes('\\end{array}')) {
-    return content;
-  }
-
-  // Fix: Missing \begin{array} in \left( ... \end{array} \right) blocks
-  // This looks for patterns like: \left( { ... } & { ... } \\ ... \end{array} \right)
-  // and inserts \begin{array}{cc} if it's missing
-  return content.replace(
-    /\\left\(\s*((?:(?!\\begin\{array\}).)*?)\\end\{array\}\s*\\right\)/gs,
-    (match, inner) => {
-      // If we already have a begin array, don't touch it (though regex above tries to avoid it)
-      if (inner.includes('\\begin{array}')) return match;
-
-      // Heuristic: default to {cc} as it's a common 2x2 matrix pattern in this context
-      return `\\left( \\begin{array}{cc} ${inner} \\end{array} \\right)`;
-    }
-  );
-};
-
-// Function to process markdown content - simplified after legacy removal
-const processMarkdownContent = (content: string, fileId: string, notebookId: string, useMinIOUrls = false): string => {
-  if (!content) return content;
-
-  // Fix malformed LaTeX before processing
-  let processed = fixMalformedLatex(content);
-
-  // Modern approach: MinIO URLs are already resolved by backend or resolvedContent mechanism
-  // No additional processing needed as images are handled by the resolvedContent effect
-  return processed;
-};
 
 // Memoized markdown content component (same as StudioPanel)
 interface MarkdownContentProps {
@@ -266,10 +232,53 @@ interface MarkdownContentProps {
 }
 
 
+// Normalizer to convert backend-specific LaTeX formats to standard Markdown LaTeX
+// This follows a "First Principles" approach by respecting Markdown structure (code blocks)
+// before applying text transformations.
+const normalizeMarkdown = (text: string): string => {
+  // 1. Split text by code blocks to protect them from processing
+  // Capturing group (...) keeps the separators in the result array
+  const parts = text.split(/(```[\s\S]*?```|`[^`\n]+`)/g);
+
+  return parts.map((part) => {
+    // Check if this part is a code block (starts with `)
+    if (part.startsWith('`')) {
+      return part;
+    }
+
+    // Process non-code text
+    let processed = part;
+
+    // 1. Convert \[ ... \] to $$ ... $$ (display math)
+    processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (match, content) => `$$${content}$$`);
+
+    // 2. Convert \( ... \) to $ ... $ (inline math)
+    processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, (match, content) => `$${content}$`);
+
+    // 3. Convert standalone [ ... ] to $$ ... $$ (display math)
+    // Only match when [ is at the start of a line (ignoring whitespace)
+    // and ] is at the end of a line
+    processed = processed.replace(/^\s*\[\s*([\s\S]*?)\s*\]\s*$/gm, (match, content) => {
+      // Skip if it looks like a citation: [ID:x] or [number]
+      const trimmed = content.trim();
+      if (/^ID:\d+$/.test(trimmed) || /^\d+$/.test(trimmed)) {
+        return match;
+      }
+      // Convert to display math
+      return `$$${content}$$`;
+    });
+
+    return processed;
+  }).join('');
+};
+
 const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
+  // Normalize markdown content first
+  const normalizedContent = React.useMemo(() => normalizeMarkdown(content), [content]);
+
   // Remove non-standard HTML tags (think, result, results, answer, information) that cause React warnings
   const sanitizedContent = React.useMemo(() => {
-    return content
+    return normalizedContent
       // Remove <think> tags
       .replace(/<think>/gi, '')
       .replace(/<\/think>/gi, '')
@@ -508,14 +517,13 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     switch (preview.type) {
       case PREVIEW_TYPES.TEXT_CONTENT: {
         const base = (state.resolvedContent ?? preview.content) as string | undefined;
-        const processed = processMarkdownContent(base || '', fileId, nid, useMinIOUrls);
-        return processed && processed.trim().length > 0 ? processed : null;
+        return base && base.trim().length > 0 ? base : null;
       }
       case PREVIEW_TYPES.AUDIO_INFO:
       case PREVIEW_TYPES.VIDEO_INFO: {
         if ((preview as any).hasTranscript && preview.content) {
-          const processed = processMarkdownContent(preview.content as string, fileId, nid, useMinIOUrls);
-          return processed && processed.trim().length > 0 ? processed : null;
+          const content = preview.content as string;
+          return content && content.trim().length > 0 ? content : null;
         }
         return null;
       }
@@ -688,12 +696,6 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     // Debug: show processed content and image URLs
     const baseContent = state.resolvedContent || preview.content;
 
-    // Performance: Memoize the expensive markdown processing
-    const processedContent = React.useMemo(() =>
-      processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls),
-      [baseContent, source.file_id, notebookId, useMinIOUrls]
-    );
-
     return (
       <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
         {canCopy && (
@@ -718,7 +720,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             </Button>
           </div>
         )}
-        <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
+        <MarkdownContent content={baseContent} notebookId={notebookId} fileId={source.file_id || ''} />
       </div>
     );
   };
@@ -850,7 +852,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             </div>
             <div className="p-6 max-h-[500px] overflow-y-auto">
               <MarkdownContent
-                content={processMarkdownContent(preview.content as string, source.file_id || '', notebookId, useMinIOUrls)}
+                content={preview.content as string}
                 notebookId={notebookId}
                 fileId={source.file_id || ''}
               />
@@ -916,7 +918,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             </div>
             <div className="p-6 max-h-[500px] overflow-y-auto">
               <MarkdownContent
-                content={processMarkdownContent(preview.content as string, source.file_id || '', notebookId, useMinIOUrls)}
+                content={preview.content as string}
                 notebookId={notebookId}
                 fileId={source.file_id || ''}
               />
@@ -932,7 +934,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
     // Process markdown content from the PDF
     const baseContent = state.resolvedContent || preview.content;
-    const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
+    const processedContent = baseContent;
 
     return (
       <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
@@ -974,7 +976,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   const renderExcelContentPreview = () => {
     if (!preview) return null;
 
-    const processedContent = processMarkdownContent(preview.content as string, source.file_id || '', notebookId, useMinIOUrls);
+    const processedContent = preview.content as string;
 
     return (
       <div className="space-y-6">
