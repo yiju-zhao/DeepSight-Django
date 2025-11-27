@@ -226,6 +226,11 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
 const fixMalformedLatex = (content: string): string => {
   if (!content) return content;
 
+  // Optimization: Quick check if we even need to run the expensive regex
+  if (!content.includes('\\left(') || !content.includes('\\end{array}')) {
+    return content;
+  }
+
   // Fix: Missing \begin{array} in \left( ... \end{array} \right) blocks
   // This looks for patterns like: \left( { ... } & { ... } \\ ... \end{array} \right)
   // and inserts \begin{array}{cc} if it's missing
@@ -682,7 +687,12 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
     // Debug: show processed content and image URLs
     const baseContent = state.resolvedContent || preview.content;
-    const processedContent = processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls);
+
+    // Performance: Memoize the expensive markdown processing
+    const processedContent = React.useMemo(() =>
+      processMarkdownContent(baseContent, source.file_id || '', notebookId, useMinIOUrls),
+      [baseContent, source.file_id, notebookId, useMinIOUrls]
+    );
 
     return (
       <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
