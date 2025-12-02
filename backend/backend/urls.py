@@ -94,7 +94,8 @@ Conferences:
 - /api/v1/conferences/dashboard/overview/ -> Conferences overview
 
 Semantic Search:
-- /api/v1/semantic-search/publications/ -> Semantic search on publications using Lotus
+- /api/v1/semantic-search/publications/stream/ -> Start streaming semantic search job
+- /api/v1/semantic-search/publications/stream/{job_id}/ -> SSE stream for search progress
 
 Documentation:
 - /api/schema/ -> Raw OpenAPI schema (JSON)

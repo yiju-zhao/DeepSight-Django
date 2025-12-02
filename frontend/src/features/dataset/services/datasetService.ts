@@ -11,20 +11,6 @@ export interface SemanticSearchResult extends PublicationTableItem {
     relevance_score: number;
 }
 
-export interface SemanticSearchResponse {
-    success: boolean;
-    query: string;
-    total_input: number;
-    total_results: number;
-    results: SemanticSearchResult[];
-    metadata: {
-        llm_model: string;
-        processing_time_ms: number;
-    };
-    error?: string;
-    detail?: string;
-}
-
 export interface SemanticSearchStreamResponse {
     success: boolean;
     job_id: string;
@@ -49,10 +35,6 @@ export interface StreamProgressEvent {
 }
 
 export const datasetService = {
-    semanticSearch: async (data: SemanticSearchRequest): Promise<SemanticSearchResponse> => {
-        return apiClient.post('/semantic-search/publications/', data);
-    },
-
     /**
      * Start streaming semantic search (async/batch processing)
      */

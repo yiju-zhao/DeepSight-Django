@@ -1,22 +1,23 @@
 """
 URL configuration for semantic_search app.
 
-Defines routes for semantic search operations.
+Defines routes for streaming semantic search operations.
 """
 
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 
-from .views import SemanticSearchStreamView, SemanticSearchViewSet
+from .views import InitiateStreamingSearchView, SemanticSearchStreamView
 
-# Create router and register viewsets
-router = DefaultRouter()
-router.register(r"publications", SemanticSearchViewSet, basename="publications")
-
-# URL patterns
 urlpatterns = [
-    # SSE streaming endpoint (must come before router to avoid conflicts)
-    path("publications/stream/<str:job_id>/", SemanticSearchStreamView.as_view(), name="semantic-search-stream"),
-    # ViewSet routes
-    path("", include(router.urls)),
+    # Streaming endpoints
+    path(
+        "publications/stream/",
+        InitiateStreamingSearchView.as_view(),
+        name="initiate-search-stream",
+    ),
+    path(
+        "publications/stream/<str:job_id>/",
+        SemanticSearchStreamView.as_view(),
+        name="semantic-search-stream",
+    ),
 ]
