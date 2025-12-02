@@ -3,6 +3,13 @@ import Header from '@/shared/components/layout/Header';
 import { Sparkles, Filter, Search, AlertCircle, Loader2 } from 'lucide-react';
 import { useInstances } from '@/features/conference/hooks/useConference';
 import { Button } from '@/shared/components/ui/button';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/shared/components/ui/select';
 import { datasetService, SemanticSearchResult, StreamProgressEvent } from '../services/datasetService';
 import { PublicationsTableEnhanced } from '@/features/conference/components/PublicationsTableEnhanced';
 import { conferenceService } from '@/features/conference/services/ConferenceService';
@@ -222,33 +229,41 @@ export default function DatasetPage() {
                                     {/* Venue Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Conference</label>
-                                        <select
-                                            className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                                            value={selectedVenue}
-                                            onChange={(e) => setSelectedVenue(e.target.value)}
+                                        <Select
+                                            value={selectedVenue || "ALL"}
+                                            onValueChange={(value) => setSelectedVenue(value === "ALL" ? "" : value)}
                                             disabled={instancesLoading || isSearching}
                                         >
-                                            <option value="">All Conferences</option>
-                                            {venues.map(venue => (
-                                                <option key={venue} value={venue}>{venue}</option>
-                                            ))}
-                                        </select>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="All Conferences" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ALL">All Conferences</SelectItem>
+                                                {venues.map(venue => (
+                                                    <SelectItem key={venue} value={venue}>{venue}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
 
                                     {/* Year Filter */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                                        <select
-                                            className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
-                                            value={selectedYear || ''}
-                                            onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : undefined)}
+                                        <Select
+                                            value={selectedYear ? selectedYear.toString() : "ALL"}
+                                            onValueChange={(value) => setSelectedYear(value === "ALL" ? undefined : Number(value))}
                                             disabled={instancesLoading || isSearching}
                                         >
-                                            <option value="">All Years</option>
-                                            {years.map(year => (
-                                                <option key={year} value={year}>{year}</option>
-                                            ))}
-                                        </select>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="All Years" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="ALL">All Years</SelectItem>
+                                                {years.map(year => (
+                                                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                             </div>
