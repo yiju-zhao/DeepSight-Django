@@ -39,6 +39,7 @@ def semantic_search_streaming_task(
     """
     batch_size = 100
     all_results = []
+    all_filtered_frames = []
     total_publications = len(publication_ids)
 
     logger.info(
@@ -81,16 +82,23 @@ def semantic_search_streaming_task(
                 },
             )
 
-            # Perform semantic search on this batch
-            result = lotus_semantic_search_service.semantic_filter(
-                publication_ids=batch_ids, query=query, topk=topk
+            # Step 1: semantic filter on this batch (no top-k yet)
+            batch_filtered_df = lotus_semantic_search_service.filter_publications(
+                publication_ids=batch_ids,
+                query=query,
             )
 
-            if result.get("success"):
-                batch_results = result.get("results", [])
+            if not batch_filtered_df.empty:
+                all_filtered_frames.append(batch_filtered_df)
+
+                # For streaming, convert current batch to incremental results.
+                # These are intermediate and may not reflect the final global
+                # top-k ordering.
+                batch_results = lotus_semantic_search_service._dataframe_to_results(  # type: ignore[attr-defined]
+                    batch_filtered_df
+                )
                 all_results.extend(batch_results)
 
-                # Publish batch results for streaming
                 progress = (i + len(batch_ids)) / total_publications
                 _publish_progress(
                     job_id,
@@ -110,17 +118,23 @@ def semantic_search_streaming_task(
                     f"Job {job_id}: Batch {batch_num} completed with {len(batch_results)} results"
                 )
             else:
-                # Log error but continue with other batches
-                error_msg = result.get("detail", "Unknown error")
-                logger.warning(
-                    f"Job {job_id}: Batch {batch_num} failed: {error_msg}"
+                logger.info(
+                    f"Job {job_id}: Batch {batch_num} completed with no matching results"
                 )
 
-        # Final ranking across all results
-        if all_results:
-            # Sort by relevance_score and take top-k
-            all_results.sort(key=lambda x: x.get("relevance_score", 0), reverse=True)
-            final_results = all_results[:topk]
+        # Step 2: final global top-k ranking across all filtered results
+        if all_filtered_frames:
+            import pandas as pd
+
+            combined_df = pd.concat(all_filtered_frames, ignore_index=True)
+            ranked_df = lotus_semantic_search_service._apply_semantic_topk(  # type: ignore[attr-defined]
+                combined_df,
+                query=query,
+                topk=topk,
+            )
+            final_results = lotus_semantic_search_service._dataframe_to_results(  # type: ignore[attr-defined]
+                ranked_df
+            )
         else:
             final_results = []
 

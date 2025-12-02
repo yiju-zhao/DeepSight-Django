@@ -52,19 +52,39 @@ class LotusSemanticSearchService:
             config = settings.LOTUS_CONFIG
             model_name = config.get("default_model", "gpt-4o-mini")
             helper_model = config.get("helper_model")
+            provider = str(config.get("llm_provider", "openai")).lower()
 
-            # Configure primary LLM
-            self._lm = LM(model=model_name)
+            if provider == "xinference":
+                # Configure LM to talk to Xinference via OpenAI-compatible API
+                api_base = settings.XINFERENCE_API_BASE or "http://localhost:9997/v1"
+                api_key = settings.XINFERENCE_API_KEY or "not empty"
+                max_tokens = int(config.get("max_tokens", 1024))
 
-            # Configure Lotus with primary LLM
-            if helper_model:
-                helper_lm = LM(model=helper_model)
-                lotus.settings.configure(lm=self._lm, helper_lm=helper_lm)
-            else:
+                self._lm = LM(
+                    model=model_name,
+                    api_base=api_base,
+                    api_key=api_key,
+                    max_tokens=max_tokens,
+                )
                 lotus.settings.configure(lm=self._lm)
 
+                logger.info(
+                    "Lotus initialized with Xinference provider: "
+                    f"model={model_name}, api_base={api_base}"
+                )
+            else:
+                # Default OpenAI-compatible provider (e.g., OpenAI, Azure, etc.)
+                self._lm = LM(model=model_name)
+
+                if helper_model:
+                    helper_lm = LM(model=helper_model)
+                    lotus.settings.configure(lm=self._lm, helper_lm=helper_lm)
+                else:
+                    lotus.settings.configure(lm=self._lm)
+
+                logger.info(f"Lotus initialized with provider={provider}, model={model_name}")
+
             self._lotus_initialized = True
-            logger.info(f"Lotus initialized with model: {model_name}")
 
         except ImportError as e:
             logger.error(f"Failed to import Lotus: {e}")
@@ -119,8 +139,119 @@ class LotusSemanticSearchService:
 
         return pd.DataFrame(data)
 
+    def _apply_semantic_filter(self, df: pd.DataFrame, query: str) -> pd.DataFrame:
+        """
+        Apply Lotus semantic filter on a publications DataFrame.
+
+        Args:
+            df: DataFrame of publications
+            query: Natural language semantic query
+
+        Returns:
+            Filtered DataFrame
+        """
+        filter_instruction = f"{{semantic_text}} is relevant to the query: {query}"
+        logger.info(f"Applying semantic filter: {filter_instruction}")
+
+        filtered_df = df.sem_filter(filter_instruction)
+        logger.info(f"Filtered to {len(filtered_df)} publications")
+        return filtered_df
+
+    def _apply_semantic_topk(
+        self, filtered_df: pd.DataFrame, query: str, topk: int | None
+    ) -> pd.DataFrame:
+        """
+        Apply Lotus semantic top-k ranking on a filtered DataFrame.
+
+        Args:
+            filtered_df: DataFrame after semantic filtering
+            query: Natural language semantic query
+            topk: Number of top results to keep; if None, keep all
+
+        Returns:
+            Ranked DataFrame
+        """
+        if filtered_df.empty:
+            return filtered_df
+
+        if topk is None:
+            actual_topk = len(filtered_df)
+        else:
+            actual_topk = min(topk, len(filtered_df))
+
+        topk_instruction = f"Rank {{semantic_text}} by relevance to: {query}"
+        logger.info(f"Applying top-{actual_topk} ranking")
+
+        return filtered_df.sem_topk(topk_instruction, K=actual_topk)
+
+    def _dataframe_to_results(self, df: pd.DataFrame) -> list[dict[str, Any]]:
+        """
+        Convert a ranked publications DataFrame to result dictionaries.
+
+        Args:
+            df: Ranked DataFrame
+
+        Returns:
+            List of result dictionaries including relevance_score
+        """
+        results: list[dict[str, Any]] = []
+        total = len(df)
+
+        if total == 0:
+            return results
+
+        for position, row in enumerate(df.itertuples(index=False), start=1):
+            relevance_score = 1.0 - ((position - 1) / max(total, 1)) * 0.5
+
+            results.append(
+                {
+                    "id": getattr(row, "id"),
+                    "title": getattr(row, "title"),
+                    "abstract": getattr(row, "abstract"),
+                    "authors": getattr(row, "authors"),
+                    "keywords": getattr(row, "keywords"),
+                    "rating": float(getattr(row, "rating")),
+                    "venue": getattr(row, "venue"),
+                    "year": getattr(row, "year"),
+                    "relevance_score": round(relevance_score, 3),
+                }
+            )
+
+        return results
+
+    def filter_publications(
+        self, publication_ids: list[str], query: str
+    ) -> pd.DataFrame:
+        """
+        Perform semantic filtering on publications and return a DataFrame.
+
+        This performs only filtering (no top-k selection) and is intended
+        for batch/streaming workflows.
+        """
+        if not publication_ids:
+            return pd.DataFrame()
+
+        self._initialize_lotus()
+
+        publications = Publication.objects.select_related("instance__venue").filter(
+            id__in=publication_ids
+        )
+        publications_list = list(publications)
+
+        if not publications_list:
+            logger.warning(
+                "No publications found for provided IDs during filter_publications",
+            )
+            return pd.DataFrame()
+
+        df = self._publications_to_dataframe(publications_list)
+        if df.empty:
+            return df
+
+        return self._apply_semantic_filter(df, query)
+
     def semantic_filter(
-        self, publication_ids: list[str], query: str, topk: int = 10
+        self, publication_ids: list[str], query: str, topk: int | None = 50
     ) -> dict[str, Any]:
         """
         Perform semantic search on publications using Lotus.
@@ -216,48 +347,16 @@ class LotusSemanticSearchService:
                     },
                 }
 
-            # Apply Lotus semantic filter
-            # Format: "{semantic_text} is relevant to the query: {query}"
-            filter_instruction = f"{{semantic_text}} is relevant to the query: {query}"
-            logger.info(f"Applying semantic filter: {filter_instruction}")
+            # Apply semantic filter then ranking as separate steps
+            filtered_df = self._apply_semantic_filter(df, query)
 
-            filtered_df = df.sem_filter(filter_instruction)
-            logger.info(f"Filtered to {len(filtered_df)} publications")
-
-            # Apply top-k ranking if we have results
-            if not filtered_df.empty and len(filtered_df) > 0:
-                # Limit topk to actual result count
-                actual_topk = min(topk, len(filtered_df))
-
-                # Apply sem_topk for ranking
-                # Lotus sem_topk requires column reference in curly braces
-                topk_instruction = f"Rank {{semantic_text}} by relevance to: {query}"
-                logger.info(f"Applying top-{actual_topk} ranking")
-
-                ranked_df = filtered_df.sem_topk(topk_instruction, K=actual_topk)
+            if not filtered_df.empty:
+                ranked_df = self._apply_semantic_topk(filtered_df, query, topk)
             else:
                 ranked_df = filtered_df
 
             # Convert results to list of dictionaries
-            results = []
-            for idx, row in ranked_df.iterrows():
-                # Calculate simple relevance score based on ranking position
-                # Top result gets 1.0, subsequent results decay
-                relevance_score = 1.0 - (idx / max(len(ranked_df), 1)) * 0.5
-
-                results.append(
-                    {
-                        "id": row["id"],
-                        "title": row["title"],
-                        "abstract": row["abstract"],
-                        "authors": row["authors"],
-                        "keywords": row["keywords"],
-                        "rating": float(row["rating"]),
-                        "venue": row["venue"],
-                        "year": row["year"],
-                        "relevance_score": round(relevance_score, 3),
-                    }
-                )
+            results = self._dataframe_to_results(ranked_df)
 
             processing_time = int((time.time() - start_time) * 1000)
             logger.info(f"Semantic search completed in {processing_time}ms, found {len(results)} results")
