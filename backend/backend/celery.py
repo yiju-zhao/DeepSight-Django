@@ -90,6 +90,8 @@ app.conf.update(
         "notebooks.tasks.maintenance_tasks.cleanup_old_batch_jobs": {
             "queue": "maintenance"
         },
+        # Semantic search tasks
+        "semantic_search.stream_search": {"queue": "semantic_search"},
     },
     # Task settings
     task_serializer="json",

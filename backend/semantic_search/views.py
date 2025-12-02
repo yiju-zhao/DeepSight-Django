@@ -6,8 +6,11 @@ across various data types (publications, notebooks, etc.).
 """
 
 import logging
+import uuid
 
+from django.http import StreamingHttpResponse
 from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -16,6 +19,8 @@ from .serializers import (
     SemanticSearchResponseSerializer,
 )
 from .services import lotus_semantic_search_service
+from .tasks import semantic_search_streaming_task
+from .utils.redis_pubsub import subscribe_to_channel
 
 logger = logging.getLogger(__name__)
 
@@ -192,3 +197,118 @@ class SemanticSearchViewSet(viewsets.ViewSet):
             )
 
         return Response(response_serializer.data, status=response_status)
+
+    @action(detail=False, methods=["post"], url_path="stream")
+    def stream_search(self, request):
+        """
+        Initiate streaming semantic search.
+
+        POST /api/v1/semantic-search/publications/stream/
+
+        Returns job_id immediately. Client should connect to SSE endpoint
+        at GET /api/v1/semantic-search/publications/stream/{job_id}/
+
+        Request body:
+        {
+            "publication_ids": ["uuid-1", "uuid-2", ...],
+            "query": "papers about AI",
+            "topk": 20
+        }
+
+        Response:
+        {
+            "success": true,
+            "job_id": "unique-job-id",
+            "stream_url": "/api/v1/semantic-search/publications/stream/unique-job-id/"
+        }
+        """
+        # Validate request
+        request_serializer = SemanticSearchRequestSerializer(data=request.data)
+        if not request_serializer.is_valid():
+            return Response(
+                {
+                    "error": "VALIDATION_ERROR",
+                    "detail": "Invalid request parameters",
+                    "field_errors": request_serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        validated_data = request_serializer.validated_data
+        publication_ids = [str(uuid) for uuid in validated_data["publication_ids"]]
+        query = validated_data["query"]
+        topk = validated_data["topk"]
+
+        # Generate job ID
+        job_id = str(uuid.uuid4())
+
+        logger.info(
+            f"Starting streaming search job {job_id} for user {request.user.id}: "
+            f"{len(publication_ids)} publications"
+        )
+
+        # Launch Celery task asynchronously
+        semantic_search_streaming_task.delay(
+            publication_ids=publication_ids, query=query, topk=topk, job_id=job_id
+        )
+
+        # Return job ID immediately
+        return Response(
+            {
+                "success": True,
+                "job_id": job_id,
+                "stream_url": f"/api/v1/semantic-search/publications/stream/{job_id}/",
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    @action(detail=True, methods=["get"], url_path="")
+    def stream_progress(self, request, pk=None):
+        """
+        SSE endpoint for streaming search progress.
+
+        GET /api/v1/semantic-search/publications/stream/{job_id}/
+
+        Returns Server-Sent Events stream with progress updates.
+
+        Event types:
+        - started: Search initiated
+        - batch: Batch results available
+        - complete: Search completed with final results
+        - error: Search failed
+        """
+        job_id = pk
+
+        logger.info(f"Client connected to SSE stream for job {job_id}")
+
+        def event_stream():
+            """Generator for SSE events."""
+            try:
+                channel = f"semantic_search:{job_id}"
+
+                # Send initial connection message
+                yield f"data: {{\"type\": \"connected\", \"job_id\": \"{job_id}\"}}\n\n"
+
+                # Subscribe to Redis channel and stream messages
+                for message in subscribe_to_channel(channel, timeout=600):
+                    import json
+
+                    yield f"data: {json.dumps(message)}\n\n"
+
+                    # Close stream on completion or error
+                    if message.get("type") in ["complete", "error"]:
+                        break
+
+            except Exception as e:
+                logger.error(f"SSE stream error for job {job_id}: {e}", exc_info=True)
+                import json
+
+                error_msg = json.dumps({"type": "error", "detail": str(e)})
+                yield f"data: {error_msg}\n\n"
+
+        response = StreamingHttpResponse(
+            event_stream(), content_type="text/event-stream"
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"  # Disable nginx buffering
+        return response

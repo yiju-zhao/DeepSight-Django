@@ -1,11 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Header from '@/shared/components/layout/Header';
-import { Sparkles, Filter, Search, AlertCircle } from 'lucide-react';
+import { Sparkles, Filter, Search, AlertCircle, Loader2 } from 'lucide-react';
 import { useInstances } from '@/features/conference/hooks/useConference';
 import { Button } from '@/shared/components/ui/button';
-import { datasetService, SemanticSearchResult } from '../services/datasetService';
+import { datasetService, SemanticSearchResult, StreamProgressEvent } from '../services/datasetService';
 import { PublicationsTableEnhanced } from '@/features/conference/components/PublicationsTableEnhanced';
-import { PublicationTableItem } from '@/features/conference/types';
 import { conferenceService } from '@/features/conference/services/ConferenceService';
 
 export default function DatasetPage() {
@@ -17,6 +16,12 @@ export default function DatasetPage() {
     const [searchResults, setSearchResults] = useState<SemanticSearchResult[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [searchMetadata, setSearchMetadata] = useState<{ processing_time_ms: number; llm_model: string } | null>(null);
+
+    // Streaming state
+    const [streamProgress, setStreamProgress] = useState<number>(0);
+    const [streamStatus, setStreamStatus] = useState<string | null>(null);
+    const [batchCount, setBatchCount] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
+    const eventSourceRef = useRef<EventSource | null>(null);
 
     // Data hooks
     const { data: instances, isLoading: instancesLoading } = useInstances();
@@ -34,8 +39,18 @@ export default function DatasetPage() {
         return Array.from(uniqueYears).sort((a, b) => b - a);
     }, [instances]);
 
-    // Handle search
-    const handleSearch = async () => {
+    // Cleanup EventSource on unmount
+    useEffect(() => {
+        return () => {
+            if (eventSourceRef.current) {
+                eventSourceRef.current.close();
+                eventSourceRef.current = null;
+            }
+        };
+    }, []);
+
+    // Handle streaming search
+    const handleStreamingSearch = async () => {
         if (!searchQuery.trim()) return;
         if (!selectedVenue && !selectedYear) {
             setError('Please select at least one filter (Venue or Year) to narrow down the dataset.');
@@ -45,12 +60,12 @@ export default function DatasetPage() {
         setIsSearching(true);
         setError(null);
         setSearchResults([]);
-        setSearchMetadata(null);
+        setStreamProgress(0);
+        setStreamStatus('Initializing search...');
+        setBatchCount({ current: 0, total: 0 });
 
         try {
-            // 1. Fetch relevant publications based on filters
-            // We need to get IDs first. This might be heavy if the dataset is large.
-            // We'll fetch instances matching the filters first.
+            // 1. Fetch relevant publication IDs based on filters
             const matchingInstances = instances?.filter(i => {
                 const matchVenue = selectedVenue ? i.venue.name === selectedVenue : true;
                 const matchYear = selectedYear ? i.year === selectedYear : true;
@@ -63,31 +78,13 @@ export default function DatasetPage() {
                 return;
             }
 
-            // Fetch publications for these instances
-            // Note: This could be optimized if the backend supported bulk fetching or filtering by venue/year directly
-            // For now, we'll fetch for each instance (limited to avoid too many requests)
-            // LIMIT: Let's limit to top 5 instances if too many, or warn user?
-            // For this implementation, let's assume we fetch all publications for the matching instances.
-            // But we need to be careful about the 1000 ID limit of the semantic search API.
-
-            let allPublicationIds: string[] = [];
-
-            // We'll fetch publications for each instance. 
-            // To avoid N+1, ideally we'd have a better API. 
-            // Let's try to fetch with a reasonable page size for each instance and collect IDs.
-            // OR, maybe we can just fetch the first page of each? No, we need all IDs for semantic search to work effectively.
-
-            // WORKAROUND: For now, let's just use the first matching instance if multiple are found, 
-            // or ask the user to be more specific if the count is high.
-            // But the requirement says "filter year OR conference".
-
-            // Let's try to fetch publications for all matching instances.
+            // Fetch all publication IDs
             const promises = matchingInstances.map(instance =>
-                conferenceService.getPublications({ instance: instance.instance_id, page_size: 1000 })
+                conferenceService.getPublications({ instance: instance.instance_id, page_size: 10000 })
             );
 
             const responses = await Promise.all(promises);
-
+            let allPublicationIds: string[] = [];
             responses.forEach(res => {
                 if (res.results) {
                     allPublicationIds.push(...res.results.map(p => p.id));
@@ -100,30 +97,86 @@ export default function DatasetPage() {
                 return;
             }
 
-            if (allPublicationIds.length > 1000) {
-                // Truncate to 1000 for now as per API limit
-                allPublicationIds = allPublicationIds.slice(0, 1000);
-                // You might want to show a warning here
-            }
+            setStreamStatus(`Found ${allPublicationIds.length} publications. Starting semantic search...`);
 
-            // 2. Call Semantic Search API
-            const response = await datasetService.semanticSearch({
+            // 2. Start streaming search
+            const streamResponse = await datasetService.startStreamingSearch({
                 publication_ids: allPublicationIds,
                 query: searchQuery,
-                topk: 20
+                topk: 50, // Get top 50 results
             });
 
-            if (response.success) {
-                setSearchResults(response.results);
-                setSearchMetadata(response.metadata);
-            } else {
-                setError(response.error || 'Semantic search failed.');
+            if (!streamResponse.success) {
+                setError('Failed to start streaming search.');
+                setIsSearching(false);
+                return;
             }
+
+            // 3. Connect to SSE stream
+            const eventSource = datasetService.connectToStream(streamResponse.job_id);
+            eventSourceRef.current = eventSource;
+
+            eventSource.onmessage = (event) => {
+                try {
+                    const data: StreamProgressEvent = JSON.parse(event.data);
+
+                    switch (data.type) {
+                        case 'connected':
+                            setStreamStatus('Connected to stream');
+                            break;
+
+                        case 'started':
+                            setStreamStatus(`Processing ${data.total} publications...`);
+                            break;
+
+                        case 'batch':
+                            if (data.batch_num && data.total_batches) {
+                                setBatchCount({ current: data.batch_num, total: data.total_batches });
+                                setStreamStatus(`Processing batch ${data.batch_num}/${data.total_batches}...`);
+                            }
+                            if (data.progress) {
+                                setStreamProgress(data.progress * 100);
+                            }
+                            if (data.batch_results) {
+                                // Incrementally add results
+                                setSearchResults(prev => [...prev, ...data.batch_results!]);
+                            }
+                            break;
+
+                        case 'complete':
+                            setStreamStatus('Search completed!');
+                            setStreamProgress(100);
+                            if (data.final_results) {
+                                setSearchResults(data.final_results);
+                            }
+                            setIsSearching(false);
+                            eventSource.close();
+                            eventSourceRef.current = null;
+                            break;
+
+                        case 'error':
+                            setError(data.detail || 'Search failed');
+                            setIsSearching(false);
+                            eventSource.close();
+                            eventSourceRef.current = null;
+                            break;
+                    }
+                } catch (err) {
+                    console.error('Failed to parse SSE message:', err);
+                }
+            };
+
+            eventSource.onerror = (err) => {
+                console.error('SSE error:', err);
+                setError('Connection error. Please try again.');
+                setIsSearching(false);
+                eventSource.close();
+                eventSourceRef.current = null;
+            };
 
         } catch (err) {
             console.error('Search error:', err);
             setError('An error occurred during search.');
-        } finally {
             setIsSearching(false);
         }
     };
@@ -173,7 +226,7 @@ export default function DatasetPage() {
                                             className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
                                             value={selectedVenue}
                                             onChange={(e) => setSelectedVenue(e.target.value)}
-                                            disabled={instancesLoading}
+                                            disabled={instancesLoading || isSearching}
                                         >
                                             <option value="">All Conferences</option>
                                             {venues.map(venue => (
@@ -189,7 +242,7 @@ export default function DatasetPage() {
                                             className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all"
                                             value={selectedYear || ''}
                                             onChange={(e) => setSelectedYear(e.target.value ? Number(e.target.value) : undefined)}
-                                            disabled={instancesLoading}
+                                            disabled={instancesLoading || isSearching}
                                         >
                                             <option value="">All Years</option>
                                             {years.map(year => (
@@ -214,25 +267,44 @@ export default function DatasetPage() {
                                         className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-lg text-lg focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all shadow-sm"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                        onKeyDown={(e) => e.key === 'Enter' && !isSearching && handleStreamingSearch()}
+                                        disabled={isSearching}
                                     />
                                     <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
                                         <Button
-                                            onClick={handleSearch}
+                                            onClick={handleStreamingSearch}
                                             disabled={isSearching || !searchQuery.trim()}
-                                            className="bg-black text-white hover:bg-gray-800"
+                                            className="bg-black text-white hover:bg-gray-800 flex items-center gap-2"
                                         >
+                                            {isSearching && <Loader2 className="w-4 h-4 animate-spin" />}
                                             {isSearching ? 'Searching...' : 'Search'}
                                         </Button>
                                     </div>
                                 </div>
-                                {searchMetadata && (
-                                    <div className="mt-3 text-xs text-gray-400 flex justify-end gap-4">
-                                        <span>Model: {searchMetadata.llm_model}</span>
-                                        <span>Time: {searchMetadata.processing_time_ms}ms</span>
-                                    </div>
-                                )}
                             </div>
+
+                            {/* Progress Indicator */}
+                            {isSearching && (
+                                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                                    <div className="space-y-3">
+                                        <div className="flex items-center justify-between text-sm">
+                                            <span className="text-gray-700 font-medium">{streamStatus}</span>
+                                            <span className="text-gray-500">
+                                                {batchCount.total > 0 && `Batch ${batchCount.current}/${batchCount.total}`}
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                            <div
+                                                className="bg-purple-600 h-full transition-all duration-300 ease-out"
+                                                style={{ width: `${streamProgress}%` }}
+                                            />
+                                        </div>
+                                        <p className="text-xs text-gray-500">
+                                            {searchResults.length} results found so far...
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Error Message */}
                             {error && (
@@ -242,7 +314,7 @@ export default function DatasetPage() {
                                 </div>
                             )}
 
-                            {/* Results */}
+                            {/* Results Table */}
                             {searchResults.length > 0 && (
                                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
                                     <PublicationsTableEnhanced
