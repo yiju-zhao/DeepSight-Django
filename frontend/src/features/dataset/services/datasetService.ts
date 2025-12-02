@@ -47,6 +47,8 @@ export const datasetService = {
      */
     connectToStream: (jobId: string): EventSource => {
         const url = `/api/v1/semantic-search/publications/stream/${jobId}/`;
-        return new EventSource(url);
+        return new EventSource(url, {
+            withCredentials: true,
+        });
     },
 };
