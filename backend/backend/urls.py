@@ -40,8 +40,8 @@ urlpatterns = [
     path("api/v1/reports/", include("reports.urls")),
     # Conference data and analytics
     path("api/v1/conferences/", include("conferences.urls")),
-    # Dataset operations (semantic search, etc.)
-    path("api/v1/datasets/", include("datasets.urls")),
+    # Semantic search operations
+    path("api/v1/semantic-search/", include("semantic_search.urls")),
     # ========================================
     # API Documentation
     # ========================================
@@ -93,8 +93,8 @@ Conferences:
 - /api/v1/conferences/dashboard/dashboard/ -> Dashboard analytics
 - /api/v1/conferences/dashboard/overview/ -> Conferences overview
 
-Datasets:
-- /api/v1/datasets/semantic-search/publications/ -> Semantic search on publications using Lotus
+Semantic Search:
+- /api/v1/semantic-search/publications/ -> Semantic search on publications using Lotus
 
 Documentation:
 - /api/schema/ -> Raw OpenAPI schema (JSON)

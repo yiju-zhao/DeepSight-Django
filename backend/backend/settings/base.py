@@ -85,7 +85,7 @@ LOCAL_APPS = [
     "reports",
     "conferences",
     "podcast",
-    "datasets",
+    "semantic_search",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

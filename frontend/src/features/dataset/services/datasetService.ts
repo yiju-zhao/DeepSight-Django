@@ -27,6 +27,6 @@ export interface SemanticSearchResponse {
 
 export const datasetService = {
     semanticSearch: async (data: SemanticSearchRequest): Promise<SemanticSearchResponse> => {
-        return apiClient.post('/datasets/semantic-search/publications/', data);
+        return apiClient.post('/semantic-search/publications/', data);
     },
 };
