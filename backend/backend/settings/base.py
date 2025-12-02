@@ -305,10 +305,10 @@ XINFERENCE_API_KEY = os.getenv("XINFERENCE_API_KEY", "dummy")
 # ==============================================================================
 
 LOTUS_CONFIG = {
-    "default_model": os.getenv("LOTUS_LLM_MODEL", "gpt-4o-mini"),
+    "default_model": os.getenv("LOTUS_LLM_MODEL", "gpt-5-mini"),
     "helper_model": os.getenv("LOTUS_HELPER_MODEL"),  # Optional for cascade optimization
-    "timeout": int(os.getenv("LOTUS_TIMEOUT", "30")),
-    "max_publications": int(os.getenv("LOTUS_MAX_PUBLICATIONS", "1000")),
+    "timeout": int(os.getenv("LOTUS_TIMEOUT", "600")),
+    "max_publications": int(os.getenv("LOTUS_MAX_PUBLICATIONS", "10000")),
 }
 
 # ==============================================================================
