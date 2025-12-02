@@ -50,7 +50,7 @@ class LotusSemanticSearchService:
 
             # Get configuration from Django settings
             config = settings.LOTUS_CONFIG
-            model_name = config.get("default_model", "gpt-4o-mini")
+            model_name = config.get("default_model", "gpt-5-nano")
             helper_model = config.get("helper_model")
             provider = str(config.get("llm_provider", "openai")).lower()
 
