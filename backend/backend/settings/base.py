@@ -305,7 +305,7 @@ XINFERENCE_API_KEY = os.getenv("XINFERENCE_API_KEY", "dummy")
 # ==============================================================================
 
 LOTUS_CONFIG = {
-    "default_model": os.getenv("LOTUS_LLM_MODEL", "qwen3"),
+    "default_model": os.getenv("LOTUS_LLM_MODEL"),
     "helper_model": os.getenv("LOTUS_HELPER_MODEL"),  # Optional for cascade optimization
     "llm_provider": os.getenv("LOTUS_LLM_PROVIDER", "openai"), # [openai, xinference]
     "max_tokens": int(os.getenv("LOTUS_LLM_MAX_TOKENS", "40000")),
