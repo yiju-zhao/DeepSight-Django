@@ -114,7 +114,10 @@ class SemanticSearchStreamView(View):
     
     def options(self, request, job_id: str):
         response = HttpResponse()
-        response["Access-Control-Allow-Origin"] = "*"
+        # CORS headers for credentials mode
+        origin = request.META.get('HTTP_ORIGIN', 'http://localhost:5173')
+        response["Access-Control-Allow-Origin"] = origin
+        response["Access-Control-Allow-Credentials"] = "true"
         response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
         response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
         return response
@@ -131,7 +134,11 @@ class SemanticSearchStreamView(View):
             )
             response["Cache-Control"] = "no-cache"
             response["X-Accel-Buffering"] = "no"  # Disable nginx buffering
-            response["Access-Control-Allow-Origin"] = "*"
+            
+            # CORS headers for credentials mode
+            origin = request.META.get('HTTP_ORIGIN', 'http://localhost:5173')
+            response["Access-Control-Allow-Origin"] = origin
+            response["Access-Control-Allow-Credentials"] = "true"
             response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
             response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
             return response

@@ -134,6 +134,9 @@ export default function DatasetPage() {
 
                         case 'started':
                             setStreamStatus(`Processing ${data.total} publications...`);
+                            if (data.total_batches) {
+                                setBatchCount({ current: 0, total: data.total_batches });
+                            }
                             break;
 
                         case 'batch':

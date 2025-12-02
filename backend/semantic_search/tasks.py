@@ -48,12 +48,16 @@ def semantic_search_streaming_task(
     )
 
     try:
+        # Calculate total batches upfront
+        total_batches = (total_publications + batch_size - 1) // batch_size
+
         # Publish initial status
         _publish_progress(
             job_id,
             {
                 "type": "started",
                 "total": total_publications,
+                "total_batches": total_batches,
                 "processed": 0,
                 "progress": 0.0,
                 "query": query,
@@ -64,7 +68,6 @@ def semantic_search_streaming_task(
         for i in range(0, total_publications, batch_size):
             batch_ids = publication_ids[i : i + batch_size]
             batch_num = (i // batch_size) + 1
-            total_batches = (total_publications + batch_size - 1) // batch_size
 
             logger.info(
                 f"Job {job_id}: Processing batch {batch_num}/{total_batches} "

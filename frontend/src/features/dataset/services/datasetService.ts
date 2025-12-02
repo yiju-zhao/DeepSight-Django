@@ -21,10 +21,10 @@ export interface StreamProgressEvent {
     type: 'connected' | 'started' | 'batch' | 'complete' | 'error';
     job_id?: string;
     total?: number;
+    total_batches?: number;  // Available in both 'started' and 'batch' events
     processed?: number;
     progress?: number;
     batch_num?: number;
-    total_batches?: number;
     batch_results?: SemanticSearchResult[];
     batch_count?: number;
     total_results?: number;
