@@ -230,7 +230,8 @@ class LotusSemanticSearchService:
                 actual_topk = min(topk, len(filtered_df))
 
                 # Apply sem_topk for ranking
-                topk_instruction = f"Most relevant publications for: {query}"
+                # Lotus sem_topk requires column reference in curly braces
+                topk_instruction = f"Rank {{semantic_text}} by relevance to: {query}"
                 logger.info(f"Applying top-{actual_topk} ranking")
 
                 ranked_df = filtered_df.sem_topk(topk_instruction, K=actual_topk)
