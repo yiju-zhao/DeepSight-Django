@@ -5,12 +5,16 @@ Provides REST API endpoints for Lotus-powered semantic search
 across various data types (publications, notebooks, etc.).
 """
 
+import json
 import logging
 import uuid
 
-from django.http import StreamingHttpResponse
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, StreamingHttpResponse
+from django.utils.decorators import method_decorator
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -262,51 +266,84 @@ class SemanticSearchViewSet(viewsets.ViewSet):
             status=status.HTTP_202_ACCEPTED,
         )
 
-    @action(detail=False, methods=["get"], url_path=r"stream/(?P<job_id>[^/.]+)")
-    def stream_progress(self, request, job_id=None):
-        """
-        SSE endpoint for streaming search progress.
 
-        GET /api/v1/semantic-search/publications/stream/{job_id}/
-
-        Returns Server-Sent Events stream with progress updates.
-
-        Event types:
-        - started: Search initiated
-        - batch: Batch results available
-        - complete: Search completed with final results
-        - error: Search failed
-        """
-        logger.info(f"Client connected to SSE stream for job {job_id}")
-
-        def event_stream():
-            """Generator for SSE events."""
-            try:
-                channel = f"semantic_search:{job_id}"
-
-                # Send initial connection message
-                yield f"data: {{\"type\": \"connected\", \"job_id\": \"{job_id}\"}}\n\n"
-
-                # Subscribe to Redis channel and stream messages
-                for message in subscribe_to_channel(channel, timeout=600):
-                    import json
-
-                    yield f"data: {json.dumps(message)}\n\n"
-
-                    # Close stream on completion or error
-                    if message.get("type") in ["complete", "error"]:
-                        break
-
-            except Exception as e:
-                logger.error(f"SSE stream error for job {job_id}: {e}", exc_info=True)
-                import json
-
-                error_msg = json.dumps({"type": "error", "detail": str(e)})
-                yield f"data: {error_msg}\n\n"
-
-        response = StreamingHttpResponse(
-            event_stream(), content_type="text/event-stream"
-        )
-        response["Cache-Control"] = "no-cache"
-        response["X-Accel-Buffering"] = "no"  # Disable nginx buffering
+class SemanticSearchStreamView(View):
+    """
+    SSE endpoint for streaming semantic search progress.
+    
+    Subscribes to Redis Pub/Sub channel: semantic_search:{job_id}
+    Streams progress updates (started, batch, complete, error) to the client.
+    """
+    
+    MAX_DURATION_SECONDS = 600  # 10 minutes max connection time
+    
+    @method_decorator(csrf_exempt)
+    @method_decorator(login_required)
+    def dispatch(self, request, *args, **kwargs):
+        return super().dispatch(request, *args, **kwargs)
+    
+    def options(self, request, job_id: str):
+        response = HttpResponse()
+        response["Access-Control-Allow-Origin"] = "*"
+        response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+        response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
         return response
+    
+    def get(self, request, job_id: str):
+        """Stream search progress for a specific job."""
+        try:
+            logger.info(
+                f"Starting semantic search stream for job {job_id}, user {request.user.id}"
+            )
+            
+            response = StreamingHttpResponse(
+                self.generate_search_stream(job_id), content_type="text/event-stream"
+            )
+            response["Cache-Control"] = "no-cache"
+            response["X-Accel-Buffering"] = "no"  # Disable nginx buffering
+            response["Access-Control-Allow-Origin"] = "*"
+            response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
+            response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
+            return response
+            
+        except Exception as e:
+            logger.exception(f"Failed to create semantic search SSE stream: {e}")
+            return HttpResponse(
+                f"Error: {str(e)}", status=500, content_type="text/plain"
+            )
+    
+    def generate_search_stream(self, job_id: str):
+        """
+        Generate SSE stream by subscribing to Redis Pub/Sub channel.
+        
+        Yields:
+            SSE formatted messages with search progress updates
+        """
+        from .utils.redis_pubsub import subscribe_to_channel
+        
+        try:
+            channel = f"semantic_search:{job_id}"
+            
+            logger.info(f"Subscribed to Redis channel: {channel}")
+            
+            # Send initial connection message
+            yield f"data: {json.dumps({'type': 'connected', 'job_id': job_id})}\n\n"
+            
+            # Subscribe to Redis channel and forward messages
+            for message in subscribe_to_channel(channel, timeout=self.MAX_DURATION_SECONDS):
+                yield f"data: {json.dumps(message)}\n\n"
+                
+                # Close stream on completion or error
+                if message.get("type") in ["complete", "error"]:
+                    logger.info(f"Search job {job_id} finished: {message.get('type')}")
+                    break
+                    
+        except GeneratorExit:
+            logger.info(f"Client disconnected from search stream for job {job_id}")
+            
+        except Exception as e:
+            logger.exception(f"Error in search stream for job {job_id}: {e}")
+            try:
+                yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+            except:
+                pass
