@@ -26,6 +26,7 @@ dspy_ai==2.4.9
 crewai
 crewai-tools
 litellm
+lotus-ai  # Semantic operators for DataFrame-based operations
 xinference
 langid
 jieba

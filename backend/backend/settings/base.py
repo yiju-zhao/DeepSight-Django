@@ -85,6 +85,7 @@ LOCAL_APPS = [
     "reports",
     "conferences",
     "podcast",
+    "datasets",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -298,6 +299,17 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 # Xinference Configuration
 XINFERENCE_API_BASE = os.getenv("XINFERENCE_API_BASE")
 XINFERENCE_API_KEY = os.getenv("XINFERENCE_API_KEY", "dummy")
+
+# ==============================================================================
+# LOTUS SEMANTIC SEARCH CONFIGURATION
+# ==============================================================================
+
+LOTUS_CONFIG = {
+    "default_model": os.getenv("LOTUS_LLM_MODEL", "gpt-4o-mini"),
+    "helper_model": os.getenv("LOTUS_HELPER_MODEL"),  # Optional for cascade optimization
+    "timeout": int(os.getenv("LOTUS_TIMEOUT", "30")),
+    "max_publications": int(os.getenv("LOTUS_MAX_PUBLICATIONS", "1000")),
+}
 
 # ==============================================================================
 # SEARCH API CONFIGURATION

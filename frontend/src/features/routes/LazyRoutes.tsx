@@ -7,7 +7,7 @@ export const HomePage = createLazyRoute(
 );
 
 export const DatasetPage = createLazyRoute(
-  () => import("@/shared/components/common/DatasetPage"),
+  () => import("@/features/dataset/pages/DatasetPage"),
   'Dataset'
 );
 
