@@ -8,7 +8,6 @@ across various data types (publications, notebooks, etc.).
 import logging
 
 from rest_framework import status, viewsets
-from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
@@ -31,12 +30,11 @@ class SemanticSearchViewSet(viewsets.ViewSet):
 
     permission_classes = [IsAuthenticated]
 
-    @action(detail=False, methods=["post"], url_path="publications")
-    def semantic_search_publications(self, request):
+    def create(self, request):
         """
         Perform semantic search on conference publications.
 
-        POST /api/v1/semantic-search/semantic-search/publications/
+        POST /api/v1/semantic-search/publications/
 
         Request body:
         {
