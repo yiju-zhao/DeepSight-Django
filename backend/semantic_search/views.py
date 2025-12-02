@@ -262,8 +262,8 @@ class SemanticSearchViewSet(viewsets.ViewSet):
             status=status.HTTP_202_ACCEPTED,
         )
 
-    @action(detail=True, methods=["get"], url_path="")
-    def stream_progress(self, request, pk=None):
+    @action(detail=False, methods=["get"], url_path=r"stream/(?P<job_id>[^/.]+)")
+    def stream_progress(self, request, job_id=None):
         """
         SSE endpoint for streaming search progress.
 
@@ -277,8 +277,6 @@ class SemanticSearchViewSet(viewsets.ViewSet):
         - complete: Search completed with final results
         - error: Search failed
         """
-        job_id = pk
-
         logger.info(f"Client connected to SSE stream for job {job_id}")
 
         def event_stream():
