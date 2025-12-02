@@ -7,6 +7,13 @@ import { Report as QueryReport } from "@/features/report/hooks/useReports";
 import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
 import Header from '@/shared/components/layout/Header';
 import { FileText, Sparkles } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 
 const ReportPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -202,15 +209,20 @@ const ReportPage: React.FC = () => {
 
               <div className="flex items-center gap-4">
                 {/* Sort Order */}
-                <select
+                {/* Sort Order */}
+                <Select
                   value={sortOrder}
-                  onChange={(e) => handleSortChange(e.target.value as 'recent' | 'oldest' | 'title')}
-                  className="px-4 py-2.5 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black/20 transition-all text-sm font-medium text-gray-700"
+                  onValueChange={(value) => handleSortChange(value as 'recent' | 'oldest' | 'title')}
                 >
-                  <option value="recent">Most Recent</option>
-                  <option value="oldest">Oldest First</option>
-                  <option value="title">Title A-Z</option>
-                </select>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Sort order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent">Most Recent</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="title">Title A-Z</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 {/* View Mode */}
                 <div className="flex bg-gray-100 p-1 rounded-lg">
