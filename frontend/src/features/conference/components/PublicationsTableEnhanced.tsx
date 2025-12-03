@@ -119,6 +119,16 @@ const PublicationRow = memo(({
   const countriesDisplay = useMemo(() => formatTruncatedList(countries, 3), [countries]);
   const affiliationsDisplay = useMemo(() => formatTruncatedList(affiliations, 2), [affiliations]);
 
+  // Calculate visible columns count for colSpan
+  const visibleColumnsCount = useMemo(() => {
+    let count = 4; // Checkbox, Favorite, Title, Authors
+    if (columnVisibility.affiliation) count++;
+    if (columnVisibility.topic) count++;
+    if (columnVisibility.rating) count++;
+    if (columnVisibility.links) count++;
+    return count;
+  }, [columnVisibility]);
+
   return (
     <>
       <tr className="group border-b border-[#E3E3E3] hover:bg-gray-50/50 transition-colors">
@@ -282,7 +292,7 @@ const PublicationRow = memo(({
       {/* Expanded Row - Abstract */}
       {isExpanded && (
         <tr className="bg-gray-50/50 border-b border-[#E3E3E3]">
-          <td colSpan={100} className="py-0">
+          <td colSpan={visibleColumnsCount} className="py-0">
             <div
               className="animate-in slide-in-from-top-2 duration-200 overflow-hidden"
               style={{
@@ -653,7 +663,7 @@ const PublicationsTableComponent = ({
                       <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
                     </button>
                   </th>
-                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm w-[40%]">Title</th>
+                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Title</th>
                   <th className="text-left py-3 px-4 font-semibold text-foreground text-sm w-[20%]">Authors</th>
                   {columnVisibility.affiliation && (
                     <th className="text-left py-3 px-4 font-semibold text-foreground text-sm w-[15%]">
