@@ -85,27 +85,34 @@ def semantic_search_streaming_task(
                 },
             )
 
-            # Step 1: semantic filter on this batch (no top-k yet)
-            batch_filtered_df = lotus_semantic_search_service.filter_publications(
-                publication_ids=batch_ids,
-                query=query,
-            )
-
             batch_result_ids = []
-            if not batch_filtered_df.empty:
-                all_filtered_frames.append(batch_filtered_df)
+            try:
+                # Step 1: semantic filter on this batch (no top-k yet)
+                batch_filtered_df = lotus_semantic_search_service.filter_publications(
+                    publication_ids=batch_ids,
+                    query=query,
+                )
 
-                # Extract only publication IDs for streaming
-                # Frontend will fetch full details using bulk endpoint
-                batch_result_ids = [
-                    {
-                        "id": str(row["id"]),
-                        "relevance_score": float(row.get("relevance_score", 0))
-                    }
-                    for _, row in batch_filtered_df.iterrows()
-                ]
+                if not batch_filtered_df.empty:
+                    all_filtered_frames.append(batch_filtered_df)
 
-            # Always publish progress for every batch (even if no results)
+                    # Extract only publication IDs for streaming
+                    # Frontend will fetch full details using bulk endpoint
+                    batch_result_ids = [
+                        {
+                            "id": str(row["id"]),
+                            "relevance_score": float(row.get("relevance_score", 0))
+                        }
+                        for _, row in batch_filtered_df.iterrows()
+                    ]
+            except Exception as batch_error:
+                logger.error(
+                    f"Job {job_id}: Batch {batch_num} failed with error: {str(batch_error)}",
+                    exc_info=True
+                )
+                # Continue with next batch instead of failing entire job
+
+            # Always publish progress for every batch (even if failed)
             progress = (i + len(batch_ids)) / total_publications
             _publish_progress(
                 job_id,
