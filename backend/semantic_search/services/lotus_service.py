@@ -251,7 +251,7 @@ class LotusSemanticSearchService:
         return self._apply_semantic_filter(df, query)
 
     def semantic_filter(
-        self, publication_ids: list[str], query: str, topk: int | None = 50
+        self, publication_ids: list[str], query: str, topk: int | None = 20
     ) -> dict[str, Any]:
         """
         Perform semantic search on publications using Lotus.
