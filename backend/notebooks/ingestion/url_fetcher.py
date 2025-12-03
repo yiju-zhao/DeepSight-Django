@@ -283,39 +283,25 @@ class UrlFetcher:
         if is_bilibili:
             return await self._fetch_bilibili_media(url)
 
-        # Check media availability for other platforms
-        media_info = await self._check_media_availability(url)
-
-        if not media_info.get("has_media"):
-            error_message = media_info.get(
-                "error", "No downloadable media found at the URL."
-            )
-            raise SourceError(f"Media not available: {error_message}")
-
-        # Download media
+        # For non-Bilibili: skip pre-check, download directly
         try:
-            base_title = media_info.get("title", "media_download")
-            base_filename = clean_title(base_title)
+            # Generate filename from URL
+            url_path = parsed_url.path.split("/")[-1] or "media_download"
+            base_filename = clean_title(url_path)
 
             # Limit filename length
             max_base_length = 100
             if len(base_filename) > max_base_length:
                 base_filename = base_filename[:max_base_length].rstrip("_")
 
-            # Create temp directory (Note: cleanup is handled by orchestrator via temp_dirs list)
+            # Create temp directory
             temp_dir = tempfile.mkdtemp(prefix="deepsight_media_")
 
-            # Download based on media type
-            if media_info.get("has_video"):
-                downloaded_path = await self._download_video(
-                    url, temp_dir, base_filename
-                )
-            elif media_info.get("has_audio"):
-                downloaded_path = await self._download_audio(
-                    url, temp_dir, base_filename
-                )
-            else:
-                raise SourceError("Media has neither video nor audio streams")
+            # Try video first, then audio (yt-dlp will fail fast if invalid)
+            downloaded_path = await self._download_video(url, temp_dir, base_filename)
+
+            if not downloaded_path:
+                downloaded_path = await self._download_audio(url, temp_dir, base_filename)
 
             if not downloaded_path:
                 raise SourceError("Failed to download media file")
@@ -327,10 +313,14 @@ class UrlFetcher:
                 fetch_type="media",
                 local_path=downloaded_path,
                 filename=actual_filename,
-                metadata=media_info,
+                metadata={},  # Minimal metadata since we skipped probe
             )
 
+        except SourceError:
+            # Re-raise our own errors
+            raise
         except Exception as e:
+            # Let yt-dlp errors propagate with context
             self.logger.error(f"Media fetch error: {e}")
             raise SourceError(f"Failed to fetch media: {e}") from e
 
@@ -610,50 +600,6 @@ class UrlFetcher:
         import asyncio
 
         return await asyncio.to_thread(self._validate_document_format_sync, file_path)
-
-    async def _check_media_availability(self, url: str) -> dict[str, Any]:
-        """Check if URL has downloadable media using yt-dlp."""
-        try:
-            import yt_dlp
-
-            probe_opts = {
-                "quiet": True,
-                "no_warnings": True,
-                "nocheckcertificate": True,
-                "nocookies": True,
-            }
-
-            with yt_dlp.YoutubeDL(probe_opts) as ydl:
-                info = ydl.extract_info(url, download=False)
-
-            if not info:
-                return {
-                    "has_media": False,
-                    "error": "Could not retrieve media information",
-                }
-
-            # Check formats
-            formats = info.get("formats", [])
-            has_video = any(f.get("vcodec") and f["vcodec"] != "none" for f in formats)
-            has_audio = any(f.get("acodec") and f["acodec"] != "none" for f in formats)
-
-            return {
-                "has_media": has_video or has_audio,
-                "has_video": has_video,
-                "has_audio": has_audio,
-                "title": info.get("title", "media_download"),
-                "duration": info.get("duration"),
-                "uploader": info.get("uploader"),
-                "description": info.get("description", ""),
-                "view_count": info.get("view_count"),
-                "upload_date": info.get("upload_date"),
-            }
-
-        except ImportError:
-            return {"has_media": False, "error": "yt-dlp not available"}
-        except Exception as e:
-            self.logger.error(f"Media check error: {e}")
-            return {"has_media": False, "error": str(e)}
 
     async def _download_video(
         self, url: str, temp_dir: str, base_filename: str

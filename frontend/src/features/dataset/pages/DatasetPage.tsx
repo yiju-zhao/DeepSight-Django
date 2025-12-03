@@ -86,30 +86,35 @@ export default function DatasetPage() {
 
             setIsFetchingPublications(true);
             try {
-                const newPublications = await datasetService.fetchPublicationsByIds(missingIds);
+                const CHUNK_SIZE = 100;
 
-                setPublications(prev => {
-                    const byId = new Map<string, PublicationTableItem>();
-                    prev.forEach(pub => {
-                        byId.set(pub.id, pub);
+                for (let i = 0; i < missingIds.length; i += CHUNK_SIZE) {
+                    const chunk = missingIds.slice(i, i + CHUNK_SIZE);
+                    const newPublications = await datasetService.fetchPublicationsByIds(chunk);
+
+                    setPublications(prev => {
+                        const byId = new Map<string, PublicationTableItem>();
+                        prev.forEach(pub => {
+                            byId.set(pub.id, pub);
+                        });
+
+                        newPublications.forEach(pub => {
+                            byId.set(pub.id, pub);
+                            fetchedPublicationIdsRef.current.add(pub.id);
+                        });
+
+                        // Preserve ranking order from publicationIds
+                        const ordered: PublicationTableItem[] = [];
+                        publicationIds.forEach(id => {
+                            const pub = byId.get(id);
+                            if (pub) {
+                                ordered.push(pub);
+                            }
+                        });
+
+                        return ordered;
                     });
-
-                    newPublications.forEach(pub => {
-                        byId.set(pub.id, pub);
-                        fetchedPublicationIdsRef.current.add(pub.id);
-                    });
-
-                    // Preserve ranking order from publicationIds
-                    const ordered: PublicationTableItem[] = [];
-                    publicationIds.forEach(id => {
-                        const pub = byId.get(id);
-                        if (pub) {
-                            ordered.push(pub);
-                        }
-                    });
-
-                    return ordered;
-                });
+                }
             } catch (e) {
                 console.error('Failed to fetch publications by IDs:', e);
             } finally {
