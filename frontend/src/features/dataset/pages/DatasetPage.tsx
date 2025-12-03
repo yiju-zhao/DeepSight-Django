@@ -171,10 +171,13 @@ export default function DatasetPage() {
                                 setStreamProgress(data.progress * 100);
                             }
                             // Accumulate publication IDs (React Query will fetch full data)
-                            if (data.batch_result_ids) {
+                            if (data.batch_result_ids && data.batch_result_ids.length > 0) {
                                 setPublicationIds(prev => {
                                     const newIds = data.batch_result_ids!.map(r => r.id);
-                                    return [...prev, ...newIds];
+                                    // Deduplicate: only add IDs that don't already exist
+                                    const existingIds = new Set(prev);
+                                    const uniqueNewIds = newIds.filter(id => !existingIds.has(id));
+                                    return [...prev, ...uniqueNewIds];
                                 });
                             }
                             break;
