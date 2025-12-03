@@ -123,20 +123,6 @@ const PublicationRow = memo(({
   return (
     <>
       <tr className="group border-b border-[#E3E3E3] hover:bg-gray-50/50 transition-colors">
-        {/* Expand Icon */}
-        <td className="py-4 px-4 w-12">
-          <button
-            onClick={onToggleExpand}
-            className="p-1.5 rounded-md hover:bg-gray-100 transition-all duration-200"
-            title={isExpanded ? 'Collapse' : 'Expand'}
-          >
-            <ChevronDown
-              className={`h-4 w-4 text-gray-600 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''
-                }`}
-            />
-          </button>
-        </td>
-
         {/* Selection Checkbox */}
         <td className="py-4 px-4 w-12">
           <Checkbox
@@ -164,20 +150,26 @@ const PublicationRow = memo(({
           </button>
         </td>
 
-        {/* Title - Always visible */}
-        <td
-          className="py-4 px-4 cursor-pointer"
-          onClick={onToggleExpand}
-        >
-          <div className="space-y-1.5">
-            <div className="font-medium text-foreground text-sm hover:text-blue-600 transition-colors">
-              {publication.title}
-            </div>
-            {columnVisibility.keywords && keywords.length > 0 && (
-              <div className="text-xs text-muted-foreground line-clamp-2">
-                {keywordsDisplay.displayText}
+        {/* Title - Always visible with chevron */}
+        <td className="py-4 px-4">
+          <div
+            className="flex items-start gap-2 cursor-pointer group/title"
+            onClick={onToggleExpand}
+          >
+            <ChevronDown
+              className={`h-4 w-4 text-gray-600 transition-transform duration-200 flex-shrink-0 mt-0.5 ${isExpanded ? 'rotate-180' : ''
+                }`}
+            />
+            <div className="space-y-1.5 flex-1">
+              <div className="font-medium text-foreground text-sm group-hover/title:text-blue-600 transition-colors">
+                {publication.title}
               </div>
-            )}
+              {columnVisibility.keywords && keywords.length > 0 && (
+                <div className="text-xs text-muted-foreground line-clamp-2">
+                  {keywordsDisplay.displayText}
+                </div>
+              )}
+            </div>
           </div>
         </td>
 
@@ -640,12 +632,9 @@ const PublicationsTableComponent = ({
 
           {/* Table */}
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full">
+            <table className="w-full" style={{ tableLayout: 'fixed' }}>
               <thead className="bg-muted/50">
                 <tr className="border-b border-border">
-                  <th className="py-3 px-4 w-12">
-                    {/* Expand/Collapse Column Header */}
-                  </th>
                   <th className="py-3 px-4 w-12">
                     <Checkbox
                       checked={allSelected || someSelected}
