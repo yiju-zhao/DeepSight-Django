@@ -45,13 +45,17 @@ const Header = () => {
         { name: 'AI Podcast', path: '/podcast' },
     ];
 
+    const isDashboardActive = ['/dashboard', '/conference', '/report', '/podcast'].some((path) =>
+        location.pathname.startsWith(path)
+    );
+
     return (
         <header
             className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/90 backdrop-blur-md shadow-huawei-sm' : 'bg-transparent'
                 }`}
             style={{ height: 'var(--header-height)' }}
         >
-            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
+            <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between relative">
                 {/* Logo */}
                 <Link to="/" className="flex items-center space-x-2 group">
                     <div className="w-8 h-8 bg-black text-white flex items-center justify-center rounded-lg font-bold text-lg group-hover:bg-accent-red transition-colors duration-300">
@@ -61,13 +65,13 @@ const Header = () => {
                 </Link>
 
                 {/* Desktop Navigation */}
-                <nav className="hidden md:flex items-center space-x-8">
+                <nav className="hidden md:flex items-center space-x-4 absolute left-1/2 -translate-x-1/2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-1.5 shadow-huawei-subtle border border-gray-100">
                     {/* Dashboard Dropdown */}
                     <div className="relative dashboard-dropdown-container">
                         <button
-                            className={`flex items-center space-x-1 text-sm font-medium transition-colors duration-300 hover:text-accent-red ${location.pathname.startsWith('/dashboard') || location.pathname.startsWith('/conference')
-                                ? 'text-accent-red'
-                                : 'text-foreground/80'
+                            className={`flex items-center space-x-1 px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-300 ${isDashboardActive
+                                ? 'bg-black text-white shadow-huawei-md'
+                                : 'text-foreground/80 hover:bg-gray-50 hover:text-accent-red'
                                 }`}
                             onClick={() => setIsDashboardDropdownOpen(!isDashboardDropdownOpen)}
                         >
@@ -77,15 +81,17 @@ const Header = () => {
 
                         {/* Dropdown Menu */}
                         <div
-                            className={`absolute top-full left-0 mt-2 w-48 bg-white rounded-lg shadow-huawei-md border border-gray-100 overflow-hidden transition-all duration-200 origin-top-left ${isDashboardDropdownOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
+                            className={`absolute top-full left-1/2 -translate-x-1/2 mt-3 min-w-[220px] bg-white rounded-2xl shadow-huawei-md border border-gray-100 overflow-hidden transition-all duration-200 origin-top ${isDashboardDropdownOpen ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 -translate-y-2 pointer-events-none'
                                 }`}
                         >
-                            <div className="py-1">
+                            <div className="py-2">
                                 {dashboardSubLinks.map((link) => (
                                     <Link
                                         key={link.path}
                                         to={link.path}
-                                        className={`block px-4 py-2 text-sm hover:bg-gray-50 hover:text-accent-red transition-colors ${location.pathname === link.path ? 'text-accent-red font-medium' : 'text-foreground/80'
+                                        className={`block px-4 py-2.5 text-sm transition-colors ${location.pathname === link.path
+                                            ? 'bg-gray-50 text-accent-red font-medium'
+                                            : 'text-foreground/80 hover:bg-gray-50 hover:text-accent-red'
                                             }`}
                                         onClick={() => setIsDashboardDropdownOpen(false)}
                                     >
@@ -100,7 +106,9 @@ const Header = () => {
                         <Link
                             key={link.path}
                             to={link.path}
-                            className={`text-sm font-medium transition-colors duration-300 hover:text-accent-red ${location.pathname === link.path ? 'text-accent-red' : 'text-foreground/80'
+                            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors duration-300 ${location.pathname === link.path
+                                ? 'bg-black text-white shadow-huawei-md'
+                                : 'text-foreground/80 hover:bg-gray-50 hover:text-accent-red'
                                 }`}
                         >
                             {link.name}
