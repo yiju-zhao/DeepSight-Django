@@ -92,6 +92,31 @@ export default function DatasetPage() {
         setBatchCount({ current: 0, total: 0 });
 
         try {
+            // Helper: fetch all publications for a single instance across all pages
+            const fetchAllPublicationIdsForInstance = async (instanceId: number): Promise<string[]> => {
+                let page = 1;
+                let hasNext = true;
+                const ids: string[] = [];
+
+                while (hasNext) {
+                    const res = await conferenceService.getPublications({
+                        instance: instanceId,
+                        page,
+                        page_size: 1000,
+                    });
+
+                    if (res.results && res.results.length > 0) {
+                        ids.push(...res.results.map(p => p.id));
+                    }
+
+                    // DRF-style pagination: if next is null/undefined, we've reached the last page
+                    hasNext = !!res.next;
+                    page += 1;
+                }
+
+                return ids;
+            };
+
             // 1. Fetch relevant publication IDs based on filters
             const matchingInstances = instances?.filter(i => {
                 const matchVenue = selectedVenue ? i.venue.name === selectedVenue : true;
@@ -105,18 +130,11 @@ export default function DatasetPage() {
                 return;
             }
 
-            // Fetch all publication IDs
-            const promises = matchingInstances.map(instance =>
-                conferenceService.getPublications({ instance: instance.instance_id, page_size: 10000 })
+            // Fetch all publication IDs across all pages for each matching instance
+            const idArrays = await Promise.all(
+                matchingInstances.map(instance => fetchAllPublicationIdsForInstance(instance.instance_id))
             );
-
-            const responses = await Promise.all(promises);
-            let allPublicationIds: string[] = [];
-            responses.forEach(res => {
-                if (res.results) {
-                    allPublicationIds.push(...res.results.map(p => p.id));
-                }
-            });
+            const allPublicationIds = idArrays.flat();
 
             if (allPublicationIds.length === 0) {
                 setError('No publications found for the selected filters.');
