@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Header from '@/shared/components/layout/Header';
-import { Sparkles, Filter, Search, AlertCircle, Loader2, X } from 'lucide-react';
+import { Sparkles, Search, AlertCircle, Loader2, X } from 'lucide-react';
 import { useInstances } from '@/features/conference/hooks/useConference';
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -11,14 +11,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/shared/components/ui/select';
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from '@/shared/components/ui/popover';
+
 import { datasetService, StreamProgressEvent, PublicationIdWithScore } from '../services/datasetService';
 import { PublicationsTableEnhanced } from '@/features/conference/components/PublicationsTableEnhanced';
 import { conferenceService } from '@/features/conference/services/ConferenceService';
+import { SearchFilters } from '../components/SearchFilters';
 
 export default function DatasetPage() {
     // UI State
@@ -245,90 +242,7 @@ export default function DatasetPage() {
                 {!hasSearched ? (
                     /* ===== INITIAL STATE: Google-style Centered Search ===== */
                     <div className="relative min-h-[calc(100vh-var(--header-height))] flex flex-col">
-                        {/* Filters Dropdown - Top Right */}
-                        <div className="absolute top-8 right-8 z-10">
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="gap-2">
-                                        <Filter className="w-4 h-4" />
-                                        Filters
-                                        {hasActiveFilters && (
-                                            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-medium">
-                                                Active
-                                            </span>
-                                        )}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80" align="end">
-                                    <div className="space-y-4">
-                                        <div className="flex items-center justify-between">
-                                            <h3 className="font-semibold text-sm">Search Filters</h3>
-                                            {hasActiveFilters && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => {
-                                                        setSelectedVenue('');
-                                                        setSelectedYear(undefined);
-                                                    }}
-                                                    className="h-auto p-1 text-xs"
-                                                >
-                                                    Clear all
-                                                </Button>
-                                            )}
-                                        </div>
 
-                                        {/* Conference Filter */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                                Conference
-                                            </label>
-                                            <Select
-                                                value={selectedVenue || "ALL"}
-                                                onValueChange={(value) => setSelectedVenue(value === "ALL" ? "" : value)}
-                                                disabled={instancesLoading}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="All Conferences" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="ALL">All Conferences</SelectItem>
-                                                    {venues.map(venue => (
-                                                        <SelectItem key={venue} value={venue}>{venue}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Year Filter */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                                Year
-                                            </label>
-                                            <Select
-                                                value={selectedYear ? selectedYear.toString() : "ALL"}
-                                                onValueChange={(value) => setSelectedYear(value === "ALL" ? undefined : Number(value))}
-                                                disabled={instancesLoading}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="All Years" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="ALL">All Years</SelectItem>
-                                                    {years.map(year => (
-                                                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <p className="text-xs text-gray-500">
-                                            Select at least one filter to search
-                                        </p>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
 
                         {/* Centered Search */}
                         <div className="flex-1 flex flex-col items-center justify-center px-4 -mt-20">
@@ -344,6 +258,18 @@ export default function DatasetPage() {
 
                             {/* Large Centered Search Bar */}
                             <div className="w-full max-w-3xl">
+                                {/* Filters above search bar */}
+                                <div className="mb-4 flex justify-start">
+                                    <SearchFilters
+                                        venues={venues}
+                                        years={years}
+                                        selectedVenue={selectedVenue}
+                                        setSelectedVenue={setSelectedVenue}
+                                        selectedYear={selectedYear}
+                                        setSelectedYear={setSelectedYear}
+                                        isLoading={instancesLoading}
+                                    />
+                                </div>
                                 <div className="relative bg-white rounded-full shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                                     <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 w-6 h-6" />
                                     <input
@@ -368,12 +294,7 @@ export default function DatasetPage() {
                                     </Button>
                                 </div>
 
-                                {/* Filter hint */}
-                                {!hasActiveFilters && (
-                                    <p className="text-center text-sm text-gray-500 mt-4">
-                                        💡 Don't forget to set filters using the button in the top-right corner
-                                    </p>
-                                )}
+
 
                                 {error && (
                                     <div className="mt-4 bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-center gap-2">
@@ -387,77 +308,22 @@ export default function DatasetPage() {
                 ) : (
                     /* ===== AFTER SEARCH: Compact Layout with Results ===== */
                     <div className="relative">
-                        {/* Filters Dropdown - Top Right */}
-                        <div className="absolute top-4 right-8 z-10">
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="gap-2">
-                                        <Filter className="w-4 h-4" />
-                                        Filters
-                                        {hasActiveFilters && (
-                                            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-medium">
-                                                Active
-                                            </span>
-                                        )}
-                                    </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80" align="end">
-                                    <div className="space-y-4">
-                                        <h3 className="font-semibold text-sm">Search Filters</h3>
 
-                                        {/* Conference Filter */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                                Conference
-                                            </label>
-                                            <Select
-                                                value={selectedVenue || "ALL"}
-                                                onValueChange={(value) => setSelectedVenue(value === "ALL" ? "" : value)}
-                                                disabled={instancesLoading || isSearching}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="All Conferences" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="ALL">All Conferences</SelectItem>
-                                                    {venues.map(venue => (
-                                                        <SelectItem key={venue} value={venue}>{venue}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        {/* Year Filter */}
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                                Year
-                                            </label>
-                                            <Select
-                                                value={selectedYear ? selectedYear.toString() : "ALL"}
-                                                onValueChange={(value) => setSelectedYear(value === "ALL" ? undefined : Number(value))}
-                                                disabled={instancesLoading || isSearching}
-                                            >
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="All Years" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="ALL">All Years</SelectItem>
-                                                    {years.map(year => (
-                                                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-
-                                        <p className="text-xs text-gray-500">
-                                            Change filters and search again to update results
-                                        </p>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                        </div>
 
                         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                            {/* Filters above search bar */}
+                            <div className="mb-4 flex justify-start">
+                                <SearchFilters
+                                    venues={venues}
+                                    years={years}
+                                    selectedVenue={selectedVenue}
+                                    setSelectedVenue={setSelectedVenue}
+                                    selectedYear={selectedYear}
+                                    setSelectedYear={setSelectedYear}
+                                    isLoading={instancesLoading || isSearching}
+                                />
+                            </div>
+
                             {/* Compact Search Bar */}
                             <div className="flex items-center gap-4 mb-6">
                                 <div className="flex-1 relative bg-white rounded-lg border border-gray-200 shadow-sm">
