@@ -93,26 +93,17 @@ export default function DatasetPage() {
                     const newPublications = await datasetService.fetchPublicationsByIds(chunk);
 
                     setPublications(prev => {
-                        const byId = new Map<string, PublicationTableItem>();
-                        prev.forEach(pub => {
-                            byId.set(pub.id, pub);
-                        });
-
+                        // Only append truly new items, keep existing objects
+                        const existingIds = new Set(prev.map(pub => pub.id));
+                        const toAppend: PublicationTableItem[] = [];
                         newPublications.forEach(pub => {
-                            byId.set(pub.id, pub);
-                            fetchedPublicationIdsRef.current.add(pub.id);
-                        });
-
-                        // Preserve ranking order from publicationIds
-                        const ordered: PublicationTableItem[] = [];
-                        publicationIds.forEach(id => {
-                            const pub = byId.get(id);
-                            if (pub) {
-                                ordered.push(pub);
+                            if (!existingIds.has(pub.id)) {
+                                toAppend.push(pub);
+                                fetchedPublicationIdsRef.current.add(pub.id);
                             }
                         });
 
-                        return ordered;
+                        return [...prev, ...toAppend];
                     });
                 }
             } catch (e) {
