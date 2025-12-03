@@ -281,27 +281,34 @@ const PublicationRow = memo(({
 
       {/* Expanded Row - Abstract */}
       {isExpanded && (
-        <tr className="bg-gray-50/80 border-b border-[#E3E3E3]">
+        <tr className="bg-gray-50/50 border-b border-[#E3E3E3]">
           <td colSpan={100} className="py-0">
             <div
-              className="px-6 py-4 animate-in slide-in-from-top-2 duration-200"
+              className="animate-in slide-in-from-top-2 duration-200 overflow-hidden"
               style={{
                 maxHeight: isExpanded ? '500px' : '0',
-                overflow: 'hidden',
                 transition: 'max-height 0.3s ease-in-out',
               }}
             >
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-gray-700">Abstract</h4>
-                {publication.abstract ? (
-                  <p className="text-sm text-gray-600 leading-relaxed">
-                    {publication.abstract}
-                  </p>
-                ) : (
-                  <p className="text-sm text-gray-400 italic">
-                    No abstract available
-                  </p>
-                )}
+              <div className="px-6 py-4 flex gap-4">
+                {/* Visual accent line */}
+                <div className="w-1 bg-blue-500 rounded-full flex-shrink-0 self-stretch my-1 opacity-50" />
+
+                <div className="space-y-2 flex-1">
+                  <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    Abstract
+                  </h4>
+                  {publication.abstract ? (
+                    <p className="text-sm text-gray-600 leading-relaxed text-justify">
+                      {publication.abstract}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">
+                      No abstract available
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </td>
@@ -625,7 +632,7 @@ const PublicationsTableComponent = ({
 
           {/* Table */}
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full">
+            <table className="w-full table-fixed">
               <thead className="bg-muted/50">
                 <tr className="border-b border-border">
                   <th className="py-3 px-4 w-12">
@@ -646,10 +653,10 @@ const PublicationsTableComponent = ({
                       <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
                     </button>
                   </th>
-                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Title</th>
-                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Authors</th>
+                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm w-[40%]">Title</th>
+                  <th className="text-left py-3 px-4 font-semibold text-foreground text-sm w-[20%]">Authors</th>
                   {columnVisibility.affiliation && (
-                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">
+                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm w-[15%]">
                       <div className="flex items-center gap-2">
                         <span>Affiliation</span>
                         <div className="relative" ref={affiliationFilterRef}>
@@ -719,13 +726,13 @@ const PublicationsTableComponent = ({
                     </th>
                   )}
                   {columnVisibility.topic && (
-                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Topic</th>
+                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm w-[10%]">Topic</th>
                   )}
                   {columnVisibility.rating && (
-                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Rating</th>
+                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm w-[8%]">Rating</th>
                   )}
                   {columnVisibility.links && (
-                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm">Links</th>
+                    <th className="text-left py-3 px-4 font-semibold text-foreground text-sm w-[8%]">Links</th>
                   )}
                 </tr>
               </thead>
