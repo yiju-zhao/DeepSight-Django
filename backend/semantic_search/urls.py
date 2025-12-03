@@ -6,7 +6,11 @@ Defines routes for streaming semantic search operations.
 
 from django.urls import path
 
-from .views import InitiateStreamingSearchView, SemanticSearchStreamView
+from .views import (
+    BulkPublicationFetchView,
+    InitiateStreamingSearchView,
+    SemanticSearchStreamView,
+)
 
 urlpatterns = [
     # Streaming endpoints
@@ -19,5 +23,11 @@ urlpatterns = [
         "publications/stream/<str:job_id>/",
         SemanticSearchStreamView.as_view(),
         name="semantic-search-stream",
+    ),
+    # Bulk fetch endpoint
+    path(
+        "publications/bulk/",
+        BulkPublicationFetchView.as_view(),
+        name="bulk-publication-fetch",
     ),
 ]

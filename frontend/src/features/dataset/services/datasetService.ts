@@ -17,6 +17,11 @@ export interface SemanticSearchStreamResponse {
     stream_url: string;
 }
 
+export interface PublicationIdWithScore {
+    id: string;
+    relevance_score: number;
+}
+
 export interface StreamProgressEvent {
     type: 'connected' | 'started' | 'batch' | 'complete' | 'error';
     job_id?: string;
@@ -25,10 +30,12 @@ export interface StreamProgressEvent {
     processed?: number;
     progress?: number;
     batch_num?: number;
-    batch_results?: SemanticSearchResult[];
+    // Changed from batch_results: now only IDs + scores
+    batch_result_ids?: PublicationIdWithScore[];
     batch_count?: number;
     total_results?: number;
-    final_results?: SemanticSearchResult[];
+    // Changed from final_results: now only IDs + scores
+    final_result_ids?: PublicationIdWithScore[];
     query?: string;
     error?: string;
     detail?: string;
@@ -49,6 +56,16 @@ export const datasetService = {
         const url = `/api/v1/semantic-search/publications/stream/${jobId}/`;
         return new EventSource(url, {
             withCredentials: true,
+        });
+    },
+
+    /**
+     * Fetch full publication details for a list of IDs
+     * Used after receiving publication IDs from semantic search
+     */
+    fetchPublicationsByIds: async (ids: string[]): Promise<PublicationTableItem[]> => {
+        return apiClient.post('/semantic-search/publications/bulk/', {
+            publication_ids: ids,
         });
     },
 };

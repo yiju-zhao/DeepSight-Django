@@ -19,7 +19,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import SemanticSearchRequestSerializer
+from conferences.models import Publication
+from conferences.serializers import PublicationTableSerializer
+
+from .serializers import BulkPublicationFetchSerializer, SemanticSearchRequestSerializer
 from .tasks import semantic_search_streaming_task
 
 logger = logging.getLogger(__name__)
@@ -184,3 +187,77 @@ class SemanticSearchStreamView(View):
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             except:
                 pass
+
+
+class BulkPublicationFetchView(APIView):
+    """
+    Fetch full publication details for a list of IDs.
+
+    POST /api/v1/semantic-search/publications/bulk/
+    Body: { "publication_ids": ["uuid1", "uuid2", ...] }
+
+    Used by frontend to fetch full publication data after receiving
+    only IDs from semantic search streaming results.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """
+        Fetch publications by ID list.
+
+        Returns publications in the same order as requested IDs.
+        Missing IDs are silently skipped.
+        """
+        # Validate request
+        serializer = BulkPublicationFetchSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                {
+                    "error": "VALIDATION_ERROR",
+                    "detail": "Invalid request parameters",
+                    "field_errors": serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ids = serializer.validated_data["publication_ids"]
+
+        logger.info(
+            f"Bulk fetching {len(ids)} publications for user {request.user.id}"
+        )
+
+        try:
+            # Fetch publications with related data
+            publications = Publication.objects.filter(id__in=ids).select_related(
+                "instance",
+                "instance__venue"
+            ).prefetch_related()
+
+            # Create ID to publication mapping
+            id_to_pub = {p.id: p for p in publications}
+
+            # Return publications in requested order, skip missing IDs
+            ordered_pubs = [
+                id_to_pub[pub_id]
+                for pub_id in ids
+                if pub_id in id_to_pub
+            ]
+
+            logger.info(
+                f"Found {len(ordered_pubs)}/{len(ids)} publications"
+            )
+
+            # Serialize and return
+            result_serializer = PublicationTableSerializer(ordered_pubs, many=True)
+            return Response(result_serializer.data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            logger.error(f"Failed to fetch publications: {e}", exc_info=True)
+            return Response(
+                {
+                    "error": "FETCH_FAILED",
+                    "detail": str(e),
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

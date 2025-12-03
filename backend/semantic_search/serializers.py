@@ -199,3 +199,40 @@ class SemanticSearchResponseSerializer(serializers.Serializer):
             )
 
         return data
+
+
+class BulkPublicationFetchSerializer(serializers.Serializer):
+    """
+    Validates bulk publication fetch requests.
+
+    Used to fetch full publication details for a list of IDs
+    (typically returned from semantic search results).
+
+    Expected format:
+    {
+        "publication_ids": ["uuid-1", "uuid-2", ...]
+    }
+    """
+
+    publication_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        max_length=100,
+        help_text="List of publication UUIDs to fetch (max 100 per request)",
+        error_messages={
+            "min_length": "At least one publication ID is required",
+            "max_length": "Maximum 100 publication IDs allowed per request",
+        },
+    )
+
+    def validate_publication_ids(self, value):
+        """
+        Validate publication_ids list.
+
+        Ensures:
+        - No duplicates
+        - All UUIDs are valid (handled by UUIDField)
+        """
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError("Duplicate publication IDs are not allowed")
+        return value

@@ -94,13 +94,15 @@ def semantic_search_streaming_task(
             if not batch_filtered_df.empty:
                 all_filtered_frames.append(batch_filtered_df)
 
-                # For streaming, convert current batch to incremental results.
-                # These are intermediate and may not reflect the final global
-                # top-k ordering.
-                batch_results = lotus_semantic_search_service._dataframe_to_results(  # type: ignore[attr-defined]
-                    batch_filtered_df
-                )
-                all_results.extend(batch_results)
+                # Extract only publication IDs for streaming
+                # Frontend will fetch full details using bulk endpoint
+                batch_result_ids = [
+                    {
+                        "id": str(row["id"]),
+                        "relevance_score": float(row.get("relevance_score", 0))
+                    }
+                    for _, row in batch_filtered_df.iterrows()
+                ]
 
                 progress = (i + len(batch_ids)) / total_publications
                 _publish_progress(
@@ -112,13 +114,13 @@ def semantic_search_streaming_task(
                         "processed": i + len(batch_ids),
                         "total": total_publications,
                         "progress": progress,
-                        "batch_results": batch_results,
-                        "batch_count": len(batch_results),
+                        "batch_result_ids": batch_result_ids,  # Changed from batch_results
+                        "batch_count": len(batch_result_ids),
                     },
                 )
 
                 logger.info(
-                    f"Job {job_id}: Batch {batch_num} completed with {len(batch_results)} results"
+                    f"Job {job_id}: Batch {batch_num} completed with {len(batch_result_ids)} results"
                 )
             else:
                 logger.info(
@@ -135,34 +137,38 @@ def semantic_search_streaming_task(
                 query=query,
                 topk=topk,
             )
-            final_results = lotus_semantic_search_service._dataframe_to_results(  # type: ignore[attr-defined]
-                ranked_df
-            )
+            # Extract only IDs from final ranked results
+            final_result_ids = [
+                {
+                    "id": str(row["id"]),
+                    "relevance_score": float(row.get("relevance_score", 0))
+                }
+                for _, row in ranked_df.iterrows()
+            ]
         else:
-            final_results = []
+            final_result_ids = []
 
         logger.info(
-            f"Job {job_id}: Completed with {len(final_results)} final results "
-            f"(from {len(all_results)} total)"
+            f"Job {job_id}: Completed with {len(final_result_ids)} final results"
         )
 
         # Publish completion
         completion_data = {
             "type": "complete",
-            "total_results": len(final_results),
-            "final_results": final_results,
+            "total_results": len(final_result_ids),
+            "final_result_ids": final_result_ids,  # Changed from final_results
             "query": query,
         }
         _publish_progress(job_id, completion_data)
 
         # Store final results in cache for 1 hour
-        cache.set(f"semantic_search_results:{job_id}", final_results, timeout=3600)
+        cache.set(f"semantic_search_results:{job_id}", final_result_ids, timeout=3600)
 
         return {
             "success": True,
             "job_id": job_id,
-            "total_results": len(final_results),
-            "results": final_results,
+            "total_results": len(final_result_ids),
+            "result_ids": final_result_ids,  # Changed from results
         }
 
     except Exception as e:
