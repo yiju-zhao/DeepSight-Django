@@ -23,11 +23,16 @@ class SemanticSearchRequestSerializer(serializers.Serializer):
     publication_ids = serializers.ListField(
         child=serializers.UUIDField(),
         min_length=1,
-        max_length=10000,
-        help_text="List of publication UUIDs to search within",
+        # Allow many IDs at the API layer; Lotus service
+        # will truncate to LOTUS_CONFIG['max_publications'] (10k) internally.
+        max_length=100000,
+        help_text=(
+            "List of publication UUIDs to search within. "
+            "If more than 10000 IDs are provided, only the first 10000 will be processed."
+        ),
         error_messages={
             "min_length": "At least one publication ID is required",
-            "max_length": "Maximum 10000 publication IDs allowed",
+            "max_length": "Maximum 100000 publication IDs allowed (first 10000 will be processed)",
         },
     )
 
