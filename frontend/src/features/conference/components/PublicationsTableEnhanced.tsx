@@ -19,7 +19,6 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
-  ChevronDown,
   Settings,
   Filter,
 } from 'lucide-react';
@@ -137,8 +136,8 @@ const PublicationRow = memo(({
           <button
             onClick={onToggleFavorite}
             className={`p-1.5 rounded-md transition-all duration-200 ${isFavorite
-                ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
-                : 'text-[#666666] hover:text-amber-500 hover:bg-amber-50'
+              ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
+              : 'text-[#666666] hover:text-amber-500 hover:bg-amber-50'
               }`}
             title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
           >
@@ -150,26 +149,20 @@ const PublicationRow = memo(({
           </button>
         </td>
 
-        {/* Title - Always visible with chevron */}
-        <td className="py-4 px-4">
-          <div
-            className="flex items-start gap-2 cursor-pointer group/title"
-            onClick={onToggleExpand}
-          >
-            <ChevronDown
-              className={`h-4 w-4 text-gray-600 transition-transform duration-200 flex-shrink-0 mt-0.5 ${isExpanded ? 'rotate-180' : ''
-                }`}
-            />
-            <div className="space-y-1.5 flex-1">
-              <div className="font-medium text-foreground text-sm group-hover/title:text-blue-600 transition-colors">
-                {publication.title}
-              </div>
-              {columnVisibility.keywords && keywords.length > 0 && (
-                <div className="text-xs text-muted-foreground line-clamp-2">
-                  {keywordsDisplay.displayText}
-                </div>
-              )}
+        {/* Title - Always visible, clickable to expand */}
+        <td
+          className="py-4 px-4 cursor-pointer"
+          onClick={onToggleExpand}
+        >
+          <div className="space-y-1.5">
+            <div className="font-medium text-foreground text-sm hover:text-blue-600 transition-colors">
+              {publication.title}
             </div>
+            {columnVisibility.keywords && keywords.length > 0 && (
+              <div className="text-xs text-muted-foreground line-clamp-2">
+                {keywordsDisplay.displayText}
+              </div>
+            )}
           </div>
         </td>
 
@@ -632,7 +625,7 @@ const PublicationsTableComponent = ({
 
           {/* Table */}
           <div className="overflow-x-auto rounded-lg border border-border">
-            <table className="w-full" style={{ tableLayout: 'fixed' }}>
+            <table className="w-full">
               <thead className="bg-muted/50">
                 <tr className="border-b border-border">
                   <th className="py-3 px-4 w-12">
