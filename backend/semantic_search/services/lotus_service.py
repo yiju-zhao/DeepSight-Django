@@ -297,7 +297,7 @@ class LotusSemanticSearchService:
             }
 
         # Check max publications limit
-        max_pubs = settings.LOTUS_CONFIG.get("max_publications", 1000)
+        max_pubs = settings.LOTUS_CONFIG.get("max_publications", 10000)
         if len(publication_ids) > max_pubs:
             logger.warning(
                 f"Publication IDs count ({len(publication_ids)}) exceeds max ({max_pubs}). "

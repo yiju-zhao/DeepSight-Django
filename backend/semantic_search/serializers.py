@@ -23,11 +23,11 @@ class SemanticSearchRequestSerializer(serializers.Serializer):
     publication_ids = serializers.ListField(
         child=serializers.UUIDField(),
         min_length=1,
-        max_length=1000,
+        max_length=10000,
         help_text="List of publication UUIDs to search within",
         error_messages={
             "min_length": "At least one publication ID is required",
-            "max_length": "Maximum 1000 publication IDs allowed",
+            "max_length": "Maximum 10000 publication IDs allowed",
         },
     )
 
