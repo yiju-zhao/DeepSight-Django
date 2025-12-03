@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
 import Header from '@/shared/components/layout/Header';
 import { Sparkles, Search, AlertCircle, Loader2, X } from 'lucide-react';
 import { useInstances } from '@/features/conference/hooks/useConference';
@@ -16,6 +15,7 @@ import { datasetService, StreamProgressEvent, PublicationIdWithScore } from '../
 import { PublicationsTableEnhanced } from '@/features/conference/components/PublicationsTableEnhanced';
 import { conferenceService } from '@/features/conference/services/ConferenceService';
 import { SearchFilters } from '../components/SearchFilters';
+import type { PublicationTableItem } from '@/features/conference/types';
 
 export default function DatasetPage() {
     // UI State
@@ -29,6 +29,8 @@ export default function DatasetPage() {
 
     // Search Results State
     const [publicationIds, setPublicationIds] = useState<string[]>([]);
+    const [publications, setPublications] = useState<PublicationTableItem[]>([]);
+    const [isFetchingPublications, setIsFetchingPublications] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     // Streaming State
@@ -36,17 +38,10 @@ export default function DatasetPage() {
     const [streamStatus, setStreamStatus] = useState<string | null>(null);
     const [batchCount, setBatchCount] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
     const eventSourceRef = useRef<EventSource | null>(null);
+    const fetchedPublicationIdsRef = useRef<Set<string>>(new Set());
 
     // Data hooks
     const { data: instances, isLoading: instancesLoading } = useInstances();
-
-    // Fetch full publication details when we have IDs
-    const { data: publications = [], isLoading: isFetchingPublications } = useQuery({
-        queryKey: ['dataset-search-results', publicationIds],
-        queryFn: () => datasetService.fetchPublicationsByIds(publicationIds),
-        enabled: publicationIds.length > 0,
-        staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    });
 
     // Derived data for filters
     const venues = useMemo(() => {
@@ -74,6 +69,57 @@ export default function DatasetPage() {
         };
     }, []);
 
+    // Incrementally fetch publication details for new IDs only
+    useEffect(() => {
+        const fetchMissingPublications = async () => {
+            if (publicationIds.length === 0) {
+                return;
+            }
+
+            const missingIds = publicationIds.filter(
+                id => !fetchedPublicationIdsRef.current.has(id),
+            );
+
+            if (missingIds.length === 0) {
+                return;
+            }
+
+            setIsFetchingPublications(true);
+            try {
+                const newPublications = await datasetService.fetchPublicationsByIds(missingIds);
+
+                setPublications(prev => {
+                    const byId = new Map<string, PublicationTableItem>();
+                    prev.forEach(pub => {
+                        byId.set(pub.id, pub);
+                    });
+
+                    newPublications.forEach(pub => {
+                        byId.set(pub.id, pub);
+                        fetchedPublicationIdsRef.current.add(pub.id);
+                    });
+
+                    // Preserve ranking order from publicationIds
+                    const ordered: PublicationTableItem[] = [];
+                    publicationIds.forEach(id => {
+                        const pub = byId.get(id);
+                        if (pub) {
+                            ordered.push(pub);
+                        }
+                    });
+
+                    return ordered;
+                });
+            } catch (e) {
+                console.error('Failed to fetch publications by IDs:', e);
+            } finally {
+                setIsFetchingPublications(false);
+            }
+        };
+
+        fetchMissingPublications();
+    }, [publicationIds]);
+
     // Handle streaming search
     const handleStreamingSearch = async () => {
         if (!searchQuery.trim()) return;
@@ -87,6 +133,8 @@ export default function DatasetPage() {
         setIsSearching(true);
         setError(null);
         setPublicationIds([]); // Clear previous results
+        setPublications([]);
+        fetchedPublicationIdsRef.current = new Set();
         setStreamProgress(0);
         setStreamStatus('Initializing search...');
         setBatchCount({ current: 0, total: 0 });
@@ -309,6 +357,8 @@ export default function DatasetPage() {
         setHasSearched(false);
         setIsSearching(false);
         setPublicationIds([]);
+        setPublications([]);
+        fetchedPublicationIdsRef.current = new Set();
         setError(null);
         setSearchQuery('');
         setStreamProgress(0);

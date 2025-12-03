@@ -97,8 +97,8 @@ class LotusSemanticSearchService:
         """
         Convert Publication objects to DataFrame for Lotus processing.
 
-        Combines title, abstract, and keywords into a single semantic_text field
-        for more comprehensive semantic search.
+        Combines title and abstract into a single semantic_text field
+        for semantic search.
 
         Args:
             publications: List of Publication model instances
@@ -123,9 +123,8 @@ class LotusSemanticSearchService:
         }
 
         for pub in publications:
-            # Combine title + abstract + keywords for semantic search
-            semantic_text = f"{pub.title or ''} {pub.abstract or ''} {pub.keywords or ''}"
-            semantic_text = semantic_text.strip()
+            # Combine title + abstract for semantic search
+            semantic_text = f"{pub.title or ''} {pub.abstract or ''}".strip()
 
             data["id"].append(str(pub.id))
             data["semantic_text"].append(semantic_text)
