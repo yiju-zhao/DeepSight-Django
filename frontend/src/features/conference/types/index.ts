@@ -80,6 +80,7 @@ export interface PublicationTableItem {
   site?: string;
   instance_year: number;
   venue_name: string;
+  abstract?: string;
 }
 
 export interface KPIData {

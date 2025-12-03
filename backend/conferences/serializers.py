@@ -90,6 +90,7 @@ class PublicationTableSerializer(serializers.ModelSerializer):
             "site",
             "instance_year",
             "venue_name",
+            "abstract",
         ]
 
 
