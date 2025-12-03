@@ -8,7 +8,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/shared/components/ui/select';
-import { cn } from '@/lib/utils';
+import { cn } from '@/shared/utils/utils';
 
 interface SearchFiltersProps {
     venues: string[];
