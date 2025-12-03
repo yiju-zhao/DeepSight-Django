@@ -113,10 +113,11 @@ const Header = () => {
                     {isAuthenticated ? (
                         <button
                             onClick={() => handleLogout()}
-                            className="flex items-center space-x-2 px-5 py-2.5 bg-white text-foreground border border-gray-200 text-sm font-medium rounded-md hover:bg-gray-50 hover:text-accent-red hover:border-gray-300 transition-all duration-300"
+                            className="flex items-center justify-center p-2.5 bg-white text-foreground border border-gray-200 text-sm font-medium rounded-md hover:bg-gray-50 hover:text-accent-red hover:border-gray-300 transition-all duration-300"
+                            title="Logout"
+                            aria-label="Logout"
                         >
-                            <LogOut size={16} />
-                            <span>Logout</span>
+                            <LogOut size={18} />
                         </button>
                     ) : (
                         <Link
