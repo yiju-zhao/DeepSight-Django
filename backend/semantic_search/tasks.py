@@ -91,6 +91,7 @@ def semantic_search_streaming_task(
                 query=query,
             )
 
+            batch_result_ids = []
             if not batch_filtered_df.empty:
                 all_filtered_frames.append(batch_filtered_df)
 
@@ -104,28 +105,25 @@ def semantic_search_streaming_task(
                     for _, row in batch_filtered_df.iterrows()
                 ]
 
-                progress = (i + len(batch_ids)) / total_publications
-                _publish_progress(
-                    job_id,
-                    {
-                        "type": "batch",
-                        "batch_num": batch_num,
-                        "total_batches": total_batches,
-                        "processed": i + len(batch_ids),
-                        "total": total_publications,
-                        "progress": progress,
-                        "batch_result_ids": batch_result_ids,  # Changed from batch_results
-                        "batch_count": len(batch_result_ids),
-                    },
-                )
+            # Always publish progress for every batch (even if no results)
+            progress = (i + len(batch_ids)) / total_publications
+            _publish_progress(
+                job_id,
+                {
+                    "type": "batch",
+                    "batch_num": batch_num,
+                    "total_batches": total_batches,
+                    "processed": i + len(batch_ids),
+                    "total": total_publications,
+                    "progress": progress,
+                    "batch_result_ids": batch_result_ids,
+                    "batch_count": len(batch_result_ids),
+                },
+            )
 
-                logger.info(
-                    f"Job {job_id}: Batch {batch_num} completed with {len(batch_result_ids)} results"
-                )
-            else:
-                logger.info(
-                    f"Job {job_id}: Batch {batch_num} completed with no matching results"
-                )
+            logger.info(
+                f"Job {job_id}: Batch {batch_num}/{total_batches} completed with {len(batch_result_ids)} results"
+            )
 
         # Step 2: final global top-k ranking across all filtered results
         if all_filtered_frames:
