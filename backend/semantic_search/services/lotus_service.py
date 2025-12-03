@@ -61,7 +61,7 @@ class LotusSemanticSearchService:
                 max_tokens = int(config.get("max_tokens", 1024))
 
                 self._lm = LM(
-                    model=model_name,
+                    model=provider + "/" + model_name,
                     api_base=api_base,
                     api_key=api_key,
                     max_tokens=max_tokens,
