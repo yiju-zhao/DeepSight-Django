@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import Header from '@/shared/components/layout/Header';
-import { Sparkles, Filter, Search, AlertCircle, Loader2 } from 'lucide-react';
+import { Sparkles, Filter, Search, AlertCircle, Loader2, X } from 'lucide-react';
 import { useInstances } from '@/features/conference/hooks/useConference';
 import { Button } from '@/shared/components/ui/button';
 import {
@@ -10,21 +11,30 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/shared/components/ui/select';
-import { datasetService, SemanticSearchResult, StreamProgressEvent } from '../services/datasetService';
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from '@/shared/components/ui/popover';
+import { datasetService, StreamProgressEvent, PublicationIdWithScore } from '../services/datasetService';
 import { PublicationsTableEnhanced } from '@/features/conference/components/PublicationsTableEnhanced';
 import { conferenceService } from '@/features/conference/services/ConferenceService';
 
 export default function DatasetPage() {
-    // State
+    // UI State
+    const [hasSearched, setHasSearched] = useState(false);
+    const [isSearching, setIsSearching] = useState(false);
+
+    // Filter State
     const [selectedVenue, setSelectedVenue] = useState<string>('');
     const [selectedYear, setSelectedYear] = useState<number | undefined>();
     const [searchQuery, setSearchQuery] = useState('');
-    const [isSearching, setIsSearching] = useState(false);
-    const [searchResults, setSearchResults] = useState<SemanticSearchResult[]>([]);
-    const [error, setError] = useState<string | null>(null);
-    const [searchMetadata, setSearchMetadata] = useState<{ processing_time_ms: number; llm_model: string } | null>(null);
 
-    // Streaming state
+    // Search Results State
+    const [publicationIds, setPublicationIds] = useState<string[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    // Streaming State
     const [streamProgress, setStreamProgress] = useState<number>(0);
     const [streamStatus, setStreamStatus] = useState<string | null>(null);
     const [batchCount, setBatchCount] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
@@ -32,6 +42,14 @@ export default function DatasetPage() {
 
     // Data hooks
     const { data: instances, isLoading: instancesLoading } = useInstances();
+
+    // Fetch full publication details when we have IDs
+    const { data: publications = [], isLoading: isFetchingPublications } = useQuery({
+        queryKey: ['dataset-search-results', publicationIds],
+        queryFn: () => datasetService.fetchPublicationsByIds(publicationIds),
+        enabled: publicationIds.length > 0,
+        staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    });
 
     // Derived data for filters
     const venues = useMemo(() => {
@@ -45,6 +63,9 @@ export default function DatasetPage() {
         const uniqueYears = new Set(instances.map(i => i.year));
         return Array.from(uniqueYears).sort((a, b) => b - a);
     }, [instances]);
+
+    // Check if filters are active
+    const hasActiveFilters = selectedVenue || selectedYear;
 
     // Cleanup EventSource on unmount
     useEffect(() => {
@@ -60,13 +81,15 @@ export default function DatasetPage() {
     const handleStreamingSearch = async () => {
         if (!searchQuery.trim()) return;
         if (!selectedVenue && !selectedYear) {
-            setError('Please select at least one filter (Venue or Year) to narrow down the dataset.');
+            setError('Please select at least one filter (Conference or Year) to narrow down the dataset.');
             return;
         }
 
+        // Mark that a search has been initiated (triggers UI transition)
+        setHasSearched(true);
         setIsSearching(true);
         setError(null);
-        setSearchResults([]);
+        setPublicationIds([]); // Clear previous results
         setStreamProgress(0);
         setStreamStatus('Initializing search...');
         setBatchCount({ current: 0, total: 0 });
@@ -147,17 +170,21 @@ export default function DatasetPage() {
                             if (data.progress) {
                                 setStreamProgress(data.progress * 100);
                             }
-                            if (data.batch_results) {
-                                // Incrementally add results
-                                setSearchResults(prev => [...prev, ...data.batch_results!]);
+                            // Accumulate publication IDs (React Query will fetch full data)
+                            if (data.batch_result_ids) {
+                                setPublicationIds(prev => {
+                                    const newIds = data.batch_result_ids!.map(r => r.id);
+                                    return [...prev, ...newIds];
+                                });
                             }
                             break;
 
                         case 'complete':
                             setStreamStatus('Search completed!');
                             setStreamProgress(100);
-                            if (data.final_results) {
-                                setSearchResults(data.final_results);
+                            // Use final ranked IDs
+                            if (data.final_result_ids) {
+                                setPublicationIds(data.final_result_ids.map(r => r.id));
                             }
                             setIsSearching(false);
                             eventSource.close();
@@ -191,119 +218,284 @@ export default function DatasetPage() {
         }
     };
 
+    // Reset search state
+    const handleReset = () => {
+        setHasSearched(false);
+        setIsSearching(false);
+        setPublicationIds([]);
+        setError(null);
+        setSearchQuery('');
+        setStreamProgress(0);
+        setStreamStatus(null);
+        setBatchCount({ current: 0, total: 0 });
+        if (eventSourceRef.current) {
+            eventSourceRef.current.close();
+            eventSourceRef.current = null;
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background flex flex-col">
             <Header />
 
             <main className="flex-grow pt-[var(--header-height)]">
-                {/* Header Section */}
-                <section className="relative bg-white border-b border-gray-100">
-                    <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white/20 pointer-events-none" />
-                    <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
-                        <div className="max-w-3xl">
-                            <div className="flex items-center gap-2 mb-4">
-                                <span className="px-3 py-1 rounded-full bg-purple-50 text-xs font-medium text-purple-600 flex items-center gap-1">
-                                    <Sparkles className="w-3 h-3" />
-                                    Semantic Search
-                                </span>
-                            </div>
-                            <h1 className="text-4xl font-bold text-[#1E1E1E] tracking-tight mb-4">
-                                Dataset Explorer
-                            </h1>
-                            <p className="text-lg text-gray-500 leading-relaxed">
-                                Filter conferences and use natural language to find the most relevant papers.
-                            </p>
-                        </div>
-                    </div>
-                </section>
+                {!hasSearched ? (
+                    /* ===== INITIAL STATE: Google-style Centered Search ===== */
+                    <div className="relative min-h-[calc(100vh-var(--header-height))] flex flex-col">
+                        {/* Filters Dropdown - Top Right */}
+                        <div className="absolute top-8 right-8 z-10">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="gap-2">
+                                        <Filter className="w-4 h-4" />
+                                        Filters
+                                        {hasActiveFilters && (
+                                            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-medium">
+                                                Active
+                                            </span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80" align="end">
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-semibold text-sm">Search Filters</h3>
+                                            {hasActiveFilters && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setSelectedVenue('');
+                                                        setSelectedYear(undefined);
+                                                    }}
+                                                    className="h-auto p-1 text-xs"
+                                                >
+                                                    Clear all
+                                                </Button>
+                                            )}
+                                        </div>
 
-                <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+                                        {/* Conference Filter */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                                Conference
+                                            </label>
+                                            <Select
+                                                value={selectedVenue || "ALL"}
+                                                onValueChange={(value) => setSelectedVenue(value === "ALL" ? "" : value)}
+                                                disabled={instancesLoading}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="All Conferences" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ALL">All Conferences</SelectItem>
+                                                    {venues.map(venue => (
+                                                        <SelectItem key={venue} value={venue}>{venue}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
 
-                        {/* Filters Sidebar */}
-                        <div className="lg:col-span-1 space-y-6">
-                            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                                <div className="flex items-center gap-2 mb-4 text-[#1E1E1E] font-semibold">
-                                    <Filter className="w-4 h-4" />
-                                    <h3>Filters</h3>
-                                </div>
+                                        {/* Year Filter */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                                Year
+                                            </label>
+                                            <Select
+                                                value={selectedYear ? selectedYear.toString() : "ALL"}
+                                                onValueChange={(value) => setSelectedYear(value === "ALL" ? undefined : Number(value))}
+                                                disabled={instancesLoading}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="All Years" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ALL">All Years</SelectItem>
+                                                    {years.map(year => (
+                                                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
 
-                                <div className="space-y-4">
-                                    {/* Venue Filter */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Conference</label>
-                                        <Select
-                                            value={selectedVenue || "ALL"}
-                                            onValueChange={(value) => setSelectedVenue(value === "ALL" ? "" : value)}
-                                            disabled={instancesLoading || isSearching}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="All Conferences" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="ALL">All Conferences</SelectItem>
-                                                {venues.map(venue => (
-                                                    <SelectItem key={venue} value={venue}>{venue}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <p className="text-xs text-gray-500">
+                                            Select at least one filter to search
+                                        </p>
                                     </div>
-
-                                    {/* Year Filter */}
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                                        <Select
-                                            value={selectedYear ? selectedYear.toString() : "ALL"}
-                                            onValueChange={(value) => setSelectedYear(value === "ALL" ? undefined : Number(value))}
-                                            disabled={instancesLoading || isSearching}
-                                        >
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="All Years" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                <SelectItem value="ALL">All Years</SelectItem>
-                                                {years.map(year => (
-                                                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                    </div>
-                                </div>
-                            </div>
+                                </PopoverContent>
+                            </Popover>
                         </div>
 
-                        {/* Main Content */}
-                        <div className="lg:col-span-3 space-y-6">
+                        {/* Centered Search */}
+                        <div className="flex-1 flex flex-col items-center justify-center px-4 -mt-20">
+                            <div className="text-center mb-12 max-w-2xl">
+                                <Sparkles className="w-16 h-16 mx-auto mb-6 text-purple-500" />
+                                <h1 className="text-5xl font-bold text-[#1E1E1E] tracking-tight mb-4">
+                                    Dataset Explorer
+                                </h1>
+                                <p className="text-lg text-gray-500 leading-relaxed">
+                                    Use semantic search to find relevant papers across conference publications
+                                </p>
+                            </div>
 
-                            {/* Search Bar */}
-                            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
-                                <div className="relative">
-                                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                            {/* Large Centered Search Bar */}
+                            <div className="w-full max-w-3xl">
+                                <div className="relative bg-white rounded-full shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
+                                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 w-6 h-6" />
                                     <input
                                         type="text"
-                                        placeholder="Describe what you are looking for (e.g., 'papers about transformer efficiency in mobile devices')..."
-                                        className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-lg text-lg focus:ring-2 focus:ring-black/5 focus:border-black outline-none transition-all shadow-sm"
+                                        placeholder="Describe what you're looking for (e.g., 'transformer architectures for computer vision')..."
+                                        className="w-full pl-16 pr-32 py-6 rounded-full text-lg border-0 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && !isSearching && handleStreamingSearch()}
-                                        disabled={isSearching}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && searchQuery.trim()) {
+                                                handleStreamingSearch();
+                                            }
+                                        }}
                                     />
-                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2">
-                                        <Button
-                                            onClick={handleStreamingSearch}
-                                            disabled={isSearching || !searchQuery.trim()}
-                                            className="bg-black text-white hover:bg-gray-800 flex items-center gap-2"
-                                        >
-                                            {isSearching && <Loader2 className="w-4 h-4 animate-spin" />}
-                                            {isSearching ? 'Searching...' : 'Search'}
-                                        </Button>
-                                    </div>
+                                    <Button
+                                        onClick={handleStreamingSearch}
+                                        disabled={!searchQuery.trim() || instancesLoading}
+                                        size="lg"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-8 bg-black hover:bg-gray-800"
+                                    >
+                                        Search
+                                    </Button>
                                 </div>
+
+                                {/* Filter hint */}
+                                {!hasActiveFilters && (
+                                    <p className="text-center text-sm text-gray-500 mt-4">
+                                        💡 Don't forget to set filters using the button in the top-right corner
+                                    </p>
+                                )}
+
+                                {error && (
+                                    <div className="mt-4 bg-red-50 border border-red-200 text-red-700 p-4 rounded-lg flex items-center gap-2">
+                                        <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                                        <span>{error}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    /* ===== AFTER SEARCH: Compact Layout with Results ===== */
+                    <div className="relative">
+                        {/* Filters Dropdown - Top Right */}
+                        <div className="absolute top-4 right-8 z-10">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="gap-2">
+                                        <Filter className="w-4 h-4" />
+                                        Filters
+                                        {hasActiveFilters && (
+                                            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-medium">
+                                                Active
+                                            </span>
+                                        )}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80" align="end">
+                                    <div className="space-y-4">
+                                        <h3 className="font-semibold text-sm">Search Filters</h3>
+
+                                        {/* Conference Filter */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                                Conference
+                                            </label>
+                                            <Select
+                                                value={selectedVenue || "ALL"}
+                                                onValueChange={(value) => setSelectedVenue(value === "ALL" ? "" : value)}
+                                                disabled={instancesLoading || isSearching}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="All Conferences" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ALL">All Conferences</SelectItem>
+                                                    {venues.map(venue => (
+                                                        <SelectItem key={venue} value={venue}>{venue}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        {/* Year Filter */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                                Year
+                                            </label>
+                                            <Select
+                                                value={selectedYear ? selectedYear.toString() : "ALL"}
+                                                onValueChange={(value) => setSelectedYear(value === "ALL" ? undefined : Number(value))}
+                                                disabled={instancesLoading || isSearching}
+                                            >
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="All Years" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="ALL">All Years</SelectItem>
+                                                    {years.map(year => (
+                                                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+
+                                        <p className="text-xs text-gray-500">
+                                            Change filters and search again to update results
+                                        </p>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+
+                        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                            {/* Compact Search Bar */}
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="flex-1 relative bg-white rounded-lg border border-gray-200 shadow-sm">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
+                                    <input
+                                        type="text"
+                                        className="w-full pl-10 pr-24 py-3 rounded-lg border-0 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !isSearching && searchQuery.trim()) {
+                                                handleStreamingSearch();
+                                            }
+                                        }}
+                                        disabled={isSearching}
+                                        placeholder="Search query..."
+                                    />
+                                    <Button
+                                        onClick={handleStreamingSearch}
+                                        disabled={isSearching || !searchQuery.trim()}
+                                        size="sm"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 bg-black hover:bg-gray-800"
+                                    >
+                                        {isSearching && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                                        Search
+                                    </Button>
+                                </div>
+                                <Button
+                                    onClick={handleReset}
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2"
+                                >
+                                    <X className="w-4 h-4" />
+                                    Reset
+                                </Button>
                             </div>
 
                             {/* Progress Indicator */}
                             {isSearching && (
-                                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                                <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm mb-6 animate-in fade-in slide-in-from-top-4 duration-300">
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between text-sm">
                                             <span className="text-gray-700 font-medium">{streamStatus}</span>
@@ -318,7 +510,7 @@ export default function DatasetPage() {
                                             />
                                         </div>
                                         <p className="text-xs text-gray-500">
-                                            {searchResults.length} results found so far...
+                                            {publications.length} results loaded so far...
                                         </p>
                                     </div>
                                 </div>
@@ -326,18 +518,29 @@ export default function DatasetPage() {
 
                             {/* Error Message */}
                             {error && (
-                                <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-lg flex items-center gap-2">
-                                    <AlertCircle className="w-5 h-5" />
+                                <div className="bg-red-50 border border-red-100 text-red-700 p-4 rounded-lg flex items-center gap-2 mb-6">
+                                    <AlertCircle className="w-5 h-5 flex-shrink-0" />
                                     {error}
                                 </div>
                             )}
 
                             {/* Results Table */}
-                            {searchResults.length > 0 && (
+                            {publications.length > 0 && (
                                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <h2 className="text-lg font-semibold text-gray-900">
+                                            Search Results ({publications.length})
+                                        </h2>
+                                        {isFetchingPublications && (
+                                            <span className="text-sm text-gray-500 flex items-center gap-2">
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                Loading details...
+                                            </span>
+                                        )}
+                                    </div>
                                     <PublicationsTableEnhanced
-                                        data={searchResults}
-                                        pagination={{ count: searchResults.length, next: null, previous: null }}
+                                        data={publications}
+                                        pagination={{ count: publications.length, next: null, previous: null }}
                                         currentPage={1}
                                         onPageChange={() => { }}
                                         searchTerm=""
@@ -346,22 +549,21 @@ export default function DatasetPage() {
                                         sortDirection="desc"
                                         onSortChange={() => { }}
                                         isFiltered={false}
-                                        isLoading={false}
+                                        isLoading={isFetchingPublications}
                                     />
                                 </div>
                             )}
 
-                            {/* Empty State */}
-                            {!isSearching && searchResults.length === 0 && !error && (
+                            {/* Empty State after search completes */}
+                            {!isSearching && publications.length === 0 && publicationIds.length === 0 && !error && (
                                 <div className="text-center py-20 text-gray-400">
                                     <Sparkles className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                                    <p className="text-lg">Select filters and enter a query to start semantic search.</p>
+                                    <p className="text-lg">No results found. Try adjusting your query or filters.</p>
                                 </div>
                             )}
-
                         </div>
                     </div>
-                </div>
+                )}
             </main>
         </div>
     );
