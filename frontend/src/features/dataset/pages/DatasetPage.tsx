@@ -258,18 +258,7 @@ export default function DatasetPage() {
 
                             {/* Large Centered Search Bar */}
                             <div className="w-full max-w-3xl">
-                                {/* Filters above search bar */}
-                                <div className="mb-4 flex justify-start">
-                                    <SearchFilters
-                                        venues={venues}
-                                        years={years}
-                                        selectedVenue={selectedVenue}
-                                        setSelectedVenue={setSelectedVenue}
-                                        selectedYear={selectedYear}
-                                        setSelectedYear={setSelectedYear}
-                                        isLoading={instancesLoading}
-                                    />
-                                </div>
+
                                 <div className="relative bg-white rounded-full shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                                     <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 w-6 h-6" />
                                     <input
@@ -292,6 +281,19 @@ export default function DatasetPage() {
                                     >
                                         Search
                                     </Button>
+                                </div>
+
+                                {/* Filters below search bar */}
+                                <div className="mt-4 flex justify-start">
+                                    <SearchFilters
+                                        venues={venues}
+                                        years={years}
+                                        selectedVenue={selectedVenue}
+                                        setSelectedVenue={setSelectedVenue}
+                                        selectedYear={selectedYear}
+                                        setSelectedYear={setSelectedYear}
+                                        isLoading={instancesLoading}
+                                    />
                                 </div>
 
 
