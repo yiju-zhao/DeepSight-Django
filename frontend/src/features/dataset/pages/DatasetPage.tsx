@@ -147,44 +147,101 @@ export default function DatasetPage() {
                 try {
                     const data: StreamProgressEvent = JSON.parse(event.data);
 
+                    // 🔍 Debug logging to track SSE events
+                    console.log('[SSE Event]', data.type, {
+                        batch_num: data.batch_num,
+                        total_batches: data.total_batches,
+                        progress: data.progress,
+                        batch_result_count: data.batch_result_ids?.length,
+                        final_result_count: data.final_result_ids?.length,
+                    });
+
                     switch (data.type) {
                         case 'connected':
+                            console.log('[SSE] Connected to search stream');
                             setStreamStatus('Connected to stream');
                             break;
 
                         case 'started':
+                            console.log('[Started Event]', {
+                                total: data.total,
+                                total_batches: data.total_batches,
+                            });
                             setStreamStatus(`Processing ${data.total} publications...`);
-                            if (data.total_batches) {
+                            if (data.total_batches !== undefined && data.total_batches > 0) {
                                 setBatchCount({ current: 0, total: data.total_batches });
+                            } else {
+                                console.warn(
+                                    '[Started Event] Missing or invalid total_batches:',
+                                    data.total_batches,
+                                );
                             }
                             break;
 
                         case 'batch':
-                            if (data.batch_num && data.total_batches) {
+                            console.log('[Batch Event]', {
+                                batch_num: data.batch_num,
+                                total_batches: data.total_batches,
+                                processed: data.processed,
+                                total: data.total,
+                                result_count: data.batch_result_ids?.length,
+                            });
+
+                            if (data.batch_num !== undefined && data.total_batches !== undefined) {
                                 setBatchCount({ current: data.batch_num, total: data.total_batches });
                                 setStreamStatus(`Processing batch ${data.batch_num}/${data.total_batches}...`);
+                            } else {
+                                console.warn('[Batch Event] Missing batch_num or total_batches:', {
+                                    batch_num: data.batch_num,
+                                    total_batches: data.total_batches,
+                                });
+                                // Fallback: show progress percentage
+                                setStreamStatus(`Processing... ${Math.round((data.progress || 0) * 100)}%`);
                             }
-                            if (data.progress) {
+
+                            if (data.progress !== undefined) {
                                 setStreamProgress(data.progress * 100);
                             }
-                            // Accumulate publication IDs (React Query will fetch full data)
+                            // Accumulate publication IDs progressively
                             if (data.batch_result_ids && data.batch_result_ids.length > 0) {
                                 setPublicationIds(prev => {
                                     const newIds = data.batch_result_ids!.map(r => r.id);
                                     // Deduplicate: only add IDs that don't already exist
                                     const existingIds = new Set(prev);
                                     const uniqueNewIds = newIds.filter(id => !existingIds.has(id));
+                                    console.log(
+                                        `[Batch] Adding ${uniqueNewIds.length} new IDs (total: ${
+                                            prev.length + uniqueNewIds.length
+                                        })`,
+                                    );
                                     return [...prev, ...uniqueNewIds];
                                 });
                             }
                             break;
 
                         case 'complete':
+                            console.log('[Complete Event]', {
+                                final_result_count: data.final_result_ids?.length,
+                                current_accumulated: publicationIds.length,
+                            });
                             setStreamStatus('Search completed!');
                             setStreamProgress(100);
-                            // Use final ranked IDs
-                            if (data.final_result_ids) {
-                                setPublicationIds(data.final_result_ids.map(r => r.id));
+                            // Don't replace accumulated IDs - backend already sends final ranked results progressively
+                            // Only update if final_result_ids differ significantly (e.g., final ranking applied)
+                            if (data.final_result_ids && data.final_result_ids.length > 0) {
+                                const finalIds = data.final_result_ids.map(r => r.id);
+                                setPublicationIds(prev => {
+                                    // If final results are different, use them (final ranking applied)
+                                    if (finalIds.length !== prev.length) {
+                                        console.log(
+                                            `[Complete] Updating with ${finalIds.length} final ranked results`,
+                                        );
+                                        return finalIds;
+                                    }
+                                    // Otherwise keep accumulated results (already in correct order)
+                                    console.log(`[Complete] Keeping ${prev.length} accumulated results`);
+                                    return prev;
+                                });
                             }
                             setIsSearching(false);
                             eventSource.close();
@@ -192,6 +249,7 @@ export default function DatasetPage() {
                             break;
 
                         case 'error':
+                            console.error('[Error Event]', data.detail);
                             setError(data.detail || 'Search failed');
                             setIsSearching(false);
                             eventSource.close();
@@ -199,12 +257,22 @@ export default function DatasetPage() {
                             break;
                     }
                 } catch (err) {
-                    console.error('Failed to parse SSE message:', err);
+                    console.error('[SSE] Failed to parse message:', err, event.data);
                 }
             };
 
             eventSource.onerror = (err) => {
-                console.error('SSE error:', err);
+                console.error('[SSE Error]', err);
+                console.log('[SSE ReadyState]', eventSource.readyState);
+
+                // Only treat as error if connection failed (not normal completion)
+                if (eventSource.readyState === EventSource.CLOSED && !isSearching) {
+                    // Normal completion, not an error
+                    console.log('[SSE] Connection closed normally');
+                    return;
+                }
+
+                // Actual error occurred
                 setError('Connection error. Please try again.');
                 setIsSearching(false);
                 eventSource.close();

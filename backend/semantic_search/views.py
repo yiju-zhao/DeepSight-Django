@@ -9,6 +9,7 @@ import json
 import logging
 import uuid
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.decorators import method_decorator
@@ -155,38 +156,103 @@ class SemanticSearchStreamView(View):
     def generate_search_stream(self, job_id: str):
         """
         Generate SSE stream by subscribing to Redis Pub/Sub channel.
-        
+
+        Uses non-blocking get_message() with heartbeat to maintain connection.
+        Based on successful pattern from notebooks/views.py NotebookJobsSSEView.
+
         Yields:
             SSE formatted messages with search progress updates
         """
-        from .utils.redis_pubsub import subscribe_to_channel
-        
+        import redis
+        import time
+
+        redis_client = None
+        pubsub = None
+
         try:
+            # Connect to Redis
+            redis_client = redis.Redis.from_url(
+                settings.CELERY_BROKER_URL, decode_responses=True
+            )
+            pubsub = redis_client.pubsub()
+
+            # Subscribe to channel
             channel = f"semantic_search:{job_id}"
-            
+            pubsub.subscribe(channel)
+
             logger.info(f"Subscribed to Redis channel: {channel}")
-            
+
             # Send initial connection message
             yield f"data: {json.dumps({'type': 'connected', 'job_id': job_id})}\n\n"
-            
-            # Subscribe to Redis channel and forward messages
-            for message in subscribe_to_channel(channel, timeout=self.MAX_DURATION_SECONDS):
-                yield f"data: {json.dumps(message)}\n\n"
-                
-                # Close stream on completion or error
-                if message.get("type") in ["complete", "error"]:
-                    logger.info(f"Search job {job_id} finished: {message.get('type')}")
+
+            start_time = time.time()
+            last_heartbeat = start_time
+            last_event_data = None
+            HEARTBEAT_INTERVAL = 30  # Send heartbeat every 30 seconds
+
+            # Listen for messages with timeout and heartbeat
+            while True:
+                # Check max duration
+                elapsed = time.time() - start_time
+                if elapsed > self.MAX_DURATION_SECONDS:
+                    logger.info(f"Search stream for job {job_id} reached max duration")
+                    yield f"data: {json.dumps({'type': 'timeout', 'message': 'Stream timeout'})}\n\n"
                     break
-                    
+
+                # Get message with short timeout (allows heartbeat and duration checks)
+                message = pubsub.get_message(timeout=1.0)
+
+                if message and message["type"] == "message":
+                    # Forward the event to client, avoid duplicate sends
+                    event_data = message["data"]
+                    if event_data != last_event_data:
+                        yield f"data: {event_data}\n\n"
+                        last_event_data = event_data
+                        logger.debug(f"Forwarded search event: {event_data[:100]}...")
+                    last_heartbeat = time.time()
+
+                    # Check if this is completion or error
+                    try:
+                        parsed = json.loads(event_data)
+                        if parsed.get("type") in ["complete", "error"]:
+                            logger.info(
+                                f"Search job {job_id} finished: {parsed.get('type')}"
+                            )
+                            break
+                    except json.JSONDecodeError:
+                        pass
+
+                # Send heartbeat if idle (keeps connection alive)
+                elif time.time() - last_heartbeat > HEARTBEAT_INTERVAL:
+                    yield ": heartbeat\n\n"
+                    last_heartbeat = time.time()
+
         except GeneratorExit:
             logger.info(f"Client disconnected from search stream for job {job_id}")
-            
+
         except Exception as e:
             logger.exception(f"Error in search stream for job {job_id}: {e}")
             try:
                 yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             except:
                 pass
+
+        finally:
+            # Clean up Redis connection
+            if pubsub:
+                try:
+                    pubsub.unsubscribe()
+                    pubsub.close()
+                except:
+                    pass
+
+            if redis_client:
+                try:
+                    redis_client.close()
+                except:
+                    pass
+
+            logger.info(f"Closed search stream for job {job_id}")
 
 
 class BulkPublicationFetchView(APIView):

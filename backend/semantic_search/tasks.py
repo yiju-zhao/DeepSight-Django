@@ -9,7 +9,9 @@ import logging
 import time
 from typing import Any
 
+import redis
 from celery import shared_task
+from django.conf import settings
 from django.core.cache import cache
 
 from .services import lotus_semantic_search_service
@@ -204,11 +206,16 @@ def _publish_progress(job_id: str, data: dict) -> None:
         job_id: Job identifier
         data: Progress data dictionary
     """
+    redis_client: redis.Redis | None = None
+
     try:
-        from .utils.redis_pubsub import publish_to_channel
+        redis_client = redis.Redis.from_url(
+            settings.CELERY_BROKER_URL, decode_responses=True
+        )
 
         channel = f"semantic_search:{job_id}"
-        publish_to_channel(channel, data)
+        message = json.dumps(data)
+        redis_client.publish(channel, message)
 
         # Also store latest progress in cache for recovery
         cache_key = f"semantic_search_progress:{job_id}"
@@ -218,3 +225,10 @@ def _publish_progress(job_id: str, data: dict) -> None:
 
     except Exception as e:
         logger.error(f"Failed to publish progress for job {job_id}: {e}")
+
+    finally:
+        if redis_client is not None:
+            try:
+                redis_client.close()
+            except Exception:
+                pass
