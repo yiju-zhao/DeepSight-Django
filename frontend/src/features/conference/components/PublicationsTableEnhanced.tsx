@@ -46,6 +46,7 @@ interface PublicationsTableProps {
   isLoading?: boolean;
   showSearch?: boolean; // New prop to control search bar visibility
   enableClientPagination?: boolean; // New prop to enable client-side pagination
+  showTitle?: boolean; // New prop to control title visibility
 }
 
 interface ColumnVisibility {
@@ -396,6 +397,7 @@ const PublicationsTableEnhanced = ({
   isLoading,
   showSearch = true, // Default to true
   enableClientPagination = false, // Default to false
+  showTitle = true, // Default to true
 }: PublicationsTableProps) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showAffiliationFilter, setShowAffiliationFilter] = useState(false);
@@ -554,15 +556,19 @@ const PublicationsTableEnhanced = ({
       <div className="w-full">
         {/* Header Section - Cleaner, no background */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900 tracking-tight">
-              Publications
-            </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              {pagination.count.toLocaleString()} results found
-              {isFiltered && ' (filtered)'}
-            </p>
-          </div>
+          {showTitle ? (
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+                Publications
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {pagination.count.toLocaleString()} results found
+                {isFiltered && ' (filtered)'}
+              </p>
+            </div>
+          ) : (
+            <div /> // Spacer to keep flex layout working if needed, or just empty
+          )}
 
           <div className="flex items-center gap-2">
             {selectedIds.size > 0 && (

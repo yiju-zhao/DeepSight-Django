@@ -293,19 +293,7 @@ export default function ConferenceDashboard() {
             {/* Dashboard Content with Tabs */}
             {matchingInstance && (
               <div className="space-y-8">
-                <div>
-                  <p className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B] mb-2">
-                    Selected conference
-                  </p>
-                  <div className="flex flex-wrap items-baseline gap-3">
-                    <h2 className="text-3xl font-bold text-[#1E1E1E] leading-tight">
-                      {matchingInstance.venue.name}
-                    </h2>
-                    <span className="text-xl text-[#666666]">
-                      {matchingInstance.year}
-                    </span>
-                  </div>
-                </div>
+
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
                   <TabsList className="w-full justify-start bg-transparent p-0 border-b border-gray-200 rounded-none h-auto">
@@ -379,6 +367,7 @@ export default function ConferenceDashboard() {
                       onSortChange={handleSortChange}
                       isFiltered={!!debouncedPublicationSearch || selectedAffiliations.length > 0}
                       isLoading={publicationsLoading}
+                      showTitle={false}
                     />
                   </TabsContent>
                 </Tabs>
