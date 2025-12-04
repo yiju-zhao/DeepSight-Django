@@ -99,7 +99,7 @@ export function SearchFilters({
                         disabled={isLoading}
                     >
                         <SelectTrigger className="w-[110px] rounded-full bg-white border-gray-200">
-                            <span className="mr-0.5">Top</span>
+                            <span>Top</span>
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
