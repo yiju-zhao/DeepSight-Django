@@ -465,16 +465,21 @@ const PublicationsTable = ({
 
   // Selection handlers
   const toggleSelectAll = () => {
-    // Select all from the FULL data (or filtered data), not just the current page
-    // But typically "Select All" in tables selects visible items or all items?
-    // Let's select ALL items in the current filtered set (across all pages if client-side)
-    const sourceData = showFavoritesOnly ? data.filter(pub => favorites.has(String(pub.id))) : data;
+    // Select all items on the CURRENT PAGE only
+    const currentPageIds = displayData.map((p) => String(p.id));
+    const allCurrentPageSelected = currentPageIds.every(id => selectedIds.has(id));
 
-    if (selectedIds.size === sourceData.length) {
-      handleSelectionChange(new Set());
+    const next = new Set(selectedIds);
+
+    if (allCurrentPageSelected) {
+      // Deselect all items on current page
+      currentPageIds.forEach(id => next.delete(id));
     } else {
-      handleSelectionChange(new Set(sourceData.map((p) => String(p.id))));
+      // Select all items on current page
+      currentPageIds.forEach(id => next.add(id));
     }
+
+    handleSelectionChange(next);
   };
 
   const toggleSelect = (id: string) => {
