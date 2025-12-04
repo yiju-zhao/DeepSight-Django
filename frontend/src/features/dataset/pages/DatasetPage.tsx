@@ -13,6 +13,9 @@ import {
 
 import { datasetService, StreamProgressEvent, PublicationIdWithScore } from '../services/datasetService';
 import PublicationsTable from '@/features/conference/components/PublicationsTable';
+import ExportButton from '@/features/conference/components/ExportButton';
+import { ImportToNotebookWizard } from '@/features/conference/components/ImportToNotebookWizard';
+import { ImportResponse } from '@/features/conference/types';
 import { conferenceService } from '@/features/conference/services/ConferenceService';
 import { SearchFilters } from '../components/SearchFilters';
 import type { PublicationTableItem } from '@/features/conference/types';
@@ -43,6 +46,30 @@ export default function DatasetPage() {
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
+
+    // Selection state for publications
+    const [selectedPublicationIds, setSelectedPublicationIds] = useState<Set<string>>(new Set());
+    const [showImportWizard, setShowImportWizard] = useState(false);
+
+    const handleImportComplete = (response: ImportResponse) => {
+        if (response.success) {
+            setSelectedPublicationIds(new Set());
+        }
+    };
+
+    const handleOpenImportWizard = () => {
+        if (selectedPublicationIds.size === 0) {
+            alert('Please select publications to import');
+            return;
+        }
+        setShowImportWizard(true);
+    };
+
+    // Get selected publications objects for export
+    const selectedPublications = useMemo(() => {
+        if (!publications) return [];
+        return publications.filter((p: any) => selectedPublicationIds.has(String(p.id)));
+    }, [publications, selectedPublicationIds]);
 
 
 
@@ -136,6 +163,7 @@ export default function DatasetPage() {
         setError(null);
         setPublicationIds([]); // Clear previous results
         setPublications([]);
+        setSelectedPublicationIds(new Set());
         fetchedPublicationIdsRef.current = new Set();
         setStreamProgress(0);
         setStreamStatus('Initializing search...');
@@ -217,10 +245,8 @@ export default function DatasetPage() {
 
                     // 🔍 Debug logging to track SSE events
                     console.log('[SSE Event]', data.type, {
-                        batch_num: data.batch_num,
-                        total_batches: data.total_batches,
-                        progress: data.progress,
-                        batch_result_count: data.batch_result_ids?.length,
+                        total: data.total,
+                        message: data.message,
                         final_result_count: data.final_result_ids?.length,
                     });
 
@@ -309,23 +335,6 @@ export default function DatasetPage() {
             console.error('Search error:', err);
             setError('An error occurred during search.');
             setIsSearching(false);
-        }
-    };
-
-    // Reset search state
-    const handleReset = () => {
-        setHasSearched(false);
-        setIsSearching(false);
-        setPublicationIds([]);
-        setPublications([]);
-        fetchedPublicationIdsRef.current = new Set();
-        setError(null);
-        setSearchQuery('');
-        setStreamProgress(0);
-        setStreamStatus(null);
-        if (eventSourceRef.current) {
-            eventSourceRef.current.close();
-            eventSourceRef.current = null;
         }
     };
 
@@ -452,15 +461,6 @@ export default function DatasetPage() {
                                         Search
                                     </Button>
                                 </div>
-                                <Button
-                                    onClick={handleReset}
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2"
-                                >
-                                    <X className="w-4 h-4" />
-                                    Reset
-                                </Button>
                             </div>
 
                             {/* Progress Indicator */}
@@ -494,17 +494,31 @@ export default function DatasetPage() {
                             {/* Results Table */}
                             {publications.length > 0 && (
                                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className="mb-4 flex items-center justify-between">
-                                        <h2 className="text-lg font-semibold text-gray-900">
-                                            Search Results ({publications.length})
-                                        </h2>
-                                        {isFetchingPublications && (
-                                            <span className="text-sm text-gray-500 flex items-center gap-2">
-                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                Loading details...
+                                    <div className="flex items-center justify-end gap-2 mb-4">
+                                        {selectedPublicationIds.size > 0 && (
+                                            <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
+                                                {selectedPublicationIds.size} selected
                                             </span>
                                         )}
+
+                                        <Button
+                                            onClick={handleOpenImportWizard}
+                                            size="sm"
+                                            disabled={selectedPublicationIds.size === 0}
+                                            className="flex items-center gap-2 h-9 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            <Sparkles size={14} className="animate-pulse" />
+                                            DeepDive
+                                        </Button>
+
+                                        <ExportButton
+                                            publications={publications}
+                                            selectedPublications={selectedPublications}
+                                            variant="outline"
+                                            size="sm"
+                                        />
                                     </div>
+
                                     <PublicationsTable
                                         data={publications}
                                         pagination={{ count: publications.length, next: null, previous: null }}
@@ -519,6 +533,8 @@ export default function DatasetPage() {
                                         isLoading={isFetchingPublications && publications.length === 0}
                                         showSearch={false}
                                         enableClientPagination={true}
+                                        externalSelectedIds={selectedPublicationIds}
+                                        onSelectionChange={setSelectedPublicationIds}
                                     />
                                 </div>
                             )}
@@ -534,6 +550,12 @@ export default function DatasetPage() {
                     </div>
                 )}
             </main>
+            <ImportToNotebookWizard
+                isOpen={showImportWizard}
+                onClose={() => setShowImportWizard(false)}
+                selectedPublicationIds={Array.from(selectedPublicationIds)}
+                onImportComplete={handleImportComplete}
+            />
         </div>
     );
 }
