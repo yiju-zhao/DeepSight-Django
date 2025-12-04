@@ -25,10 +25,7 @@ import {
 import { splitSemicolonValues, formatTruncatedList } from '@/shared/utils/utils';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Button } from '@/shared/components/ui/button';
-import ExportButton from './ExportButton';
-import { ImportToNotebookWizard } from './ImportToNotebookWizard';
 import { useFavorites } from '../hooks/useFavorites';
-import type { ImportResponse } from '../types';
 
 interface PublicationsTableProps {
   data: PublicationTableItem[];
@@ -47,7 +44,6 @@ interface PublicationsTableProps {
   showSearch?: boolean; // New prop to control search bar visibility
   enableClientPagination?: boolean; // New prop to enable client-side pagination
   showTitle?: boolean; // New prop to control title visibility
-  showActions?: boolean; // New prop to control action buttons visibility (Import/Export)
   // External selection control
   externalSelectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
@@ -234,7 +230,7 @@ const PublicationRow = memo(({
         {/* Topic - Conditional */}
         {columnVisibility.topic && (
           <td className="py-4 px-4 align-top">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
+            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 break-words">
               {publication.research_topic}
             </span>
           </td>
@@ -244,8 +240,7 @@ const PublicationRow = memo(({
         {columnVisibility.rating && (
           <td className="py-4 px-4 align-top">
             {publication.rating && !isNaN(Number(publication.rating)) && (
-              <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-md w-fit">
-                <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
+              <div className="bg-amber-50 px-2 py-1 rounded-md w-fit">
                 <span className="text-sm font-bold text-amber-700">
                   {Number(publication.rating).toFixed(1)}
                 </span>
@@ -402,14 +397,12 @@ const PublicationsTable = ({
   showSearch = true, // Default to true
   enableClientPagination = false, // Default to false
   showTitle = true, // Default to true
-  showActions = true, // Default to true
   externalSelectedIds,
   onSelectionChange,
 }: PublicationsTableProps) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showAffiliationFilter, setShowAffiliationFilter] = useState(false);
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
-  const [showImportWizard, setShowImportWizard] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -557,20 +550,7 @@ const PublicationsTable = ({
   const allCurrentPageSelected = currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.has(id));
   const someCurrentPageSelected = currentPageIds.some(id => selectedIds.has(id)) && !allCurrentPageSelected;
 
-  const handleImportComplete = (response: ImportResponse) => {
-    // Clear selection after successful import
-    if (response.success) {
-      handleSelectionChange(new Set());
-    }
-  };
 
-  const handleOpenImportWizard = () => {
-    if (selectedIds.size === 0) {
-      alert('Please select publications to import');
-      return;
-    }
-    setShowImportWizard(true);
-  };
 
   return (
     <>
@@ -589,34 +569,6 @@ const PublicationsTable = ({
             </div>
           ) : (
             <div /> // Spacer to keep flex layout working if needed, or just empty
-          )}
-
-          {showActions && (
-            <div className="flex items-center gap-2">
-              {selectedIds.size > 0 && (
-                <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
-                  {selectedIds.size} selected
-                </span>
-              )}
-
-              <Button
-                onClick={handleOpenImportWizard}
-                variant="outline"
-                size="sm"
-                disabled={selectedIds.size === 0}
-                className="flex items-center gap-2 h-9"
-              >
-                <FileText size={14} />
-                DeepDive
-              </Button>
-
-              <ExportButton
-                publications={data}
-                selectedPublications={selectedPublications}
-                variant="outline"
-                size="sm"
-              />
-            </div>
           )}
         </div>
 
@@ -862,16 +814,6 @@ const PublicationsTable = ({
               </Button>
             </div>
           </div>
-        )}
-
-        {/* Import Wizard Modal */}
-        {showImportWizard && (
-          <ImportToNotebookWizard
-            isOpen={showImportWizard}
-            onClose={() => setShowImportWizard(false)}
-            selectedPublicationIds={Array.from(selectedIds)}
-            onImportComplete={handleImportComplete}
-          />
         )}
       </div>
     </>

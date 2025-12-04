@@ -350,12 +350,11 @@ export default function ConferenceDashboard() {
 
                         <Button
                           onClick={handleOpenImportWizard}
-                          variant="outline"
                           size="sm"
                           disabled={selectedPublicationIds.size === 0}
-                          className="flex items-center gap-2 h-9"
+                          className="flex items-center gap-2 h-9 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                          <FileText size={14} />
+                          <Sparkles size={14} className="animate-pulse" />
                           DeepDive
                         </Button>
 
@@ -429,7 +428,6 @@ export default function ConferenceDashboard() {
                       isFiltered={!!debouncedPublicationSearch || selectedAffiliations.length > 0}
                       isLoading={publicationsLoading}
                       showTitle={false}
-                      showActions={false}
                       externalSelectedIds={selectedPublicationIds}
                       onSelectionChange={setSelectedPublicationIds}
                     />
