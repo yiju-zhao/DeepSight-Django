@@ -30,6 +30,8 @@ class LotusSemanticSearchService:
         self._lotus_initialized = False
         self._lotus = None
         self._lm = None
+        self._predicate_cache: dict[str, str] = {}
+        self._openai_client = None
 
     def _initialize_lotus(self):
         """
@@ -93,6 +95,206 @@ class LotusSemanticSearchService:
             logger.error(f"Failed to initialize Lotus: {e}")
             raise RuntimeError(f"Lotus initialization failed: {str(e)}")
 
+    def _get_openai_client(self):
+        """
+        Get or create OpenAI client instance (lazy initialization).
+
+        Returns:
+            OpenAI client instance
+
+        Raises:
+            ValueError: If OPENAI_API_KEY is not configured
+        """
+        if self._openai_client is None:
+            from openai import OpenAI
+
+            api_key = settings.OPENAI_API_KEY
+            if not api_key:
+                raise ValueError("OPENAI_API_KEY not configured in settings")
+            self._openai_client = OpenAI(api_key=api_key)
+            logger.info("OpenAI client initialized for predicate generation")
+
+        return self._openai_client
+
+    def _generate_filter_predicate(self, user_query: str) -> str:
+        """
+        Use OpenAI LLM to convert user query into proper LOTUS sem_filter predicate.
+
+        The LLM generates only the predicate part (e.g., "is about machine learning")
+        which is then combined with column references: "{title} or {abstract} [predicate]"
+
+        Args:
+            user_query: Raw user query (e.g., "machine learning papers")
+
+        Returns:
+            Properly formatted LOTUS predicate (e.g., "{title} or {abstract} is about machine learning")
+
+        Raises:
+            No exceptions - falls back to simple template on any error
+        """
+        # Handle empty query
+        if not user_query or not user_query.strip():
+            return "{title} or {abstract} is not empty"
+
+        user_query = user_query.strip()
+
+        # Check cache first
+        if user_query in self._predicate_cache:
+            logger.debug(f"Using cached predicate for query: {user_query}")
+            return self._predicate_cache[user_query]
+
+        # Generate predicate using OpenAI
+        try:
+            client = self._get_openai_client()
+
+            prompt = f"""You are a query translator for LOTUS semantic filtering system.
+
+Convert the user's natural language query into a predicate phrase that completes the filter condition.
+
+Your output will be combined with column references like: "{{title}} or {{abstract}} [YOUR OUTPUT]"
+
+RULES:
+1. Generate ONLY the predicate phrase (do NOT include column references)
+2. Write direct predicates, not meta-language like "is relevant to"
+3. Be specific and natural
+4. Start with a verb or verb phrase (is, expresses, discusses, contains, etc.)
+
+EXAMPLES:
+User query: "machine learning papers"
+Output: "is about machine learning"
+
+User query: "positive sentiment reviews"
+Output: "expresses positive sentiment"
+
+User query: "papers on deep learning for computer vision"
+Output: "discusses deep learning applied to computer vision"
+
+User query: "research requiring mathematical background"
+Output: "requires knowledge of mathematics"
+
+User query: "neural networks"
+Output: "is about neural networks"
+
+Now convert this query (output ONLY the predicate phrase):
+User query: "{user_query}"
+Output:"""
+
+            response = client.chat.completions.create(
+                model="gpt-5.1",
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+            predicate_part = response.choices[0].message.content.strip()
+
+            # Remove quotes if LLM added them
+            predicate_part = predicate_part.strip('"').strip("'")
+
+            # Construct final predicate
+            final_predicate = f"{{title}} or {{abstract}} {predicate_part}"
+
+            # Cache the result
+            self._predicate_cache[user_query] = final_predicate
+
+            logger.info(f"Generated predicate for '{user_query}': {final_predicate}")
+            return final_predicate
+
+        except Exception as e:
+            logger.warning(f"Failed to generate predicate via OpenAI, using fallback: {e}")
+            # Fallback to simple template
+            fallback_predicate = f"{{title}} or {{abstract}} is about {user_query}"
+            self._predicate_cache[user_query] = fallback_predicate
+            return fallback_predicate
+
+    def _generate_topk_instruction(self, user_query: str) -> str:
+        """
+        Use OpenAI LLM to convert user query into proper LOTUS sem_topk instruction.
+
+        The LLM generates a ranking question in the format:
+        "Which {title} or {abstract} is most [criteria]?"
+
+        Args:
+            user_query: Raw user query (e.g., "machine learning papers")
+
+        Returns:
+            Properly formatted LOTUS topk instruction (e.g., "Which {title} or {abstract} is most related to machine learning?")
+
+        Raises:
+            No exceptions - falls back to simple template on any error
+        """
+        # Handle empty query
+        if not user_query or not user_query.strip():
+            return "Which {title} or {abstract} is most relevant?"
+
+        user_query = user_query.strip()
+
+        # Check cache first (use different cache key to distinguish from filter predicates)
+        cache_key = f"topk:{user_query}"
+        if cache_key in self._predicate_cache:
+            logger.debug(f"Using cached topk instruction for query: {user_query}")
+            return self._predicate_cache[cache_key]
+
+        # Generate topk instruction using OpenAI
+        try:
+            client = self._get_openai_client()
+
+            prompt = f"""You are a query translator for LOTUS semantic ranking system.
+
+Convert the user's natural language query into a ranking question for selecting top-K results.
+
+Your output will be combined with column references like: "Which {{title}} or {{abstract}} [YOUR OUTPUT]?"
+
+RULES:
+1. Generate ONLY the ranking criteria phrase (do NOT include "Which" or column references)
+2. Start with "is most" or "is least" followed by the ranking dimension
+3. Use comparative language (most/least related, most relevant, most exciting, etc.)
+4. Focus on ranking criteria, not filtering conditions
+
+EXAMPLES:
+User query: "machine learning papers"
+Output: "is most related to machine learning"
+
+User query: "research on neural networks"
+Output: "is most relevant to neural networks research"
+
+User query: "exciting computer vision work"
+Output: "is most exciting in the field of computer vision"
+
+User query: "papers requiring mathematics"
+Output: "is most focused on mathematical methods"
+
+User query: "positive sentiment reviews"
+Output: "is most positive in sentiment"
+
+Now convert this query (output ONLY the ranking criteria phrase):
+User query: "{user_query}"
+Output:"""
+
+            response = client.chat.completions.create(
+                model="gpt-5.1",
+                messages=[{"role": "user", "content": prompt}],
+            )
+
+            criteria_part = response.choices[0].message.content.strip()
+
+            # Remove quotes if LLM added them
+            criteria_part = criteria_part.strip('"').strip("'")
+
+            # Construct final instruction as a ranking question
+            final_instruction = f"Which {{title}} or {{abstract}} {criteria_part}?"
+
+            # Cache the result
+            self._predicate_cache[cache_key] = final_instruction
+
+            logger.info(f"Generated topk instruction for '{user_query}': {final_instruction}")
+            return final_instruction
+
+        except Exception as e:
+            logger.warning(f"Failed to generate topk instruction via OpenAI, using fallback: {e}")
+            # Fallback to simple template
+            fallback_instruction = f"Which {{title}} or {{abstract}} is most related to {user_query}?"
+            self._predicate_cache[cache_key] = fallback_instruction
+            return fallback_instruction
+
     def _publications_to_dataframe(self, publications: list[Publication]) -> pd.DataFrame:
         """
         Convert Publication objects to DataFrame for Lotus processing.
@@ -142,15 +344,19 @@ class LotusSemanticSearchService:
         """
         Apply Lotus semantic filter on a publications DataFrame.
 
+        Uses LLM to generate proper LOTUS predicates from user queries.
+
         Args:
-            df: DataFrame of publications
-            query: Natural language semantic query
+            df: DataFrame of publications with 'title' and 'abstract' columns
+            query: Natural language semantic query from user
 
         Returns:
             Filtered DataFrame
         """
-        filter_instruction = f"{{semantic_text}} is relevant to the query: {query}"
-        logger.info(f"Applying semantic filter: {filter_instruction}")
+        # Generate proper LOTUS predicate using LLM
+        filter_instruction = self._generate_filter_predicate(query)
+        logger.info(f"User query: {query}")
+        logger.info(f"Generated predicate: {filter_instruction}")
 
         filtered_df = df.sem_filter(filter_instruction)
         logger.info(f"Filtered to {len(filtered_df)} publications")
@@ -162,9 +368,11 @@ class LotusSemanticSearchService:
         """
         Apply Lotus semantic top-k ranking on a filtered DataFrame.
 
+        Uses LLM-generated ranking instruction (e.g., "Which {title} or {abstract} is most related to X?")
+
         Args:
             filtered_df: DataFrame after semantic filtering
-            query: Natural language semantic query
+            query: Natural language semantic query from user
             topk: Number of top results to keep; if None, keep all
 
         Returns:
@@ -178,8 +386,9 @@ class LotusSemanticSearchService:
         else:
             actual_topk = min(topk, len(filtered_df))
 
-        topk_instruction = f"Rank {{semantic_text}} by relevance to: {query}"
-        logger.info(f"Applying top-{actual_topk} ranking")
+        # Generate ranking instruction using LLM
+        topk_instruction = self._generate_topk_instruction(query)
+        logger.info(f"Applying top-{actual_topk} ranking with instruction: {topk_instruction}")
 
         return filtered_df.sem_topk(topk_instruction, K=actual_topk)
 
