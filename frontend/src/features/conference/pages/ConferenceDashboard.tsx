@@ -356,7 +356,7 @@ export default function ConferenceDashboard() {
                           className="flex items-center gap-2 h-9"
                         >
                           <FileText size={14} />
-                          Import to Notebook
+                          DeepDive
                         </Button>
 
                         <ExportButton
