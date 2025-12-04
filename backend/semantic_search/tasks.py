@@ -48,6 +48,7 @@ def semantic_search_streaming_task(
     def publish_progress(phase: str, count: int):
         """Publish progress for different semantic search phases."""
         if phase == "filtering":
+            logger.info(f"Job {job_id}: Publishing filtering event with {count} publications")
             _publish_progress(
                 job_id,
                 {
@@ -57,6 +58,7 @@ def semantic_search_streaming_task(
                 },
             )
         elif phase == "reranking":
+            logger.info(f"Job {job_id}: Publishing reranking event with {count} publications")
             _publish_progress(
                 job_id,
                 {

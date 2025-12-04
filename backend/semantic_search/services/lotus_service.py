@@ -795,14 +795,20 @@ Output:"""
 
             # Notify filtering phase starting
             if progress_callback:
+                logger.info(f"Calling progress_callback for filtering phase with {len(df)} publications")
                 progress_callback("filtering", len(df))
+            else:
+                logger.warning("No progress_callback provided, skipping filtering notification")
 
             # Apply semantic filter with cascade stats
             filtered_df, filter_stats = self._apply_semantic_filter(df, query)
 
             # Notify reranking phase starting
             if progress_callback:
+                logger.info(f"Calling progress_callback for reranking phase with {len(filtered_df)} publications")
                 progress_callback("reranking", len(filtered_df))
+            else:
+                logger.warning("No progress_callback provided, skipping reranking notification")
 
             # Apply semantic ranking (no cascade)
             if not filtered_df.empty:

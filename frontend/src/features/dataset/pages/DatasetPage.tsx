@@ -227,7 +227,7 @@ export default function DatasetPage() {
                     switch (data.type) {
                         case 'connected':
                             console.log('[SSE] Connected to search stream');
-                            setStreamStatus('Connected to stream');
+                            // Don't show "connected" status, wait for actual progress
                             break;
 
                         case 'started':
