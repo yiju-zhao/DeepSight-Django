@@ -18,6 +18,8 @@ interface SearchFiltersProps {
     selectedYear: number | undefined;
     setSelectedYear: (value: number | undefined) => void;
     isLoading: boolean;
+    topk: number;
+    setTopk: (value: number) => void;
     className?: string;
 }
 
@@ -29,6 +31,8 @@ export function SearchFilters({
     selectedYear,
     setSelectedYear,
     isLoading,
+    topk,
+    setTopk,
     className
 }: SearchFiltersProps) {
     const [isExpanded, setIsExpanded] = useState(false);
@@ -87,6 +91,27 @@ export function SearchFilters({
                             ))}
                         </SelectContent>
                     </Select>
+
+                    {/* Top-k Selector */}
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={isLoading}
+                        className="rounded-full px-4"
+                        onClick={() => {
+                            const input = window.prompt('Enter number of top results (1-100):', String(topk));
+                            if (input === null) return;
+                            const value = Number.parseInt(input, 10);
+                            if (Number.isNaN(value) || value < 1 || value > 100) {
+                                window.alert('Please enter a valid number between 1 and 100.');
+                                return;
+                            }
+                            setTopk(value);
+                        }}
+                    >
+                        Top {topk}
+                    </Button>
 
                     {/* Clear Filters Button */}
                     {hasActiveFilters && (

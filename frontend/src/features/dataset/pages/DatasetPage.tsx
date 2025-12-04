@@ -25,6 +25,7 @@ export default function DatasetPage() {
     // Filter State
     const [selectedVenue, setSelectedVenue] = useState<string>('');
     const [selectedYear, setSelectedYear] = useState<number | undefined>();
+    const [topk, setTopk] = useState<number>(20);
     const [searchQuery, setSearchQuery] = useState('');
 
     // Search Results State
@@ -192,7 +193,7 @@ export default function DatasetPage() {
             const streamResponse = await datasetService.startStreamingSearch({
                 publication_ids: allPublicationIds,
                 query: searchQuery,
-                topk: 50, // Get top 50 results
+                topk, // Use user-configurable top-k (default 20)
             });
 
             if (!streamResponse.success) {
@@ -425,6 +426,8 @@ export default function DatasetPage() {
                                         selectedYear={selectedYear}
                                         setSelectedYear={setSelectedYear}
                                         isLoading={instancesLoading}
+                                        topk={topk}
+                                        setTopk={setTopk}
                                     />
                                 </div>
 
@@ -455,6 +458,8 @@ export default function DatasetPage() {
                                     selectedYear={selectedYear}
                                     setSelectedYear={setSelectedYear}
                                     isLoading={instancesLoading || isSearching}
+                                    topk={topk}
+                                    setTopk={setTopk}
                                 />
                             </div>
 

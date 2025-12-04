@@ -155,9 +155,7 @@ Your output will be combined with column references like: "{{title}} or {{abstra
 
 RULES:
 1. Generate ONLY the predicate phrase (do NOT include column references)
-2. Write direct predicates, not meta-language like "is relevant to"
-3. Be specific and natural
-4. Start with a verb or verb phrase (is, expresses, discusses, contains, etc.)
+2. Be specific and natural
 
 EXAMPLES:
 User query: "machine learning papers"
