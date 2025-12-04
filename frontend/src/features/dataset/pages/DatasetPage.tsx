@@ -45,10 +45,7 @@ export default function DatasetPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
 
-    const paginatedPublications = useMemo(() => {
-        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-        return publications.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    }, [publications, currentPage]);
+
 
     // Data hooks
     const { data: instances, isLoading: instancesLoading } = useInstances();
@@ -556,7 +553,7 @@ export default function DatasetPage() {
                                         )}
                                     </div>
                                     <PublicationsTableEnhanced
-                                        data={paginatedPublications}
+                                        data={publications}
                                         pagination={{ count: publications.length, next: null, previous: null }}
                                         currentPage={currentPage}
                                         onPageChange={setCurrentPage}
@@ -568,6 +565,7 @@ export default function DatasetPage() {
                                         isFiltered={false}
                                         isLoading={isFetchingPublications && publications.length === 0}
                                         showSearch={false}
+                                        enableClientPagination={true}
                                     />
                                 </div>
                             )}

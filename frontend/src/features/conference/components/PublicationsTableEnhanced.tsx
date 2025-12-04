@@ -45,6 +45,7 @@ interface PublicationsTableProps {
   isFiltered: boolean;
   isLoading?: boolean;
   showSearch?: boolean; // New prop to control search bar visibility
+  enableClientPagination?: boolean; // New prop to enable client-side pagination
 }
 
 interface ColumnVisibility {
@@ -394,6 +395,7 @@ const PublicationsTableEnhanced = ({
   isFiltered,
   isLoading,
   showSearch = true, // Default to true
+  enableClientPagination = false, // Default to false
 }: PublicationsTableProps) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showAffiliationFilter, setShowAffiliationFilter] = useState(false);
@@ -424,18 +426,35 @@ const PublicationsTableEnhanced = ({
     }));
   };
 
-  // Filter data based on favorites
-  const filteredData = useMemo(() => {
-    if (!showFavoritesOnly) return data;
-    return data.filter(pub => favorites.has(String(pub.id)));
-  }, [data, showFavoritesOnly, favorites]);
+  // Determine which data to display (client-side pagination vs server-side)
+  const displayData = useMemo(() => {
+    let processedData = data;
+
+    // Filter by favorites if enabled (client-side)
+    if (showFavoritesOnly) {
+      processedData = processedData.filter(pub => favorites.has(String(pub.id)));
+    }
+
+    // Apply client-side pagination if enabled
+    if (enableClientPagination) {
+      const startIndex = (currentPage - 1) * 20;
+      return processedData.slice(startIndex, startIndex + 20);
+    }
+
+    return processedData;
+  }, [data, showFavoritesOnly, favorites, enableClientPagination, currentPage]);
 
   // Selection handlers
   const toggleSelectAll = () => {
-    if (selectedIds.size === filteredData.length) {
+    // Select all from the FULL data (or filtered data), not just the current page
+    // But typically "Select All" in tables selects visible items or all items?
+    // Let's select ALL items in the current filtered set (across all pages if client-side)
+    const sourceData = showFavoritesOnly ? data.filter(pub => favorites.has(String(pub.id))) : data;
+
+    if (selectedIds.size === sourceData.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredData.map((p) => String(p.id))));
+      setSelectedIds(new Set(sourceData.map((p) => String(p.id))));
     }
   };
 
@@ -463,7 +482,7 @@ const PublicationsTableEnhanced = ({
     });
   };
 
-  // Get selected publications for export
+  // Get selected publications for export - USE FULL DATA
   const selectedPublications = useMemo(() => {
     return data.filter((p) => selectedIds.has(String(p.id)));
   }, [data, selectedIds]);
@@ -510,8 +529,10 @@ const PublicationsTableEnhanced = ({
   }
 
   const totalPages = Math.ceil(pagination.count / 20);
-  const allSelected = filteredData.length > 0 && selectedIds.size === filteredData.length;
-  const someSelected = selectedIds.size > 0 && selectedIds.size < filteredData.length;
+  // Check selection status against full data
+  const sourceData = showFavoritesOnly ? data.filter(pub => favorites.has(String(pub.id))) : data;
+  const allSelected = sourceData.length > 0 && selectedIds.size === sourceData.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < sourceData.length;
 
   const handleImportComplete = (response: ImportResponse) => {
     // Clear selection after successful import
@@ -743,7 +764,7 @@ const PublicationsTableEnhanced = ({
                 </tr>
               </thead>
               <TableBody
-                data={filteredData}
+                data={displayData}
                 columnVisibility={columnVisibility}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
