@@ -230,7 +230,7 @@ const PublicationRow = memo(({
         {/* Topic - Conditional */}
         {columnVisibility.topic && (
           <td className="py-4 px-4 align-top">
-            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 break-words">
+            <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 max-w-full">
               {publication.research_topic}
             </span>
           </td>
@@ -423,7 +423,7 @@ const PublicationsTable = ({
     title: true,
     authors: true,
     affiliation: true,
-    topic: false,
+    topic: true,
     rating: true,
     links: true,
     keywords: true,
