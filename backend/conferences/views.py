@@ -20,7 +20,7 @@ from .serializers import (
     ImportToNotebookRequestSerializer,
     InstanceSerializer,
     PublicationSerializer,
-    PublicationSerializer,
+    PublicationTableSerializer,
     SessionSerializer,
     VenueSerializer,
 )
@@ -67,7 +67,7 @@ class PublicationViewSet(viewsets.ModelViewSet):
     """ViewSet for Publication model"""
 
     queryset = Publication.objects.select_related("instance__venue").all()
-    serializer_class = PublicationSerializer
+    serializer_class = PublicationTableSerializer
     permission_classes = [IsAuthenticated]
     pagination_class = StandardPageNumberPagination
 
