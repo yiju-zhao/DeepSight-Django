@@ -7,8 +7,12 @@ import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
 import { SessionList } from '../components/SessionList';
 import ConferenceSelectionDrawer from '../components/ConferenceSelectionDrawer';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
-import { AlertCircle, Calendar, Filter, Sparkles } from 'lucide-react';
+import { AlertCircle, Calendar, Filter, Sparkles, FileText } from 'lucide-react';
 import Header from '@/shared/components/layout/Header';
+import { Button } from '@/shared/components/ui/button';
+import ExportButton from '../components/ExportButton';
+import { ImportToNotebookWizard } from '../components/ImportToNotebookWizard';
+import { ImportResponse } from '../types';
 
 // Memoized dashboard content component to prevent unnecessary re-renders
 const DashboardContent = memo(({
@@ -83,6 +87,26 @@ export default function ConferenceDashboard() {
   const [sortField, setSortField] = useState<'rating' | 'title'>('rating');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [binSize, setBinSize] = useState(0.5); // Default bin size for rating histogram
+
+  // Selection state for publications
+  const [selectedPublicationIds, setSelectedPublicationIds] = useState<Set<string>>(new Set());
+  const [showImportWizard, setShowImportWizard] = useState(false);
+
+  const handleImportComplete = (response: ImportResponse) => {
+    if (response.success) {
+      setSelectedPublicationIds(new Set());
+    }
+  };
+
+  const handleOpenImportWizard = () => {
+    if (selectedPublicationIds.size === 0) {
+      alert('Please select publications to import');
+      return;
+    }
+    setShowImportWizard(true);
+  };
+
+
 
   // Debounce search input to avoid too many API calls
   const debouncedPublicationSearch = useDebounce(publicationSearchInput, 500); // 500ms delay (publications only)
@@ -177,6 +201,12 @@ export default function ConferenceDashboard() {
     isLoading: publicationsLoading,
     error: publicationsError
   } = usePublications(publicationsParams);
+
+  // Get selected publications objects for export
+  const selectedPublications = useMemo(() => {
+    if (!publicationsData?.results) return [];
+    return publicationsData.results.filter((p: any) => selectedPublicationIds.has(String(p.id)));
+  }, [publicationsData, selectedPublicationIds]);
 
   // Overview data hook available but not used in this component
   // const { data: overviewData } = useOverview();
@@ -296,17 +326,48 @@ export default function ConferenceDashboard() {
 
 
                 <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-                  <TabsList className="w-full justify-start bg-transparent p-0 border-b border-gray-200 rounded-none h-auto">
-                    {['overview', 'sessions', 'publications'].map((tab) => (
-                      <TabsTrigger
-                        key={tab}
-                        value={tab}
-                        className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 data-[state=active]:border-black data-[state=active]:text-black data-[state=active]:bg-transparent transition-all capitalize"
-                      >
-                        {tab}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                  <div className="flex items-center justify-between border-b border-gray-200">
+                    <TabsList className="bg-transparent p-0 border-none h-auto">
+                      {['overview', 'sessions', 'publications'].map((tab) => (
+                        <TabsTrigger
+                          key={tab}
+                          value={tab}
+                          className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 data-[state=active]:border-black data-[state=active]:text-black data-[state=active]:bg-transparent transition-all capitalize"
+                        >
+                          {tab}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+
+                    {/* Action Buttons - Only visible when Publications tab is active */}
+                    {activeTab === 'publications' && (
+                      <div className="flex items-center gap-2 pb-2">
+                        {selectedPublicationIds.size > 0 && (
+                          <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
+                            {selectedPublicationIds.size} selected
+                          </span>
+                        )}
+
+                        <Button
+                          onClick={handleOpenImportWizard}
+                          variant="outline"
+                          size="sm"
+                          disabled={selectedPublicationIds.size === 0}
+                          className="flex items-center gap-2 h-9"
+                        >
+                          <FileText size={14} />
+                          Import to Notebook
+                        </Button>
+
+                        <ExportButton
+                          publications={publicationsData?.results || []}
+                          selectedPublications={selectedPublications}
+                          variant="outline"
+                          size="sm"
+                        />
+                      </div>
+                    )}
+                  </div>
 
                   {/* Overview Tab */}
                   <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -368,6 +429,9 @@ export default function ConferenceDashboard() {
                       isFiltered={!!debouncedPublicationSearch || selectedAffiliations.length > 0}
                       isLoading={publicationsLoading}
                       showTitle={false}
+                      showActions={false}
+                      externalSelectedIds={selectedPublicationIds}
+                      onSelectionChange={setSelectedPublicationIds}
                     />
                   </TabsContent>
                 </Tabs>
@@ -397,6 +461,12 @@ export default function ConferenceDashboard() {
           </div>
         </div>
       </main>
+      <ImportToNotebookWizard
+        isOpen={showImportWizard}
+        onClose={() => setShowImportWizard(false)}
+        selectedPublicationIds={Array.from(selectedPublicationIds)}
+        onImportComplete={handleImportComplete}
+      />
     </div>
   );
 }

@@ -47,6 +47,10 @@ interface PublicationsTableProps {
   showSearch?: boolean; // New prop to control search bar visibility
   enableClientPagination?: boolean; // New prop to enable client-side pagination
   showTitle?: boolean; // New prop to control title visibility
+  showActions?: boolean; // New prop to control action buttons visibility (Import/Export)
+  // External selection control
+  externalSelectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
 interface ColumnVisibility {
@@ -398,13 +402,26 @@ const PublicationsTableEnhanced = ({
   showSearch = true, // Default to true
   enableClientPagination = false, // Default to false
   showTitle = true, // Default to true
+  showActions = true, // Default to true
+  externalSelectedIds,
+  onSelectionChange,
 }: PublicationsTableProps) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showAffiliationFilter, setShowAffiliationFilter] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
   const [showImportWizard, setShowImportWizard] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  // Use external or internal state
+  const selectedIds = externalSelectedIds || internalSelectedIds;
+  const handleSelectionChange = (newIds: Set<string>) => {
+    if (onSelectionChange) {
+      onSelectionChange(newIds);
+    } else {
+      setInternalSelectedIds(newIds);
+    }
+  };
 
   const { favorites, toggleFavorite } = useFavorites();
 
@@ -454,22 +471,20 @@ const PublicationsTableEnhanced = ({
     const sourceData = showFavoritesOnly ? data.filter(pub => favorites.has(String(pub.id))) : data;
 
     if (selectedIds.size === sourceData.length) {
-      setSelectedIds(new Set());
+      handleSelectionChange(new Set());
     } else {
-      setSelectedIds(new Set(sourceData.map((p) => String(p.id))));
+      handleSelectionChange(new Set(sourceData.map((p) => String(p.id))));
     }
   };
 
   const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    handleSelectionChange(next);
   };
 
   const toggleExpand = (id: string) => {
@@ -539,7 +554,7 @@ const PublicationsTableEnhanced = ({
   const handleImportComplete = (response: ImportResponse) => {
     // Clear selection after successful import
     if (response.success) {
-      setSelectedIds(new Set());
+      handleSelectionChange(new Set());
     }
   };
 
@@ -570,31 +585,33 @@ const PublicationsTableEnhanced = ({
             <div /> // Spacer to keep flex layout working if needed, or just empty
           )}
 
-          <div className="flex items-center gap-2">
-            {selectedIds.size > 0 && (
-              <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
-                {selectedIds.size} selected
-              </span>
-            )}
+          {showActions && (
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
+                  {selectedIds.size} selected
+                </span>
+              )}
 
-            <Button
-              onClick={handleOpenImportWizard}
-              variant="outline"
-              size="sm"
-              disabled={selectedIds.size === 0}
-              className="flex items-center gap-2 h-9"
-            >
-              <FileText size={14} />
-              Import to Notebook
-            </Button>
+              <Button
+                onClick={handleOpenImportWizard}
+                variant="outline"
+                size="sm"
+                disabled={selectedIds.size === 0}
+                className="flex items-center gap-2 h-9"
+              >
+                <FileText size={14} />
+                Import to Notebook
+              </Button>
 
-            <ExportButton
-              publications={data}
-              selectedPublications={selectedPublications}
-              variant="outline"
-              size="sm"
-            />
-          </div>
+              <ExportButton
+                publications={data}
+                selectedPublications={selectedPublications}
+                variant="outline"
+                size="sm"
+              />
+            </div>
+          )}
         </div>
 
         {/* Controls - Only show if showSearch is true */}

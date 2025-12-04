@@ -73,9 +73,8 @@ const KPICard = ({
             </p>
 
             {trend && (
-              <div className={`flex items-center gap-1 text-xs font-medium ${
-                trend.isPositive ? 'text-green-600' : 'text-red-600'
-              }`}>
+              <div className={`flex items-center gap-1 text-xs font-medium ${trend.isPositive ? 'text-green-600' : 'text-red-600'
+                }`}>
                 <TrendingUp className={`h-3.5 w-3.5 ${!trend.isPositive && 'rotate-180'}`} />
                 <span>{Math.abs(trend.value)}%</span>
               </div>
@@ -138,7 +137,7 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
   if (isLoading) {
     return (
       <div className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           {Array.from({ length: 5 }).map((_, i) => (
             <KPICard key={i} icon={Users} label="" value="" isLoading={true} />
           ))}
@@ -150,7 +149,7 @@ export function DashboardKPIs({ data, isLoading }: DashboardKPIsProps) {
   return (
     <div className="space-y-8">
       {/* Main KPI Cards - HUAWEI Style 4-column responsive grid with stagger animations */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
         <div style={{ animationDelay: '0ms' }}>
           <KPICard
             icon={Users}
