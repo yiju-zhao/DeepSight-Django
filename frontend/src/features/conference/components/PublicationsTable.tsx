@@ -230,14 +230,16 @@ const PublicationRow = memo(({
         {/* Topic - Conditional */}
         {columnVisibility.topic && (
           <td className="py-4 px-4 align-top">
-            <span
-              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 max-w-full"
-              title={publication.research_topic}
-            >
-              <span className="truncate block">
-                {publication.research_topic}
+            {publication.research_topic && (
+              <span
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 max-w-full"
+                title={publication.research_topic}
+              >
+                <span className="truncate block">
+                  {publication.research_topic}
+                </span>
               </span>
-            </span>
+            )}
           </td>
         )}
 
@@ -674,9 +676,9 @@ const PublicationsTable = ({
                     </button>
                   </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider">Title</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[22%]">Authors</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[18%]">Authors</th>
                   {columnVisibility.affiliation && (
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[18%]">
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[14%]">
                       <div className="flex items-center gap-1.5">
                         <span>Affiliation</span>
                         <div className="relative" ref={affiliationFilterRef}>
@@ -739,13 +741,13 @@ const PublicationsTable = ({
                     </th>
                   )}
                   {columnVisibility.topic && (
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[12%]">Topic</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[10%]">Topic</th>
                   )}
                   {columnVisibility.rating && (
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[10%]">Rating</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[8%]">Rating</th>
                   )}
                   {columnVisibility.links && (
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[10%]">Links</th>
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[8%]">Links</th>
                   )}
                 </tr>
               </thead>

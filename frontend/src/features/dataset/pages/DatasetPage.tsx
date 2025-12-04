@@ -418,7 +418,7 @@ export default function DatasetPage() {
                     <div className="relative">
 
 
-                        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
                             {/* Filters above search bar */}
                             <div className="mb-4 flex justify-start">
                                 <SearchFilters
@@ -435,7 +435,7 @@ export default function DatasetPage() {
                             </div>
 
                             {/* Compact Search Bar */}
-                            <div className="flex items-center gap-4 mb-6">
+                            <div className="flex items-center gap-4 mb-2">
                                 <div className="flex-1 relative bg-white rounded-lg border border-gray-200 shadow-sm">
                                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
                                     <input
@@ -476,9 +476,6 @@ export default function DatasetPage() {
                                                 style={{ width: `${streamProgress}%` }}
                                             />
                                         </div>
-                                        <p className="text-xs text-gray-500 mt-2">
-                                            {publications.length} results loaded...
-                                        </p>
                                     </div>
                                 </div>
                             )}
@@ -494,7 +491,7 @@ export default function DatasetPage() {
                             {/* Results Table */}
                             {publications.length > 0 && (
                                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                    <div className="flex items-center justify-end gap-2 mb-4">
+                                    <div className="flex items-center justify-end gap-2 mb-2">
                                         {selectedPublicationIds.size > 0 && (
                                             <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
                                                 {selectedPublicationIds.size} selected
