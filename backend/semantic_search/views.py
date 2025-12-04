@@ -104,9 +104,9 @@ class InitiateStreamingSearchView(APIView):
 class SemanticSearchStreamView(View):
     """
     SSE endpoint for streaming semantic search progress.
-    
+
     Subscribes to Redis Pub/Sub channel: semantic_search:{job_id}
-    Streams progress updates (started, batch, complete, error) to the client.
+    Streams progress updates (started, complete, error) to the client.
     """
     
     MAX_DURATION_SECONDS = 600  # 10 minutes max connection time

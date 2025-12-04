@@ -1,12 +1,11 @@
 """
 Celery tasks for semantic search operations.
 
-Provides async batch processing for semantic search across large datasets.
+Provides async processing for semantic search across large datasets.
 """
 
 import json
 import logging
-import time
 from typing import Any
 
 import redis
@@ -24,136 +23,71 @@ def semantic_search_streaming_task(
     self, publication_ids: list[str], query: str, topk: int, job_id: str
 ) -> dict[str, Any]:
     """
-    Perform streaming semantic search on publications in batches.
+    Perform streaming semantic search on all publications at once.
 
-    Processes publications in batches of 100, publishing intermediate results
+    Processes all publications in a single operation, publishing results
     to Redis for SSE streaming to the frontend.
 
     Args:
         self: Celery task instance
         publication_ids: List of publication UUIDs to search
         query: Natural language search query
-        topk: Number of top results to return per batch
+        topk: Number of top results to return
         job_id: Unique job identifier for this search
 
     Returns:
         Final search results dictionary
     """
-    batch_size = 100
-    all_results = []
-    all_filtered_frames = []
     total_publications = len(publication_ids)
 
     logger.info(
-        f"Starting streaming semantic search job {job_id}: "
+        f"Starting semantic search job {job_id}: "
         f"{total_publications} publications, query='{query[:50]}...'"
     )
 
     try:
-        # Calculate total batches upfront
-        total_batches = (total_publications + batch_size - 1) // batch_size
-
         # Publish initial status
         _publish_progress(
             job_id,
             {
                 "type": "started",
                 "total": total_publications,
-                "total_batches": total_batches,
                 "processed": 0,
                 "progress": 0.0,
                 "query": query,
             },
         )
 
-        # Process in batches
-        for i in range(0, total_publications, batch_size):
-            batch_ids = publication_ids[i : i + batch_size]
-            batch_num = (i // batch_size) + 1
+        # Update task progress
+        self.update_state(
+            state="PROGRESS",
+            meta={
+                "current": 0,
+                "total": total_publications,
+            },
+        )
 
-            logger.info(
-                f"Job {job_id}: Processing batch {batch_num}/{total_batches} "
-                f"({len(batch_ids)} publications)"
-            )
+        # Process all publications at once with semantic filtering and ranking
+        logger.info(f"Job {job_id}: Processing all {total_publications} publications")
 
-            # Update task progress
-            self.update_state(
-                state="PROGRESS",
-                meta={
-                    "current": i + len(batch_ids),
-                    "total": total_publications,
-                    "batch": batch_num,
-                    "total_batches": total_batches,
-                },
-            )
+        result = lotus_semantic_search_service.semantic_filter(
+            publication_ids=publication_ids,
+            query=query,
+            topk=topk,
+        )
 
-            batch_result_ids = []
-            try:
-                # Step 1: semantic filter on this batch (no top-k yet)
-                batch_filtered_df = lotus_semantic_search_service.filter_publications(
-                    publication_ids=batch_ids,
-                    query=query,
-                )
-
-                if not batch_filtered_df.empty:
-                    all_filtered_frames.append(batch_filtered_df)
-
-                    # Extract only publication IDs for streaming
-                    # Frontend will fetch full details using bulk endpoint
-                    batch_result_ids = [
-                        {
-                            "id": str(row["id"]),
-                            "relevance_score": float(row.get("relevance_score", 0))
-                        }
-                        for _, row in batch_filtered_df.iterrows()
-                    ]
-            except Exception as batch_error:
-                logger.error(
-                    f"Job {job_id}: Batch {batch_num} failed with error: {str(batch_error)}",
-                    exc_info=True
-                )
-                # Continue with next batch instead of failing entire job
-
-            # Always publish progress for every batch (even if failed)
-            progress = (i + len(batch_ids)) / total_publications
-            _publish_progress(
-                job_id,
-                {
-                    "type": "batch",
-                    "batch_num": batch_num,
-                    "total_batches": total_batches,
-                    "processed": i + len(batch_ids),
-                    "total": total_publications,
-                    "progress": progress,
-                    "batch_result_ids": batch_result_ids,
-                    "batch_count": len(batch_result_ids),
-                },
-            )
-
-            logger.info(
-                f"Job {job_id}: Batch {batch_num}/{total_batches} completed with {len(batch_result_ids)} results"
-            )
-
-        # Step 2: final global top-k ranking across all filtered results
-        if all_filtered_frames:
-            import pandas as pd
-
-            combined_df = pd.concat(all_filtered_frames, ignore_index=True)
-            ranked_df = lotus_semantic_search_service._apply_semantic_topk(  # type: ignore[attr-defined]
-                combined_df,
-                query=query,
-                topk=topk,
-            )
-            # Extract only IDs from final ranked results
+        if result["success"]:
+            # Extract only IDs and relevance scores for streaming
             final_result_ids = [
                 {
-                    "id": str(row["id"]),
-                    "relevance_score": float(row.get("relevance_score", 0))
+                    "id": str(pub["id"]),
+                    "relevance_score": float(pub.get("relevance_score", 0))
                 }
-                for _, row in ranked_df.iterrows()
+                for pub in result["results"]
             ]
         else:
             final_result_ids = []
+            logger.error(f"Job {job_id}: Semantic search failed: {result.get('detail', 'Unknown error')}")
 
         logger.info(
             f"Job {job_id}: Completed with {len(final_result_ids)} final results"
@@ -163,7 +97,7 @@ def semantic_search_streaming_task(
         completion_data = {
             "type": "complete",
             "total_results": len(final_result_ids),
-            "final_result_ids": final_result_ids,  # Changed from final_results
+            "final_result_ids": final_result_ids,
             "query": query,
         }
         _publish_progress(job_id, completion_data)
@@ -175,7 +109,7 @@ def semantic_search_streaming_task(
             "success": True,
             "job_id": job_id,
             "total_results": len(final_result_ids),
-            "result_ids": final_result_ids,  # Changed from results
+            "result_ids": final_result_ids,
         }
 
     except Exception as e:

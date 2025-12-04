@@ -358,7 +358,7 @@ Output:"""
         logger.info(f"User query: {query}")
         logger.info(f"Generated predicate: {filter_instruction}")
 
-        filtered_df = df.sem_filter(filter_instruction, default="False")
+        filtered_df = df.sem_filter(filter_instruction)
         logger.info(f"Filtered to {len(filtered_df)} publications")
         return filtered_df
 
@@ -426,37 +426,6 @@ Output:"""
             )
 
         return results
-
-    def filter_publications(
-        self, publication_ids: list[str], query: str
-    ) -> pd.DataFrame:
-        """
-        Perform semantic filtering on publications and return a DataFrame.
-
-        This performs only filtering (no top-k selection) and is intended
-        for batch/streaming workflows.
-        """
-        if not publication_ids:
-            return pd.DataFrame()
-
-        self._initialize_lotus()
-
-        publications = Publication.objects.select_related("instance__venue").filter(
-            id__in=publication_ids
-        )
-        publications_list = list(publications)
-
-        if not publications_list:
-            logger.warning(
-                "No publications found for provided IDs during filter_publications",
-            )
-            return pd.DataFrame()
-
-        df = self._publications_to_dataframe(publications_list)
-        if df.empty:
-            return df
-
-        return self._apply_semantic_filter(df, query)
 
     def semantic_filter(
         self, publication_ids: list[str], query: str, topk: int | None = 20
