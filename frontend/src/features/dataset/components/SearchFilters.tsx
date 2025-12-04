@@ -93,25 +93,23 @@ export function SearchFilters({
                     </Select>
 
                     {/* Top-k Selector */}
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
+                    <Select
+                        value={topk.toString()}
+                        onValueChange={(value) => setTopk(Number(value))}
                         disabled={isLoading}
-                        className="rounded-full px-4"
-                        onClick={() => {
-                            const input = window.prompt('Enter number of top results (1-100):', String(topk));
-                            if (input === null) return;
-                            const value = Number.parseInt(input, 10);
-                            if (Number.isNaN(value) || value < 1 || value > 100) {
-                                window.alert('Please enter a valid number between 1 and 100.');
-                                return;
-                            }
-                            setTopk(value);
-                        }}
                     >
-                        Top {topk}
-                    </Button>
+                        <SelectTrigger className="w-[110px] rounded-full bg-white border-gray-200">
+                            <span className="mr-1">Top</span>
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {[5, 10, 20, 30, 50, 100].map(value => (
+                                <SelectItem key={value} value={value.toString()}>
+                                    {value}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
                     {/* Clear Filters Button */}
                     {hasActiveFilters && (
