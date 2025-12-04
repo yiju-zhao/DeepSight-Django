@@ -349,7 +349,7 @@ export default function DatasetPage() {
 
 
                         {/* Centered Search */}
-                        <div className="flex-1 flex flex-col items-center justify-center px-4 -mt-20">
+                        <div className="flex-1 flex flex-col items-center justify-center px-4 -mt-28">
                             <div className="text-center mb-12 max-w-2xl">
                                 <Sparkles className="w-16 h-16 mx-auto mb-6 text-purple-500" />
                                 <h1 className="text-5xl font-bold text-[#1E1E1E] tracking-tight mb-4">
