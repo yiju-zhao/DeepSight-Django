@@ -10,7 +10,7 @@ import os
 import tempfile
 import time
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any, Callable, Tuple
 
 import pandas as pd
 from django.conf import settings
@@ -694,7 +694,7 @@ Output:"""
         publication_ids: list[str],
         query: str,
         topk: int | None = 20,
-        progress_callback: callable | None = None
+        progress_callback: Callable[[str, int], None] | None = None
     ) -> dict[str, Any]:
         """
         Perform semantic search on publications using Lotus.
