@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Mic, Image as ImageIcon, Sparkles, BookOpen } from 'lucide-react';
 import { SessionTypeCard } from './SessionTypeCard';
 import { SessionTypeFilter } from './SessionTypeFilter';
-import PublicationsTableEnhanced from './PublicationsTableEnhanced';
+import PublicationsTable from './PublicationsTable';
 import { usePublications } from '../hooks/useConference';
 
 interface SessionTypeViewProps {

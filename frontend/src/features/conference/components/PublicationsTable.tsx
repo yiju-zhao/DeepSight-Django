@@ -1,3 +1,14 @@
+/**
+ * Enhanced Publications Table Component
+ *
+ * Modern redesign with:
+ * - Favorite/bookmark functionality
+ * - Batch selection and export
+ * - Detail view modal trigger
+ * - Improved styling and animations
+ * - Better responsive design
+ */
+
 import { useState, useMemo, memo, useEffect, useRef } from 'react';
 import { PublicationTableItem, PaginationInfo } from '../types';
 import {
@@ -5,18 +16,19 @@ import {
   Github,
   FileText,
   Star,
-  StarOff,
   Search,
   ChevronLeft,
   ChevronRight,
   Settings,
-  Eye,
+  Filter,
 } from 'lucide-react';
 import { splitSemicolonValues, formatTruncatedList } from '@/shared/utils/utils';
-import { Card, CardHeader, CardContent } from '@/shared/components/ui/card';
 import { Checkbox } from '@/shared/components/ui/checkbox';
+import { Button } from '@/shared/components/ui/button';
 import ExportButton from './ExportButton';
+import { ImportToNotebookWizard } from './ImportToNotebookWizard';
 import { useFavorites } from '../hooks/useFavorites';
+import type { ImportResponse } from '../types';
 
 interface PublicationsTableProps {
   data: PublicationTableItem[];
@@ -25,16 +37,26 @@ interface PublicationsTableProps {
   onPageChange: (page: number) => void;
   searchTerm: string;
   onSearchChange: (search: string) => void;
+  selectedAffiliations?: string[];
+  onAffiliationFilterChange?: (affiliations: string[]) => void;
   sortField: SortField;
   sortDirection: SortDirection;
   onSortChange: (field: SortField, direction: SortDirection) => void;
-  isFiltered: boolean; // Whether results are currently filtered
+  isFiltered: boolean;
   isLoading?: boolean;
+  showSearch?: boolean; // New prop to control search bar visibility
+  enableClientPagination?: boolean; // New prop to enable client-side pagination
+  showTitle?: boolean; // New prop to control title visibility
+  showActions?: boolean; // New prop to control action buttons visibility (Import/Export)
+  // External selection control
+  externalSelectedIds?: Set<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
 interface ColumnVisibility {
   title: boolean;
   authors: boolean;
+  affiliation: boolean;
   topic: boolean;
   rating: boolean;
   links: boolean;
@@ -45,161 +67,313 @@ interface ColumnVisibility {
 type SortField = 'rating' | 'title';
 type SortDirection = 'asc' | 'desc';
 
+// ============================================================================
+// LOADING SKELETON
+// ============================================================================
+
 const LoadingSkeleton = () => (
-  <div className="bg-white rounded-lg shadow-sm border">
-    <div className="p-6">
-      <div className="h-6 bg-gray-200 rounded animate-pulse w-48 mb-4" />
+  <div className="w-full">
+    <div className="h-7 bg-gray-100 rounded animate-pulse w-48 mb-6" />
 
-      {/* Filters skeleton */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div className="h-10 bg-gray-200 rounded animate-pulse w-64" />
-        <div className="h-10 bg-gray-200 rounded animate-pulse w-40" />
-        <div className="h-10 bg-gray-200 rounded animate-pulse w-32" />
-      </div>
+    {/* Filters skeleton */}
+    <div className="flex flex-wrap gap-4 mb-6">
+      <div className="h-10 bg-gray-100 rounded animate-pulse w-64" />
+      <div className="h-10 bg-gray-100 rounded animate-pulse w-40" />
+      <div className="h-10 bg-gray-100 rounded animate-pulse w-32" />
+    </div>
 
-      {/* Table skeleton */}
-      <div className="space-y-4">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="h-16 bg-gray-200 rounded animate-pulse" />
-        ))}
-      </div>
+    {/* Table skeleton */}
+    <div className="space-y-3">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="h-20 bg-gray-50 rounded-lg animate-pulse" />
+      ))}
     </div>
   </div>
 );
 
-const PublicationRow = memo(({ publication, columnVisibility }: { publication: PublicationTableItem; columnVisibility: ColumnVisibility }) => {
+// ============================================================================
+// PUBLICATION ROW
+// ============================================================================
+
+interface PublicationRowProps {
+  publication: PublicationTableItem;
+  columnVisibility: ColumnVisibility;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+}
+
+const PublicationRow = memo(({
+  publication,
+  columnVisibility,
+  isSelected,
+  onToggleSelect,
+  isFavorite,
+  onToggleFavorite,
+  isExpanded,
+  onToggleExpand,
+}: PublicationRowProps) => {
   const keywords = useMemo(() => splitSemicolonValues(publication.keywords), [publication.keywords]);
   const authors = useMemo(() => splitSemicolonValues(publication.authors), [publication.authors]);
   const countries = useMemo(() => splitSemicolonValues(publication.aff_country_unique), [publication.aff_country_unique]);
+  const affiliations = useMemo(() => splitSemicolonValues(publication.aff_unique), [publication.aff_unique]);
 
   const keywordsDisplay = useMemo(() => formatTruncatedList(keywords, 3), [keywords]);
   const authorsDisplay = useMemo(() => formatTruncatedList(authors, 3), [authors]);
   const countriesDisplay = useMemo(() => formatTruncatedList(countries, 3), [countries]);
+  const affiliationsDisplay = useMemo(() => formatTruncatedList(affiliations, 2), [affiliations]);
+
+  // Calculate visible columns count for colSpan
+  const visibleColumnsCount = useMemo(() => {
+    let count = 4; // Checkbox, Favorite, Title, Authors
+    if (columnVisibility.affiliation) count++;
+    if (columnVisibility.topic) count++;
+    if (columnVisibility.rating) count++;
+    if (columnVisibility.links) count++;
+    return count;
+  }, [columnVisibility]);
 
   return (
-    <tr className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-      {/* Title - Always visible */}
-      <td className="py-4 px-4">
-        <div className="space-y-1">
-          <div className="font-medium text-gray-900 text-sm">
-            {publication.title}
-          </div>
-          {columnVisibility.keywords && (
-            <div className="text-xs text-gray-600 line-clamp-2">
-              {keywordsDisplay.displayText}
-            </div>
-          )}
-        </div>
-      </td>
+    <>
+      <tr className={`group border-b border-gray-100 hover:bg-gray-50/80 transition-colors ${isExpanded ? 'bg-gray-50/50' : ''}`}>
+        {/* Selection Checkbox */}
+        <td className="py-4 px-4 w-12 align-top">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={onToggleSelect}
+            className="cursor-pointer mt-1"
+          />
+        </td>
 
-      {/* Authors - Always visible */}
-      <td className="py-4 px-4">
-        <div className="space-y-2">
-          <div className="text-sm text-gray-900">
-            {authorsDisplay.displayText}
-            {authorsDisplay.hasMore && (
-              <span className="text-gray-500"> +{authorsDisplay.remainingCount} more</span>
+        {/* Favorite Icon */}
+        <td className="py-4 px-2 w-12 align-top">
+          <button
+            onClick={onToggleFavorite}
+            className={`p-1.5 rounded-md transition-all duration-200 mt-0.5 ${isFavorite
+              ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
+              : 'text-gray-300 hover:text-amber-500 hover:bg-amber-50'
+              }`}
+            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            {isFavorite ? (
+              <Star className="h-4 w-4 fill-current" />
+            ) : (
+              <Star className="h-4 w-4" />
+            )}
+          </button>
+        </td>
+
+        {/* Title - Always visible, clickable to expand */}
+        <td
+          className="py-4 px-4 cursor-pointer align-top"
+          onClick={onToggleExpand}
+        >
+          <div className="space-y-2">
+            <div className="font-medium text-gray-900 text-[15px] leading-snug hover:text-blue-600 transition-colors">
+              {publication.title}
+            </div>
+            {columnVisibility.keywords && keywords.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {keywords.slice(0, 4).map((keyword, i) => (
+                  <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600">
+                    {keyword}
+                  </span>
+                ))}
+                {keywords.length > 4 && (
+                  <span className="text-[11px] text-gray-400 self-center">+{keywords.length - 4}</span>
+                )}
+              </div>
             )}
           </div>
-          {columnVisibility.countries && publication.aff_country_unique && (
-            <div className="flex flex-wrap gap-1">
-              {countriesDisplay.displayItems.map((country, index) => (
-                <span key={index} className="inline-block px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded">
-                  {country}
-                </span>
-              ))}
-              {countriesDisplay.hasMore && (
-                <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
-                  +{countriesDisplay.remainingCount}
-                </span>
+        </td>
+
+        {/* Authors - Always visible */}
+        <td className="py-4 px-4 align-top">
+          <div className="space-y-2">
+            <div className="text-sm text-gray-700 leading-relaxed">
+              {authorsDisplay.displayText}
+              {authorsDisplay.hasMore && (
+                <span className="text-gray-400 text-xs ml-1">+{authorsDisplay.remainingCount}</span>
               )}
             </div>
-          )}
-        </div>
-      </td>
-
-      {/* Topic - Conditional */}
-      {columnVisibility.topic && (
-        <td className="py-4 px-4">
-          <span className="text-sm text-gray-900">
-            {publication.research_topic}
-          </span>
-        </td>
-      )}
-
-      {/* Rating - Conditional */}
-      {columnVisibility.rating && (
-        <td className="py-4 px-4">
-          {publication.rating && !isNaN(Number(publication.rating)) && (
-            <div className="flex items-center space-x-1">
-              <Star className="w-3 h-3 text-yellow-400 fill-current" />
-              <span className="text-sm font-semibold text-gray-900">
-                {Number(publication.rating).toFixed(1)}
-              </span>
-            </div>
-          )}
-        </td>
-      )}
-
-      {/* Links - Conditional */}
-      {columnVisibility.links && (
-        <td className="py-4 px-4">
-          <div className="flex items-center space-x-2">
-            {publication.pdf_url && (
-              <a
-                href={publication.pdf_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-                title="View PDF"
-              >
-                <FileText size={16} />
-              </a>
-            )}
-
-            {publication.github && (
-              <a
-                href={publication.github}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1 text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded transition-colors"
-                title="View GitHub"
-              >
-                <Github size={16} />
-              </a>
-            )}
-
-            {publication.site && (
-              <a
-                href={publication.site}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded transition-colors"
-                title="View Project Site"
-              >
-                <ExternalLink size={16} />
-              </a>
+            {columnVisibility.countries && countries.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {countriesDisplay.displayItems.map((country, index) => (
+                  <span key={index} className="inline-flex items-center px-1.5 py-0.5 text-[10px] bg-blue-50 text-blue-700 rounded border border-blue-100">
+                    {country}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         </td>
+
+        {/* Affiliation - Conditional */}
+        {columnVisibility.affiliation && (
+          <td className="py-4 px-4 align-top">
+            {affiliations.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {affiliationsDisplay.displayItems.map((affiliation, index) => (
+                  <span key={index} className="inline-flex items-center px-2 py-0.5 text-[11px] bg-gray-50 text-gray-700 rounded border border-gray-100">
+                    {affiliation}
+                  </span>
+                ))}
+                {affiliationsDisplay.hasMore && (
+                  <span className="text-xs text-gray-400 self-center">
+                    +{affiliationsDisplay.remainingCount}
+                  </span>
+                )}
+              </div>
+            )}
+          </td>
+        )}
+
+        {/* Topic - Conditional */}
+        {columnVisibility.topic && (
+          <td className="py-4 px-4 align-top">
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
+              {publication.research_topic}
+            </span>
+          </td>
+        )}
+
+        {/* Rating - Conditional */}
+        {columnVisibility.rating && (
+          <td className="py-4 px-4 align-top">
+            {publication.rating && !isNaN(Number(publication.rating)) && (
+              <div className="flex items-center gap-1.5 bg-amber-50 px-2 py-1 rounded-md w-fit">
+                <Star className="w-3.5 h-3.5 text-amber-500 fill-current" />
+                <span className="text-sm font-bold text-amber-700">
+                  {Number(publication.rating).toFixed(1)}
+                </span>
+              </div>
+            )}
+          </td>
+        )}
+
+        {/* Links - Conditional */}
+        {columnVisibility.links && (
+          <td className="py-4 px-4 align-top">
+            <div className="flex items-center gap-1">
+              {publication.pdf_url && (
+                <a
+                  href={publication.pdf_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                  title="View PDF"
+                >
+                  <FileText className="h-4 w-4" />
+                </a>
+              )}
+
+              {publication.github && (
+                <a
+                  href={publication.github}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded transition-all"
+                  title="View GitHub"
+                >
+                  <Github className="h-4 w-4" />
+                </a>
+              )}
+
+              {publication.site && (
+                <a
+                  href={publication.site}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                  title="View Project Site"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                </a>
+              )}
+            </div>
+          </td>
+        )}
+      </tr>
+
+      {/* Expanded Row - Abstract */}
+      {isExpanded && (
+        <tr className="bg-gray-50/50 border-b border-gray-100">
+          <td colSpan={visibleColumnsCount} className="py-0">
+            <div
+              className="animate-in slide-in-from-top-2 duration-200 overflow-hidden"
+              style={{
+                maxHeight: isExpanded ? '500px' : '0',
+                transition: 'max-height 0.3s ease-in-out',
+              }}
+            >
+              <div className="px-14 py-6 flex gap-6">
+                <div className="w-1 bg-blue-500 rounded-full flex-shrink-0 self-stretch opacity-20" />
+
+                <div className="space-y-3 flex-1 max-w-4xl">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+                    Abstract
+                  </h4>
+                  {publication.abstract ? (
+                    <p className="text-sm text-gray-700 leading-7 text-justify">
+                      {publication.abstract}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">
+                      No abstract available
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </td>
+        </tr>
       )}
-    </tr>
+    </>
   );
 });
 
 PublicationRow.displayName = 'PublicationRow';
 
-// Memoized table body component to prevent unnecessary re-renders
-const TableBody = memo(({ data, columnVisibility }: {
+// ============================================================================
+// TABLE BODY
+// ============================================================================
+
+interface TableBodyProps {
   data: PublicationTableItem[];
   columnVisibility: ColumnVisibility;
-}) => (
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
+  favorites: Set<string>;
+  onToggleFavorite: (id: string) => void;
+  expandedIds: Set<string>;
+  onToggleExpand: (id: string) => void;
+}
+
+const TableBody = memo(({
+  data,
+  columnVisibility,
+  selectedIds,
+  onToggleSelect,
+  favorites,
+  onToggleFavorite,
+  expandedIds,
+  onToggleExpand,
+}: TableBodyProps) => (
   <tbody>
     {data.map((publication) => (
       <PublicationRow
         key={publication.id}
         publication={publication}
         columnVisibility={columnVisibility}
+        isSelected={selectedIds.has(String(publication.id))}
+        onToggleSelect={() => onToggleSelect(String(publication.id))}
+        isFavorite={favorites.has(String(publication.id))}
+        onToggleFavorite={() => onToggleFavorite(String(publication.id))}
+        isExpanded={expandedIds.has(String(publication.id))}
+        onToggleExpand={() => onToggleExpand(String(publication.id))}
       />
     ))}
   </tbody>
@@ -207,51 +381,157 @@ const TableBody = memo(({ data, columnVisibility }: {
 
 TableBody.displayName = 'TableBody';
 
-const PublicationsTableComponent = ({
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+const PublicationsTable = ({
   data,
   pagination,
   currentPage,
   onPageChange,
   searchTerm,
   onSearchChange,
+  selectedAffiliations = [],
+  onAffiliationFilterChange,
   sortField,
   sortDirection,
   onSortChange,
   isFiltered,
-  isLoading
+  isLoading,
+  showSearch = true, // Default to true
+  enableClientPagination = false, // Default to false
+  showTitle = true, // Default to true
+  showActions = true, // Default to true
+  externalSelectedIds,
+  onSelectionChange,
 }: PublicationsTableProps) => {
   const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [showAffiliationFilter, setShowAffiliationFilter] = useState(false);
+  const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
+  const [showImportWizard, setShowImportWizard] = useState(false);
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  // Column visibility state - title and authors always visible, others default to visible
+  // Use external or internal state
+  const selectedIds = externalSelectedIds || internalSelectedIds;
+  const handleSelectionChange = (newIds: Set<string>) => {
+    if (onSelectionChange) {
+      onSelectionChange(newIds);
+    } else {
+      setInternalSelectedIds(newIds);
+    }
+  };
+
+  const { favorites, toggleFavorite } = useFavorites();
+
+  // Column visibility state
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
     title: true,
     authors: true,
+    affiliation: true,
     topic: false,
     rating: true,
     links: true,
     keywords: true,
-    countries: false
+    countries: false,
   });
 
-  // Data is already filtered and sorted by backend
-  const displayData = data;
-
   const toggleColumn = (column: keyof ColumnVisibility) => {
-    if (column === 'title' || column === 'authors') return; // These are always visible
-    setColumnVisibility(prev => ({
+    if (column === 'title' || column === 'authors') return;
+    setColumnVisibility((prev) => ({
       ...prev,
-      [column]: !prev[column]
+      [column]: !prev[column],
     }));
   };
 
-  // Ref for the column settings dropdown
+  // Determine which data to display (client-side pagination vs server-side)
+  const displayData = useMemo(() => {
+    let processedData = data;
+
+    // Filter by favorites if enabled (client-side)
+    if (showFavoritesOnly) {
+      processedData = processedData.filter(pub => favorites.has(String(pub.id)));
+    }
+
+    // Apply client-side pagination if enabled
+    if (enableClientPagination) {
+      const startIndex = (currentPage - 1) * 20;
+      return processedData.slice(startIndex, startIndex + 20);
+    }
+
+    return processedData;
+  }, [data, showFavoritesOnly, favorites, enableClientPagination, currentPage]);
+
+  // Selection handlers
+  const toggleSelectAll = () => {
+    // Select all from the FULL data (or filtered data), not just the current page
+    // But typically "Select All" in tables selects visible items or all items?
+    // Let's select ALL items in the current filtered set (across all pages if client-side)
+    const sourceData = showFavoritesOnly ? data.filter(pub => favorites.has(String(pub.id))) : data;
+
+    if (selectedIds.size === sourceData.length) {
+      handleSelectionChange(new Set());
+    } else {
+      handleSelectionChange(new Set(sourceData.map((p) => String(p.id))));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    handleSelectionChange(next);
+  };
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Get selected publications for export - USE FULL DATA
+  const selectedPublications = useMemo(() => {
+    return data.filter((p) => selectedIds.has(String(p.id)));
+  }, [data, selectedIds]);
+
+  // Ref for column settings dropdown and affiliation filter dropdown
   const columnSettingsRef = useRef<HTMLDivElement>(null);
+  const affiliationFilterRef = useRef<HTMLDivElement>(null);
+
+  // Extract unique affiliations from current data for filter options
+  const uniqueAffiliations = useMemo(() => {
+    const affiliationsSet = new Set<string>();
+    data.forEach(pub => {
+      if (pub.aff_unique) {
+        const affiliations = splitSemicolonValues(pub.aff_unique);
+        affiliations.forEach(aff => {
+          if (aff.trim()) {
+            affiliationsSet.add(aff.trim());
+          }
+        });
+      }
+    });
+    return Array.from(affiliationsSet).sort();
+  }, [data]);
 
   // Close column settings when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (columnSettingsRef.current && !columnSettingsRef.current.contains(event.target as Node)) {
         setShowColumnSettings(false);
+      }
+      if (affiliationFilterRef.current && !affiliationFilterRef.current.contains(event.target as Node)) {
+        setShowAffiliationFilter(false);
       }
     };
 
@@ -266,166 +546,330 @@ const PublicationsTableComponent = ({
   }
 
   const totalPages = Math.ceil(pagination.count / 20);
+  // Check selection status against full data
+  const sourceData = showFavoritesOnly ? data.filter(pub => favorites.has(String(pub.id))) : data;
+  const allSelected = sourceData.length > 0 && selectedIds.size === sourceData.length;
+  const someSelected = selectedIds.size > 0 && selectedIds.size < sourceData.length;
+
+  const handleImportComplete = (response: ImportResponse) => {
+    // Clear selection after successful import
+    if (response.success) {
+      handleSelectionChange(new Set());
+    }
+  };
+
+  const handleOpenImportWizard = () => {
+    if (selectedIds.size === 0) {
+      alert('Please select publications to import');
+      return;
+    }
+    setShowImportWizard(true);
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border">
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Publications ({pagination.count.toLocaleString()} total)
-          </h2>
+    <>
+      <div className="w-full">
+        {/* Header Section - Cleaner, no background */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          {showTitle ? (
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">
+                Publications
+              </h2>
+              <p className="text-sm text-gray-500 mt-1">
+                {pagination.count.toLocaleString()} results found
+                {isFiltered && ' (filtered)'}
+              </p>
+            </div>
+          ) : (
+            <div /> // Spacer to keep flex layout working if needed, or just empty
+          )}
+
+          {showActions && (
+            <div className="flex items-center gap-2">
+              {selectedIds.size > 0 && (
+                <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
+                  {selectedIds.size} selected
+                </span>
+              )}
+
+              <Button
+                onClick={handleOpenImportWizard}
+                variant="outline"
+                size="sm"
+                disabled={selectedIds.size === 0}
+                className="flex items-center gap-2 h-9"
+              >
+                <FileText size={14} />
+                DeepDive
+              </Button>
+
+              <ExportButton
+                publications={data}
+                selectedPublications={selectedPublications}
+                variant="outline"
+                size="sm"
+              />
+            </div>
+          )}
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-wrap gap-4 mb-6">
-          <div className="relative flex-1 min-w-64">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder="Search titles, authors, keywords..."
-              value={searchTerm}
-              onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            />
-          </div>
+        {/* Controls - Only show if showSearch is true */}
+        {showSearch && (
+          <div className="flex flex-wrap gap-3 mb-6 p-1">
+            <div className="relative flex-1 min-w-[240px]">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+              <input
+                type="text"
+                placeholder="Search titles, authors, keywords..."
+                value={searchTerm}
+                onChange={(e) => onSearchChange(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm"
+              />
+            </div>
 
-          <select
-            value={`${sortField}-${sortDirection}`}
-            onChange={(e) => {
-              const [field, direction] = e.target.value.split('-') as [SortField, SortDirection];
-              onSortChange(field, direction);
-            }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="rating-desc">Sort by Rating (High to Low)</option>
-            <option value="rating-asc">Sort by Rating (Low to High)</option>
-            <option value="title-asc">Sort by Title (A to Z)</option>
-            <option value="title-desc">Sort by Title (Z to A)</option>
-          </select>
-
-          <div className="relative" ref={columnSettingsRef}>
-            <button
-              onClick={() => setShowColumnSettings(!showColumnSettings)}
-              className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            <select
+              value={`${sortField}-${sortDirection}`}
+              onChange={(e) => {
+                const [field, direction] = e.target.value.split('-') as [SortField, SortDirection];
+                onSortChange(field, direction);
+              }}
+              className="px-3 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm cursor-pointer min-w-[180px]"
             >
-              <Settings size={16} className="mr-2" />
-              Columns
-            </button>
+              <option value="rating-desc">Highest Rated</option>
+              <option value="rating-asc">Lowest Rated</option>
+              <option value="title-asc">Title (A-Z)</option>
+              <option value="title-desc">Title (Z-A)</option>
+            </select>
 
-            {showColumnSettings && (
-              <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                <div className="p-4">
-                  <h4 className="font-medium text-gray-900 mb-3">Show/Hide Columns</h4>
-                  <div className="space-y-2">
+            <div className="relative" ref={columnSettingsRef}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowColumnSettings(!showColumnSettings)}
+                className="h-[38px] border-gray-200"
+              >
+                <Settings size={14} className="mr-2" />
+                View
+              </Button>
+
+              {showColumnSettings && (
+                <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-100 rounded-xl shadow-xl z-20 p-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <h4 className="font-semibold text-xs text-gray-500 uppercase tracking-wider px-2 py-2 mb-1">Visible Columns</h4>
+                  <div className="space-y-0.5">
                     {Object.entries(columnVisibility).map(([key, visible]) => {
                       const isRequired = key === 'title' || key === 'authors';
                       const label = key.charAt(0).toUpperCase() + key.slice(1);
 
                       return (
-                        <label key={key} className="flex items-center space-x-2">
-                          <div
-                            className={`w-4 h-4 rounded flex items-center justify-center border ${
-                              visible
-                                ? 'bg-blue-600 border-blue-600 text-white'
-                                : 'border-gray-300 bg-white'
-                            } ${isRequired ? 'opacity-50' : 'cursor-pointer'}`}
-                            onClick={() => !isRequired && toggleColumn(key as keyof ColumnVisibility)}
-                          >
-                            {visible && <span className="text-xs">✓</span>}
-                          </div>
-                          <span className={`text-sm ${isRequired ? 'text-gray-500' : 'text-gray-700'}`}>
-                            {label} {isRequired && '(Required)'}
+                        <label
+                          key={key}
+                          className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                        >
+                          <Checkbox
+                            checked={visible}
+                            onCheckedChange={() => toggleColumn(key as keyof ColumnVisibility)}
+                            disabled={isRequired}
+                            className="w-4 h-4"
+                          />
+                          <span className={`text-sm ${isRequired ? 'text-gray-400' : 'text-gray-700'}`}>
+                            {label}
                           </span>
                         </label>
                       );
                     })}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-200">
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Title</th>
-                <th className="text-left py-3 px-4 font-semibold text-gray-900">Authors</th>
-                {columnVisibility.topic && (
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900">Topic</th>
-                )}
-                {columnVisibility.rating && (
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900">Rating</th>
-                )}
-                {columnVisibility.links && (
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900">Links</th>
-                )}
-              </tr>
-            </thead>
-            <TableBody
-              data={displayData}
-              columnVisibility={columnVisibility}
-            />
-          </table>
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed min-w-[1000px]">
+              <thead className="bg-gray-50/80 border-b border-gray-200">
+                <tr>
+                  <th className="py-3 px-4 w-12 align-middle">
+                    <Checkbox
+                      checked={allSelected || someSelected}
+                      onCheckedChange={toggleSelectAll}
+                      className="mt-0.5"
+                    />
+                  </th>
+                  <th className="py-3 px-2 w-12 align-middle">
+                    <button
+                      onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+                      className={`p-1 rounded transition-colors ${showFavoritesOnly
+                        ? 'text-amber-500'
+                        : 'text-gray-400 hover:text-amber-500'
+                        }`}
+                      title={showFavoritesOnly ? 'Show all publications' : 'Show favorites only'}
+                    >
+                      <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
+                    </button>
+                  </th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider">Title</th>
+                  <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[22%]">Authors</th>
+                  {columnVisibility.affiliation && (
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[18%]">
+                      <div className="flex items-center gap-1.5">
+                        <span>Affiliation</span>
+                        <div className="relative" ref={affiliationFilterRef}>
+                          <button
+                            onClick={() => setShowAffiliationFilter(!showAffiliationFilter)}
+                            className={`p-1 rounded hover:bg-gray-200 transition-colors ${selectedAffiliations.length > 0 ? 'text-blue-600' : 'text-gray-400'
+                              }`}
+                          >
+                            <Filter className="h-3 w-3" />
+                          </button>
+
+                          {showAffiliationFilter && onAffiliationFilterChange && (
+                            <div className="absolute left-0 top-full mt-2 w-72 bg-white border border-gray-100 rounded-xl shadow-xl z-20 max-h-[400px] flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+                              <div className="p-3 border-b border-gray-100 bg-gray-50/50 rounded-t-xl">
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => onAffiliationFilterChange(uniqueAffiliations)}
+                                    className="flex-1 h-8 text-xs bg-white"
+                                  >
+                                    Select All
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => onAffiliationFilterChange([])}
+                                    className="flex-1 h-8 text-xs bg-white"
+                                  >
+                                    Clear
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="overflow-y-auto p-2 space-y-0.5 flex-1">
+                                {uniqueAffiliations.map((affiliation) => (
+                                  <label
+                                    key={affiliation}
+                                    className="flex items-center gap-2 py-1.5 px-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+                                  >
+                                    <Checkbox
+                                      checked={selectedAffiliations.includes(affiliation)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          onAffiliationFilterChange([...selectedAffiliations, affiliation]);
+                                        } else {
+                                          onAffiliationFilterChange(selectedAffiliations.filter(a => a !== affiliation));
+                                        }
+                                      }}
+                                      className="w-3.5 h-3.5"
+                                    />
+                                    <span className="text-xs text-gray-700 flex-1 truncate">{affiliation}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </th>
+                  )}
+                  {columnVisibility.topic && (
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[12%]">Topic</th>
+                  )}
+                  {columnVisibility.rating && (
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[10%]">Rating</th>
+                  )}
+                  {columnVisibility.links && (
+                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[10%]">Links</th>
+                  )}
+                </tr>
+              </thead>
+              <TableBody
+                data={displayData}
+                columnVisibility={columnVisibility}
+                selectedIds={selectedIds}
+                onToggleSelect={toggleSelect}
+                favorites={favorites}
+                onToggleFavorite={toggleFavorite}
+                expandedIds={expandedIds}
+                onToggleExpand={toggleExpand}
+              />
+            </table>
+          </div>
         </div>
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-center space-x-2 mt-6">
-            <button
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage === 1}
-              className="flex items-center px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft size={16} className="mr-1" />
-              Previous
-            </button>
-
-            <div className="flex space-x-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const page = Math.max(1, Math.min(totalPages - 4, currentPage - 2)) + i;
-                if (page > totalPages) return null;
-
-                return (
-                  <button
-                    key={page}
-                    onClick={() => onPageChange(page)}
-                    className={`px-3 py-2 text-sm rounded-lg ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white'
-                        : 'border border-gray-300 hover:bg-gray-50'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                );
-              })}
+          <div className="flex items-center justify-between mt-6 px-1">
+            <div className="text-sm text-gray-500">
+              Page {currentPage} of {totalPages}
             </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="h-9 w-9 p-0 rounded-lg border-gray-200"
+              >
+                <ChevronLeft size={16} />
+              </Button>
 
-            <button
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage === totalPages}
-              className="flex items-center px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Next
-              <ChevronRight size={16} className="ml-1" />
-            </button>
+              <div className="flex gap-1.5">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  // Logic to center the current page
+                  let startPage = Math.max(1, currentPage - 2);
+                  if (startPage + 4 > totalPages) {
+                    startPage = Math.max(1, totalPages - 4);
+                  }
+                  const page = startPage + i;
+
+                  if (page > totalPages) return null;
+
+                  return (
+                    <Button
+                      key={page}
+                      variant={currentPage === page ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => onPageChange(page)}
+                      className={`h-9 min-w-[2.25rem] rounded-lg text-sm font-medium transition-all ${currentPage === page
+                        ? 'bg-black text-white hover:bg-gray-800 border-transparent shadow-md'
+                        : 'border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                    >
+                      {page}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onPageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="h-9 w-9 p-0 rounded-lg border-gray-200"
+              >
+                <ChevronRight size={16} />
+              </Button>
+            </div>
           </div>
         )}
 
-        {/* Results Info */}
-        <div className="text-sm text-gray-600 text-center mt-4">
-          Showing {displayData.length} of {pagination.count.toLocaleString()} publications
-          {isFiltered ? ' (filtered)' : ''}
-        </div>
+        {/* Import Wizard Modal */}
+        {showImportWizard && (
+          <ImportToNotebookWizard
+            isOpen={showImportWizard}
+            onClose={() => setShowImportWizard(false)}
+            selectedPublicationIds={Array.from(selectedIds)}
+            onImportComplete={handleImportComplete}
+          />
+        )}
       </div>
-    </div>
+    </>
   );
 };
 
-PublicationsTableComponent.displayName = 'PublicationsTable';
-
-// Memoized export to prevent unnecessary re-renders
-export const PublicationsTable = memo(PublicationsTableComponent);
+export default PublicationsTable;

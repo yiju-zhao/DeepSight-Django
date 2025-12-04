@@ -3,7 +3,7 @@ import { useDebounce } from '@/shared/hooks/useDebounce';
 import { useVenues, useInstances, useDashboard, useOverview, usePublications } from '../hooks/useConference';
 import { DashboardKPIs } from '../components/DashboardKPIs';
 import { DashboardCharts } from '../components/DashboardCharts';
-import PublicationsTableEnhanced from '../components/PublicationsTableEnhanced';
+import PublicationsTable from '../components/PublicationsTable';
 import { SessionList } from '../components/SessionList';
 import ConferenceSelectionDrawer from '../components/ConferenceSelectionDrawer';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
@@ -410,7 +410,7 @@ export default function ConferenceDashboard() {
 
                   {/* Publications Tab */}
                   <TabsContent value="publications" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <PublicationsTableEnhanced
+                    <PublicationsTable
                       data={publicationsData?.results || []}
                       pagination={{
                         count: publicationsData?.count || 0,

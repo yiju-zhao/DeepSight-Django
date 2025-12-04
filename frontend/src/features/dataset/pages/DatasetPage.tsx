@@ -12,7 +12,7 @@ import {
 } from '@/shared/components/ui/select';
 
 import { datasetService, StreamProgressEvent, PublicationIdWithScore } from '../services/datasetService';
-import PublicationsTableEnhanced from '@/features/conference/components/PublicationsTableEnhanced';
+import PublicationsTable from '@/features/conference/components/PublicationsTable';
 import { conferenceService } from '@/features/conference/services/ConferenceService';
 import { SearchFilters } from '../components/SearchFilters';
 import type { PublicationTableItem } from '@/features/conference/types';
@@ -552,7 +552,7 @@ export default function DatasetPage() {
                                             </span>
                                         )}
                                     </div>
-                                    <PublicationsTableEnhanced
+                                    <PublicationsTable
                                         data={publications}
                                         pagination={{ count: publications.length, next: null, previous: null }}
                                         currentPage={currentPage}
