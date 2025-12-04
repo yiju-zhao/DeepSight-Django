@@ -99,13 +99,12 @@ export function SearchFilters({
                         disabled={isLoading}
                     >
                         <SelectTrigger className="w-[110px] rounded-full bg-white border-gray-200">
-                            <span>Top</span>
                             <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                             {[5, 10, 20, 30, 50, 100].map(value => (
                                 <SelectItem key={value} value={value.toString()}>
-                                    {value}
+                                    Top {value}
                                 </SelectItem>
                             ))}
                         </SelectContent>
