@@ -37,7 +37,6 @@ export default function DatasetPage() {
     // Streaming State
     const [streamProgress, setStreamProgress] = useState<number>(0);
     const [streamStatus, setStreamStatus] = useState<string | null>(null);
-    const [batchCount, setBatchCount] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
     const eventSourceRef = useRef<EventSource | null>(null);
     const fetchedPublicationIdsRef = useRef<Set<string>>(new Set());
 
@@ -140,7 +139,6 @@ export default function DatasetPage() {
         fetchedPublicationIdsRef.current = new Set();
         setStreamProgress(0);
         setStreamStatus('Initializing search...');
-        setBatchCount({ current: 0, total: 0 });
         setCurrentPage(1);
 
         try {
@@ -235,83 +233,42 @@ export default function DatasetPage() {
                         case 'started':
                             console.log('[Started Event]', {
                                 total: data.total,
-                                total_batches: data.total_batches,
                             });
                             setStreamStatus(`Processing ${data.total} publications...`);
-                            if (data.total_batches !== undefined && data.total_batches > 0) {
-                                setBatchCount({ current: 0, total: data.total_batches });
-                            } else {
-                                console.warn(
-                                    '[Started Event] Missing or invalid total_batches:',
-                                    data.total_batches,
-                                );
-                            }
+                            setStreamProgress(10); // Initial progress
                             break;
 
-                        case 'batch':
-                            console.log('[Batch Event]', {
-                                batch_num: data.batch_num,
-                                total_batches: data.total_batches,
-                                processed: data.processed,
+                        case 'filtering':
+                            console.log('[Filtering Event]', {
                                 total: data.total,
-                                result_count: data.batch_result_ids?.length,
+                                message: data.message,
                             });
+                            setStreamStatus(data.message || `Filtering ${data.total} publications...`);
+                            setStreamProgress(30); // Show some progress
+                            break;
 
-                            if (data.batch_num !== undefined && data.total_batches !== undefined) {
-                                setBatchCount({ current: data.batch_num, total: data.total_batches });
-                                setStreamStatus(`Processing batch ${data.batch_num}/${data.total_batches}...`);
-                            } else {
-                                console.warn('[Batch Event] Missing batch_num or total_batches:', {
-                                    batch_num: data.batch_num,
-                                    total_batches: data.total_batches,
-                                });
-                                // Fallback: show progress percentage
-                                setStreamStatus(`Processing... ${Math.round((data.progress || 0) * 100)}%`);
-                            }
-
-                            if (data.progress !== undefined) {
-                                setStreamProgress(data.progress * 100);
-                            }
-                            // Accumulate publication IDs progressively
-                            if (data.batch_result_ids && data.batch_result_ids.length > 0) {
-                                setPublicationIds(prev => {
-                                    const newIds = data.batch_result_ids!.map(r => r.id);
-                                    // Deduplicate: only add IDs that don't already exist
-                                    const existingIds = new Set(prev);
-                                    const uniqueNewIds = newIds.filter(id => !existingIds.has(id));
-                                    console.log(
-                                        `[Batch] Adding ${uniqueNewIds.length} new IDs (total: ${prev.length + uniqueNewIds.length
-                                        })`,
-                                    );
-                                    return [...prev, ...uniqueNewIds];
-                                });
-                            }
+                        case 'reranking':
+                            console.log('[Reranking Event]', {
+                                total: data.total,
+                                message: data.message,
+                            });
+                            setStreamStatus(data.message || `Reranking ${data.total} publications...`);
+                            setStreamProgress(70); // Show more progress
                             break;
 
                         case 'complete':
                             console.log('[Complete Event]', {
                                 final_result_count: data.final_result_ids?.length,
-                                current_accumulated: publicationIds.length,
                             });
                             setStreamStatus('Search completed!');
                             setStreamProgress(100);
-                            // Don't replace accumulated IDs - backend already sends final ranked results progressively
-                            // Only update if final_result_ids differ significantly (e.g., final ranking applied)
+
+                            // Update with final results
                             if (data.final_result_ids && data.final_result_ids.length > 0) {
                                 const finalIds = data.final_result_ids.map(r => r.id);
-                                setPublicationIds(prev => {
-                                    // If final results are different, use them (final ranking applied)
-                                    if (finalIds.length !== prev.length) {
-                                        console.log(
-                                            `[Complete] Updating with ${finalIds.length} final ranked results`,
-                                        );
-                                        return finalIds;
-                                    }
-                                    // Otherwise keep accumulated results (already in correct order)
-                                    console.log(`[Complete] Keeping ${prev.length} accumulated results`);
-                                    return prev;
-                                });
+                                setPublicationIds(finalIds);
                             }
+
                             setIsSearching(false);
                             eventSource.close();
                             eventSourceRef.current = null;
@@ -366,7 +323,6 @@ export default function DatasetPage() {
         setSearchQuery('');
         setStreamProgress(0);
         setStreamStatus(null);
-        setBatchCount({ current: 0, total: 0 });
         if (eventSourceRef.current) {
             eventSourceRef.current.close();
             eventSourceRef.current = null;
@@ -513,18 +469,15 @@ export default function DatasetPage() {
                                     <div className="space-y-3">
                                         <div className="flex items-center justify-between text-sm">
                                             <span className="text-gray-700 font-medium">{streamStatus}</span>
-                                            <span className="text-gray-500">
-                                                {batchCount.total > 0 && `Batch ${batchCount.current}/${batchCount.total}`}
-                                            </span>
                                         </div>
                                         <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                                             <div
-                                                className="bg-purple-600 h-full transition-all duration-300 ease-out"
+                                                className="bg-purple-600 h-full rounded-full transition-all duration-300 ease-out"
                                                 style={{ width: `${streamProgress}%` }}
                                             />
                                         </div>
-                                        <p className="text-xs text-gray-500">
-                                            {publications.length} results loaded so far...
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            {publications.length} results loaded...
                                         </p>
                                     </div>
                                 </div>

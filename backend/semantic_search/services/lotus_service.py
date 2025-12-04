@@ -690,7 +690,11 @@ Output:"""
         return results
 
     def semantic_filter(
-        self, publication_ids: list[str], query: str, topk: int | None = 20
+        self,
+        publication_ids: list[str],
+        query: str,
+        topk: int | None = 20,
+        progress_callback: callable | None = None
     ) -> dict[str, Any]:
         """
         Perform semantic search on publications using Lotus.
@@ -789,8 +793,16 @@ Output:"""
             # Index DataFrame for cascade optimization
             df = self._index_dataframe(df)
 
+            # Notify filtering phase starting
+            if progress_callback:
+                progress_callback("filtering", len(df))
+
             # Apply semantic filter with cascade stats
             filtered_df, filter_stats = self._apply_semantic_filter(df, query)
+
+            # Notify reranking phase starting
+            if progress_callback:
+                progress_callback("reranking", len(filtered_df))
 
             # Apply semantic ranking (no cascade)
             if not filtered_df.empty:

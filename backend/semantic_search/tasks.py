@@ -45,6 +45,27 @@ def semantic_search_streaming_task(
         f"{total_publications} publications, query='{query[:50]}...'"
     )
 
+    def publish_progress(phase: str, count: int):
+        """Publish progress for different semantic search phases."""
+        if phase == "filtering":
+            _publish_progress(
+                job_id,
+                {
+                    "type": "filtering",
+                    "total": count,
+                    "message": f"Filtering {count} publications...",
+                },
+            )
+        elif phase == "reranking":
+            _publish_progress(
+                job_id,
+                {
+                    "type": "reranking",
+                    "total": count,
+                    "message": f"Reranking {count} publications...",
+                },
+            )
+
     try:
         # Publish initial status
         _publish_progress(
@@ -52,8 +73,6 @@ def semantic_search_streaming_task(
             {
                 "type": "started",
                 "total": total_publications,
-                "processed": 0,
-                "progress": 0.0,
                 "query": query,
             },
         )
@@ -74,6 +93,7 @@ def semantic_search_streaming_task(
             publication_ids=publication_ids,
             query=query,
             topk=topk,
+            progress_callback=publish_progress,
         )
 
         if result["success"]:

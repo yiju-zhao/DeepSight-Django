@@ -23,18 +23,12 @@ export interface PublicationIdWithScore {
 }
 
 export interface StreamProgressEvent {
-    type: 'connected' | 'started' | 'batch' | 'complete' | 'error';
+    type: 'connected' | 'started' | 'filtering' | 'reranking' | 'complete' | 'error';
     job_id?: string;
     total?: number;
-    total_batches?: number;  // Available in both 'started' and 'batch' events
-    processed?: number;
-    progress?: number;
-    batch_num?: number;
-    // Changed from batch_results: now only IDs + scores
-    batch_result_ids?: PublicationIdWithScore[];
-    batch_count?: number;
+    message?: string;  // Status message from backend
     total_results?: number;
-    // Changed from final_results: now only IDs + scores
+    // Final results: IDs + scores
     final_result_ids?: PublicationIdWithScore[];
     query?: string;
     error?: string;
