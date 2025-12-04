@@ -12,7 +12,7 @@ import {
 } from '@/shared/components/ui/select';
 
 import { datasetService, StreamProgressEvent, PublicationIdWithScore } from '../services/datasetService';
-import { PublicationsTableEnhanced } from '@/features/conference/components/PublicationsTableEnhanced';
+import PublicationsTableEnhanced from '@/features/conference/components/PublicationsTableEnhanced';
 import { conferenceService } from '@/features/conference/services/ConferenceService';
 import { SearchFilters } from '../components/SearchFilters';
 import type { PublicationTableItem } from '@/features/conference/types';
@@ -40,6 +40,15 @@ export default function DatasetPage() {
     const [batchCount, setBatchCount] = useState<{ current: number; total: number }>({ current: 0, total: 0 });
     const eventSourceRef = useRef<EventSource | null>(null);
     const fetchedPublicationIdsRef = useRef<Set<string>>(new Set());
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 20;
+
+    const paginatedPublications = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return publications.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [publications, currentPage]);
 
     // Data hooks
     const { data: instances, isLoading: instancesLoading } = useInstances();
@@ -135,6 +144,7 @@ export default function DatasetPage() {
         setStreamProgress(0);
         setStreamStatus('Initializing search...');
         setBatchCount({ current: 0, total: 0 });
+        setCurrentPage(1);
 
         try {
             // Helper: fetch all publications for a single instance across all pages
@@ -273,8 +283,7 @@ export default function DatasetPage() {
                                     const existingIds = new Set(prev);
                                     const uniqueNewIds = newIds.filter(id => !existingIds.has(id));
                                     console.log(
-                                        `[Batch] Adding ${uniqueNewIds.length} new IDs (total: ${
-                                            prev.length + uniqueNewIds.length
+                                        `[Batch] Adding ${uniqueNewIds.length} new IDs (total: ${prev.length + uniqueNewIds.length
                                         })`,
                                     );
                                     return [...prev, ...uniqueNewIds];
@@ -547,17 +556,18 @@ export default function DatasetPage() {
                                         )}
                                     </div>
                                     <PublicationsTableEnhanced
-                                        data={publications}
+                                        data={paginatedPublications}
                                         pagination={{ count: publications.length, next: null, previous: null }}
-                                        currentPage={1}
-                                        onPageChange={() => { }}
+                                        currentPage={currentPage}
+                                        onPageChange={setCurrentPage}
                                         searchTerm=""
                                         onSearchChange={() => { }}
                                         sortField="rating"
                                         sortDirection="desc"
                                         onSortChange={() => { }}
                                         isFiltered={false}
-                                        isLoading={isFetchingPublications}
+                                        isLoading={isFetchingPublications && publications.length === 0}
+                                        showSearch={false}
                                     />
                                 </div>
                             )}
