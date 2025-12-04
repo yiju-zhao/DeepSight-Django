@@ -119,8 +119,11 @@ class LotusSemanticSearchServiceTestCase(TestCase):
         mock_lm = Mock()
         mock_lm_class.return_value = mock_lm
 
-        # Mock DataFrame with sem_filter and sem_topk methods
+        # Mock DataFrame with sem_topk method (embedding prefilter is internal)
         mock_df = MagicMock(spec=pd.DataFrame)
+        mock_df.empty = False
+        mock_df.__len__ = lambda self: 5
+
         mock_filtered_df = MagicMock(spec=pd.DataFrame)
         mock_ranked_df = pd.DataFrame(
             {
@@ -139,13 +142,15 @@ class LotusSemanticSearchServiceTestCase(TestCase):
         mock_filtered_df.empty = False
         mock_filtered_df.__len__ = lambda self: 1
         mock_filtered_df.sem_topk.return_value = mock_ranked_df
-        mock_df.sem_filter.return_value = mock_filtered_df
 
-        # Patch DataFrame creation
+        # Patch internal helpers:
+        # - _publications_to_dataframe returns our mock_df
+        # - _embedding_prefilter returns mock_filtered_df (simulating 2*topk selection)
         with patch.object(
             self.service, "_publications_to_dataframe", return_value=mock_df
+        ), patch.object(
+            self.service, "_embedding_prefilter", return_value=mock_filtered_df
         ):
-            # Execute semantic search
             publication_ids = [str(pub.id) for pub in self.publications]
             result = self.service.semantic_filter(
                 publication_ids=publication_ids, query="papers about AI", topk=3

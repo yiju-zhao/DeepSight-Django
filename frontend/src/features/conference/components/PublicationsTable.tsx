@@ -230,8 +230,13 @@ const PublicationRow = memo(({
         {/* Topic - Conditional */}
         {columnVisibility.topic && (
           <td className="py-4 px-4 align-top">
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700">
-              {publication.research_topic}
+            <span
+              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 max-w-full"
+              title={publication.research_topic}
+            >
+              <span className="truncate block">
+                {publication.research_topic}
+              </span>
             </span>
           </td>
         )}
