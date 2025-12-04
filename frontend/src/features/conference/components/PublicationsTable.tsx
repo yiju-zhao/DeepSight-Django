@@ -551,10 +551,11 @@ const PublicationsTable = ({
   }
 
   const totalPages = Math.ceil(pagination.count / 20);
-  // Check selection status against full data
-  const sourceData = showFavoritesOnly ? data.filter(pub => favorites.has(String(pub.id))) : data;
-  const allSelected = sourceData.length > 0 && selectedIds.size === sourceData.length;
-  const someSelected = selectedIds.size > 0 && selectedIds.size < sourceData.length;
+
+  // Check selection status against CURRENT PAGE only
+  const currentPageIds = displayData.map((p) => String(p.id));
+  const allCurrentPageSelected = currentPageIds.length > 0 && currentPageIds.every(id => selectedIds.has(id));
+  const someCurrentPageSelected = currentPageIds.some(id => selectedIds.has(id)) && !allCurrentPageSelected;
 
   const handleImportComplete = (response: ImportResponse) => {
     // Clear selection after successful import
@@ -698,7 +699,7 @@ const PublicationsTable = ({
                 <tr>
                   <th className="py-3 px-4 w-12 align-middle">
                     <Checkbox
-                      checked={allSelected || someSelected}
+                      checked={allCurrentPageSelected || someCurrentPageSelected}
                       onCheckedChange={toggleSelectAll}
                       className="mt-0.5"
                     />
