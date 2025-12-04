@@ -358,7 +358,7 @@ Output:"""
         logger.info(f"User query: {query}")
         logger.info(f"Generated predicate: {filter_instruction}")
 
-        filtered_df = df.sem_filter(filter_instruction)
+        filtered_df = df.sem_filter(filter_instruction, default="False")
         logger.info(f"Filtered to {len(filtered_df)} publications")
         return filtered_df
 
@@ -390,7 +390,7 @@ Output:"""
         topk_instruction = self._generate_topk_instruction(query)
         logger.info(f"Applying top-{actual_topk} ranking with instruction: {topk_instruction}")
 
-        return filtered_df.sem_topk(topk_instruction, K=actual_topk)
+        return filtered_df.sem_topk(topk_instruction, K=actual_topk, method="heap")
 
     def _dataframe_to_results(self, df: pd.DataFrame) -> list[dict[str, Any]]:
         """

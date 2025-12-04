@@ -16,7 +16,7 @@ class SemanticSearchRequestSerializer(serializers.Serializer):
     {
         "publication_ids": ["uuid-1", "uuid-2", ...],
         "query": "natural language query",
-        "topk": 10
+        "topk": 20
     }
     """
 
@@ -47,7 +47,7 @@ class SemanticSearchRequestSerializer(serializers.Serializer):
     )
 
     topk = serializers.IntegerField(
-        default=10,
+        default=20,
         min_value=1,
         max_value=100,
         help_text="Number of top results to return (1-100)",
