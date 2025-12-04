@@ -26,7 +26,8 @@ dspy_ai==2.4.9
 crewai
 crewai-tools
 litellm
-lotus-ai  # Semantic operators for DataFrame-based operations
+lotus-ai  # Semantic operators for DataFrame-based operations with cascade optimization
+faiss-cpu  # Vector similarity search for LOTUS cascade operations (use faiss-gpu for GPU support)
 xinference
 langid
 jieba

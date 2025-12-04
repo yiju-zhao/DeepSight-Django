@@ -306,11 +306,18 @@ XINFERENCE_API_KEY = os.getenv("XINFERENCE_API_KEY", "dummy")
 
 LOTUS_CONFIG = {
     "llm_provider": os.getenv("LOTUS_LLM_PROVIDER", "openai"), # [openai, xinference]
-    # "default_model": os.getenv("LOTUS_LLM_MODEL"),
-    # "helper_model": os.getenv("LOTUS_HELPER_MODEL"),  # Optional for cascade optimization
+    "default_model": os.getenv("LOTUS_LLM_MODEL", "gpt-4o"),
+    "helper_model": os.getenv("LOTUS_HELPER_MODEL", "gpt-4o-mini"),  # Helper model for cascade optimization
     "max_tokens": int(os.getenv("LOTUS_LLM_MAX_TOKENS", "40000")),
     "timeout": int(os.getenv("LOTUS_TIMEOUT", "3600")),
     "max_publications": int(os.getenv("LOTUS_MAX_PUBLICATIONS", "10000")),
+    # Cascade optimization settings
+    "use_cascade": os.getenv("LOTUS_USE_CASCADE", "true").lower() == "true",
+    "embedding_model": os.getenv("LOTUS_EMBEDDING_MODEL", "intfloat/e5-base-v2"),
+    "cascade_recall_target": float(os.getenv("LOTUS_CASCADE_RECALL", "0.9")),
+    "cascade_precision_target": float(os.getenv("LOTUS_CASCADE_PRECISION", "0.9")),
+    "cascade_failure_probability": float(os.getenv("LOTUS_CASCADE_FAILURE_PROB", "0.2")),
+    "cascade_sampling_percentage": float(os.getenv("LOTUS_CASCADE_SAMPLING", "0.5")),
 }
 
 # ==============================================================================
