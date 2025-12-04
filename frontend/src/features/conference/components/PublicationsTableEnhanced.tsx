@@ -579,7 +579,7 @@ const PublicationsTableEnhanced = ({
               className="flex items-center gap-2 h-9"
             >
               <FileText size={14} />
-              Import
+              Import to Notebook
             </Button>
 
             <ExportButton
@@ -840,7 +840,7 @@ const PublicationsTableEnhanced = ({
           <ImportToNotebookWizard
             isOpen={showImportWizard}
             onClose={() => setShowImportWizard(false)}
-            selectedPublications={selectedPublications}
+            selectedPublicationIds={Array.from(selectedIds)}
             onImportComplete={handleImportComplete}
           />
         )}
