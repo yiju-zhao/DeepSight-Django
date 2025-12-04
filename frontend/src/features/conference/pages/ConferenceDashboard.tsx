@@ -284,7 +284,7 @@ export default function ConferenceDashboard() {
         {/* Modern Page Header */}
         <section className="relative bg-white border-b border-gray-100">
           <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white/20 pointer-events-none" />
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
               <div className="max-w-3xl">
                 <div className="flex items-center gap-2 mb-4">
@@ -317,15 +317,15 @@ export default function ConferenceDashboard() {
           </div>
         </section>
 
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="space-y-10">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="space-y-6">
 
             {/* Dashboard Content with Tabs */}
             {matchingInstance && (
-              <div className="space-y-8">
+              <div className="space-y-4">
 
 
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
                   <div className="flex items-center justify-between border-b border-gray-200">
                     <TabsList className="bg-transparent p-0 border-none h-auto">
                       {['overview', 'sessions', 'publications'].map((tab) => (
@@ -343,7 +343,7 @@ export default function ConferenceDashboard() {
                     {activeTab === 'publications' && (
                       <div className="flex items-center gap-2 pb-2">
                         {selectedPublicationIds.size > 0 && (
-                          <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
+                          <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
                             {selectedPublicationIds.size} selected
                           </span>
                         )}
