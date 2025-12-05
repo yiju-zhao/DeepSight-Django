@@ -39,6 +39,8 @@ langchain_community
 langchain-openai
 langchain_milvus
 langchain_text_splitters
+langchain-chroma
+chromadb
 duckduckgo_search
 
 # Document Processing

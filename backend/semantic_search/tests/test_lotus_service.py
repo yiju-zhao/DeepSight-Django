@@ -234,3 +234,111 @@ class LotusSemanticSearchServiceTestCase(TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["error"], "SEMANTIC_SEARCH_ERROR")
         self.assertIn("Something went wrong", result["detail"])
+
+
+class ChromaIntegrationTestCase(TestCase):
+    """Test Chroma vector store integration"""
+
+    def setUp(self):
+        self.service = LotusSemanticSearchService()
+
+    @patch("semantic_search.services.lotus_service.settings")
+    def test_chroma_disabled_via_settings(self, mock_settings):
+        """Chroma initialization skipped if disabled in settings"""
+        mock_settings.CHROMA_CONFIG = {"enabled": False}
+
+        result = self.service._initialize_chroma()
+
+        self.assertFalse(result)
+        self.assertFalse(self.service._chroma_available)
+
+    @patch("semantic_search.services.lotus_service.settings")
+    def test_chroma_missing_persist_dir(self, mock_settings):
+        """Chroma initialization fails if CHROMA_PERSIST_DIR not set"""
+        mock_settings.CHROMA_CONFIG = {"enabled": True, "persist_dir": None}
+
+        result = self.service._initialize_chroma()
+
+        self.assertFalse(result)
+        self.assertFalse(self.service._chroma_available)
+
+    @patch("semantic_search.services.lotus_service.Chroma")
+    @patch("semantic_search.services.lotus_service.settings")
+    def test_chroma_initialization_success(self, mock_settings, mock_chroma_class):
+        """Chroma initializes successfully with valid config"""
+        mock_settings.CHROMA_CONFIG = {
+            "enabled": True,
+            "persist_dir": "/tmp/chroma_test",
+            "collection_name": "test_collection",
+            "use_xinference": False,
+            "fallback_model": "intfloat/e5-base-v2",
+        }
+
+        # Mock Chroma collection with data
+        mock_collection = MagicMock()
+        mock_collection.count.return_value = 100
+        mock_chroma_instance = MagicMock()
+        mock_chroma_instance._collection = mock_collection
+        mock_chroma_class.return_value = mock_chroma_instance
+
+        result = self.service._initialize_chroma()
+
+        self.assertTrue(result)
+        self.assertTrue(self.service._chroma_available)
+        mock_chroma_class.assert_called_once()
+
+    @patch("semantic_search.services.lotus_service.settings")
+    def test_chroma_prefilter_when_disabled(self, mock_settings):
+        """Chroma prefilter returns None when Chroma is disabled"""
+        mock_settings.CHROMA_CONFIG = {"enabled": False}
+        self.service._chroma_initialized = True
+        self.service._chroma_available = False
+
+        result = self.service._chroma_prefilter(
+            query="test query",
+            publication_ids=["uuid1", "uuid2"],
+            topk=10
+        )
+
+        self.assertIsNone(result)
+
+    @patch("semantic_search.services.lotus_service.settings")
+    def test_chroma_prefilter_success(self, mock_settings):
+        """Chroma prefilter returns publication IDs on success"""
+        # Setup
+        mock_settings.CHROMA_CONFIG = {
+            "enabled": True,
+            "default_k_multiplier": 2,
+            "max_candidates": 100,
+        }
+
+        # Mock Chroma vector store
+        mock_results = [
+            MagicMock(metadata={"publication_id": "uuid1"}),
+            MagicMock(metadata={"publication_id": "uuid2"}),
+        ]
+        self.service._chroma_vector_store = MagicMock()
+        self.service._chroma_vector_store.similarity_search.return_value = mock_results
+        self.service._chroma_available = True
+        self.service._chroma_initialized = True
+
+        result = self.service._chroma_prefilter(
+            query="test query",
+            publication_ids=["uuid1", "uuid2", "uuid3"],
+            topk=10
+        )
+
+        self.assertEqual(result, ["uuid1", "uuid2"])
+        self.service._chroma_vector_store.similarity_search.assert_called_once()
+
+    @patch("semantic_search.services.lotus_service.settings")
+    def test_handle_lotus_error_chroma(self, mock_settings):
+        """Test error handling for Chroma errors"""
+        mock_settings.LOTUS_CONFIG = {"default_model": "gpt-4o"}
+
+        error = Exception("Chroma connection failed")
+        result = self.service._handle_lotus_error(error, "test query", 10)
+
+        self.assertFalse(result["success"])
+        self.assertEqual(result["error"], "CHROMA_ERROR")
+        self.assertIn("Chroma vector store error", result["detail"])

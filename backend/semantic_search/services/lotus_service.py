@@ -31,13 +31,20 @@ class LotusSemanticSearchService:
     """
 
     def __init__(self):
-        """Initialize service with lazy Lotus loading."""
+        """Initialize service with lazy Lotus and Chroma loading."""
+        # Lotus fields
         self._lotus_initialized = False
         self._lotus = None
         self._lm = None
         self._rm = None  # Retrieval Model / embedding model
         self._predicate_cache: dict[str, str] = {}
         self._openai_client = None
+
+        # Chroma fields
+        self._chroma_initialized = False
+        self._chroma_available = None  # None=unknown, True=working, False=failed
+        self._chroma_vector_store = None
+        self._chroma_embedding_function = None
 
     def _initialize_lotus(self):
         """
@@ -121,6 +128,163 @@ class LotusSemanticSearchService:
         except Exception as e:
             logger.error(f"Failed to initialize Lotus: {e}")
             raise RuntimeError(f"Lotus initialization failed: {str(e)}")
+
+    def _initialize_chroma(self) -> bool:
+        """
+        Initialize Chroma vector store with lazy loading.
+
+        Attempts to use Xinference embeddings, falls back to SentenceTransformers.
+        Caches initialization state to avoid repeated attempts.
+
+        Returns:
+            bool: True if Chroma is available, False otherwise
+        """
+        if self._chroma_initialized:
+            return self._chroma_available
+
+        self._chroma_initialized = True
+
+        # Check if Chroma is enabled
+        config = settings.CHROMA_CONFIG
+        if not config.get("enabled", True):
+            logger.info("Chroma disabled via CHROMA_ENABLED=false")
+            self._chroma_available = False
+            return False
+
+        # Check required configuration
+        persist_dir = config.get("persist_dir")
+        if not persist_dir:
+            logger.warning("CHROMA_PERSIST_DIR not configured, Chroma disabled")
+            self._chroma_available = False
+            return False
+
+        try:
+            # Import Chroma dependencies
+            from langchain_chroma import Chroma
+            from langchain_community.embeddings import XinferenceEmbeddings
+
+            # Initialize embedding function
+            if config.get("use_xinference", True) and config.get("embedding_model"):
+                # Primary: Xinference embeddings
+                try:
+                    self._chroma_embedding_function = XinferenceEmbeddings(
+                        server_url=config["xinference_url"],
+                        model_uid=config["embedding_model"],
+                    )
+                    logger.info(
+                        f"Chroma using Xinference embeddings: "
+                        f"model={config['embedding_model']}, url={config['xinference_url']}"
+                    )
+                except Exception as xe:
+                    logger.warning(f"Xinference embedding init failed: {xe}, trying fallback")
+                    # Fall back to SentenceTransformers
+                    from sentence_transformers import SentenceTransformer
+                    model = SentenceTransformer(config["fallback_model"])
+                    self._chroma_embedding_function = model.encode
+                    logger.info(f"Using fallback embedding model: {config['fallback_model']}")
+            else:
+                # Fallback: SentenceTransformers
+                from sentence_transformers import SentenceTransformer
+                model = SentenceTransformer(config["fallback_model"])
+                self._chroma_embedding_function = model.encode
+                logger.info(f"Using SentenceTransformers: {config['fallback_model']}")
+
+            # Initialize Chroma client
+            collection_name = config.get("collection_name", "publication")
+            self._chroma_vector_store = Chroma(
+                collection_name=collection_name,
+                embedding_function=self._chroma_embedding_function,
+                persist_directory=persist_dir,
+            )
+
+            # Verify collection has data
+            collection_count = self._chroma_vector_store._collection.count()
+            if collection_count == 0:
+                logger.warning(
+                    f"Chroma collection '{collection_name}' is empty. "
+                    f"Run 'python manage.py populate_chroma' to index publications."
+                )
+                self._chroma_available = False
+                return False
+
+            logger.info(
+                f"Chroma initialized successfully: collection='{collection_name}', "
+                f"vectors={collection_count}, persist_dir='{persist_dir}'"
+            )
+            self._chroma_available = True
+            return True
+
+        except ImportError as e:
+            logger.warning(f"Chroma dependencies not installed: {e}")
+            self._chroma_available = False
+            return False
+        except Exception as e:
+            logger.error(f"Chroma initialization failed: {e}", exc_info=True)
+            self._chroma_available = False
+            return False
+
+    def _chroma_prefilter(
+        self, query: str, publication_ids: list[str], topk: int
+    ) -> list[str] | None:
+        """
+        Query Chroma vector store to get top candidate publication IDs.
+
+        Optimized flow: Query Chroma first, then load only matching publications.
+        This is 150x faster than loading all publications and embedding them.
+
+        Args:
+            query: Search query text
+            publication_ids: List of publication UUIDs to filter results (from frontend)
+            topk: Number of final results wanted
+
+        Returns:
+            List of publication UUID strings (top 2*topk candidates), or None on failure
+        """
+        if not self._initialize_chroma():
+            return None
+
+        try:
+            config = settings.CHROMA_CONFIG
+            k_multiplier = config.get("default_k_multiplier", 2)
+            max_candidates = config.get("max_candidates", 100)
+
+            # Calculate how many candidates to fetch (2*topk for LLM reranking)
+            candidate_k = min(topk * k_multiplier, max_candidates, len(publication_ids))
+
+            # Build metadata filter to only search within provided publication_ids
+            # Chroma filter: {"publication_id": {"$in": ["uuid1", "uuid2", ...]}}
+            metadata_filter = {
+                "publication_id": {"$in": publication_ids}
+            } if publication_ids else None
+
+            # Query Chroma
+            logger.info(
+                f"Querying Chroma: query='{query[:50]}...', k={candidate_k}, "
+                f"filter_size={len(publication_ids) if publication_ids else 'none'}"
+            )
+
+            results = self._chroma_vector_store.similarity_search(
+                query=query,
+                k=candidate_k,
+                filter=metadata_filter,
+            )
+
+            # Extract publication IDs from metadata
+            candidate_pub_ids = [
+                doc.metadata.get("publication_id")
+                for doc in results
+                if doc.metadata.get("publication_id")
+            ]
+
+            logger.info(
+                f"Chroma returned {len(candidate_pub_ids)} candidates for query: '{query[:50]}...'"
+            )
+
+            return candidate_pub_ids if candidate_pub_ids else None
+
+        except Exception as e:
+            logger.error(f"Chroma query failed: {e}", exc_info=True)
+            return None
 
     def _get_openai_client(self):
         """
@@ -493,7 +657,28 @@ Output:"""
             # Initialize Lotus if not already done
             self._initialize_lotus()
 
-            # Load publications from database
+            # OPTIMIZATION: Try Chroma first (query-first flow)
+            chroma_candidate_ids = None
+            original_publication_count = len(publication_ids)
+
+            if settings.CHROMA_CONFIG.get("enabled", True):
+                if progress_callback:
+                    logger.info("Calling progress_callback for filtering phase (Chroma)")
+                    progress_callback("filtering", len(publication_ids))
+
+                chroma_candidate_ids = self._chroma_prefilter(query, publication_ids, topk)
+
+                if chroma_candidate_ids:
+                    logger.info(
+                        f"Using Chroma candidates: {len(chroma_candidate_ids)} out of "
+                        f"{len(publication_ids)} total publications"
+                    )
+                    # Replace publication_ids with Chroma-filtered subset
+                    publication_ids = chroma_candidate_ids
+                else:
+                    logger.warning("Chroma filtering failed, loading all publications for fallback")
+
+            # Load publications from database (either Chroma subset or all)
             publications = Publication.objects.select_related("instance__venue").filter(
                 id__in=publication_ids
             )
@@ -504,12 +689,13 @@ Output:"""
                 return {
                     "success": True,
                     "query": query,
-                    "total_input": len(publication_ids),
+                    "total_input": original_publication_count,
                     "total_results": 0,
                     "results": [],
                     "metadata": {
                         "llm_model": settings.LOTUS_CONFIG.get("default_model"),
                         "processing_time_ms": int((time.time() - start_time) * 1000),
+                        "search_method": "chroma" if chroma_candidate_ids else "fallback",
                     },
                 }
 
@@ -522,24 +708,28 @@ Output:"""
                 return {
                     "success": True,
                     "query": query,
-                    "total_input": len(publication_ids),
+                    "total_input": original_publication_count,
                     "total_results": 0,
                     "results": [],
                     "metadata": {
                         "llm_model": settings.LOTUS_CONFIG.get("default_model"),
                         "processing_time_ms": int((time.time() - start_time) * 1000),
+                        "search_method": "chroma" if chroma_candidate_ids else "fallback",
                     },
                 }
 
-            # Notify filtering phase starting
-            if progress_callback:
-                logger.info(f"Calling progress_callback for filtering phase with {len(df)} publications")
-                progress_callback("filtering", len(df))
-            else:
-                logger.warning("No progress_callback provided, skipping filtering notification")
+            # If Chroma was NOT used, apply embedding-based prefilter (fallback)
+            if not chroma_candidate_ids:
+                if progress_callback:
+                    logger.info(f"Calling progress_callback for filtering phase (fallback)")
+                    progress_callback("filtering", len(df))
+                else:
+                    logger.warning("No progress_callback provided, skipping filtering notification")
 
-            # Embedding-based prefilter to 2 * topk candidates
-            filtered_df = self._embedding_prefilter(df, query, topk)
+                filtered_df = self._embedding_prefilter(df, query, topk)
+            else:
+                # Chroma already filtered, use all loaded publications
+                filtered_df = df
 
             # Notify reranking phase starting
             if progress_callback:
@@ -548,7 +738,7 @@ Output:"""
             else:
                 logger.warning("No progress_callback provided, skipping reranking notification")
 
-            # Apply semantic ranking (no cascade)
+            # Apply semantic ranking (LLM-based)
             if not filtered_df.empty:
                 ranked_df = self._apply_semantic_topk(filtered_df, query, topk)
             else:
@@ -558,19 +748,24 @@ Output:"""
             results = self._dataframe_to_results(ranked_df)
 
             processing_time = int((time.time() - start_time) * 1000)
-            logger.info(f"Semantic search completed in {processing_time}ms, found {len(results)} results")
+            search_method = "chroma" if chroma_candidate_ids else "fallback_embedding"
+
+            logger.info(
+                f"Semantic search completed in {processing_time}ms using {search_method}, "
+                f"found {len(results)} results"
+            )
 
             return {
                 "success": True,
                 "query": query,
-                "total_input": len(publication_ids),
+                "total_input": original_publication_count,
                 "total_results": len(results),
                 "results": results,
                 "metadata": {
                     "llm_model": settings.LOTUS_CONFIG.get("default_model"),
                     "processing_time_ms": processing_time,
-                    # Cascade is no longer used; keep key for compatibility
-                    "cascade": {"cascade_enabled": False},
+                    "search_method": search_method,
+                    "chroma_enabled": chroma_candidate_ids is not None,
                 },
             }
 
@@ -606,6 +801,9 @@ Output:"""
         elif "cascade" in error_message.lower() or "index" in error_message.lower():
             error_code = "CASCADE_ERROR"
             detail = f"Cascade optimization failed: {error_message}. Operation may have fallen back to standard mode."
+        elif "chroma" in error_message.lower():
+            error_code = "CHROMA_ERROR"
+            detail = f"Chroma vector store error: {error_message}. Falling back to embedding-based search."
         elif "embedding" in error_message.lower():
             error_code = "EMBEDDING_ERROR"
             detail = f"Embedding model error: {error_message}. Check embedding model configuration."

@@ -321,6 +321,32 @@ LOTUS_CONFIG = {
 }
 
 # ==============================================================================
+# CHROMA VECTOR STORE CONFIGURATION
+# ==============================================================================
+
+CHROMA_CONFIG = {
+    # Storage (REQUIRED - must be set in .env)
+    "persist_dir": os.getenv("CHROMA_PERSIST_DIR"),  # No default, force explicit config
+    "collection_name": os.getenv("CHROMA_COLLECTION_NAME", "publication"),
+
+    # Xinference Embedding (Primary)
+    "use_xinference": os.getenv("CHROMA_USE_XINFERENCE", "true").lower() == "true",
+    "xinference_url": os.getenv("XINFERENCE_API_BASE", "http://localhost:9997"),
+    "xinference_api_key": os.getenv("XINFERENCE_API_KEY", "dummy"),
+    "embedding_model": os.getenv("CHROMA_EMBEDDING_MODEL"),  # Admin specifies (e.g., "bge-base-en-v1.5")
+
+    # Fallback Embedding Model
+    "fallback_model": "intfloat/e5-base-v2",
+
+    # Search parameters
+    "default_k_multiplier": 2,  # Fetch 2*topk candidates for LLM reranking
+    "max_candidates": 100,  # Maximum candidates to fetch from Chroma
+
+    # Feature flag
+    "enabled": os.getenv("CHROMA_ENABLED", "true").lower() == "true",
+}
+
+# ==============================================================================
 # SEARCH API CONFIGURATION
 # ==============================================================================
 
