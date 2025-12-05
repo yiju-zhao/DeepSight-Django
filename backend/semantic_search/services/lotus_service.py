@@ -202,7 +202,7 @@ class LotusSemanticSearchService:
             if collection_count == 0:
                 logger.warning(
                     f"Chroma collection '{collection_name}' is empty. "
-                    f"Run 'python manage.py populate_chroma' to index publications."
+                    f"Import publications using conference import commands to auto-index to Chroma."
                 )
                 self._chroma_available = False
                 return False

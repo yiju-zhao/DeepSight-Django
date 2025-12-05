@@ -5,6 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
 from conferences.models import Instance, Publication, Venue
+from semantic_search.utils import batch_index_publications_to_chroma
 
 # Maps the key from the JSON file to the corresponding field in the Publication model
 # All multi-value fields are stored with semicolon separators (as in original JSON)
@@ -209,6 +210,23 @@ class Command(BaseCommand):
                     else:
                         publications_updated += 1
                         self.stdout.write(f"  Updated: {obj.title}")
+
+                # Step 4: Index publications to Chroma vector store
+                self.stdout.write(self.style.SUCCESS("\nIndexing publications to Chroma vector store..."))
+                all_publications = Publication.objects.filter(instance=instance)
+                chroma_stats = batch_index_publications_to_chroma(list(all_publications))
+
+                if chroma_stats["indexed"] > 0:
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"Chroma indexing complete: {chroma_stats['indexed']} indexed, "
+                            f"{chroma_stats['failed']} failed"
+                        )
+                    )
+                else:
+                    self.stdout.write(
+                        self.style.WARNING("Chroma indexing skipped (disabled or failed)")
+                    )
 
         except Exception as e:
             raise CommandError(f"An error occurred during the import process: {e}")

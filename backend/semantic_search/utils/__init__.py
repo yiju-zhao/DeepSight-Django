@@ -1,1 +1,3 @@
-"""Utility modules for semantic search."""
+from .chroma_indexer import batch_index_publications_to_chroma, index_publication_to_chroma
+
+__all__ = ["index_publication_to_chroma", "batch_index_publications_to_chroma"]
