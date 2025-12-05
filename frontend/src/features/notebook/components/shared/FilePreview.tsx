@@ -701,28 +701,6 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
     return (
       <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
-        {canCopy && (
-          <div className="absolute top-4 right-4 z-10">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyAsMarkdown}
-              className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5] bg-white shadow-sm"
-            >
-              {state.copyStatus === 'copied' ? (
-                <>
-                  <CheckCircle className="h-3.5 w-3.5 mr-1.5 text-green-600" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5 mr-1.5" />
-                  Copy Markdown
-                </>
-              )}
-            </Button>
-          </div>
-        )}
         <MarkdownContent content={baseContent} notebookId={notebookId} fileId={source.file_id || ''} />
       </div>
     );
@@ -941,28 +919,6 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
     return (
       <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
-        {canCopy && (
-          <div className="absolute top-4 right-4 z-10">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleCopyAsMarkdown}
-              className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5] bg-white shadow-sm"
-            >
-              {state.copyStatus === 'copied' ? (
-                <>
-                  <CheckCircle className="h-3.5 w-3.5 mr-1.5 text-green-600" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <Copy className="h-3.5 w-3.5 mr-1.5" />
-                  Copy Markdown
-                </>
-              )}
-            </Button>
-          </div>
-        )}
         {processedContent ? (
           <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
         ) : (
@@ -1006,28 +962,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
         </div>
 
         <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px] overflow-x-auto">
-          {canCopy && (
-            <div className="absolute top-4 right-4 z-10">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleCopyAsMarkdown}
-                className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5] bg-white shadow-sm"
-              >
-                {state.copyStatus === 'copied' ? (
-                  <>
-                    <CheckCircle className="h-3.5 w-3.5 mr-1.5 text-green-600" />
-                    Copied
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5 mr-1.5" />
-                    Copy Markdown
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
+
           <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
         </div>
       </div>
@@ -1174,6 +1109,26 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             </div>
           </div>
           <div className="flex items-center space-x-2 shrink-0 ml-4">
+            {canCopy && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleCopyAsMarkdown}
+                className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
+              >
+                {state.copyStatus === 'copied' ? (
+                  <>
+                    <CheckCircle className="h-3.5 w-3.5 mr-1.5 text-green-600" />
+                    Copied
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    Copy as Markdown
+                  </>
+                )}
+              </Button>
+            )}
             {shouldShowOpenDocument && (
               <Button
                 variant="outline"
