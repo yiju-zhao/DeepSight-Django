@@ -505,11 +505,6 @@ async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebo
     error = 'PDF content extraction failed or not available';
   }
 
-  // Construct PDF URL for opening in new tab
-  const pdfUrl = notebookId ?
-    `${API_BASE_URL}/notebooks/${notebookId}/files/${fileId}/inline/` :
-    `${API_BASE_URL}/notebooks/files/${fileId}/inline/`;
-
   // Return appropriate preview type based on content availability
   if (hasParsedContent) {
     return {
@@ -524,7 +519,6 @@ async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebo
       uploadedAt: metadata.upload_timestamp,
       pageCount: metadata.page_count || 'Unknown',
       fileId: fileId,
-      pdfUrl: pdfUrl,
       usesMinIOUrls: useMinIOUrls
     };
   } else {
@@ -538,7 +532,6 @@ async function generatePdfPreview(fileId: string, metadata: FileMetadata, notebo
       uploadedAt: metadata.upload_timestamp,
       pageCount: metadata.page_count || 'Unknown',
       fileId: fileId,
-      pdfUrl: pdfUrl,
       error: error,
       usesMinIOUrls: useMinIOUrls
     };

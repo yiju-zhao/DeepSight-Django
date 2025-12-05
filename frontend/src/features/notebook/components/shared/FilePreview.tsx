@@ -553,8 +553,11 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       // Priority: source_url > url property
       return source.metadata?.source_url || source.url || null;
     } else if (source.file_id) {
-      // File source: construct MinIO inline URL
-      return `${API_BASE_URL}/notebooks/${notebookId}/files/${source.file_id}/inline/`;
+      // For PDF files, use /raw/ endpoint to ensure proper PDF rendering in browser
+      // For other files, use /inline/ endpoint
+      const isPdf = source.ext?.toLowerCase() === 'pdf' || source.metadata?.file_extension?.toLowerCase() === '.pdf';
+      const endpoint = isPdf ? 'raw' : 'inline';
+      return `${API_BASE_URL}/notebooks/${notebookId}/files/${source.file_id}/${endpoint}/`;
     }
     return null;
   }, [isUrlSource, source, notebookId]);
@@ -1182,17 +1185,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                 Open Document
               </Button>
             )}
-            {preview?.isPdfPreview && preview?.pdfUrl && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.open(preview?.pdfUrl, '_blank')}
-                className="h-[32px] px-[12px] text-[12px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
-              >
-                <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
-                Open PDF
-              </Button>
-            )}
+
             <Button
               variant="ghost"
               size="icon"
