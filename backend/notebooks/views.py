@@ -466,7 +466,7 @@ class FileViewSet(ETagCacheMixin, viewsets.ModelViewSet):
                 content_bytes=file_obj["data"],
                 etag=etag_value,
                 max_age=max_age,
-                disposition="attachment",
+                disposition="inline",
             )
         except Exception as e:
             logger.exception(f"Failed to get raw file for {pk}: {e}")
