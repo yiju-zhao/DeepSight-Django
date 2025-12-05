@@ -101,9 +101,9 @@ class LotusSemanticSearchServiceTestCase(TestCase):
 
     @patch("datasets.services.lotus_service.lotus")
     @patch("datasets.services.lotus_service.LM")
-    def test_semantic_filter_empty_ids(self, mock_lm_class, mock_lotus):
-        """Test semantic filter with empty publication IDs"""
-        result = self.service.semantic_filter(publication_ids=[], query="test query")
+    def test_semantic_search_empty_ids(self, mock_lm_class, mock_lotus):
+        """Test semantic search with empty publication IDs"""
+        result = self.service.semantic_search(publication_ids=[], query="test query")
 
         # Should return empty result with success=True
         self.assertTrue(result["success"])
@@ -113,8 +113,8 @@ class LotusSemanticSearchServiceTestCase(TestCase):
 
     @patch("datasets.services.lotus_service.lotus")
     @patch("datasets.services.lotus_service.LM")
-    def test_semantic_filter_success(self, mock_lm_class, mock_lotus):
-        """Test successful semantic filtering"""
+    def test_semantic_search_success(self, mock_lm_class, mock_lotus):
+        """Test successful semantic search"""
         # Setup mocks
         mock_lm = Mock()
         mock_lm_class.return_value = mock_lm
@@ -152,7 +152,7 @@ class LotusSemanticSearchServiceTestCase(TestCase):
             self.service, "_embedding_prefilter", return_value=mock_filtered_df
         ):
             publication_ids = [str(pub.id) for pub in self.publications]
-            result = self.service.semantic_filter(
+            result = self.service.semantic_search(
                 publication_ids=publication_ids, query="papers about AI", topk=3
             )
 
@@ -170,11 +170,11 @@ class LotusSemanticSearchServiceTestCase(TestCase):
         self.assertIn("relevance_score", first_result)
         self.assertEqual(first_result["title"], "Test Paper 0")
 
-    def test_semantic_filter_nonexistent_ids(self):
-        """Test semantic filter with non-existent publication IDs"""
+    def test_semantic_search_nonexistent_ids(self):
+        """Test semantic search with non-existent publication IDs"""
         fake_ids = [str(uuid4()) for _ in range(3)]
 
-        result = self.service.semantic_filter(publication_ids=fake_ids, query="test")
+        result = self.service.semantic_search(publication_ids=fake_ids, query="test")
 
         # Should return empty results
         self.assertTrue(result["success"])
@@ -182,7 +182,7 @@ class LotusSemanticSearchServiceTestCase(TestCase):
 
     @patch("datasets.services.lotus_service.lotus")
     @patch("datasets.services.lotus_service.LM")
-    def test_semantic_filter_max_publications_limit(self, mock_lm_class, mock_lotus):
+    def test_semantic_search_max_publications_limit(self, mock_lm_class, mock_lotus):
         """Test that max_publications limit is enforced"""
         # Create many publication IDs
         many_ids = [str(uuid4()) for _ in range(2000)]
@@ -191,7 +191,7 @@ class LotusSemanticSearchServiceTestCase(TestCase):
         with patch.object(Publication.objects, "filter") as mock_filter:
             mock_filter.return_value.select_related.return_value = []
 
-            result = self.service.semantic_filter(
+            result = self.service.semantic_search(
                 publication_ids=many_ids, query="test", topk=10
             )
 

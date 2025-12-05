@@ -1,8 +1,9 @@
 """
 Lotus Semantic Search Service
 
-Provides semantic filtering and ranking capabilities using the Lotus library.
-Integrates with Django's Publication model to enable natural language queries.
+Provides embedding-based candidate selection and LLM ranking using the Lotus
+library. Integrates with Django's Publication model to enable natural
+language queries.
 """
 
 import logging
@@ -138,96 +139,9 @@ class LotusSemanticSearchService:
             if not api_key:
                 raise ValueError("OPENAI_API_KEY not configured in settings")
             self._openai_client = OpenAI(api_key=api_key)
-            logger.info("OpenAI client initialized for predicate generation")
+            logger.info("OpenAI client initialized for ranking instruction generation")
 
         return self._openai_client
-
-    def _generate_filter_predicate(self, user_query: str) -> str:
-        """
-        Use OpenAI LLM to convert user query into proper LOTUS sem_filter predicate.
-
-        The LLM generates only the predicate part (e.g., "is about machine learning")
-        which is then combined with column references: "{title} or {abstract} [predicate]"
-
-        Args:
-            user_query: Raw user query (e.g., "machine learning papers")
-
-        Returns:
-            Properly formatted LOTUS predicate (e.g., "{title} or {abstract} is about machine learning")
-
-        Raises:
-            No exceptions - falls back to simple template on any error
-        """
-        # Handle empty query
-        if not user_query or not user_query.strip():
-            return "{title} or {abstract} is not empty"
-
-        user_query = user_query.strip()
-
-        # Check cache first
-        if user_query in self._predicate_cache:
-            logger.debug(f"Using cached predicate for query: {user_query}")
-            return self._predicate_cache[user_query]
-
-        # Generate predicate using OpenAI
-        try:
-            client = self._get_openai_client()
-
-            prompt = f"""You are a query translator for LOTUS semantic filtering system.
-
-Convert the user's natural language query into a predicate phrase that completes the filter condition.
-
-Your output will be combined with column references like: "{{title}} or {{abstract}} [YOUR OUTPUT]"
-
-RULES:
-1. Generate ONLY the predicate phrase (do NOT include column references)
-2. Be specific and natural
-
-EXAMPLES:
-User query: "machine learning papers"
-Output: "is about machine learning"
-
-User query: "positive sentiment reviews"
-Output: "expresses positive sentiment"
-
-User query: "papers on deep learning for computer vision"
-Output: "discusses deep learning applied to computer vision"
-
-User query: "research requiring mathematical background"
-Output: "requires knowledge of mathematics"
-
-User query: "neural networks"
-Output: "is about neural networks"
-
-Now convert this query (output ONLY the predicate phrase):
-User query: "{user_query}"
-Output:"""
-
-            response = client.chat.completions.create(
-                model="gpt-5.1",
-                messages=[{"role": "user", "content": prompt}],
-            )
-
-            predicate_part = response.choices[0].message.content.strip()
-
-            # Remove quotes if LLM added them
-            predicate_part = predicate_part.strip('"').strip("'")
-
-            # Construct final predicate
-            final_predicate = f"{{title}} or {{abstract}} {predicate_part}"
-
-            # Cache the result
-            self._predicate_cache[user_query] = final_predicate
-
-            logger.info(f"Generated predicate for '{user_query}': {final_predicate}")
-            return final_predicate
-
-        except Exception as e:
-            logger.warning(f"Failed to generate predicate via OpenAI, using fallback: {e}")
-            # Fallback to simple template
-            fallback_predicate = f"{{title}} or {{abstract}} is about {user_query}"
-            self._predicate_cache[user_query] = fallback_predicate
-            return fallback_predicate
 
     def _generate_topk_instruction(self, user_query: str) -> str:
         """
@@ -516,7 +430,7 @@ Output:"""
 
         return results
 
-    def semantic_filter(
+    def semantic_search(
         self,
         publication_ids: list[str],
         query: str,
@@ -529,7 +443,7 @@ Output:"""
         This is the main API method that:
         1. Loads publications by IDs
         2. Converts to DataFrame
-        3. Applies Lotus semantic filtering
+        3. Applies embedding-based prefiltering and LLM reranking
         4. Returns top-k ranked results
 
         Args:
@@ -542,7 +456,7 @@ Output:"""
                 - success: bool
                 - query: str (the input query)
                 - total_input: int (number of input publications)
-                - total_results: int (number of results after filtering)
+                - total_results: int (number of results after search)
                 - results: list of dicts with publication data + relevance_score
                 - metadata: dict with llm_model and processing_time_ms
 

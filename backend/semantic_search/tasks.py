@@ -46,15 +46,15 @@ def semantic_search_streaming_task(
     )
 
     def publish_progress(phase: str, count: int):
-        """Publish progress for different semantic search phases."""
+        """Publish progress for different search phases."""
         if phase == "filtering":
-            logger.info(f"Job {job_id}: Publishing filtering event with {count} publications")
+            logger.info(f"Job {job_id}: Publishing embedding prefilter event with {count} publications")
             _publish_progress(
                 job_id,
                 {
                     "type": "filtering",
                     "total": count,
-                    "message": f"Filtering {count} publications...",
+                    "message": f"Embedding prefilter on {count} publications...",
                 },
             )
         elif phase == "reranking":
@@ -91,7 +91,7 @@ def semantic_search_streaming_task(
         # Process all publications at once with semantic filtering and ranking
         logger.info(f"Job {job_id}: Processing all {total_publications} publications")
 
-        result = lotus_semantic_search_service.semantic_filter(
+        result = lotus_semantic_search_service.semantic_search(
             publication_ids=publication_ids,
             query=query,
             topk=topk,

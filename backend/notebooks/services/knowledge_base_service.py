@@ -951,9 +951,31 @@ class KnowledgeBaseService(NotebookBaseService):
                     filename = f"{filename}{file_ext}"
 
                 # Determine content type
-                content_type = "application/octet-stream"  # Default fallback
+                # First try to get from metadata
+                content_type = None
                 if kb_item.metadata and isinstance(kb_item.metadata, dict):
-                    content_type = kb_item.metadata.get("content_type", content_type)
+                    content_type = kb_item.metadata.get("content_type")
+
+                # If not in metadata or is default fallback, determine from file extension
+                if not content_type or content_type == "application/octet-stream":
+                    from notebooks.utils.helpers import get_mime_type_from_extension
+
+                    # Extract file extension from metadata or filename
+                    file_ext = ""
+                    if kb_item.metadata and isinstance(kb_item.metadata, dict):
+                        file_ext = kb_item.metadata.get("file_extension", "")
+
+                    if not file_ext:
+                        # Extract from filename as fallback
+                        import os
+
+                        _, file_ext = os.path.splitext(filename)
+
+                    # Get MIME type from extension
+                    if file_ext:
+                        content_type = get_mime_type_from_extension(file_ext)
+                    else:
+                        content_type = "application/octet-stream"
 
                 return {
                     "data": file_data,
