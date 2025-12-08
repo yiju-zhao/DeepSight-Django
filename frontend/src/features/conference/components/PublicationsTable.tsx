@@ -112,9 +112,10 @@ const PublicationRow = memo(({
   const affiliations = useMemo(() => splitSemicolonValues(publication.aff_unique), [publication.aff_unique]);
 
   const keywordsDisplay = useMemo(() => formatTruncatedList(keywords, 3), [keywords]);
-  const authorsDisplay = useMemo(() => formatTruncatedList(authors, 3), [authors]);
+  // Increase limit for authors/affiliations to allow filling 2 lines before CSS clamping
+  const authorsDisplay = useMemo(() => formatTruncatedList(authors, 20), [authors]);
   const countriesDisplay = useMemo(() => formatTruncatedList(countries, 3), [countries]);
-  const affiliationsDisplay = useMemo(() => formatTruncatedList(affiliations, 2), [affiliations]);
+  const affiliationsDisplay = useMemo(() => formatTruncatedList(affiliations, 10), [affiliations]);
 
   // Calculate visible columns count for colSpan
   const visibleColumnsCount = useMemo(() => {
@@ -144,7 +145,10 @@ const PublicationRow = memo(({
           onClick={onToggleExpand}
         >
           <div className="space-y-2">
-            <div className="font-medium text-gray-900 text-[15px] leading-snug hover:text-blue-600 transition-colors">
+            <div
+              className={`font-medium text-gray-900 text-[15px] leading-snug hover:text-blue-600 transition-colors ${isExpanded ? 'whitespace-normal' : 'truncate'}`}
+              title={!isExpanded ? publication.title : undefined}
+            >
               {publication.title}
             </div>
             {columnVisibility.keywords && keywords.length > 0 && (
@@ -165,7 +169,7 @@ const PublicationRow = memo(({
         {/* Authors - Always visible */}
         <td className="py-3 px-4 align-top">
           <div className="space-y-2">
-            <div className="text-sm text-gray-700 leading-relaxed">
+            <div className="text-sm text-gray-700 leading-relaxed line-clamp-2" title={authors.join('; ')}>
               {authorsDisplay.displayText}
               {authorsDisplay.hasMore && (
                 <span className="text-gray-400 text-xs ml-1">+{authorsDisplay.remainingCount}</span>
@@ -187,7 +191,7 @@ const PublicationRow = memo(({
         {columnVisibility.affiliation && (
           <td className="py-3 px-4 align-top">
             {affiliations.length > 0 && (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-1 max-h-[3rem] overflow-hidden content-start">
                 {affiliationsDisplay.displayItems.map((affiliation, index) => (
                   <span key={index} className="inline-flex items-center px-2 py-0.5 text-[11px] bg-gray-50 text-gray-700 rounded border border-gray-100">
                     {affiliation}
@@ -223,7 +227,7 @@ const PublicationRow = memo(({
         {columnVisibility.rating && (
           <td className="py-3 px-4 align-top">
             {publication.rating && !isNaN(Number(publication.rating)) && (
-              <div className="bg-amber-50 px-2 py-1 rounded-md w-fit">
+              <div className="bg-amber-50 px-2 py-1 rounded-md w-fit mx-auto">
                 <span className="text-sm font-bold text-amber-700">
                   {Number(publication.rating).toFixed(1)}
                 </span>
@@ -235,7 +239,7 @@ const PublicationRow = memo(({
         {/* Links - Conditional */}
         {columnVisibility.links && (
           <td className="py-3 px-4 align-top">
-            <div className="flex items-center gap-1">
+            <div className="flex items-center justify-center gap-1">
               {publication.pdf_url && (
                 <a
                   href={publication.pdf_url}
@@ -696,10 +700,10 @@ const PublicationsTable = ({
                     <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[10%]">Topic</th>
                   )}
                   {columnVisibility.rating && (
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[8%]">Rating</th>
+                    <th className="text-center py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[8%]">Rating</th>
                   )}
                   {columnVisibility.links && (
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[8%]">Links</th>
+                    <th className="text-center py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[8%]">Links</th>
                   )}
                 </tr>
               </thead>
