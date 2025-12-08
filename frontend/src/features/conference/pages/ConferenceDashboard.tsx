@@ -190,7 +190,7 @@ export default function ConferenceDashboard() {
   const publicationsParams = matchingInstance ? {
     instance: matchingInstance.instance_id,
     page: currentPage,
-    page_size: 20,
+    page_size: 50,
     search: debouncedPublicationSearch || undefined,
     aff_filter: selectedAffiliations.length > 0 ? selectedAffiliations.join(',') : undefined,
     ordering: getOrdering()
@@ -428,6 +428,7 @@ export default function ConferenceDashboard() {
                       isFiltered={!!debouncedPublicationSearch || selectedAffiliations.length > 0}
                       isLoading={publicationsLoading}
                       showTitle={false}
+                      pageSize={50}
                       externalSelectedIds={selectedPublicationIds}
                       onSelectionChange={setSelectedPublicationIds}
                     />

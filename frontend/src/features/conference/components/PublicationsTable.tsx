@@ -42,6 +42,7 @@ interface PublicationsTableProps {
   showSearch?: boolean; // New prop to control search bar visibility
   enableClientPagination?: boolean; // New prop to enable client-side pagination
   showTitle?: boolean; // New prop to control title visibility
+  pageSize?: number; // Number of items per page
   // External selection control
   externalSelectedIds?: Set<string>;
   onSelectionChange?: (ids: Set<string>) => void;
@@ -402,6 +403,7 @@ const PublicationsTable = ({
   showSearch = true, // Default to true
   enableClientPagination = false, // Default to false
   showTitle = true, // Default to true
+  pageSize = 20, // Default to 20
   externalSelectedIds,
   onSelectionChange,
 }: PublicationsTableProps) => {
@@ -425,7 +427,7 @@ const PublicationsTable = ({
     title: true,
     authors: true,
     affiliation: true,
-    topic: true,
+    topic: false,
     rating: true,
     links: true,
     keywords: true,
@@ -446,12 +448,12 @@ const PublicationsTable = ({
 
     // Apply client-side pagination if enabled
     if (enableClientPagination) {
-      const startIndex = (currentPage - 1) * 20;
-      return processedData.slice(startIndex, startIndex + 20);
+      const startIndex = (currentPage - 1) * pageSize;
+      return processedData.slice(startIndex, startIndex + pageSize);
     }
 
     return processedData;
-  }, [data, enableClientPagination, currentPage]);
+  }, [data, enableClientPagination, currentPage, pageSize]);
 
   // Selection handlers
   const toggleSelectAll = () => {
@@ -540,7 +542,7 @@ const PublicationsTable = ({
     return <LoadingSkeleton />;
   }
 
-  const totalPages = Math.ceil(pagination.count / 20);
+  const totalPages = Math.ceil(pagination.count / pageSize);
 
   // Check selection status against CURRENT PAGE only
   const currentPageIds = displayData.map((p) => String(p.id));
