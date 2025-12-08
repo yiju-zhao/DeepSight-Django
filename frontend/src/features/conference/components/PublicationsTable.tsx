@@ -314,12 +314,12 @@ const PublicationRow = memo(({
               <div className="px-14 py-6 flex gap-6">
                 <div className="w-1 bg-blue-500 rounded-full flex-shrink-0 self-stretch opacity-20" />
 
-                <div className="space-y-3 flex-1 max-w-4xl">
+                <div className="space-y-3 flex-1 max-w-3xl">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
                     Abstract
                   </h4>
                   {publication.abstract ? (
-                    <p className="text-sm text-gray-700 leading-7 text-justify">
+                    <p className="text-sm text-gray-700 leading-6 text-justify">
                       {publication.abstract}
                     </p>
                   ) : (
