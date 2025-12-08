@@ -127,11 +127,30 @@ const PublicationRow = memo(({
     return count;
   }, [columnVisibility]);
 
+  // Card style classes
+  // When expanded, we remove bottom rounded corners visually to "attach" the abstract
+  const rowClasses = `
+    group transition-all duration-200
+    hover:shadow-md
+  `;
+
+  const cellBaseClasses = `
+    bg-white py-4 align-top border-y border-gray-100 first:border-l last:border-r
+    first:pl-5 last:pr-5
+  `;
+
+  // Dynamic radius for top/bottom of the "card"
+  // If expanded, the bottom corners of the main row should be square (to connect to abstract)
+  // But since we use border-spacing, we can't easily connect them without gaps.
+  // Strategy: Just keep them as separate cards or consistent rounded cards. 
+  // Let's go with consistent rounded cards for now, as "gap equal to spacing" is standard.
+  const cellClasses = `${cellBaseClasses} first:rounded-l-xl last:rounded-r-xl shadow-sm`;
+
   return (
     <>
-      <tr className={`group border-b border-gray-100 hover:bg-gray-50/80 transition-colors ${isExpanded ? 'bg-gray-50/50' : ''}`}>
+      <tr className={rowClasses}>
         {/* Selection Checkbox */}
-        <td className="py-3 px-4 w-12 align-top">
+        <td className={`${cellClasses} w-12`}>
           <Checkbox
             checked={isSelected}
             onCheckedChange={onToggleSelect}
@@ -141,7 +160,7 @@ const PublicationRow = memo(({
 
         {/* Title - Always visible, clickable to expand */}
         <td
-          className="py-3 px-4 cursor-pointer align-top"
+          className={`${cellClasses} cursor-pointer`}
           onClick={onToggleExpand}
         >
           <div className="space-y-2">
@@ -152,14 +171,14 @@ const PublicationRow = memo(({
               {publication.title}
             </div>
             {columnVisibility.keywords && keywords.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {keywords.slice(0, 4).map((keyword, i) => (
+              <div className="flex flex-wrap gap-1">
+                {keywordsDisplay.displayItems.map((keyword, i) => (
                   <span key={i} className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600">
                     {keyword}
                   </span>
                 ))}
-                {keywords.length > 4 && (
-                  <span className="text-[11px] text-gray-400 self-center">+{keywords.length - 4}</span>
+                {keywordsDisplay.hasMore && (
+                  <span className="text-[11px] text-gray-400 self-center">+{keywordsDisplay.remainingCount}</span>
                 )}
               </div>
             )}
@@ -167,7 +186,7 @@ const PublicationRow = memo(({
         </td>
 
         {/* Authors - Always visible */}
-        <td className="py-3 px-4 align-top">
+        <td className={cellClasses}>
           <div className="space-y-2">
             <div className="text-sm text-gray-700 leading-relaxed line-clamp-2" title={authors.join('; ')}>
               {authorsDisplay.displayText}
@@ -189,7 +208,7 @@ const PublicationRow = memo(({
 
         {/* Affiliation - Conditional */}
         {columnVisibility.affiliation && (
-          <td className="py-3 px-4 align-top">
+          <td className={cellClasses}>
             {affiliations.length > 0 && (
               <div className="flex flex-wrap gap-1 max-h-[3rem] overflow-hidden content-start">
                 {affiliationsDisplay.displayItems.map((affiliation, index) => (
@@ -209,7 +228,7 @@ const PublicationRow = memo(({
 
         {/* Topic - Conditional */}
         {columnVisibility.topic && (
-          <td className="py-3 px-4 align-top">
+          <td className={cellClasses}>
             {publication.research_topic && (
               <span
                 className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 max-w-full"
@@ -225,7 +244,7 @@ const PublicationRow = memo(({
 
         {/* Rating - Conditional */}
         {columnVisibility.rating && (
-          <td className="py-3 px-4 align-top">
+          <td className={cellClasses}>
             {publication.rating && !isNaN(Number(publication.rating)) && (
               <div className="bg-amber-50 px-2 py-1 rounded-md w-fit mx-auto">
                 <span className="text-sm font-bold text-amber-700">
@@ -238,7 +257,7 @@ const PublicationRow = memo(({
 
         {/* Links - Conditional */}
         {columnVisibility.links && (
-          <td className="py-3 px-4 align-top">
+          <td className={cellClasses}>
             <div className="flex items-center justify-center gap-1">
               {publication.pdf_url && (
                 <a
@@ -282,31 +301,34 @@ const PublicationRow = memo(({
 
       {/* Expanded Row - Abstract */}
       {isExpanded && (
-        <tr className="bg-gray-50/50 border-b border-gray-100">
-          <td colSpan={visibleColumnsCount} className="py-0">
-            <div
-              className="animate-in slide-in-from-top-2 duration-200 overflow-hidden"
-              style={{
-                maxHeight: isExpanded ? '500px' : '0',
-                transition: 'max-height 0.3s ease-in-out',
-              }}
-            >
-              <div className="px-12 py-4 flex gap-6">
-                <div className="w-1 bg-blue-500 rounded-full flex-shrink-0 self-stretch opacity-20" />
+        <tr>
+          {/* Use a single cell with colSpan, styled as a contained card/box */}
+          <td colSpan={visibleColumnsCount} className="p-0 border-none">
+            <div className="mt-2 bg-gray-50/50 rounded-xl border border-gray-100 shadow-inner overflow-hidden">
+              <div
+                className="animate-in slide-in-from-top-2 duration-200 overflow-hidden"
+                style={{
+                  maxHeight: isExpanded ? '500px' : '0',
+                  transition: 'max-height 0.3s ease-in-out',
+                }}
+              >
+                <div className="px-12 py-6 flex gap-6">
+                  <div className="w-1 bg-blue-500 rounded-full flex-shrink-0 self-stretch opacity-20" />
 
-                <div className="space-y-2 flex-1 max-w-3xl">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
-                    Abstract
-                  </h4>
-                  {publication.abstract ? (
-                    <p className="text-sm text-gray-700 leading-6 text-justify">
-                      {publication.abstract}
-                    </p>
-                  ) : (
-                    <p className="text-sm text-gray-400 italic">
-                      No abstract available
-                    </p>
-                  )}
+                  <div className="space-y-2 flex-1 max-w-3xl">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+                      Abstract
+                    </h4>
+                    {publication.abstract ? (
+                      <p className="text-sm text-gray-700 leading-6 text-justify">
+                        {publication.abstract}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-400 italic">
+                        No abstract available
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -618,23 +640,23 @@ const PublicationsTable = ({
           </div>
         )}
 
-        {/* Table */}
-        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        {/* Table - Added border-separate and spacing */}
+        <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100/50">
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed min-w-[1000px]">
-              <thead className="bg-gray-50/80 border-b border-gray-200">
+            <table className="w-full table-fixed min-w-[1000px] border-separate border-spacing-y-3 -mt-3">
+              <thead>
                 <tr>
-                  <th className="py-3 px-4 w-12 align-middle">
+                  <th className="py-3 px-5 w-12 align-middle text-left">
                     <Checkbox
                       checked={allCurrentPageSelected || someCurrentPageSelected}
                       onCheckedChange={toggleSelectAll}
                       className="mt-0.5"
                     />
                   </th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider">Title</th>
-                  <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[18%]">Authors</th>
+                  <th className="text-left py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider">Title</th>
+                  <th className="text-left py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[18%]">Authors</th>
                   {columnVisibility.affiliation && (
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[14%]">
+                    <th className="text-left py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[14%]">
                       <div className="flex items-center gap-1.5">
                         <span>Affiliation</span>
                         <div className="relative" ref={affiliationFilterRef}>
@@ -697,13 +719,13 @@ const PublicationsTable = ({
                     </th>
                   )}
                   {columnVisibility.topic && (
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[10%]">Topic</th>
+                    <th className="text-left py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[10%]">Topic</th>
                   )}
                   {columnVisibility.rating && (
-                    <th className="text-center py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[8%]">Rating</th>
+                    <th className="text-center py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[8%]">Rating</th>
                   )}
                   {columnVisibility.links && (
-                    <th className="text-center py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[8%]">Links</th>
+                    <th className="text-center py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[8%]">Links</th>
                   )}
                 </tr>
               </thead>
