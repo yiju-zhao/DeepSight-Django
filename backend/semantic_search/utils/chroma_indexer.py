@@ -148,6 +148,72 @@ def batch_index_publications_to_chroma(
         return {"indexed": 0, "failed": 0}
 
 
+def delete_publications_from_chroma(
+    instance_id: str = None,
+    publication_ids: list[str] = None
+) -> dict[str, int]:
+    """
+    Delete publications from Chroma vector store.
+
+    Args:
+        instance_id: Instance ID to delete all publications for that instance
+        publication_ids: List of publication IDs to delete
+
+    Returns:
+        dict with 'deleted' count and 'success' boolean
+    """
+    config = settings.CHROMA_CONFIG
+    if not config.get("enabled", True) or not config.get("persist_dir"):
+        logger.info("Chroma disabled, skipping vector deletion")
+        return {"deleted": 0, "success": True}
+
+    if not instance_id and not publication_ids:
+        logger.warning("No instance_id or publication_ids provided for deletion")
+        return {"deleted": 0, "success": False}
+
+    try:
+        # Initialize Chroma
+        vector_store = _get_chroma_vector_store()
+        if vector_store is None:
+            logger.warning("Failed to initialize Chroma, skipping vector deletion")
+            return {"deleted": 0, "success": False}
+
+        # Delete by instance_id filter
+        if instance_id:
+            try:
+                # Chroma uses 'where' filter for metadata-based deletion
+                vector_store.delete(where={"instance_id": instance_id})
+                logger.info(f"Deleted all publications for instance {instance_id} from Chroma")
+                return {"deleted": -1, "success": True}  # -1 indicates unknown count
+            except Exception as e:
+                logger.error(f"Failed to delete by instance_id {instance_id}: {e}")
+                return {"deleted": 0, "success": False}
+
+        # Delete by publication IDs
+        if publication_ids:
+            try:
+                deleted = 0
+                for pub_id in publication_ids:
+                    try:
+                        vector_store.delete(where={"publication_id": str(pub_id)})
+                        deleted += 1
+                    except Exception as e:
+                        logger.error(f"Failed to delete publication {pub_id}: {e}")
+
+                logger.info(f"Deleted {deleted} publications from Chroma")
+                return {"deleted": deleted, "success": True}
+            except Exception as e:
+                logger.error(f"Failed to delete publications: {e}")
+                return {"deleted": 0, "success": False}
+
+    except ImportError as e:
+        logger.warning(f"Chroma dependencies not installed: {e}")
+        return {"deleted": 0, "success": False}
+    except Exception as e:
+        logger.error(f"Deletion failed: {e}", exc_info=True)
+        return {"deleted": 0, "success": False}
+
+
 def _get_chroma_vector_store():
     """
     Initialize and return Chroma vector store.
