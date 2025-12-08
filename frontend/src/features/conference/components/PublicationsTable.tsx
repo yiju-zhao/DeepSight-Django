@@ -20,10 +20,19 @@ import {
   ChevronRight,
   Settings,
   Filter,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { splitSemicolonValues, formatTruncatedList } from '@/shared/utils/utils';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Button } from '@/shared/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/shared/components/ui/select';
 
 interface PublicationsTableProps {
   data: PublicationTableItem[];
@@ -585,19 +594,23 @@ const PublicationsTable = ({
               />
             </div>
 
-            <select
+            <Select
               value={`${sortField}-${sortDirection}`}
-              onChange={(e) => {
-                const [field, direction] = e.target.value.split('-') as [SortField, SortDirection];
+              onValueChange={(value) => {
+                const [field, direction] = value.split('-') as [SortField, SortDirection];
                 onSortChange(field, direction);
               }}
-              className="px-3 py-2 border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-black/5 focus:border-black transition-all text-sm cursor-pointer min-w-[180px]"
             >
-              <option value="rating-desc">Highest Rated</option>
-              <option value="rating-asc">Lowest Rated</option>
-              <option value="title-asc">Title (A-Z)</option>
-              <option value="title-desc">Title (Z-A)</option>
-            </select>
+              <SelectTrigger className="w-[180px] rounded-full bg-white border-gray-200">
+                <SelectValue placeholder="Sort order" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="rating-desc">Highest Rated</SelectItem>
+                <SelectItem value="rating-asc">Lowest Rated</SelectItem>
+                <SelectItem value="title-asc">Title (A-Z)</SelectItem>
+                <SelectItem value="title-desc">Title (Z-A)</SelectItem>
+              </SelectContent>
+            </Select>
 
             <div className="relative" ref={columnSettingsRef}>
               <Button
@@ -655,10 +668,10 @@ const PublicationsTable = ({
                       className="mt-0.5"
                     />
                   </th>
-                  <th className="text-left py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider">Title</th>
-                  <th className="text-left py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[18%]">Authors</th>
+                  <th className="text-left py-3 px-5 font-semibold text-gray-500 text-sm uppercase tracking-wider">Title</th>
+                  <th className="text-left py-3 px-5 font-semibold text-gray-500 text-sm uppercase tracking-wider w-[18%]">Authors</th>
                   {columnVisibility.affiliation && (
-                    <th className="text-left py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[14%]">
+                    <th className="text-left py-3 px-5 font-semibold text-gray-500 text-sm uppercase tracking-wider w-[14%]">
                       <div className="flex items-center gap-1.5">
                         <span>Affiliation</span>
                         <div className="relative" ref={affiliationFilterRef}>
@@ -721,13 +734,20 @@ const PublicationsTable = ({
                     </th>
                   )}
                   {columnVisibility.topic && (
-                    <th className="text-left py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[10%]">Topic</th>
+                    <th className="text-left py-3 px-5 font-semibold text-gray-500 text-sm uppercase tracking-wider w-[10%]">Topic</th>
                   )}
                   {columnVisibility.rating && (
-                    <th className="text-center py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[8%]">Rating</th>
+                    <th className="text-center py-3 px-5 font-semibold text-gray-500 text-sm uppercase tracking-wider w-[8%]">
+                      <span className="inline-flex items-center gap-1 cursor-pointer hover:text-gray-700" onClick={() => onSortChange('rating', sortField === 'rating' && sortDirection === 'desc' ? 'asc' : 'desc')}>
+                        Rating
+                        {sortField === 'rating' && (
+                          sortDirection === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
+                        )}
+                      </span>
+                    </th>
                   )}
                   {columnVisibility.links && (
-                    <th className="text-center py-3 px-5 font-semibold text-gray-400 text-xs uppercase tracking-wider w-[8%]">Links</th>
+                    <th className="text-center py-3 px-5 font-semibold text-gray-500 text-sm uppercase tracking-wider w-[8%]">Links</th>
                   )}
                 </tr>
               </thead>
