@@ -15,7 +15,6 @@ import {
   ExternalLink,
   Github,
   FileText,
-  Star,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -25,7 +24,6 @@ import {
 import { splitSemicolonValues, formatTruncatedList } from '@/shared/utils/utils';
 import { Checkbox } from '@/shared/components/ui/checkbox';
 import { Button } from '@/shared/components/ui/button';
-import { useFavorites } from '../hooks/useFavorites';
 
 interface PublicationsTableProps {
   data: PublicationTableItem[];
@@ -96,8 +94,6 @@ interface PublicationRowProps {
   columnVisibility: ColumnVisibility;
   isSelected: boolean;
   onToggleSelect: () => void;
-  isFavorite: boolean;
-  onToggleFavorite: () => void;
   isExpanded: boolean;
   onToggleExpand: () => void;
 }
@@ -107,8 +103,6 @@ const PublicationRow = memo(({
   columnVisibility,
   isSelected,
   onToggleSelect,
-  isFavorite,
-  onToggleFavorite,
   isExpanded,
   onToggleExpand,
 }: PublicationRowProps) => {
@@ -124,7 +118,7 @@ const PublicationRow = memo(({
 
   // Calculate visible columns count for colSpan
   const visibleColumnsCount = useMemo(() => {
-    let count = 4; // Checkbox, Favorite, Title, Authors
+    let count = 3; // Checkbox, Title, Authors
     if (columnVisibility.affiliation) count++;
     if (columnVisibility.topic) count++;
     if (columnVisibility.rating) count++;
@@ -136,7 +130,7 @@ const PublicationRow = memo(({
     <>
       <tr className={`group border-b border-gray-100 hover:bg-gray-50/80 transition-colors ${isExpanded ? 'bg-gray-50/50' : ''}`}>
         {/* Selection Checkbox */}
-        <td className="py-4 px-4 w-12 align-top">
+        <td className="py-3 px-4 w-12 align-top">
           <Checkbox
             checked={isSelected}
             onCheckedChange={onToggleSelect}
@@ -144,27 +138,9 @@ const PublicationRow = memo(({
           />
         </td>
 
-        {/* Favorite Icon */}
-        <td className="py-4 px-2 w-12 align-top">
-          <button
-            onClick={onToggleFavorite}
-            className={`p-1.5 rounded-md transition-all duration-200 mt-0.5 ${isFavorite
-              ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50'
-              : 'text-gray-300 hover:text-amber-500 hover:bg-amber-50'
-              }`}
-            title={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-          >
-            {isFavorite ? (
-              <Star className="h-4 w-4 fill-current" />
-            ) : (
-              <Star className="h-4 w-4" />
-            )}
-          </button>
-        </td>
-
         {/* Title - Always visible, clickable to expand */}
         <td
-          className="py-4 px-4 cursor-pointer align-top"
+          className="py-3 px-4 cursor-pointer align-top"
           onClick={onToggleExpand}
         >
           <div className="space-y-2">
@@ -187,7 +163,7 @@ const PublicationRow = memo(({
         </td>
 
         {/* Authors - Always visible */}
-        <td className="py-4 px-4 align-top">
+        <td className="py-3 px-4 align-top">
           <div className="space-y-2">
             <div className="text-sm text-gray-700 leading-relaxed">
               {authorsDisplay.displayText}
@@ -209,7 +185,7 @@ const PublicationRow = memo(({
 
         {/* Affiliation - Conditional */}
         {columnVisibility.affiliation && (
-          <td className="py-4 px-4 align-top">
+          <td className="py-3 px-4 align-top">
             {affiliations.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {affiliationsDisplay.displayItems.map((affiliation, index) => (
@@ -229,7 +205,7 @@ const PublicationRow = memo(({
 
         {/* Topic - Conditional */}
         {columnVisibility.topic && (
-          <td className="py-4 px-4 align-top">
+          <td className="py-3 px-4 align-top">
             {publication.research_topic && (
               <span
                 className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 max-w-full"
@@ -245,7 +221,7 @@ const PublicationRow = memo(({
 
         {/* Rating - Conditional */}
         {columnVisibility.rating && (
-          <td className="py-4 px-4 align-top">
+          <td className="py-3 px-4 align-top">
             {publication.rating && !isNaN(Number(publication.rating)) && (
               <div className="bg-amber-50 px-2 py-1 rounded-md w-fit">
                 <span className="text-sm font-bold text-amber-700">
@@ -258,7 +234,7 @@ const PublicationRow = memo(({
 
         {/* Links - Conditional */}
         {columnVisibility.links && (
-          <td className="py-4 px-4 align-top">
+          <td className="py-3 px-4 align-top">
             <div className="flex items-center gap-1">
               {publication.pdf_url && (
                 <a
@@ -311,10 +287,10 @@ const PublicationRow = memo(({
                 transition: 'max-height 0.3s ease-in-out',
               }}
             >
-              <div className="px-14 py-6 flex gap-6">
+              <div className="px-12 py-4 flex gap-6">
                 <div className="w-1 bg-blue-500 rounded-full flex-shrink-0 self-stretch opacity-20" />
 
-                <div className="space-y-3 flex-1">
+                <div className="space-y-2 flex-1 max-w-3xl">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
                     Abstract
                   </h4>
@@ -348,8 +324,7 @@ interface TableBodyProps {
   columnVisibility: ColumnVisibility;
   selectedIds: Set<string>;
   onToggleSelect: (id: string) => void;
-  favorites: Set<string>;
-  onToggleFavorite: (id: string) => void;
+
   expandedIds: Set<string>;
   onToggleExpand: (id: string) => void;
 }
@@ -359,8 +334,7 @@ const TableBody = memo(({
   columnVisibility,
   selectedIds,
   onToggleSelect,
-  favorites,
-  onToggleFavorite,
+
   expandedIds,
   onToggleExpand,
 }: TableBodyProps) => (
@@ -372,8 +346,6 @@ const TableBody = memo(({
         columnVisibility={columnVisibility}
         isSelected={selectedIds.has(String(publication.id))}
         onToggleSelect={() => onToggleSelect(String(publication.id))}
-        isFavorite={favorites.has(String(publication.id))}
-        onToggleFavorite={() => onToggleFavorite(String(publication.id))}
         isExpanded={expandedIds.has(String(publication.id))}
         onToggleExpand={() => onToggleExpand(String(publication.id))}
       />
@@ -410,7 +382,6 @@ const PublicationsTable = ({
   const [showColumnSettings, setShowColumnSettings] = useState(false);
   const [showAffiliationFilter, setShowAffiliationFilter] = useState(false);
   const [internalSelectedIds, setInternalSelectedIds] = useState<Set<string>>(new Set());
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   // Use external or internal state
@@ -422,8 +393,6 @@ const PublicationsTable = ({
       setInternalSelectedIds(newIds);
     }
   };
-
-  const { favorites, toggleFavorite } = useFavorites();
 
   // Column visibility state
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
@@ -449,11 +418,6 @@ const PublicationsTable = ({
   const displayData = useMemo(() => {
     let processedData = data;
 
-    // Filter by favorites if enabled (client-side)
-    if (showFavoritesOnly) {
-      processedData = processedData.filter(pub => favorites.has(String(pub.id)));
-    }
-
     // Apply client-side pagination if enabled
     if (enableClientPagination) {
       const startIndex = (currentPage - 1) * 20;
@@ -461,7 +425,7 @@ const PublicationsTable = ({
     }
 
     return processedData;
-  }, [data, showFavoritesOnly, favorites, enableClientPagination, currentPage]);
+  }, [data, enableClientPagination, currentPage]);
 
   // Selection handlers
   const toggleSelectAll = () => {
@@ -663,18 +627,6 @@ const PublicationsTable = ({
                       className="mt-0.5"
                     />
                   </th>
-                  <th className="py-3 px-2 w-12 align-middle">
-                    <button
-                      onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
-                      className={`p-1 rounded transition-colors ${showFavoritesOnly
-                        ? 'text-amber-500'
-                        : 'text-gray-400 hover:text-amber-500'
-                        }`}
-                      title={showFavoritesOnly ? 'Show all publications' : 'Show favorites only'}
-                    >
-                      <Star className={`h-4 w-4 ${showFavoritesOnly ? 'fill-current' : ''}`} />
-                    </button>
-                  </th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider">Title</th>
                   <th className="text-left py-3 px-4 font-semibold text-gray-900 text-xs uppercase tracking-wider w-[18%]">Authors</th>
                   {columnVisibility.affiliation && (
@@ -756,8 +708,6 @@ const PublicationsTable = ({
                 columnVisibility={columnVisibility}
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
-                favorites={favorites}
-                onToggleFavorite={toggleFavorite}
                 expandedIds={expandedIds}
                 onToggleExpand={toggleExpand}
               />
