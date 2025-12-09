@@ -883,10 +883,10 @@ class ChatService(NotebookBaseService):
                 api_key = getattr(settings, "OPENAI_API_KEY", "")
 
                 # Initialize agent components
-                from backend.notebooks.agents.rag_agent.graph import create_rag_agent
-                from backend.notebooks.agents.rag_agent.config import RAGAgentConfig
-                from backend.notebooks.services.retrieval_service import RetrievalService
-                from backend.notebooks.agents.rag_agent.utils import get_chat_history_window
+                from notebooks.agents.rag_agent.graph import create_rag_agent
+                from notebooks.agents.rag_agent.config import RAGAgentConfig
+                from notebooks.services.retrieval_service import RetrievalService
+                from notebooks.agents.rag_agent.utils import get_chat_history_window
                 from langchain_core.messages import HumanMessage, AIMessage
 
                 retrieval_service = RetrievalService(self.ragflow_service)
