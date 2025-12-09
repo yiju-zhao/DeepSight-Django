@@ -5,6 +5,7 @@ Includes integrated agentic RAG functionality using RagFlow Knowledge Base Agent
 
 import json
 import logging
+import uuid
 from collections.abc import Generator
 
 from core.services import NotebookBaseService
@@ -925,55 +926,58 @@ class ChatService(NotebookBaseService):
                 }
 
                 # Run agent loop with SSE streaming
-                iteration = 0
-                final_answer = None
-
                 import asyncio
 
-                async def run_agent():
-                    nonlocal iteration, final_answer
+                # Execute async agent and collect events
+                async def run_agent_async():
+                    events = []
+                    iteration_count = 0
+
                     async for event in agent.astream(initial_state):
-                        iteration += 1
+                        iteration_count += 1
+                        events.append((iteration_count, event))
 
-                        if "agent" in event:
-                            node_output = event["agent"]
-                            if "messages" in node_output:
-                                last_msg = node_output["messages"][-1]
+                    return events, iteration_count
 
-                                # Tool call → emit status
-                                if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-                                    yield f"data: {json.dumps({'type': 'status', 'message': f'Searching knowledge base (iteration {iteration})...'})}\n\n"
-                                    logger.info(f"[{trace_id}] Tool call in iteration {iteration}")
+                # Run the async agent in a new event loop
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    events, total_iterations = loop.run_until_complete(run_agent_async())
+                finally:
+                    loop.close()
 
-                                # Final answer (no tool calls)
-                                elif hasattr(last_msg, "content") and last_msg.content:
-                                    final_answer = last_msg.content
-                                    yield final_answer
+                # Process collected events and yield SSE
+                for iteration, event in events:
+                    if "agent" in event:
+                        node_output = event["agent"]
+                        if "messages" in node_output:
+                            last_msg = node_output["messages"][-1]
 
-                # Run async agent
-                agent_gen = run_agent()
-                for chunk in asyncio.run(agent_gen):
-                    if isinstance(chunk, str):
-                        # SSE status messages
-                        if chunk.startswith("data:"):
-                            yield chunk
-                        # Final answer content
-                        else:
-                            # Create assistant message on first content
-                            if not assistant_message:
-                                assistant_message = SessionChatMessage.objects.create(
-                                    session=session,
-                                    notebook=notebook,
-                                    sender="assistant",
-                                    message=chunk,
-                                    metadata={"status": "generating", "trace_id": trace_id},
-                                )
+                            # Tool call → emit status
+                            if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+                                yield f"data: {json.dumps({'type': 'status', 'message': f'Searching knowledge base (iteration {iteration})...'})}\n\n"
+                                logger.info(f"[{trace_id}] Tool call in iteration {iteration}")
 
-                            # Stream tokens char by char
-                            for char in chunk:
-                                yield f"data: {json.dumps({'type': 'token', 'text': char})}\n\n"
+                            # Final answer (no tool calls)
+                            elif hasattr(last_msg, "content") and last_msg.content:
+                                content = last_msg.content
 
-                            accumulated_content = chunk
+                                # Create assistant message on first content
+                                if not assistant_message:
+                                    assistant_message = SessionChatMessage.objects.create(
+                                        session=session,
+                                        notebook=notebook,
+                                        sender="assistant",
+                                        message=content,
+                                        metadata={"status": "generating", "trace_id": trace_id},
+                                    )
+
+                                # Stream tokens char by char
+                                for char in content:
+                                    yield f"data: {json.dumps({'type': 'token', 'text': char})}\n\n"
+
+                                accumulated_content = content
 
                 # Extract citations
                 citations = self._extract_citations_from_messages(initial_state["messages"])
@@ -984,7 +988,7 @@ class ChatService(NotebookBaseService):
                     assistant_message.metadata = {
                         "status": "completed",
                         "trace_id": trace_id,
-                        "iterations": iteration,
+                        "iterations": total_iterations,
                         "citations": citations,
                     }
                     assistant_message.save()
@@ -999,17 +1003,8 @@ class ChatService(NotebookBaseService):
 
             except Exception as e:
                 logger.exception(f"[{trace_id}] Error: {e}")
-                # Graceful fallback
-                try:
-                    from backend.notebooks.services.retrieval_service import RetrievalService
-
-                    retrieval_service = RetrievalService(self.ragflow_service)
-                    result = retrieval_service.retrieve_chunks(question, chat.dataset_ids)
-                    fallback_answer = f"I found {len(result.chunks)} relevant passages but encountered an error processing them. Please try rephrasing your question."
-                    yield f"data: {json.dumps({'type': 'token', 'text': fallback_answer})}\n\n"
-                    yield f"data: {json.dumps({'type': 'done', 'message': 'Complete'})}\n\n"
-                except Exception:
-                    yield f"data: {json.dumps({'type': 'error', 'message': 'Service error'})}\n\n"
+                # Graceful fallback - try to provide a helpful error message
+                yield f"data: {json.dumps({'type': 'error', 'message': f'Chat service error: {str(e)}'})}\n\n"
 
         return session_stream()
 
