@@ -14,6 +14,8 @@ PUBLICATION_MAP = {
     "title": "title",
     "author": "authors",  # semicolon-separated in DB (original format)
     "aff": "aff",  # semicolon-separated in DB (affiliations)
+    "aff_unique_norm": "aff_unique",  # semicolon-separated in DB (unique normalized affiliations)
+    "aff_country_unique": "aff_country_unique",  # semicolon-separated in DB (unique countries)
     "position": "author_position",  # semicolon-separated in DB (author positions)
     "homepage": "author_homepage",  # semicolon-separated in DB (author homepages)
     "abstract": "abstract",
@@ -26,6 +28,7 @@ PUBLICATION_MAP = {
     "github": "github",
     "site": "site",
     "status": "session",
+    "pdf": "pdf_url",  # direct PDF URL
 }
 
 
