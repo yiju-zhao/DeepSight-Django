@@ -78,7 +78,7 @@ def index_publication_to_chroma(
 
 def batch_index_publications_to_chroma(
     publications: list[Publication],
-    batch_size: int = 100
+    batch_size: int = 1000
 ) -> dict[str, int]:
     """
     Batch index multiple publications to Chroma vector store.
