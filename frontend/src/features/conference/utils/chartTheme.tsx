@@ -2,65 +2,59 @@
  * Chart Theme Configuration
  *
  * Unified theme system for all Nivo charts in the conference dashboard.
- * Provides consistent colors, typography, and styling across visualizations.
+ * Implements strict Huawei Design System (Black/White/Red).
  *
  * Design Philosophy:
- * - Modern and professional color palette
+ * - Minimalist and high contrast
+ * - Primary colors: Black (#000000), White (#FFFFFF), Huawei Red (#CE0E2D)
  * - Accessibility-first (WCAG AA compliant)
- * - Harmonious with shadcn/ui design system
- * - Optimized for both light and dark modes
  */
-
 
 // ============================================================================
 // COLOR PALETTE
 // ============================================================================
 
 /**
- * Primary chart colors - carefully selected for visual harmony and distinction
- * Based on HSL color space for better perceptual uniformity
+ * Primary chart colors - Monochromatic with Red Accent
  */
 export const chartColors = [
-  'hsl(221, 83%, 53%)',   // Blue - Primary brand color
-  'hsl(262, 83%, 58%)',   // Purple - Secondary accent
-  'hsl(142, 76%, 36%)',   // Green - Success/positive
-  'hsl(24, 94%, 50%)',    // Orange - Warning/highlight
-  'hsl(340, 82%, 52%)',   // Pink - Accent
-  'hsl(199, 89%, 48%)',   // Cyan - Info
-  'hsl(45, 93%, 47%)',    // Yellow - Alert
-  'hsl(168, 76%, 36%)',   // Teal - Neutral accent
-  'hsl(280, 67%, 50%)',   // Violet - Deep accent
-  'hsl(14, 90%, 53%)',    // Red-Orange - Strong highlight
+  '#000000', // Black - Primary
+  '#333333', // Dark Gray - Secondary
+  '#666666', // Medium Gray
+  '#999999', // Light Gray
+  '#CE0E2D', // Huawei Red - Accent
+  '#E3E3E3', // Border Gray
 ];
 
 /**
- * Semantic color mapping for specific data types
+ * Semantic color mapping
  */
 export const semanticColors = {
-  primary: 'hsl(221, 83%, 53%)',
-  success: 'hsl(142, 76%, 36%)',
-  warning: 'hsl(38, 92%, 50%)',
-  error: 'hsl(0, 84%, 60%)',
-  info: 'hsl(199, 89%, 48%)',
-  neutral: 'hsl(215, 16%, 47%)',
+  primary: '#000000',
+  success: '#000000', // Use monochrome for success unless critical
+  warning: '#CE0E2D', // Red for warning/attention
+  error: '#CE0E2D',   // Red for error
+  info: '#666666',    // Gray for info
+  neutral: '#999999',
 };
 
 /**
- * Gradient definitions for enhanced visual appeal
+ * Gradient definitions (Removed for Flat Minimalist Style)
+ * Keeping structure for compatibility but using solid colors
  */
 export const chartGradients = {
   primary: {
-    from: 'hsl(221, 83%, 53%)',
-    to: 'hsl(221, 83%, 43%)',
+    from: '#000000',
+    to: '#333333',
   },
   success: {
-    from: 'hsl(142, 76%, 36%)',
-    to: 'hsl(142, 76%, 26%)',
+    from: '#333333',
+    to: '#666666',
   },
   multi: [
-    'hsl(221, 83%, 53%)',
-    'hsl(262, 83%, 58%)',
-    'hsl(142, 76%, 36%)',
+    '#000000',
+    '#333333',
+    '#CE0E2D',
   ],
 };
 
@@ -68,16 +62,12 @@ export const chartGradients = {
 // NIVO THEME CONFIGURATION
 // ============================================================================
 
-/**
- * Base Nivo theme configuration
- * Applies to all charts for consistent styling
- */
 export const nivoTheme = {
   background: 'transparent',
 
   text: {
     fontSize: 12,
-    fill: 'hsl(215, 16%, 25%)',
+    fill: '#1E1E1E',
     fontFamily: 'Open Sans, Microsoft YaHei, sans-serif',
     fontWeight: 500,
   },
@@ -85,25 +75,25 @@ export const nivoTheme = {
   axis: {
     domain: {
       line: {
-        stroke: 'hsl(215, 20%, 85%)',
+        stroke: '#E3E3E3',
         strokeWidth: 1,
       },
     },
     legend: {
       text: {
-        fontSize: 13,
-        fill: 'hsl(215, 16%, 35%)',
+        fontSize: 12,
+        fill: '#666666',
         fontWeight: 600,
       },
     },
     ticks: {
       line: {
-        stroke: 'hsl(215, 20%, 85%)',
+        stroke: '#E3E3E3',
         strokeWidth: 1,
       },
       text: {
         fontSize: 11,
-        fill: 'hsl(215, 16%, 45%)',
+        fill: '#666666',
         fontWeight: 500,
       },
     },
@@ -111,7 +101,7 @@ export const nivoTheme = {
 
   grid: {
     line: {
-      stroke: 'hsl(215, 20%, 92%)',
+      stroke: '#F5F5F5',
       strokeWidth: 1,
       strokeDasharray: '4 4',
     },
@@ -121,20 +111,20 @@ export const nivoTheme = {
     title: {
       text: {
         fontSize: 12,
-        fill: 'hsl(215, 16%, 35%)',
+        fill: '#666666',
         fontWeight: 600,
       },
     },
     text: {
       fontSize: 11,
-      fill: 'hsl(215, 16%, 45%)',
+      fill: '#666666',
       fontWeight: 500,
     },
     ticks: {
       line: {},
       text: {
         fontSize: 10,
-        fill: 'hsl(215, 16%, 45%)',
+        fill: '#666666',
       },
     },
   },
@@ -142,42 +132,42 @@ export const nivoTheme = {
   annotations: {
     text: {
       fontSize: 11,
-      fill: 'hsl(215, 16%, 35%)',
+      fill: '#1E1E1E',
       outlineWidth: 2,
-      outlineColor: 'hsl(0, 0%, 100%)',
+      outlineColor: '#FFFFFF',
       outlineOpacity: 1,
     },
     link: {
-      stroke: 'hsl(215, 16%, 65%)',
+      stroke: '#666666',
       strokeWidth: 1,
       outlineWidth: 2,
-      outlineColor: 'hsl(0, 0%, 100%)',
+      outlineColor: '#FFFFFF',
       outlineOpacity: 1,
     },
     outline: {
-      stroke: 'hsl(215, 16%, 65%)',
+      stroke: '#666666',
       strokeWidth: 2,
       outlineWidth: 2,
-      outlineColor: 'hsl(0, 0%, 100%)',
+      outlineColor: '#FFFFFF',
       outlineOpacity: 1,
     },
     symbol: {
-      fill: 'hsl(215, 16%, 65%)',
+      fill: '#666666',
       outlineWidth: 2,
-      outlineColor: 'hsl(0, 0%, 100%)',
+      outlineColor: '#FFFFFF',
       outlineOpacity: 1,
     },
   },
 
   tooltip: {
     container: {
-      background: 'hsl(0, 0%, 100%)',
-      color: 'hsl(215, 16%, 25%)',
+      background: '#FFFFFF',
+      color: '#1E1E1E',
       fontSize: 12,
       borderRadius: '8px',
-      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+      boxShadow: '0 8px 12px rgba(0, 0, 0, 0.08)',
       padding: '12px 16px',
-      border: '1px solid hsl(215, 20%, 90%)',
+      border: '1px solid #E3E3E3',
     },
     basic: {},
     chip: {},
@@ -189,7 +179,7 @@ export const nivoTheme = {
   labels: {
     text: {
       fontSize: 11,
-      fill: 'hsl(215, 16%, 35%)',
+      fill: '#1E1E1E',
       fontWeight: 600,
     },
   },
@@ -199,9 +189,9 @@ export const nivoTheme = {
   },
 
   markers: {
-    lineColor: 'hsl(215, 16%, 65%)',
+    lineColor: '#666666',
     lineStrokeWidth: 1,
-    textColor: 'hsl(215, 16%, 35%)',
+    textColor: '#1E1E1E',
     fontSize: 11,
   },
 };
@@ -210,13 +200,10 @@ export const nivoTheme = {
 // CHART-SPECIFIC CONFIGURATIONS
 // ============================================================================
 
-/**
- * Bar chart configuration
- */
 export const barChartConfig = {
   theme: nivoTheme,
   colors: chartColors,
-  borderRadius: 4,
+  borderRadius: 0, // Zero radius for sharper, more professional look
   borderWidth: 0,
   padding: 0.15,
   enableGridY: true,
@@ -226,14 +213,11 @@ export const barChartConfig = {
   labelTextColor: { from: 'color', modifiers: [['darker', 1.8]] as any },
 };
 
-/**
- * Line chart configuration
- */
 export const lineChartConfig = {
   theme: nivoTheme,
   colors: chartColors,
   lineWidth: 2,
-  pointSize: 8,
+  pointSize: 6,
   pointBorderWidth: 2,
   pointBorderColor: { from: 'serieColor' },
   enableGridX: false,
@@ -243,43 +227,36 @@ export const lineChartConfig = {
   useMesh: true,
 };
 
-/**
- * Pie/Donut chart configuration
- */
 export const pieChartConfig = {
   theme: nivoTheme,
   colors: chartColors,
-  borderWidth: 0,
+  borderWidth: 1,
+  borderColor: '#FFFFFF',
   enableArcLabels: true,
   enableArcLinkLabels: true,
   animate: true,
   motionConfig: 'gentle' as const,
   arcLinkLabelsColor: { from: 'color' },
-  arcLinkLabelsThickness: 2,
+  arcLinkLabelsThickness: 1,
 };
 
-/**
- * Treemap configuration (for word clouds)
- */
 export const treemapConfig = {
   theme: nivoTheme,
   colors: chartColors,
-  borderWidth: 0,
+  borderWidth: 1,
+  borderColor: '#FFFFFF',
   labelSkipSize: 12,
   animate: true,
   motionConfig: 'gentle' as const,
 };
 
-/**
- * Network graph configuration
- */
 export const networkGraphConfig = {
-  nodeColor: chartColors[0],
-  linkColor: 'hsl(215, 20%, 85%)',
+  nodeColor: '#000000',
+  linkColor: '#E3E3E3',
   linkWidth: 1,
   nodeSize: 8,
   activeNodeSize: 12,
-  labelColor: 'hsl(215, 16%, 35%)',
+  labelColor: '#1E1E1E',
   labelSize: 11,
 };
 
@@ -287,74 +264,37 @@ export const networkGraphConfig = {
 // UTILITY FUNCTIONS
 // ============================================================================
 
-/**
- * Get color by index with cycling
- */
 export const getChartColor = (index: number): string => {
   return chartColors[index % chartColors.length]!;
 };
 
-/**
- * Get color array for specific count
- */
 export const getChartColorArray = (count: number): string[] => {
   return Array.from({ length: count }, (_, i) => getChartColor(i));
 };
 
-/**
- * Get semantic color by type
- */
 export const getSemanticColor = (
   type: keyof typeof semanticColors
 ): string => {
   return semanticColors[type];
 };
 
-/**
- * Generate custom color scheme from data
- */
 export const generateColorScheme = (
   dataKeys: string[],
   baseColor?: string
 ): Record<string, string> => {
   const scheme: Record<string, string> = {};
-
   dataKeys.forEach((key, index) => {
-    scheme[key] = baseColor
-      ? adjustColor(baseColor, index * 15)
-      : getChartColor(index);
+    scheme[key] = getChartColor(index);
   });
-
   return scheme;
 };
 
-/**
- * Adjust HSL color hue
- */
-function adjustColor(hslColor: string, hueShift: number): string {
-  const match = hslColor.match(/hsl\((\d+),\s*(\d+)%,\s*(\d+)%\)/);
-  if (!match) return hslColor;
-
-  const h = match[1]!;
-  const s = match[2]!;
-  const l = match[3]!;
-  const newHue = (parseInt(h) + hueShift) % 360;
-
-  return `hsl(${newHue}, ${s}%, ${l}%)`;
-}
-
-/**
- * Get responsive margins based on viewport
- */
 export const getResponsiveMargins = (width: number) => {
   if (width < 640) {
-    // Mobile
     return { top: 20, right: 20, bottom: 40, left: 40 };
   } else if (width < 1024) {
-    // Tablet
     return { top: 30, right: 40, bottom: 60, left: 60 };
   } else {
-    // Desktop
     return { top: 40, right: 60, bottom: 80, left: 80 };
   }
 };
@@ -363,9 +303,6 @@ export const getResponsiveMargins = (width: number) => {
 // CUSTOM TOOLTIP COMPONENTS
 // ============================================================================
 
-/**
- * Standardized tooltip style
- */
 export const tooltipStyle = {
   container: 'bg-white p-3 shadow-lg rounded-lg border border-gray-200',
   title: 'font-semibold text-gray-900 text-sm mb-1',
@@ -374,9 +311,6 @@ export const tooltipStyle = {
   label: 'text-xs text-gray-500',
 };
 
-/**
- * Create standardized tooltip component
- */
 export const createTooltip = (
   title: string,
   items: Array<{ label: string; value: string | number; color?: string }>
@@ -388,8 +322,8 @@ export const createTooltip = (
         <div key={index} className="flex items-center justify-between gap-3 mt-1">
           {item.color && (
             <div
-              className="w-3 h-3 rounded-sm flex-shrink-0"
-              style={{ backgroundColor: item.color! }}
+              className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: item.color }}
             />
           )}
           <span className={tooltipStyle.label}>{item.label}:</span>
@@ -399,10 +333,6 @@ export const createTooltip = (
     </div>
   );
 };
-
-// ============================================================================
-// EXPORT DEFAULTS
-// ============================================================================
 
 export default {
   theme: nivoTheme,

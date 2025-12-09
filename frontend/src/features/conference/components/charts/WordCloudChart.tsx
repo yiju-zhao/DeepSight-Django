@@ -2,7 +2,17 @@ import { Text } from '@visx/text';
 import { scaleLog } from '@visx/scale';
 import Wordcloud from '@visx/wordcloud/lib/Wordcloud';
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16'];
+// Huawei Minimalist Palette for Word Cloud
+// Primary: Black/Greys. Accent: Huawei Red for variety/emphasis.
+const COLORS = [
+  '#000000', // Black
+  '#333333', // Dark Gray
+  '#666666', // Medium Gray
+  '#CE0E2D', // Huawei Red (Accent)
+  '#1E1E1E', // Almost Black
+  '#444444', // Dark Gray
+];
+
 const fixedValueGenerator = () => 0.5;
 
 interface WordCloudChartProps {
@@ -17,28 +27,28 @@ export function WordCloudChart({ keywords }: WordCloudChartProps) {
 
   if (words.length === 0) {
     return (
-      <div className="w-full h-80 bg-gray-50 rounded-lg flex items-center justify-center">
-        <div className="text-gray-500">No keyword data available</div>
+      <div className="w-full h-80 bg-[#FAFAFA] rounded-lg flex items-center justify-center border border-dashed border-[#E3E3E3]">
+        <div className="text-[#999999]">No keyword data available</div>
       </div>
     );
   }
 
   const fontScale = scaleLog({
     domain: [Math.min(...words.map((w) => w.value)), Math.max(...words.map((w) => w.value))],
-    range: [12, 60],
+    range: [14, 64], // Slightly larger minimum font size for readability
   });
 
   const fontSizeSetter = (datum: { text: string; value: number }) => fontScale(datum.value);
 
   return (
-    <div style={{ width: '100%', height: '320px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+    <div className="w-full flex justify-center items-center h-80">
       <Wordcloud
         words={words}
         width={500}
         height={320}
         fontSize={fontSizeSetter}
-        font={"'Open Sans', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'Heiti SC', 'Helvetica Neue', 'Arial', 'sans-serif'"}
-        padding={2}
+        font={"'Open Sans', 'Microsoft YaHei', sans-serif"}
+        padding={4}
         spiral="rectangular"
         rotate={0}
         random={fixedValueGenerator}
@@ -52,9 +62,8 @@ export function WordCloudChart({ keywords }: WordCloudChartProps) {
               transform={`translate(${w.x}, ${w.y}) rotate(${w.rotate})`}
               fontSize={w.size}
               fontFamily={w.font}
-              className="cursor-pointer hover:opacity-80 transition-opacity duration-200"
+              className="cursor-pointer hover:opacity-70 transition-opacity duration-200"
               style={{
-                textShadow: '1px 1px 2px rgba(0,0,0,0.1)',
                 fontWeight: 600,
               }}
             >
