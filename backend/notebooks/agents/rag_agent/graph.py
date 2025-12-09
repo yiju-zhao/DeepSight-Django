@@ -59,15 +59,37 @@ def create_rag_agent(config: RAGAgentConfig):
         temperature=config.temperature,
     )
 
-    # Bind tool with injected dependencies
-    # This allows the tool to access retrieval_service and dataset_ids
-    # without passing them as parameters each time
-    bound_tool = retrieve_knowledge.bind(
-        retrieval_service=config.retrieval_service, dataset_ids=config.dataset_ids
-    )
+    # Create tool with injected dependencies using closure
+    # This properly binds retrieval_service and dataset_ids without breaking LangChain's tool system
+    from functools import partial
+    from langchain_core.tools import tool as langchain_tool
+    from notebooks.agents.rag_agent.tools import RetrieveKnowledgeInput
+
+    @langchain_tool(args_schema=RetrieveKnowledgeInput)
+    def retrieve_knowledge_bound(query: str, top_k: int = 6) -> str:
+        """
+        Retrieve relevant information from the knowledge base.
+
+        Use this when you need factual information to answer the user's question.
+
+        Args:
+            query: Specific search query
+            top_k: Number of passages to retrieve
+
+        Returns:
+            Formatted string with relevant passages and sources
+        """
+        from notebooks.agents.rag_agent.tools import retrieve_knowledge
+
+        return retrieve_knowledge(
+            query=query,
+            top_k=top_k,
+            retrieval_service=config.retrieval_service,
+            dataset_ids=config.dataset_ids,
+        )
 
     # Bind tools to model for function calling
-    model_with_tools = model.bind_tools([bound_tool])
+    model_with_tools = model.bind_tools([retrieve_knowledge_bound])
 
     # Define agent reasoning node
     def agent_reasoning(state: RAGAgentState) -> Command[Literal["tools", END]]:
@@ -173,7 +195,7 @@ def create_rag_agent(config: RAGAgentConfig):
 
     # Add nodes
     builder.add_node("agent", agent_reasoning)
-    builder.add_node("tools", ToolNode([bound_tool]))
+    builder.add_node("tools", ToolNode([retrieve_knowledge_bound]))
 
     # Add edges
     builder.add_edge(START, "agent")
