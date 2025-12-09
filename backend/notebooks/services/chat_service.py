@@ -835,7 +835,11 @@ class ChatService(NotebookBaseService):
         self, session_id: str, notebook: Notebook, user_id: int, question: str
     ) -> Generator:
         """
-        Create chat stream for a specific session using conversation API.
+        Create chat stream using multi-round agentic RAG.
+
+        Uses LangGraph agent with tool calling for iterative knowledge retrieval
+        and synthesis. The agent can make multiple retrieval calls before generating
+        the final answer.
 
         Args:
             session_id: Session UUID
@@ -844,282 +848,218 @@ class ChatService(NotebookBaseService):
             question: User's question
 
         Returns:
-            Generator yielding chat stream chunks
+            Generator yielding SSE-formatted chat stream chunks
         """
 
         def session_stream():
             accumulated_content = ""
-            session = None
             assistant_message = None
-            update_counter = 0
+            trace_id = str(uuid.uuid4())[:8]
 
             try:
-                # Send immediate connection confirmation to establish SSE connection
-                connection_payload = json.dumps(
-                    {"type": "status", "message": "Connected"}
-                )
-                yield f"data: {connection_payload}\n\n"
+                # SSE: Connection confirmation
+                yield f"data: {json.dumps({'type': 'status', 'message': 'Connected'})}\n\n"
 
-                # Validate notebook access
-                self.validate_notebook_access(notebook, notebook.user)
-
-                # Get the session
+                # Validate session
                 session = ChatSession.objects.filter(
                     session_id=session_id, notebook=notebook, status="active"
                 ).first()
 
                 if not session:
-                    error_payload = json.dumps(
-                        {"type": "error", "message": "Session not found or inactive"}
-                    )
-                    yield f"data: {error_payload}\n\n"
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'Session not found'})}\n\n"
                     return
 
-                # Record user message
+                # Create user message
                 user_message = SessionChatMessage.objects.create(
                     session=session, notebook=notebook, sender="user", message=question
                 )
 
-                # ✨ 延迟创建助手消息直到收到第一个 token（避免空消息验证错误）
-                assistant_message = None
-                message_start_time = user_message.timestamp.isoformat()
+                logger.info(f"[{trace_id}] Starting agentic RAG: {question[:100]}")
 
-                self.log_notebook_operation(
-                    "session_user_message_recorded",
-                    str(notebook.id),
-                    user_id,
-                    session_id=str(session.session_id),
-                    message_id=str(user_message.id),
+                # Get model config from RagFlow chat
+                chat = self.ragflow_service.get_chat(session.ragflow_agent_id)
+                model_name = chat.llm.model_name or "gpt-4o-mini"
+                api_key = getattr(settings, "OPENAI_API_KEY", "")
+
+                # Initialize agent components
+                from backend.notebooks.agents.rag_agent.graph import create_rag_agent
+                from backend.notebooks.agents.rag_agent.config import RAGAgentConfig
+                from backend.notebooks.services.retrieval_service import RetrievalService
+                from backend.notebooks.agents.rag_agent.utils import get_chat_history_window
+                from langchain_core.messages import HumanMessage, AIMessage
+
+                retrieval_service = RetrievalService(self.ragflow_service)
+                config = RAGAgentConfig(
+                    model_name=model_name,
+                    api_key=api_key,
+                    retrieval_service=retrieval_service,
+                    dataset_ids=chat.dataset_ids,
+                    max_iterations=5,
+                    temperature=0.3,
                 )
 
-                # Use RagFlow session directly
-                if not session.ragflow_session_id or not session.ragflow_agent_id:
-                    error_payload = json.dumps(
-                        {"type": "error", "message": "Session not properly initialized"}
-                    )
-                    yield f"data: {error_payload}\n\n"
-                    return
+                agent = create_rag_agent(config)
 
-                # Note: ragflow_agent_id actually stores chat_id (naming kept for backward compat)
-                chat_id = session.ragflow_agent_id
-                ragflow_session_id = session.ragflow_session_id
+                # Load and window conversation history
+                past_messages = SessionChatMessage.objects.filter(session=session).order_by(
+                    "timestamp"
+                )[:20]
 
-                logger.info(
-                    f"Starting conversation for session {ragflow_session_id} with chat {chat_id}"
-                )
-                logger.info(f"User question: {question[:200]}")
-
-                # Send initial empty token to trigger frontend rendering
-                initial_payload = json.dumps({"type": "token", "text": ""})
-                yield f"data: {initial_payload}\n\n"
-
-                # Use new conversation API
-                try:
-                    response_stream = self.ragflow_service.conversation(
-                        chat_id=chat_id,
-                        session_id=ragflow_session_id,
-                        question=question,
-                        stream=True,
-                        reference=True,
-                    )
-
-                    logger.info(
-                        f"Successfully initiated streaming conversation for question: {question[:50]}..."
-                    )
-
-                    # Process stream - now returns CompletionStreamEvent Pydantic objects
-                    for event in response_stream:
-                        # Check for completion signal
-                        if event.is_final:
-                            logger.info("Received completion signal from RagFlow")
-                            break
-
-                        # Skip if not successful
-                        if not event.is_success:
-                            logger.warning(f"Non-success event: {event.message}")
-                            continue
-
-                        # Extract answer from event
-                        answer = event.answer
-                        if answer:
-                            # Calculate delta from accumulated content
-                            new_content = answer[len(accumulated_content) :]
-                            if new_content:
-                                # ✨ 在收到第一个 token 时创建助手消息
-                                if assistant_message is None:
-                                    assistant_message = (
-                                        SessionChatMessage.objects.create(
-                                            session=session,
-                                            notebook=notebook,
-                                            sender="assistant",
-                                            message=answer,  # 使用第一块内容
-                                            metadata={
-                                                "status": "generating",
-                                                "started_at": message_start_time,
-                                            },
-                                        )
-                                    )
-                                    logger.info(
-                                        f"Created assistant message with first token: {len(answer)} chars"
-                                    )
-
-                                accumulated_content = answer
-                                payload = json.dumps(
-                                    {"type": "token", "text": new_content}
-                                )
-                                yield f"data: {payload}\n\n"
-                                logger.debug(f"Yielded {len(new_content)} characters")
-
-                                # ✨ 定期更新数据库中的消息（每10个token或每100字符）
-                                update_counter += 1
-                                if update_counter >= 10 or len(
-                                    accumulated_content
-                                ) % 100 < len(new_content):
-                                    if assistant_message:
-                                        assistant_message.message = accumulated_content
-                                        assistant_message.save(
-                                            update_fields=["message", "updated_at"]
-                                        )
-                                        logger.debug(
-                                            f"Updated message in DB: {len(accumulated_content)} chars"
-                                        )
-                                        update_counter = 0
-
-                except Exception as conversation_error:
-                    logger.exception(
-                        f"Failed during conversation: {conversation_error}"
-                    )
-                    error_payload = json.dumps(
-                        {
-                            "type": "error",
-                            "message": f"Conversation error: {str(conversation_error)}",
-                        }
-                    )
-                    yield f"data: {error_payload}\n\n"
-                    return
-
-                logger.info(
-                    f"Streaming completed, accumulated {len(accumulated_content)} characters"
-                )
-
-                # ✨ 最终更新消息内容并标记为完成
-                if accumulated_content:
-                    # 如果助手消息还未创建（边缘情况：RAGFlow 在最终事件中返回完整响应）
-                    if assistant_message is None:
-                        assistant_message = SessionChatMessage.objects.create(
-                            session=session,
-                            notebook=notebook,
-                            sender="assistant",
-                            message=accumulated_content,
-                            metadata={
-                                "status": "completed",
-                                "started_at": message_start_time,
-                                "completed_at": user_message.timestamp.isoformat(),
-                                "total_length": len(accumulated_content),
-                            },
-                        )
-                        logger.info(
-                            f"Created assistant message at completion: {len(accumulated_content)} chars"
-                        )
+                history = []
+                for msg in past_messages:
+                    if msg.sender == "user":
+                        history.append(HumanMessage(content=msg.message))
                     else:
-                        # 更新现有消息
-                        assistant_message.message = accumulated_content
-                        assistant_message.metadata = {
-                            "status": "completed",
-                            "started_at": assistant_message.metadata.get("started_at"),
-                            "completed_at": user_message.timestamp.isoformat(),
-                            "total_length": len(accumulated_content),
-                        }
-                        assistant_message.save(
-                            update_fields=["message", "metadata", "updated_at"]
-                        )
-                        logger.info(
-                            f"Final message saved: {len(accumulated_content)} characters"
-                        )
+                        history.append(AIMessage(content=msg.message))
 
-                # Generate suggested questions
-                suggestions_result = self.generate_suggested_questions(
-                    notebook=notebook, base_question=question
+                windowed_history = get_chat_history_window(
+                    history, max_tokens=4000, model_name=model_name
                 )
-                suggestions = suggestions_result.get("suggestions", [])
 
-                # Send completion signal
-                completion_payload = json.dumps(
-                    {
-                        "type": "done",
-                        "message": "Response complete",
-                        "suggestions": suggestions,
+                # Initialize state
+                initial_state = {
+                    "messages": [*windowed_history, HumanMessage(content=question)],
+                    "iteration_count": 0,
+                    "retrieval_history": [],
+                    "should_finish": False,
+                }
+
+                # Run agent loop with SSE streaming
+                iteration = 0
+                final_answer = None
+
+                import asyncio
+
+                async def run_agent():
+                    nonlocal iteration, final_answer
+                    async for event in agent.astream(initial_state):
+                        iteration += 1
+
+                        if "agent" in event:
+                            node_output = event["agent"]
+                            if "messages" in node_output:
+                                last_msg = node_output["messages"][-1]
+
+                                # Tool call → emit status
+                                if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+                                    yield f"data: {json.dumps({'type': 'status', 'message': f'Searching knowledge base (iteration {iteration})...'})}\n\n"
+                                    logger.info(f"[{trace_id}] Tool call in iteration {iteration}")
+
+                                # Final answer (no tool calls)
+                                elif hasattr(last_msg, "content") and last_msg.content:
+                                    final_answer = last_msg.content
+                                    yield final_answer
+
+                # Run async agent
+                agent_gen = run_agent()
+                for chunk in asyncio.run(agent_gen):
+                    if isinstance(chunk, str):
+                        # SSE status messages
+                        if chunk.startswith("data:"):
+                            yield chunk
+                        # Final answer content
+                        else:
+                            # Create assistant message on first content
+                            if not assistant_message:
+                                assistant_message = SessionChatMessage.objects.create(
+                                    session=session,
+                                    notebook=notebook,
+                                    sender="assistant",
+                                    message=chunk,
+                                    metadata={"status": "generating", "trace_id": trace_id},
+                                )
+
+                            # Stream tokens char by char
+                            for char in chunk:
+                                yield f"data: {json.dumps({'type': 'token', 'text': char})}\n\n"
+
+                            accumulated_content = chunk
+
+                # Extract citations
+                citations = self._extract_citations_from_messages(initial_state["messages"])
+
+                # Update assistant message
+                if assistant_message:
+                    assistant_message.message = accumulated_content
+                    assistant_message.metadata = {
+                        "status": "completed",
+                        "trace_id": trace_id,
+                        "iterations": iteration,
+                        "citations": citations,
                     }
-                )
-                yield f"data: {completion_payload}\n\n"
+                    assistant_message.save()
 
-                self.log_notebook_operation(
-                    "session_assistant_message_recorded",
-                    str(notebook.id),
-                    user_id,
-                    session_id=str(session.session_id),
-                    response_length=len(accumulated_content),
+                # Generate suggestions
+                suggestions = self.generate_suggested_questions(notebook, question).get(
+                    "suggestions", []
                 )
+
+                # SSE: Done
+                yield f"data: {json.dumps({'type': 'done', 'message': 'Response complete', 'suggestions': suggestions, 'citations': citations})}\n\n"
 
             except Exception as e:
-                logger.exception(f"Error in session stream: {e}")
-
-                # ✨ 标记消息为错误状态
-                if assistant_message and accumulated_content:
-                    try:
-                        assistant_message.message = accumulated_content
-                        assistant_message.metadata = {
-                            "status": "error",
-                            "started_at": assistant_message.metadata.get("started_at"),
-                            "error": str(e),
-                            "partial_length": len(accumulated_content),
-                        }
-                        assistant_message.save(
-                            update_fields=["message", "metadata", "updated_at"]
-                        )
-                    except Exception as save_error:
-                        logger.warning(f"Failed to save error state: {save_error}")
-
-                error_payload = json.dumps(
-                    {
-                        "type": "error",
-                        "message": f"Response generation failed: {str(e)}",
-                    }
-                )
-                yield f"data: {error_payload}\n\n"
-            finally:
-                # ✨ 确保部分响应被持久化（用于断开连接等情况）
+                logger.exception(f"[{trace_id}] Error: {e}")
+                # Graceful fallback
                 try:
-                    if assistant_message and accumulated_content:
-                        # 检查消息状态，如果还是 generating，标记为 interrupted
-                        if assistant_message.metadata.get("status") == "generating":
-                            assistant_message.message = accumulated_content
-                            assistant_message.metadata = {
-                                "status": "interrupted",
-                                "started_at": assistant_message.metadata.get(
-                                    "started_at"
-                                ),
-                                "partial_length": len(accumulated_content),
-                            }
-                            assistant_message.save(
-                                update_fields=["message", "metadata", "updated_at"]
-                            )
+                    from backend.notebooks.services.retrieval_service import RetrievalService
 
-                            self.log_notebook_operation(
-                                "session_assistant_message_interrupted",
-                                str(notebook.id),
-                                user_id,
-                                session_id=str(session.session_id)
-                                if session
-                                else session_id,
-                                response_length=len(accumulated_content),
-                            )
-                except Exception as persist_err:
-                    logger.warning(
-                        f"Failed to persist partial assistant message for session {session_id}: {persist_err}"
-                    )
+                    retrieval_service = RetrievalService(self.ragflow_service)
+                    result = retrieval_service.retrieve_chunks(question, chat.dataset_ids)
+                    fallback_answer = f"I found {len(result.chunks)} relevant passages but encountered an error processing them. Please try rephrasing your question."
+                    yield f"data: {json.dumps({'type': 'token', 'text': fallback_answer})}\n\n"
+                    yield f"data: {json.dumps({'type': 'done', 'message': 'Complete'})}\n\n"
+                except Exception:
+                    yield f"data: {json.dumps({'type': 'error', 'message': 'Service error'})}\n\n"
 
         return session_stream()
+
+    def _extract_citations_from_messages(self, messages: list) -> list[dict]:
+        """
+        Extract citations from tool messages in agent conversation.
+
+        Parses tool responses for document references in the format:
+        [N] Document Name
+
+        Args:
+            messages: List of LangChain messages (including tool messages)
+
+        Returns:
+            List of citation dictionaries with index, document_name, and preview
+        """
+        import re
+
+        citations = []
+        seen_docs = set()
+
+        for msg in messages:
+            # Check if this is a tool message
+            if hasattr(msg, "type") and msg.type == "tool":
+                content = str(msg.content)
+
+                # Parse tool response for [N] Document Name patterns
+                matches = re.findall(r"\[(\d+)\] ([^\n]+)\n", content)
+
+                for idx, doc_name in matches:
+                    # Avoid duplicate citations
+                    if doc_name not in seen_docs:
+                        seen_docs.add(doc_name)
+
+                        # Extract preview (up to 200 chars around the match)
+                        match_pos = content.find(f"[{idx}] {doc_name}")
+                        if match_pos >= 0:
+                            preview_start = max(0, match_pos)
+                            preview_end = min(len(content), match_pos + 300)
+                            preview = content[preview_start:preview_end]
+                        else:
+                            preview = content[:200]
+
+                        citations.append(
+                            {"index": int(idx), "document_name": doc_name, "preview": preview}
+                        )
+
+        logger.debug(f"Extracted {len(citations)} citations from tool messages")
+
+        return citations
 
     def get_session_count_for_notebook(self, notebook: Notebook) -> int:
         """Get the number of active sessions for a notebook."""
