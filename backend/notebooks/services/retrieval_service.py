@@ -10,13 +10,13 @@ from typing import Optional
 
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 
-from backend.infrastructure.ragflow.service import RagflowService
-from backend.infrastructure.ragflow.exceptions import (
+from infrastructure.ragflow.service import RagflowService
+from infrastructure.ragflow.exceptions import (
     RagFlowAPIError,
     RagFlowTimeoutError,
     RagFlowRateLimitError,
 )
-from backend.notebooks.models.retrieval import RetrievalChunk, RetrievalResponse, DocAgg
+from notebooks.models.retrieval import RetrievalChunk, RetrievalResponse, DocAgg
 
 logger = logging.getLogger(__name__)
 

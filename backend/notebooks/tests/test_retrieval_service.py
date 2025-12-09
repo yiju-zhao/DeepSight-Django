@@ -8,9 +8,9 @@ import pytest
 from unittest.mock import Mock, patch
 from unittest import mock
 
-from backend.notebooks.services.retrieval_service import RetrievalService
-from backend.notebooks.models.retrieval import RetrievalChunk, RetrievalResponse, DocAgg
-from backend.infrastructure.ragflow.exceptions import RagFlowAPIError
+from notebooks.services.retrieval_service import RetrievalService
+from notebooks.models.retrieval import RetrievalChunk, RetrievalResponse, DocAgg
+from infrastructure.ragflow.exceptions import RagFlowAPIError
 
 
 @pytest.fixture

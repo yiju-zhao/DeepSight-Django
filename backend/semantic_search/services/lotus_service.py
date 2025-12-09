@@ -557,7 +557,7 @@ Output:"""
         topk_instruction = self._generate_topk_instruction(query)
         logger.info(f"Applying top-{actual_topk} ranking with instruction: {topk_instruction}")
 
-        return filtered_df.sem_topk(topk_instruction, K=actual_topk, method="heap")
+        return filtered_df.sem_topk(topk_instruction, K=actual_topk, method="quick")
 
     def _dataframe_to_results(self, df: pd.DataFrame) -> list[dict[str, Any]]:
         """
