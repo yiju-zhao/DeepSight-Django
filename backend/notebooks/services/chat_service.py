@@ -885,13 +885,13 @@ class ChatService(NotebookBaseService):
                 # RagFlow uses format like "gpt-4o@OpenAI", we need just "gpt-4o"
                 model_name = raw_model_name.split("@")[0] if "@" in raw_model_name else raw_model_name
 
-                # Map common model aliases to valid OpenAI model names
-                model_mapping = {
-                    "gpt-5-chat-latest": "gpt-4o",  # Map gpt-5 to gpt-4o
-                    "gpt-4-chat": "gpt-4-turbo",
-                    "gpt-3.5": "gpt-3.5-turbo",
-                }
-                model_name = model_mapping.get(model_name, model_name)
+                # # Map common model aliases to valid OpenAI model names
+                # model_mapping = {
+                #     "gpt-5-chat-latest": "gpt-4o",  # Map gpt-5 to gpt-4o
+                #     "gpt-4-chat": "gpt-4-turbo",
+                #     "gpt-3.5": "gpt-3.5-turbo",
+                # }
+                # model_name = model_mapping.get(model_name, model_name)
 
                 logger.info(f"[{trace_id}] Using model: {model_name} (raw: {raw_model_name})")
 

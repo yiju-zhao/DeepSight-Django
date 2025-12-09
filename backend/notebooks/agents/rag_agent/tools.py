@@ -27,6 +27,62 @@ class RetrieveKnowledgeInput(BaseModel):
     )
 
 
+def _retrieve_knowledge_impl(
+    query: str,
+    top_k: int,
+    retrieval_service,
+    dataset_ids: Optional[list[str]],
+) -> str:
+    """
+    Internal implementation for knowledge retrieval.
+
+    This function contains the actual logic for retrieving information from the knowledge base.
+    It is called by both the tool wrapper and the closure in graph.py.
+
+    Args:
+        query: Specific search query
+        top_k: Number of passages to retrieve
+        retrieval_service: RetrievalService instance
+        dataset_ids: List of dataset IDs to search
+
+    Returns:
+        Formatted string with relevant passages, sources, and similarity scores.
+    """
+    if not retrieval_service:
+        logger.error("retrieve_knowledge called without retrieval_service")
+        return "Error: Retrieval service not configured."
+
+    if not dataset_ids:
+        logger.error("retrieve_knowledge called without dataset_ids")
+        return "Error: No datasets configured for search."
+
+    try:
+        logger.info(f"Retrieving knowledge: query='{query[:100]}...', top_k={top_k}")
+
+        # Call retrieval service
+        result = retrieval_service.retrieve_chunks(
+            question=query, dataset_ids=dataset_ids, top_k=min(top_k, 30)
+        )
+
+        if not result.chunks:
+            return "No relevant information found in the knowledge base for this query."
+
+        # Format chunks for agent
+        formatted = retrieval_service.format_chunks_for_agent(
+            result.chunks, max_chunks=top_k
+        )
+
+        logger.info(
+            f"Retrieved {len(result.chunks)} chunks for query: '{query[:50]}...'"
+        )
+
+        return formatted
+
+    except Exception as e:
+        logger.exception(f"Error in retrieve_knowledge: {e}")
+        return f"Error retrieving information: {str(e)}"
+
+
 @tool(args_schema=RetrieveKnowledgeInput)
 def retrieve_knowledge(
     query: str,
@@ -69,36 +125,4 @@ def retrieve_knowledge(
         ...
         ```
     """
-    if not retrieval_service:
-        logger.error("retrieve_knowledge called without retrieval_service")
-        return "Error: Retrieval service not configured."
-
-    if not dataset_ids:
-        logger.error("retrieve_knowledge called without dataset_ids")
-        return "Error: No datasets configured for search."
-
-    try:
-        logger.info(f"Retrieving knowledge: query='{query[:100]}...', top_k={top_k}")
-
-        # Call retrieval service
-        result = retrieval_service.retrieve_chunks(
-            question=query, dataset_ids=dataset_ids, top_k=min(top_k, 30)
-        )
-
-        if not result.chunks:
-            return "No relevant information found in the knowledge base for this query."
-
-        # Format chunks for agent
-        formatted = retrieval_service.format_chunks_for_agent(
-            result.chunks, max_chunks=top_k
-        )
-
-        logger.info(
-            f"Retrieved {len(result.chunks)} chunks for query: '{query[:50]}...'"
-        )
-
-        return formatted
-
-    except Exception as e:
-        logger.exception(f"Error in retrieve_knowledge: {e}")
-        return f"Error retrieving information: {str(e)}"
+    return _retrieve_knowledge_impl(query, top_k, retrieval_service, dataset_ids)

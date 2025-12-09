@@ -79,9 +79,9 @@ def create_rag_agent(config: RAGAgentConfig):
         Returns:
             Formatted string with relevant passages and sources
         """
-        from notebooks.agents.rag_agent.tools import retrieve_knowledge
+        from notebooks.agents.rag_agent.tools import _retrieve_knowledge_impl
 
-        return retrieve_knowledge(
+        return _retrieve_knowledge_impl(
             query=query,
             top_k=top_k,
             retrieval_service=config.retrieval_service,
