@@ -207,7 +207,7 @@ const PublicationRow = memo(({
             {columnVisibility.countries && countries.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {countriesDisplay.displayItems.map((country, index) => (
-                  <span key={index} className="inline-flex items-center px-1.5 py-0.5 text-[10px] bg-blue-50 text-blue-700 rounded border border-blue-100">
+                  <span key={index} className="inline-flex items-center px-1.5 py-0.5 text-[10px] bg-[#F5F5F5] text-[#666666] rounded border border-[#E3E3E3]">
                     {country}
                   </span>
                 ))}
@@ -222,7 +222,7 @@ const PublicationRow = memo(({
             {affiliations.length > 0 && (
               <div className="flex flex-wrap gap-1 max-h-[3rem] overflow-hidden content-start">
                 {affiliationsDisplay.displayItems.map((affiliation, index) => (
-                  <span key={index} className="inline-flex items-center px-2 py-0.5 text-[11px] bg-gray-50 text-gray-700 rounded border border-gray-100">
+                  <span key={index} className="inline-flex items-center px-2 py-0.5 text-[11px] bg-[#F5F5F5] text-[#666666] rounded border border-[#E3E3E3]">
                     {affiliation}
                   </span>
                 ))}
@@ -241,7 +241,7 @@ const PublicationRow = memo(({
           <td className={cellClasses}>
             {publication.research_topic && (
               <span
-                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-700 max-w-full"
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#FAFAFA] text-[#1E1E1E] border border-[#E3E3E3] max-w-full"
                 title={publication.research_topic}
               >
                 <span className="truncate block">
@@ -256,8 +256,8 @@ const PublicationRow = memo(({
         {columnVisibility.rating && (
           <td className={cellClasses}>
             {publication.rating && !isNaN(Number(publication.rating)) && (
-              <div className="bg-amber-50 px-2 py-1 rounded-md w-fit mx-auto">
-                <span className="text-sm font-bold text-amber-700">
+              <div className="bg-[#1E1E1E] px-2 py-1 rounded-md w-fit mx-auto shadow-sm">
+                <span className="text-sm font-bold text-white">
                   {Number(publication.rating).toFixed(1)}
                 </span>
               </div>
@@ -274,7 +274,7 @@ const PublicationRow = memo(({
                   href={publication.pdf_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                  className="p-1.5 text-[#B1B1B1] hover:text-[#CE0E2D] hover:bg-transparent rounded transition-colors"
                   title="View PDF"
                 >
                   <FileText className="h-4 w-4" />
@@ -286,7 +286,7 @@ const PublicationRow = memo(({
                   href={publication.github}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded transition-all"
+                  className="p-1.5 text-[#B1B1B1] hover:text-[#000000] hover:bg-transparent rounded transition-colors"
                   title="View GitHub"
                 >
                   <Github className="h-4 w-4" />
@@ -298,7 +298,7 @@ const PublicationRow = memo(({
                   href={publication.site}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                  className="p-1.5 text-[#B1B1B1] hover:text-[#2788D9] hover:bg-transparent rounded transition-colors"
                   title="View Project Site"
                 >
                   <ExternalLink className="h-4 w-4" />

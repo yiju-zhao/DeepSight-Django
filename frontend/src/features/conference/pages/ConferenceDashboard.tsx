@@ -7,7 +7,7 @@ import PublicationsTable from '../components/PublicationsTable';
 import { SessionList } from '../components/SessionList';
 import ConferenceSelectionDrawer from '../components/ConferenceSelectionDrawer';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
-import { AlertCircle, Calendar, Filter, Sparkles, FileText } from 'lucide-react';
+import { AlertCircle, Calendar, Filter, Sparkles, FileText, ChevronRight } from 'lucide-react';
 import Header from '@/shared/components/layout/Header';
 import { Button } from '@/shared/components/ui/button';
 import ExportButton from '../components/ExportButton';
@@ -281,58 +281,59 @@ export default function ConferenceDashboard() {
       />
 
       <main className="flex-grow pt-[var(--header-height)]">
-        {/* Modern Page Header */}
-        <section className="relative bg-white border-b border-gray-100">
-          <div className="absolute inset-0 bg-gradient-to-b from-gray-50/50 to-white/20 pointer-events-none" />
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6 relative z-10">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        {/* Modern Page Header - Refined Huawei Style */}
+        <section className="bg-white border-b border-[#E3E3E3]">
+          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-10 relative">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
               <div className="max-w-3xl">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="px-3 py-1 rounded-full bg-blue-50 text-xs font-medium text-blue-600 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" />
-                    Analytics
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="px-3 py-1 rounded bg-[#F5F5F5] text-xs font-medium text-[#666666] flex items-center gap-1 uppercase tracking-wide">
+                    <Sparkles className="w-3 h-3 text-[#CE0E2D]" />
+                    Analytics Dashboard
                   </span>
                 </div>
-                <h1 className="text-4xl font-bold text-[#1E1E1E] tracking-tight mb-4">
+                <h1 className="text-4xl md:text-[40px] font-extrabold text-[#000000] tracking-tight mb-4 leading-tight">
                   Conference Analytics
                 </h1>
-                <p className="text-lg text-gray-500 leading-relaxed">
-                  Deep insights into academic conferences, publications, and trends.
+                <p className="text-lg text-[#666666] leading-relaxed max-w-2xl">
+                  Explore academic trends, research impact, and publication insights across top-tier conferences.
                 </p>
               </div>
 
               {/* Conference Selection Button */}
-              <button
-                onClick={() => setIsDrawerOpen(true)}
-                className="flex items-center space-x-2 px-6 py-3 rounded-full bg-black text-white hover:bg-gray-800 hover:shadow-lg transition-all duration-300 group"
-              >
-                <Filter className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                <span className="font-medium">
-                  {matchingInstance
-                    ? `${matchingInstance.venue.name} ${matchingInstance.year}`
-                    : 'Select Conference'}
-                </span>
-              </button>
+              <div>
+                <button
+                  onClick={() => setIsDrawerOpen(true)}
+                  className="flex items-center space-x-3 px-8 py-4 rounded-lg bg-black text-white hover:opacity-80 transition-all duration-300 group shadow-[rgba(0,0,0,0.08)_0px_8px_12px]"
+                >
+                  <Filter className="w-4 h-4" />
+                  <span className="font-medium text-[13px] tracking-wide uppercase">
+                    {matchingInstance
+                      ? `${matchingInstance.venue.name} ${matchingInstance.year}`
+                      : 'Select Conference'}
+                  </span>
+                  <ChevronRight className="w-4 h-4 opacity-50 group-hover:translate-x-1 transition-transform" />
+                </button>
+              </div>
             </div>
           </div>
         </section>
 
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="space-y-6">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-8">
 
             {/* Dashboard Content with Tabs */}
             {matchingInstance && (
-              <div className="space-y-4">
+              <div className="space-y-6">
 
-
-                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-                  <div className="flex items-center justify-between border-b border-gray-200">
-                    <TabsList className="bg-transparent p-0 border-none h-auto">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-[#E3E3E3] pb-0">
+                    <TabsList className="bg-transparent p-0 border-none h-auto w-full sm:w-auto flex overflow-x-auto">
                       {['overview', 'sessions', 'publications'].map((tab) => (
                         <TabsTrigger
                           key={tab}
                           value={tab}
-                          className="rounded-none border-b-2 border-transparent px-6 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 data-[state=active]:border-black data-[state=active]:text-black data-[state=active]:bg-transparent transition-all capitalize"
+                          className="rounded-none border-b-2 border-transparent px-6 py-4 text-sm font-medium text-[#666666] hover:text-[#000000] data-[state=active]:border-[#CE0E2D] data-[state=active]:text-[#000000] data-[state=active]:bg-transparent transition-all capitalize tracking-wide shrink-0"
                         >
                           {tab}
                         </TabsTrigger>
@@ -341,9 +342,9 @@ export default function ConferenceDashboard() {
 
                     {/* Action Buttons - Only visible when Publications tab is active */}
                     {activeTab === 'publications' && (
-                      <div className="flex items-center gap-2 pb-2">
+                      <div className="flex items-center gap-3 py-3 sm:py-0">
                         {selectedPublicationIds.size > 0 && (
-                          <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full whitespace-nowrap">
+                          <span className="text-sm font-medium text-[#666666] bg-[#F5F5F5] px-3 py-1.5 rounded whitespace-nowrap">
                             {selectedPublicationIds.size} selected
                           </span>
                         )}
@@ -352,10 +353,10 @@ export default function ConferenceDashboard() {
                           onClick={handleOpenImportWizard}
                           size="sm"
                           disabled={selectedPublicationIds.size === 0}
-                          className="flex items-center gap-2 h-9 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0 shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex items-center gap-2 h-9 bg-[#CE0E2D] hover:bg-[#A20A22] text-white border-0 shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed rounded-md px-4"
                         >
-                          <Sparkles size={14} className="animate-pulse" />
-                          DeepDive
+                          <Sparkles size={14} />
+                          <span className="font-medium">DeepDive</span>
                         </Button>
 
                         <ExportButton
@@ -371,8 +372,8 @@ export default function ConferenceDashboard() {
                   {/* Overview Tab */}
                   <TabsContent value="overview" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                     {(dashboardError || publicationsError) && (
-                      <div className="bg-red-50 border border-red-100 rounded-xl p-6 flex items-start gap-4">
-                        <AlertCircle className="h-6 w-6 text-red-600 shrink-0" />
+                      <div className="bg-red-50 border border-red-100 rounded-lg p-6 flex items-start gap-4">
+                        <AlertCircle className="h-6 w-6 text-[#CE0E2D] shrink-0" />
                         <div>
                           <h4 className="font-medium text-red-900">Error loading dashboard data</h4>
                           <p className="text-sm mt-1 text-red-700">
@@ -439,19 +440,19 @@ export default function ConferenceDashboard() {
 
             {/* No Selection State */}
             {!matchingInstance && !dashboardLoading && (
-              <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-dashed border-gray-200">
-                <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-6">
-                  <Calendar className="w-10 h-10 text-gray-400" />
+              <div className="flex flex-col items-center justify-center py-32 bg-white rounded-2xl border border-dashed border-[#E3E3E3]">
+                <div className="w-20 h-20 bg-[#F5F5F5] rounded-full flex items-center justify-center mb-6">
+                  <Calendar className="w-10 h-10 text-[#B1B1B1]" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                <h3 className="text-xl font-bold text-[#1E1E1E] mb-2">
                   Select a conference to explore
                 </h3>
-                <p className="text-gray-500 mb-8 text-center max-w-md">
+                <p className="text-[#666666] mb-8 text-center max-w-md">
                   Choose a venue and year to view detailed analytics, publications, and session information.
                 </p>
                 <button
                   onClick={() => setIsDrawerOpen(true)}
-                  className="px-8 py-3 bg-black text-white rounded-full font-medium hover:bg-gray-800 transition-colors shadow-lg hover:shadow-xl"
+                  className="px-8 py-3 bg-black text-white rounded-lg font-medium text-sm hover:opacity-80 transition-all shadow-[rgba(0,0,0,0.08)_0px_8px_12px]"
                 >
                   Select Conference
                 </button>
