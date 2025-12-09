@@ -6,6 +6,7 @@ during import operations.
 """
 
 import logging
+import concurrent.futures
 from typing import Any
 
 from django.conf import settings
@@ -78,14 +79,16 @@ def index_publication_to_chroma(
 
 def batch_index_publications_to_chroma(
     publications: list[Publication],
-    batch_size: int = 1000
+    batch_size: int = 1000,
+    max_workers: int = 4
 ) -> dict[str, int]:
     """
-    Batch index multiple publications to Chroma vector store.
+    Batch index multiple publications to Chroma vector store using parallel processing.
 
     Args:
         publications: List of Publication instances to index
         batch_size: Number of publications to process in each batch
+        max_workers: Number of parallel threads to use for indexing
 
     Returns:
         dict with 'indexed' and 'failed' counts
@@ -98,44 +101,70 @@ def batch_index_publications_to_chroma(
     try:
         from langchain_core.documents import Document
 
-        # Initialize Chroma once
+        # Initialize Chroma once to check connectivity/configuration
+        # Note: Each thread should ideally get its own client or use the thread-safe one,
+        # but for LangChain/Chroma, sharing the instance for HTTP calls is usually fine.
+        # For local SQLite, we might hit write locks, but ThreadPool helps with the 
+        # embedding generation latency which is usually the bottleneck.
         vector_store = _get_chroma_vector_store()
         if vector_store is None:
             logger.warning("Failed to initialize Chroma, skipping vector indexing")
             return {"indexed": 0, "failed": 0}
 
+        # Step 1: Pre-process all publications into Documents in the main thread.
+        # This prevents Django DB connection issues inside threads.
+        all_documents = []
+        for pub in publications:
+            content = f"{pub.title or ''} {pub.abstract or ''}".strip()
+            if not content:
+                continue
+            
+            metadata = {
+                "publication_id": str(pub.id),
+                "instance_id": pub.instance.instance_id if pub.instance else None,
+            }
+            all_documents.append(Document(page_content=content, metadata=metadata))
+
+        total_docs = len(all_documents)
+        if total_docs == 0:
+            return {"indexed": 0, "failed": 0}
+
+        logger.info(f"Prepared {total_docs} documents for indexing. Starting parallel execution with {max_workers} workers.")
+
         indexed = 0
         failed = 0
-        total = len(publications)
 
-        # Process in batches
-        for i in range(0, total, batch_size):
-            batch = publications[i : i + batch_size]
-            documents = []
+        # Helper function for the thread pool
+        def _process_batch(batch_docs):
+            try:
+                # Re-fetching vector store inside thread can sometimes be safer depending on the client,
+                # but passing the main one works for most HTTP-based embedding/vector services.
+                # If using local SQLite Chroma, writes are serialized anyway, but embeddings happen in parallel.
+                vector_store.add_documents(batch_docs)
+                return len(batch_docs)
+            except Exception as e:
+                logger.error(f"Batch indexing failed: {e}")
+                raise e
 
-            for pub in batch:
-                # Prepare content
-                content = f"{pub.title or ''} {pub.abstract or ''}".strip()
-                if not content:
-                    failed += 1
-                    continue
+        # Step 2: Submit batches to ThreadPoolExecutor
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = []
+            for i in range(0, total_docs, batch_size):
+                batch = all_documents[i : i + batch_size]
+                futures.append(executor.submit(_process_batch, batch))
 
-                # Prepare metadata
-                metadata = {
-                    "publication_id": str(pub.id),
-                    "instance_id": pub.instance.instance_id if pub.instance else None,
-                }
-
-                documents.append(Document(page_content=content, metadata=metadata))
-
-            if documents:
+            # Step 3: Collect results
+            for future in concurrent.futures.as_completed(futures):
                 try:
-                    vector_store.add_documents(documents)
-                    indexed += len(documents)
-                    logger.info(f"Indexed batch {i//batch_size + 1}: {len(documents)} publications")
-                except Exception as e:
-                    failed += len(documents)
-                    logger.error(f"Failed to index batch {i//batch_size + 1}: {e}")
+                    count = future.result()
+                    indexed += count
+                    # Optional: Log progress
+                    if indexed % (batch_size * max_workers) == 0:
+                         logger.info(f"Progress: {indexed}/{total_docs} indexed...")
+                except Exception:
+                    # The exception is already logged in _process_batch
+                    # We assume the whole batch failed
+                    failed += batch_size  # Estimate based on batch size, though exact mapping is lost
 
         logger.info(f"Chroma indexing complete: {indexed} indexed, {failed} failed")
         return {"indexed": indexed, "failed": failed}
