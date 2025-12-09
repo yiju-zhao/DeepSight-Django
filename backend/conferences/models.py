@@ -65,7 +65,7 @@ class Publication(models.Model):
     abstract = models.TextField()
     summary = models.TextField()
     session = models.CharField(max_length=255, blank=True, null=True)
-    rating = models.DecimalField(max_digits=3, decimal_places=2, blank=True, null=True)
+    rating = models.DecimalField(max_digits=5, decimal_places=2, blank=True, null=True)
 
     # Publication metadata
     keywords = models.CharField(max_length=500)
