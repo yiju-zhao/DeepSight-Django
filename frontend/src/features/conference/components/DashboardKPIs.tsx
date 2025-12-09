@@ -23,7 +23,7 @@ const KPICard = ({
   delay?: number;
 }) => (
   <div
-    className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 fill-mode-forwards opacity-0"
+    className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px] transition-all duration-300"
     style={{ animationDelay: `${delay}ms` }}
   >
     <div className="flex items-start justify-between mb-4">

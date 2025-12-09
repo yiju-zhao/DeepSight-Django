@@ -2,15 +2,9 @@ import { Text } from '@visx/text';
 import { scaleLog } from '@visx/scale';
 import Wordcloud from '@visx/wordcloud/lib/Wordcloud';
 
-// Huawei Minimalist Palette for Word Cloud
-// Primary: Black/Greys. Accent: Huawei Red for variety/emphasis.
+// Colorful Palette for Word Cloud
 const COLORS = [
-  '#000000', // Black
-  '#333333', // Dark Gray
-  '#666666', // Medium Gray
-  '#CE0E2D', // Huawei Red (Accent)
-  '#1E1E1E', // Almost Black
-  '#444444', // Dark Gray
+  '#00429d', '#4771b2', '#73a2c6', '#a5d5d8', '#ffffe0', '#ffbcaf', '#ff988c', '#ff595e', '#ff0033'
 ];
 
 const fixedValueGenerator = () => 0.5;

@@ -56,8 +56,8 @@ const ViewModeSelector = ({ viewMode, onViewModeChange }: {
                   setIsOpen(false);
                 }}
                 className={`${viewMode === option.value
-                    ? 'bg-[#F5F5F5] text-[#000000] font-medium'
-                    : 'text-[#666666]'
+                  ? 'bg-[#F5F5F5] text-[#000000] font-medium'
+                  : 'text-[#666666]'
                   } block px-4 py-2 text-sm hover:bg-[#F5F5F5] hover:text-[#000000] w-full text-left`}
               >
                 {option.label}
@@ -146,6 +146,30 @@ const OrganizationPublicationsChartComponent = ({ data, stackedData, isLoading }
           indexBy="organization"
           layout="vertical"
           {...chartTheme.barChart}
+          legends={[
+            {
+              dataFrom: 'keys',
+              anchor: 'bottom-right',
+              direction: 'column',
+              justify: false,
+              translateX: 120,
+              translateY: 0,
+              itemsSpacing: 2,
+              itemWidth: 100,
+              itemHeight: 20,
+              itemDirection: 'left-to-right',
+              itemOpacity: 0.85,
+              symbolSize: 20,
+              effects: [
+                {
+                  on: 'hover',
+                  style: {
+                    itemOpacity: 1
+                  }
+                }
+              ]
+            }
+          ]}
           margin={{
             top: 20,
             right: viewMode === 'total' ? 60 : 180,
