@@ -123,8 +123,15 @@ class Command(BaseCommand):
                 # Step 3: Process publications
                 publications_created = 0
                 publications_updated = 0
+                publications_skipped = 0
 
                 for entry in data:
+                    # Skip publications with Reject or Withdraw status
+                    if "status" in entry and entry["status"]:
+                        status = str(entry["status"]).strip()
+                        if status.lower() in ["reject", "withdraw"]:
+                            publications_skipped += 1
+                            continue
                     # Map JSON data to model fields
                     model_data = {"instance": instance}
 
@@ -229,6 +236,7 @@ class Command(BaseCommand):
             self.style.SUCCESS(
                 f"ICLR import completed successfully!\n"
                 f"Publications created: {publications_created}\n"
-                f"Publications updated: {publications_updated}"
+                f"Publications updated: {publications_updated}\n"
+                f"Publications skipped (Reject/Withdraw): {publications_skipped}"
             )
         )
