@@ -20,10 +20,6 @@ from .views import (
     NotebookJobsSSEView,
     NotebookViewSet,
     SessionChatViewSet,
-)
-
-# Import Coordinator views
-from .views.coordinator_views import (
     CoordinatorViewSet,
     StudioExecuteSSEView,
 )

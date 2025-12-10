@@ -30,8 +30,8 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from notebooks.models import Notebook
-from notebooks.permissions import IsNotebookOwner
+from ..models import Notebook
+from core.permissions import IsNotebookOwner
 
 
 logger = logging.getLogger(__name__)
