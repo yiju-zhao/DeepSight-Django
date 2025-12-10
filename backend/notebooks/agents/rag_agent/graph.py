@@ -73,7 +73,9 @@ def create_rag_agent(config: RAGAgentConfig):
         """
         Retrieve relevant information from the knowledge base.
 
-        Use this when you need factual information to answer the user's question.
+        🔴 CRITICAL: This is your PRIMARY tool. Use it FIRST for any substantive question.
+        The knowledge base contains the authoritative, up-to-date information the user wants.
+        Do NOT rely on your training data - ALWAYS retrieve first.
 
         Args:
             query: Specific search query
