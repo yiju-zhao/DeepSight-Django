@@ -137,7 +137,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
     if (onImagesLoaded) {
       onImagesLoaded(images.length > 0);
     }
-  }, [images.length, onImagesLoaded]);
+  }, [images.length]); // onImagesLoaded is now memoized in parent, safe to omit
 
   const loadImages = async () => {
     try {
@@ -237,7 +237,9 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
         setImages((prev) => {
           const next = [...prev];
           updates.forEach((update, idx) => {
-            next[idx] = { ...next[idx], ...update };
+            if (next[idx]) {
+              Object.assign(next[idx], update);
+            }
           });
           return next;
         });

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { X, Eye, FileText, Globe, Music, Video, File, HardDrive, Calendar, ExternalLink, Loader2, AlertCircle, RefreshCw, Trash2, Plus, ChevronLeft, CheckCircle, Clock, Upload, Link2, Youtube, Group, Presentation, FileSpreadsheet, Copy } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
@@ -427,6 +427,11 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     delete newModals[modalType];
     updateState({ modals: newModals });
   };
+
+  // Memoized callback to prevent infinite loops in GallerySection
+  const handleImagesLoaded = useCallback((hasImages: boolean) => {
+    setState(prevState => ({ ...prevState, hasGalleryImages: hasImages }));
+  }, []);
 
   // Helper function to get file URL (renamed from getRawFileUrl, now uses inline for preview)
   const getFileUrl = (fileId: string, action: 'inline' | 'raw' = 'inline') => {
@@ -1171,7 +1176,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                   videoFileId={source.file_id || ''}
                   onOpenModal={openModal}
                   onCloseModal={closeModal}
-                  onImagesLoaded={(hasImages) => updateState({ hasGalleryImages: hasImages })}
+                  onImagesLoaded={handleImagesLoaded}
                 />
               </div>
             </div>
