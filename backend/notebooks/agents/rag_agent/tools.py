@@ -67,8 +67,10 @@ def _build_keyword_query(original_query: str, api_key: Optional[str]) -> str:
         )
 
         prompt = """Convert the user question into 5-10 short English keyword phrases.
-Each phrase should be 2-5 words, focused, and comma-separated.
-Do not output sentences. Do not translate names. Keep only the keyword list."""
+Rules:
+- English only; keep original proper nouns as-is.
+- Each phrase 2-5 words and targets ONE concept/dimension (no compound phrases, no "and", "/", "&").
+- Comma-separated list. No sentences or explanations."""
 
         response = model.invoke(
             f"{prompt}\n\nUser question: {original_query}\n\nKeywords:"
@@ -81,9 +83,22 @@ Do not output sentences. Do not translate names. Keep only the keyword list."""
         seen = set()
         for token in tokens:
             kw = token.strip(" -*\"'").strip()
-            if kw and kw.lower() not in seen:
-                keywords.append(kw)
-                seen.add(kw.lower())
+            if not kw:
+                continue
+
+            # Split compound connectors to enforce single-concept phrases
+            parts = re.split(r"\s+and\s+|/|&", kw, flags=re.IGNORECASE)
+            for part in parts:
+                clean = part.strip()
+                if not clean:
+                    continue
+                # Keep ASCII-only to ensure English output
+                if not clean.isascii():
+                    continue
+                key = clean.lower()
+                if key not in seen:
+                    keywords.append(clean)
+                    seen.add(key)
 
         if len(keywords) >= 3:
             keyword_query = "; ".join(keywords[:10])
