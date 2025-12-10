@@ -877,23 +877,29 @@ class ChatService(NotebookBaseService):
 
                 logger.info(f"[{trace_id}] Starting agentic RAG: {question[:100]}")
 
-                # Get model config from RagFlow chat
-                chat = self.ragflow_service.get_chat(session.ragflow_agent_id)
-                raw_model_name = chat.llm.model_name or "gpt-4.1-mini"
-
-                # Clean up model name: remove @Provider suffix if present
-                # RagFlow uses format like "gpt-4o@OpenAI", we need just "gpt-4o"
-                model_name = raw_model_name.split("@")[0] if "@" in raw_model_name else raw_model_name
-
-                # # Map common model aliases to valid OpenAI model names
-                # model_mapping = {
-                #     "gpt-5-chat-latest": "gpt-4o",  # Map gpt-5 to gpt-4o
-                #     "gpt-4-chat": "gpt-4-turbo",
-                #     "gpt-3.5": "gpt-3.5-turbo",
-                # }
-                # model_name = model_mapping.get(model_name, model_name)
-
-                logger.info(f"[{trace_id}] Using model: {model_name} (raw: {raw_model_name})")
+                # Get model config from RagFlow chat (if available)
+                # Fall back to default model if chat assistant is not found
+                model_name = None
+                chat = None
+                
+                if session.ragflow_agent_id:
+                    try:
+                        chat = self.ragflow_service.get_chat(session.ragflow_agent_id)
+                        if chat and hasattr(chat, 'llm') and chat.llm:
+                            raw_model_name = chat.llm.model_name
+                            if raw_model_name:
+                                # Clean up model name: remove @Provider suffix if present
+                                # RagFlow uses format like "gpt-4o@OpenAI", we need just "gpt-4o"
+                                model_name = raw_model_name.split("@")[0] if "@" in raw_model_name else raw_model_name
+                                logger.info(f"[{trace_id}] Using model from chat assistant: {model_name} (raw: {raw_model_name})")
+                    except Exception as e:
+                        logger.warning(f"[{trace_id}] Failed to get chat assistant config: {e}")
+                
+                # Fallback to configured default model if not found from chat
+                if not model_name:
+                    available_models = self.get_available_chat_models()
+                    model_name = available_models[0] if available_models else "gpt-4o-mini"
+                    logger.info(f"[{trace_id}] Using default model: {model_name}")
 
                 api_key = getattr(settings, "OPENAI_API_KEY", "")
 
