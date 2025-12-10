@@ -15,7 +15,6 @@ from langgraph.types import Command
 from langgraph.prebuilt import ToolNode
 
 from .states import RAGAgentState
-from .tools import retrieve_knowledge
 from .prompts import format_system_prompt
 from .config import RAGAgentConfig
 
@@ -42,7 +41,7 @@ def create_rag_agent(config: RAGAgentConfig):
     Example:
         >>> from backend.notebooks.agents.rag_agent import create_rag_agent, RAGAgentConfig
         >>> config = RAGAgentConfig(
-        ...     model_name="gpt-4o-mini",
+        ...     model_name="gpt-4.1-mini",
         ...     api_key="sk-...",
         ...     retrieval_service=retrieval_service,
         ...     dataset_ids=["kb1"]
@@ -59,11 +58,15 @@ def create_rag_agent(config: RAGAgentConfig):
         temperature=config.temperature,
     )
 
-    # Create tool with injected dependencies using closure
-    # This properly binds retrieval_service and dataset_ids without breaking LangChain's tool system
+    # Create tools with injected dependencies using closures
+    # This properly binds config dependencies without breaking LangChain's tool system
     from functools import partial
     from langchain_core.tools import tool as langchain_tool
-    from notebooks.agents.rag_agent.tools import RetrieveKnowledgeInput
+    from notebooks.agents.rag_agent.tools import (
+        RetrieveKnowledgeInput,
+        RewriteQueryInput,
+        DecomposeQueryInput,
+    )
 
     @langchain_tool(args_schema=RetrieveKnowledgeInput)
     def retrieve_knowledge_bound(query: str, top_k: int = 6) -> str:
@@ -88,8 +91,59 @@ def create_rag_agent(config: RAGAgentConfig):
             dataset_ids=config.dataset_ids,
         )
 
+    @langchain_tool(args_schema=RewriteQueryInput)
+    def rewrite_query_bound(original_query: str, context: str = "") -> str:
+        """
+        Transform a user query into an optimized search query for the knowledge base.
+
+        Use this when you have a vague, verbose, or poorly worded question that needs
+        optimization before retrieval. Uses gpt-4.1-mini for fast, cost-effective query optimization.
+
+        Args:
+            original_query: The user's original question or query
+            context: Optional conversation context to inform rewriting
+
+        Returns:
+            Optimized search query string with key terms extracted
+        """
+        from notebooks.agents.rag_agent.tools import _rewrite_query_impl
+
+        return _rewrite_query_impl(
+            original_query=original_query,
+            context=context,
+            api_key=config.api_key,
+        )
+
+    @langchain_tool(args_schema=DecomposeQueryInput)
+    def decompose_query_bound(complex_query: str) -> list[str]:
+        """
+        Break down a complex question into simpler, focused sub-queries.
+
+        Use this when a question has multiple parts or aspects that should be researched
+        separately for comprehensive coverage. Uses gpt-4.1-mini for fast, cost-effective query decomposition.
+
+        Args:
+            complex_query: A multi-part or complex question
+
+        Returns:
+            List of simpler, focused sub-queries
+        """
+        from notebooks.agents.rag_agent.tools import _decompose_query_impl
+
+        return _decompose_query_impl(
+            complex_query=complex_query,
+            api_key=config.api_key,
+        )
+
     # Bind tools to model for function calling
-    model_with_tools = model.bind_tools([retrieve_knowledge_bound])
+    # retrieve_knowledge_bound: uses config (retrieval_service, dataset_ids)
+    # rewrite_query_bound: uses hardcoded gpt-4.1-mini + config.api_key (fast and cheap for query optimization)
+    # decompose_query_bound: uses hardcoded gpt-4.1-mini + config.api_key (fast and cheap for query optimization)
+    model_with_tools = model.bind_tools([
+        retrieve_knowledge_bound,
+        rewrite_query_bound,
+        decompose_query_bound,
+    ])
 
     # Define agent reasoning node
     def agent_reasoning(state: RAGAgentState) -> Command[Literal["tools", END]]:
@@ -195,7 +249,11 @@ def create_rag_agent(config: RAGAgentConfig):
 
     # Add nodes
     builder.add_node("agent", agent_reasoning)
-    builder.add_node("tools", ToolNode([retrieve_knowledge_bound]))
+    builder.add_node("tools", ToolNode([
+        retrieve_knowledge_bound,
+        rewrite_query_bound,
+        decompose_query_bound,
+    ]))
 
     # Add edges
     builder.add_edge(START, "agent")

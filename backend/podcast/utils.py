@@ -476,7 +476,7 @@ def _chunk_text_by_length(text: str, max_chars: int = 250) -> list[str]:
 
 
 def _openai_tts(text: str) -> bytes | None:
-    """Fallback TTS using OpenAI gpt-4o-mini-tts via REST to produce WAV bytes.
+    """Fallback TTS using OpenAI gpt-4.1-mini-tts via REST to produce WAV bytes.
     Note: voice cloning is not supported here; used for both first and later segments if Higgs fails.
     """
     api_key = os.getenv("OPENAI_API_KEY")
@@ -490,7 +490,7 @@ def _openai_tts(text: str) -> bytes | None:
             "Content-Type": "application/json",
         }
         payload = {
-            "model": "gpt-4o-mini-tts",
+            "model": "gpt-4.1-mini-tts",
             "voice": "alloy",
             "input": text,
             "format": "wav",

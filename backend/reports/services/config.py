@@ -29,7 +29,7 @@ def get_model_provider_config(provider: str) -> dict[str, Any]:
         return {
             "api_key": _get_setting("OPENAI_API_KEY"),
             "organization": _get_setting("OPENAI_ORG"),
-            "model": _get_setting("OPENAI_REPORT_MODEL", "gpt-4o-mini"),
+            "model": _get_setting("OPENAI_REPORT_MODEL", "gpt-4.1-mini"),
             "temperature": 0.7,
             "max_tokens": 4000,
         }

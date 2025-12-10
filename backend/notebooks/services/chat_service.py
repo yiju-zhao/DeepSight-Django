@@ -879,7 +879,7 @@ class ChatService(NotebookBaseService):
 
                 # Get model config from RagFlow chat
                 chat = self.ragflow_service.get_chat(session.ragflow_agent_id)
-                raw_model_name = chat.llm.model_name or "gpt-4o-mini"
+                raw_model_name = chat.llm.model_name or "gpt-4.1-mini"
 
                 # Clean up model name: remove @Provider suffix if present
                 # RagFlow uses format like "gpt-4o@OpenAI", we need just "gpt-4o"

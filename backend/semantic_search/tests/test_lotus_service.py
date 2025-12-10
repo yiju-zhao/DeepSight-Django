@@ -96,7 +96,7 @@ class LotusSemanticSearchServiceTestCase(TestCase):
 
         # Verify initialization
         self.assertTrue(service._lotus_initialized)
-        mock_lm_class.assert_called_once_with(model="gpt-4o-mini")
+        mock_lm_class.assert_called_once_with(model="gpt-4.1-mini")
         mock_lotus.settings.configure.assert_called_once()
 
     @patch("datasets.services.lotus_service.lotus")

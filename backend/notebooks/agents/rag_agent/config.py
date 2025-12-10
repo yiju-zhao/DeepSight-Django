@@ -15,7 +15,7 @@ class RAGAgentConfig:
     Configuration for RAG agent execution.
 
     Attributes:
-        model_name: OpenAI model name (e.g., "gpt-4o-mini", "gpt-4-turbo")
+        model_name: OpenAI model name (e.g., "gpt-4.1-mini", "gpt-4-turbo")
         api_key: OpenAI API key
         temperature: Sampling temperature (0.0-1.0), lower is more deterministic
         max_iterations: Maximum agent loop iterations (hard limit)
@@ -26,7 +26,7 @@ class RAGAgentConfig:
     """
 
     # Model configuration
-    model_name: str = "gpt-4o-mini"
+    model_name: str = "gpt-4.1-mini"
     api_key: Optional[str] = None
     temperature: float = 0.3
 

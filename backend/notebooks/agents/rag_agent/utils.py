@@ -34,7 +34,7 @@ def get_chat_history_window(
     Args:
         messages: Full message history
         max_tokens: Maximum token budget for messages
-        model_name: Model name for tokenization (e.g., "gpt-4", "gpt-4o-mini")
+        model_name: Model name for tokenization (e.g., "gpt-4", "gpt-4.1-mini")
 
     Returns:
         Trimmed message list that fits within token budget

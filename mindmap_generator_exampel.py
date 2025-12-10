@@ -104,7 +104,7 @@ class Config:
     
     # Model settings
     CLAUDE_MODEL_STRING = "claude-3-5-haiku-latest"
-    OPENAI_COMPLETION_MODEL = "gpt-4o-mini-2024-07-18"
+    OPENAI_COMPLETION_MODEL = "gpt-4.1-mini-2024-07-18"
     DEEPSEEK_COMPLETION_MODEL = "deepseek-chat"  # "deepseek-reasoner" or "deepseek-chat"
     DEEPSEEK_CHAT_MODEL = "deepseek-chat"
     DEEPSEEK_REASONER_MODEL = "deepseek-reasoner"
@@ -116,8 +116,8 @@ class Config:
     TOKEN_BUFFER = 500
     
     # Cost tracking (prices in USD per token)
-    OPENAI_INPUT_TOKEN_PRICE = 0.15/1000000  # GPT-4o-mini input price
-    OPENAI_OUTPUT_TOKEN_PRICE = 0.60/1000000  # GPT-4o-mini output price
+    OPENAI_INPUT_TOKEN_PRICE = 0.15/1000000  # gpt-4.1-mini input price
+    OPENAI_OUTPUT_TOKEN_PRICE = 0.60/1000000  # gpt-4.1-mini output price
     ANTHROPIC_INPUT_TOKEN_PRICE = 0.80/1000000  # Claude 3.5 Haiku input price
     ANTHROPIC_OUTPUT_TOKEN_PRICE = 4.00/1000000  # Claude 3.5 Haiku output price
     DEEPSEEK_CHAT_INPUT_PRICE = 0.27/1000000  # Chat input price (cache miss)

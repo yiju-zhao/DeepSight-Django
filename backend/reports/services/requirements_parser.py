@@ -58,7 +58,7 @@ class RequirementsParser:
         try:
             if self.model_provider == "openai":
                 lm = dspy.OpenAI(
-                    model=getattr(settings, "OPENAI_MODEL", "gpt-4o-mini"),
+                    model=getattr(settings, "OPENAI_MODEL", "gpt-4.1-mini"),
                     api_key=settings.OPENAI_API_KEY,
                     temperature=0.2,
                     max_tokens=2000,
@@ -73,7 +73,7 @@ class RequirementsParser:
             else:
                 # Default to OpenAI
                 lm = dspy.OpenAI(
-                    model="gpt-4o-mini",
+                    model="gpt-4.1-mini",
                     api_key=settings.OPENAI_API_KEY,
                     temperature=0.2,
                     max_tokens=2000,
