@@ -143,23 +143,56 @@ def _retrieve_knowledge_impl(
         )
 
     try:
-        logger.info(f"Retrieving knowledge: query='{query[:100]}...', top_k={top_k}")
+        # If the query already contains multiple keyword phrases, fan out and merge.
+        import re
 
-        # Call retrieval service
-        result = retrieval_service.retrieve_chunks(
-            question=query, dataset_ids=dataset_ids, top_k=min(top_k, 30)
-        )
+        # Split on common separators produced by _build_keyword_query
+        keywords = [
+            kw.strip()
+            for kw in re.split(r"[;,\n]+", query)
+            if kw and kw.strip()
+        ]
+        keywords = list(dict.fromkeys(keywords))  # dedupe while preserving order
 
-        if not result.chunks:
+        collected_chunks = []
+
+        if len(keywords) > 1:
+            per_query_top_k = max(1, min(top_k, max(2, top_k // len(keywords) + 1)))
+            logger.info(
+                f"Retrieving knowledge via {len(keywords)} keyword queries "
+                f"(per-query top_k={per_query_top_k}): '{query[:80]}...'"
+            )
+            seen_ids: set[str] = set()
+            for kw in keywords:
+                result = retrieval_service.retrieve_chunks(
+                    question=kw,
+                    dataset_ids=dataset_ids,
+                    top_k=min(per_query_top_k, 30),
+                )
+                for chunk in result.chunks:
+                    if chunk.id not in seen_ids:
+                        seen_ids.add(chunk.id)
+                        collected_chunks.append(chunk)
+        else:
+            # Single query path
+            logger.info(f"Retrieving knowledge: query='{query[:100]}...', top_k={top_k}")
+            result = retrieval_service.retrieve_chunks(
+                question=query, dataset_ids=dataset_ids, top_k=min(top_k, 30)
+            )
+            collected_chunks = result.chunks
+
+        if not collected_chunks:
             return "No relevant information found in the knowledge base for this query."
 
-        # Format chunks for agent
+        # Sort by similarity descending before formatting
+        collected_chunks.sort(key=lambda c: c.similarity, reverse=True)
+
         formatted = retrieval_service.format_chunks_for_agent(
-            result.chunks, max_chunks=top_k
+            collected_chunks, max_chunks=top_k
         )
 
         logger.info(
-            f"Retrieved {len(result.chunks)} chunks for query: '{query[:50]}...'"
+            f"Retrieved {len(collected_chunks)} merged chunks for query: '{query[:50]}...'"
         )
 
         return formatted

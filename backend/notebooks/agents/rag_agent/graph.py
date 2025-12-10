@@ -84,10 +84,15 @@ def create_rag_agent(config: RAGAgentConfig):
         Returns:
             Formatted string with relevant passages and sources
         """
-        from notebooks.agents.rag_agent.tools import _retrieve_knowledge_impl
+        from notebooks.agents.rag_agent.tools import (
+            _retrieve_knowledge_impl,
+            _build_keyword_query,
+        )
+
+        keyword_query = _build_keyword_query(query, config.api_key)
 
         return _retrieve_knowledge_impl(
-            query=query,
+            query=keyword_query,
             top_k=top_k,
             retrieval_service=config.retrieval_service,
             dataset_ids=config.dataset_ids,
