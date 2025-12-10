@@ -5,13 +5,16 @@ Chat-related views for models and sessions
 import logging
 
 from django.shortcuts import get_object_or_404
-from rest_framework import permissions, serializers, status, viewsets
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.http import StreamingHttpResponse
+from rest_framework import permissions, serializers, status, viewsets, authentication
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.http import StreamingHttpResponse
+from rest_framework.exceptions import ValidationError
 from drf_spectacular.utils import extend_schema
 
+from core.permissions import IsNotebookOwner
 from ..models import ChatSession, Notebook
 from ..services import ChatService
 
