@@ -70,33 +70,10 @@ class Paginated(BaseModel, Generic[T]):
 
 # --- Completion Models ---
 
-
-class ReferenceChunk(BaseModel):
-    """
-    Reference chunk from knowledge base.
-
-    API can return different formats:
-    - doc_type: "" (empty string) or [] (list) or ["type1", "type2"]
-    - positions: [""] (list of strings) or [[12, 11, ...]] (list of int lists)
-    """
-
-    id: str = Field(..., description="Chunk ID")
-    content: str = Field(..., description="Chunk content")
-    document_id: str = Field(..., description="Document ID")
-    document_name: str = Field(..., description="Document name")
-    dataset_id: str = Field(..., description="Dataset ID")
-    image_id: str = Field(default="", description="Image ID if applicable")
-    url: str | None = Field(None, description="URL if applicable")
-    similarity: float = Field(..., description="Overall similarity score")
-    vector_similarity: float = Field(default=0.0, description="Vector similarity score")
-    term_similarity: float = Field(default=0.0, description="Term similarity score")
-    doc_type: str | list[str] = Field(
-        default="", description="Document type(s) - can be string or list"
-    )
-    positions: list[Any] = Field(
-        default_factory=list,
-        description="Chunk positions - can be list of strings or list of int lists",
-    )
+# NOTE: ReferenceChunk is now a forward reference to ChunkResponse
+# defined below. This maintains backward compatibility with existing code
+# while using the unified chunk model.
+# Will be defined as: ReferenceChunk = ChunkResponse (after ChunkResponse definition)
 
 
 class DocumentAggregation(BaseModel):
@@ -249,7 +226,10 @@ class Chunk(BaseModel):
     important_keywords: str = Field(
         default="", description="Important keywords extracted"
     )
-    positions: list[str] = Field(default_factory=list, description="Chunk positions")
+    positions: list[Any] = Field(
+        default_factory=list,
+        description="Chunk positions - can be list of strings or list of int lists",
+    )
     available: bool = Field(True, description="Whether chunk is available")
 
     # Optional fields that may be present in search results
@@ -262,6 +242,64 @@ class Chunk(BaseModel):
     term_similarity: float | None = Field(
         None, description="Term similarity if from search"
     )
+
+
+class ChunkResponse(Chunk):
+    """
+    Chunk model for retrieval and completion API responses.
+
+    Extends base Chunk with API field aliases and retrieval-specific fields.
+    Used for:
+    - /api/v1/retrieval endpoint responses
+    - Completion reference chunks
+    """
+
+    # Override with field aliases for RAGFlow API compatibility
+    document_name: str = Field(
+        ...,
+        alias="document_keyword",
+        description="Document name (API returns as 'document_keyword')"
+    )
+    dataset_id: str = Field(
+        ...,
+        alias="kb_id",
+        description="Dataset ID (API returns as 'kb_id')"
+    )
+
+    # Override important_keywords to list type
+    important_keywords: list[str] = Field(
+        default_factory=list,
+        description="Important keywords extracted"
+    )
+
+    # Additional fields for retrieval responses
+    content_ltks: str | None = Field(
+        None,
+        description="Content with lowercase tokens"
+    )
+    highlight: str | None = Field(
+        None,
+        description="Highlighted content with matched terms"
+    )
+
+    # URL field from ReferenceChunk
+    url: str | None = Field(
+        None,
+        description="URL if applicable"
+    )
+
+    # doc_type field from ReferenceChunk
+    doc_type: str | list[str] = Field(
+        default="",
+        description="Document type(s) - can be string or list"
+    )
+
+    model_config = {"populate_by_name": True}
+
+
+# Type alias for backward compatibility
+# ReferenceChunk is now an alias to ChunkResponse
+ReferenceChunk = ChunkResponse
 
 
 class DocumentInfo(BaseModel):
