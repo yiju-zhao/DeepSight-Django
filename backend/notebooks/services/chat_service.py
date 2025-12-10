@@ -905,13 +905,30 @@ class ChatService(NotebookBaseService):
                 from langchain_core.messages import HumanMessage, AIMessage
 
                 retrieval_service = RetrievalService(self.ragflow_service)
+
+                # Get dataset_ids from notebook
+                # Each notebook has a ragflow_dataset_id stored in the database
+                dataset_ids = []
+                if notebook.ragflow_dataset_id:
+                    dataset_ids = [notebook.ragflow_dataset_id]
+                else:
+                    logger.warning(
+                        f"[{trace_id}] Notebook {notebook.id} has no ragflow_dataset_id configured. "
+                        f"Agent will not be able to retrieve information."
+                    )
+
                 config = RAGAgentConfig(
                     model_name=model_name,
                     api_key=api_key,
                     retrieval_service=retrieval_service,
-                    dataset_ids=chat.dataset_ids,
+                    dataset_ids=dataset_ids,
                     max_iterations=5,
                     temperature=0.3,
+                )
+
+                logger.info(
+                    f"[{trace_id}] RAG Agent Config: model={model_name}, "
+                    f"dataset_ids={dataset_ids}, max_iterations=5"
                 )
 
                 agent = create_rag_agent(config)

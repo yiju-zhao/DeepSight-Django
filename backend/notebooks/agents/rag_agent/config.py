@@ -52,3 +52,13 @@ class RAGAgentConfig:
 
         if self.top_k < 1:
             raise ValueError("top_k must be at least 1")
+
+        # Warn if retrieval service is provided but no datasets configured
+        if self.retrieval_service is not None and not self.dataset_ids:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                "RAGAgentConfig: retrieval_service is configured but dataset_ids is empty. "
+                "The agent will not be able to retrieve information from the knowledge base."
+            )

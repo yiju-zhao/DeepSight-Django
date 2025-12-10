@@ -70,11 +70,22 @@ def _retrieve_knowledge_impl(
     """
     if not retrieval_service:
         logger.error("retrieve_knowledge called without retrieval_service")
-        return "Error: Retrieval service not configured."
+        return (
+            "⚠️ Configuration Error: Retrieval service is not configured.\n\n"
+            "This is a system configuration issue that cannot be fixed by retrying or rephrasing your query. "
+            "Please inform the user that the knowledge base connection is not properly configured."
+        )
 
     if not dataset_ids:
         logger.error("retrieve_knowledge called without dataset_ids")
-        return "Error: No datasets configured for search."
+        return (
+            "⚠️ Configuration Error: No datasets are configured for this knowledge base.\n\n"
+            "This means I cannot access any documents to answer your question. "
+            "This is a configuration issue, not a problem with your query.\n\n"
+            "Please inform the user that dataset_ids need to be configured in the RAG agent settings. "
+            "Until this is fixed, I can only provide answers based on my general training data, "
+            "which may not be specific to your context."
+        )
 
     try:
         logger.info(f"Retrieving knowledge: query='{query[:100]}...', top_k={top_k}")
