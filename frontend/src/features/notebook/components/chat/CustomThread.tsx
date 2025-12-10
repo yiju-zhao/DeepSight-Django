@@ -21,6 +21,10 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
 
+// Import Studio Mode components
+import StudioModeToggle from './StudioModeToggle';
+import { useNotebookSettings } from '@/features/notebook/contexts/NotebookSettingsContext';
+
 // Normalizer to convert backend-specific LaTeX formats to standard Markdown LaTeX
 // This follows a "First Principles" approach by respecting Markdown structure (code blocks)
 // before applying text transformations.
@@ -228,12 +232,15 @@ const CustomMessage: React.FC = () => {
   );
 };
 
-// Custom Composer Component
+// Custom Composer Component with Studio Mode Toggle
 const CustomComposer: React.FC = () => {
   const composerRuntime = useComposerRuntime();
   const [inputValue, setInputValue] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  // Get studio mode state from context
+  const { studioMode, toggleStudioMode } = useNotebookSettings();
 
   // Auto-resize textarea
   React.useEffect(() => {
@@ -269,6 +276,13 @@ const CustomComposer: React.FC = () => {
     <div className="flex-shrink-0 px-6 py-4 bg-white border-t border-[#F7F7F7]">
       <div className="bg-[#F7F7F7] rounded-[24px] focus-within:ring-1 focus-within:ring-[#E5E5E5] transition-all duration-200">
         <div className="flex items-end space-x-3 px-4 py-3">
+          {/* Studio Mode Toggle - bottom left (like ChatGPT search) */}
+          <StudioModeToggle
+            isActive={studioMode}
+            onToggle={toggleStudioMode}
+            disabled={isSending}
+          />
+
           <div className="flex-1 min-h-[24px] flex items-center">
             <Textarea
               ref={textareaRef}
@@ -278,7 +292,10 @@ const CustomComposer: React.FC = () => {
                 composerRuntime.setText(e.target.value);
               }}
               onKeyDown={handleKeyPress}
-              placeholder="Type your message..."
+              placeholder={studioMode
+                ? "Describe your research goal... (Studio Mode)"
+                : "Type your message..."
+              }
               className="border-0 resize-none shadow-none focus-visible:ring-0 p-0 max-h-[120px] min-h-[24px] scrollbar-thin scrollbar-thumb-gray-300 bg-transparent text-[14px] placeholder:text-[#999999]"
               disabled={isSending}
             />
@@ -297,6 +314,14 @@ const CustomComposer: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* Studio Mode indicator */}
+      {studioMode && (
+        <div className="mt-2 px-1 text-[11px] text-[#CE0E2D] flex items-center gap-1">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#CE0E2D] animate-pulse" />
+          Studio Mode: Messages will use AI agents for research & reports
+        </div>
+      )}
     </div>
   );
 };
@@ -314,3 +339,4 @@ export const CustomThread: React.FC = () => {
 };
 
 export default CustomThread;
+

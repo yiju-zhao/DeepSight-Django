@@ -23,11 +23,27 @@ export interface PodcastConfig {
     [key: string]: any;
 }
 
+// Studio Mode Configuration
+export interface StudioConfig {
+    style: 'academic' | 'casual' | 'technical' | 'business';
+    skip_clarification: boolean;
+    max_research_iterations?: number;
+    timeout?: number;
+}
+
 interface NotebookSettingsContextType {
+    // Existing configs
     reportConfig: ReportConfig;
     podcastConfig: PodcastConfig;
     updateReportConfig: (updates: Partial<ReportConfig>) => void;
     updatePodcastConfig: (updates: Partial<PodcastConfig>) => void;
+
+    // Studio Mode
+    studioMode: boolean;
+    setStudioMode: (enabled: boolean) => void;
+    toggleStudioMode: () => void;
+    studioConfig: StudioConfig;
+    updateStudioConfig: (updates: Partial<StudioConfig>) => void;
 }
 
 export const DEFAULT_REPORT_CONFIG: ReportConfig = {
@@ -50,12 +66,22 @@ export const DEFAULT_PODCAST_CONFIG: PodcastConfig = {
     model: 'gpt-4'
 };
 
+export const DEFAULT_STUDIO_CONFIG: StudioConfig = {
+    style: 'academic',
+    skip_clarification: false,
+    max_research_iterations: 10,
+    timeout: 600,
+};
+
 const NotebookSettingsContext = createContext<NotebookSettingsContextType | undefined>(undefined);
 
 export const NotebookSettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [reportConfig, setReportConfig] = useState<ReportConfig>(DEFAULT_REPORT_CONFIG);
-
     const [podcastConfig, setPodcastConfig] = useState<PodcastConfig>(DEFAULT_PODCAST_CONFIG);
+
+    // Studio Mode state
+    const [studioMode, setStudioMode] = useState<boolean>(false);
+    const [studioConfig, setStudioConfig] = useState<StudioConfig>(DEFAULT_STUDIO_CONFIG);
 
     const updateReportConfig = useCallback((updates: Partial<ReportConfig>) => {
         setReportConfig(prev => ({ ...prev, ...updates }));
@@ -65,13 +91,26 @@ export const NotebookSettingsProvider: React.FC<{ children: ReactNode }> = ({ ch
         setPodcastConfig(prev => ({ ...prev, ...updates }));
     }, []);
 
+    const toggleStudioMode = useCallback(() => {
+        setStudioMode(prev => !prev);
+    }, []);
+
+    const updateStudioConfig = useCallback((updates: Partial<StudioConfig>) => {
+        setStudioConfig(prev => ({ ...prev, ...updates }));
+    }, []);
+
     return (
         <NotebookSettingsContext.Provider
             value={{
                 reportConfig,
                 podcastConfig,
                 updateReportConfig,
-                updatePodcastConfig
+                updatePodcastConfig,
+                studioMode,
+                setStudioMode,
+                toggleStudioMode,
+                studioConfig,
+                updateStudioConfig,
             }}
         >
             {children}
@@ -86,3 +125,4 @@ export const useNotebookSettings = () => {
     }
     return context;
 };
+

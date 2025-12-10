@@ -22,6 +22,12 @@ from .views import (
     SessionChatViewSet,
 )
 
+# Import Coordinator views
+from .views.coordinator_views import (
+    CoordinatorViewSet,
+    StudioExecuteSSEView,
+)
+
 # App namespace
 app_name = "notebooks"
 
@@ -38,6 +44,11 @@ notebooks_router.register(
     r"knowledge", KnowledgeBaseViewSet, basename="notebook-knowledge"
 )
 notebooks_router.register(r"batches", BatchJobViewSet, basename="notebook-batches")
+
+# Coordinator/Studio router
+notebooks_router.register(
+    r"studio/tasks", CoordinatorViewSet, basename="notebook-studio-tasks"
+)
 
 urlpatterns = [
     # Main router URLs - /api/v1/notebooks/
@@ -60,4 +71,11 @@ urlpatterns = [
         ChatModelsView.as_view(),
         name="notebook-chat-models",
     ),
+    # Coordinator SSE execution endpoint
+    path(
+        "notebooks/<uuid:notebook_id>/studio/execute/",
+        StudioExecuteSSEView.as_view(),
+        name="notebook-studio-execute",
+    ),
 ]
+

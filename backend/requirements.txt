@@ -40,6 +40,7 @@ langchain-openai
 langchain_milvus
 langchain_text_splitters
 langchain-chroma
+langgraph
 chromadb
 duckduckgo_search
 
