@@ -183,7 +183,7 @@ def _retrieve_knowledge_impl(
                 result = retrieval_service.retrieve_chunks(
                     question=kw,
                     dataset_ids=dataset_ids,
-                    top_k=min(per_query_top_k, 30),
+                    top_k=min(per_query_top_k, 15),  # cap per-query
                 )
                 associated_ids = []
                 for chunk in result.chunks:
@@ -196,7 +196,7 @@ def _retrieve_knowledge_impl(
             # Single query path
             logger.info(f"Retrieving knowledge: query='{query[:100]}...', top_k={top_k}")
             result = retrieval_service.retrieve_chunks(
-                question=query, dataset_ids=dataset_ids, top_k=min(top_k, 30)
+                question=query, dataset_ids=dataset_ids, top_k=min(top_k, 15)
             )
             collected_chunks = result.chunks
             query_records.append(
@@ -206,41 +206,33 @@ def _retrieve_knowledge_impl(
         if not collected_chunks:
             return "No relevant information found in the knowledge base for this query."
 
-        # Sort by similarity descending before formatting
-        collected_chunks.sort(key=lambda c: c.similarity, reverse=True)
-
-        formatted_chunks = retrieval_service.format_chunks_for_agent(
-            collected_chunks, max_chunks=top_k
-        )
-
-        # Build QA-style mapping of query -> chunks
+        # Build QA-style mapping of query -> its own chunks (no global merge)
         qa_blocks = []
         for record in query_records:
-            if not record["chunk_ids"]:
-                qa_blocks.append(
-                    f"Query: {record['query']}\nNo chunks retrieved.\n"
-                )
+            kw = record["query"]
+            chunk_ids = record["chunk_ids"]
+            if not chunk_ids:
+                qa_blocks.append(f"Query: {kw}\nNo chunks retrieved.\n")
                 continue
 
-            qa_blocks.append(f"Query: {record['query']}\nChunks:")
-            for idx, chunk_id in enumerate(record["chunk_ids"], 1):
-                # Find chunk by id to show a short preview
-                chunk = next((c for c in collected_chunks if c.id == chunk_id), None)
-                if not chunk:
-                    continue
+            # Gather chunks for this query only, sorted and capped
+            query_chunks = [c for c in collected_chunks if c.id in chunk_ids]
+            query_chunks.sort(key=lambda c: c.similarity, reverse=True)
+            query_chunks = query_chunks[:15]
+
+            qa_blocks.append(f"Query: {kw}\nChunks (per-query cap 15):")
+            for idx, chunk in enumerate(query_chunks, 1):
                 qa_blocks.append(
                     f"- [{idx}] {chunk.document_name} (similarity: {chunk.similarity:.2f})\n"
-                    f"  Preview: {chunk.content[:200]}..."
+                    f"  Content: {chunk.content}"
                 )
             qa_blocks.append("")  # spacer
 
         qa_section = "\n".join(qa_blocks).strip()
 
         formatted = (
-            "### Retrieval QA Pairs\n"
-            f"{qa_section}\n\n"
-            "### Retrieved Passages\n"
-            f"{formatted_chunks}"
+            "### Retrieval QA Pairs (per-query)\n"
+            f"{qa_section}"
         )
 
         logger.info(
