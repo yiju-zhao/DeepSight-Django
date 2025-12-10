@@ -224,47 +224,55 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
 
 
 
-// Memoized markdown content component (same as StudioPanel)
+// Memoized markdown content component - Optimized for performance
 interface MarkdownContentProps {
   content: string;
   notebookId?: string;
   fileId?: string;
 }
 
+// Content size limits for performance
+const MAX_CONTENT_LENGTH = 50000; // 50KB - truncate beyond this
+
+// Static plugin configurations - created once, reused forever
+const REMARK_PLUGINS = [remarkGfm, remarkMath] as const;
+const REHYPE_KATEX_CONFIG = {
+  strict: false,
+  throwOnError: false,
+  errorColor: '#CE0E2D',
+  trust: true,
+  macros: {
+    '\\abs': '\\left|#1\\right|',
+    '\\pmb': '\\boldsymbol{#1}',
+    '\\hdots': '\\cdots',
+    '\\RR': '\\mathbb{R}',
+    '\\NN': '\\mathbb{N}',
+    '\\CC': '\\mathbb{C}',
+    '\\ZZ': '\\mathbb{Z}',
+    '\\QQ': '\\mathbb{Q}',
+  }
+} as const;
 
 // Normalizer to convert backend-specific LaTeX formats to standard Markdown LaTeX
-// This follows a "First Principles" approach by respecting Markdown structure (code blocks)
-// before applying text transformations.
 const normalizeMarkdown = (text: string): string => {
-  // 1. Split text by code blocks to protect them from processing
-  // Capturing group (...) keeps the separators in the result array
+  if (!text) return '';
+
+  // For very large content, skip expensive regex operations
+  if (text.length > MAX_CONTENT_LENGTH) {
+    return text.substring(0, MAX_CONTENT_LENGTH);
+  }
+
   const parts = text.split(/(```[\s\S]*?```|`[^`\n]+`)/g);
 
   return parts.map((part) => {
-    // Check if this part is a code block (starts with `)
-    if (part.startsWith('`')) {
-      return part;
-    }
+    if (part.startsWith('`')) return part;
 
-    // Process non-code text
     let processed = part;
-
-    // 1. Convert \[ ... \] to $$ ... $$ (display math)
-    processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (match, content) => `$$${content}$$`);
-
-    // 2. Convert \( ... \) to $ ... $ (inline math)
-    processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, (match, content) => `$${content}$`);
-
-    // 3. Convert standalone [ ... ] to $$ ... $$ (display math)
-    // Only match when [ is at the start of a line (ignoring whitespace)
-    // and ] is at the end of a line
+    processed = processed.replace(/\\\[([\s\S]*?)\\\]/g, (_, content) => `$$${content}$$`);
+    processed = processed.replace(/\\\(([\s\S]*?)\\\)/g, (_, content) => `$${content}$`);
     processed = processed.replace(/^\s*\[\s*([\s\S]*?)\s*\]\s*$/gm, (match, content) => {
-      // Skip if it looks like a citation: [ID:x] or [number]
       const trimmed = content.trim();
-      if (/^ID:\d+$/.test(trimmed) || /^\d+$/.test(trimmed)) {
-        return match;
-      }
-      // Convert to display math
+      if (/^ID:\d+$/.test(trimmed) || /^\d+$/.test(trimmed)) return match;
       return `$$${content}$$`;
     });
 
@@ -272,87 +280,100 @@ const normalizeMarkdown = (text: string): string => {
   }).join('');
 };
 
-const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
-  // Normalize markdown content first
-  const normalizedContent = React.useMemo(() => normalizeMarkdown(content), [content]);
+// Sanitize content - remove non-standard HTML tags
+const sanitizeContent = (text: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/<\/?think(?:\s*\/)?>/gi, '')
+    .replace(/<\/?result(?:\s*\/)?>/gi, '')
+    .replace(/<\/?results(?:\s*\/)?>/gi, '')
+    .replace(/<\/?answer(?:\s*\/)?>/gi, '')
+    .replace(/<\/?information(?:\s*\/)?>/gi, '');
+};
 
-  // Remove non-standard HTML tags (think, result, results, answer, information) that cause React warnings
-  const sanitizedContent = React.useMemo(() => {
-    return normalizedContent
-      // Remove <think> tags
-      .replace(/<think>/gi, '')
-      .replace(/<\/think>/gi, '')
-      .replace(/<think\s*\/>/gi, '')
-      // Remove <result> tags
-      .replace(/<result>/gi, '')
-      .replace(/<\/result>/gi, '')
-      .replace(/<result\s*\/>/gi, '')
-      // Remove <results> tags
-      .replace(/<results>/gi, '')
-      .replace(/<\/results>/gi, '')
-      .replace(/<results\s*\/>/gi, '')
-      // Remove <answer> tags
-      .replace(/<answer>/gi, '')
-      .replace(/<\/answer>/gi, '')
-      .replace(/<answer\s*\/>/gi, '')
-      // Remove <information> tags
-      .replace(/<information>/gi, '')
-      .replace(/<\/information>/gi, '')
-      .replace(/<information\s*\/>/gi, '');
-  }, [normalizedContent]); // Fixed dependency: use normalizedContent instead of content
+// Static components object - created once
+const markdownComponents = {
+  h1: ({ children }: any) => <h1 className="text-[28px] font-bold text-[#1E1E1E] mb-6 pb-3 border-b border-[#E3E3E3]">{children}</h1>,
+  h2: ({ children }: any) => <h2 className="text-[24px] font-bold text-[#1E1E1E] mt-8 mb-4">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="text-[20px] font-semibold text-[#1E1E1E] mt-6 mb-3">{children}</h3>,
+  p: ({ children }: any) => <p className="text-[16px] text-[#1E1E1E] leading-[1.6] mb-4">{children}</p>,
+  ul: ({ children }: any) => <ul className="list-disc pl-6 mb-4 space-y-2 text-[#1E1E1E]">{children}</ul>,
+  ol: ({ children }: any) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-[#1E1E1E]">{children}</ol>,
+  li: ({ children }: any) => <li className="text-[#1E1E1E]">{children}</li>,
+  blockquote: ({ children }: any) => <blockquote className="border-l-4 border-[#E3E3E3] pl-4 italic text-[#666666] my-4">{children}</blockquote>,
+  code: ({ children }: any) => <code className="bg-[#F5F5F5] px-1 py-0.5 rounded text-[14px] font-mono text-[#1E1E1E]">{children}</code>,
+  pre: ({ children }: any) => <pre className="bg-[#24272A] text-[#F5F5F5] p-4 rounded-lg overflow-x-auto my-4">{children}</pre>,
+  a: ({ href, children }: any) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#2788D9] hover:underline break-all">
+      {children}
+    </a>
+  ),
+};
+
+const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId, fileId }) => {
+  const [isReady, setIsReady] = React.useState(false);
+  const [isTruncated, setIsTruncated] = React.useState(false);
+
+  // Process content with useMemo
+  const processedContent = React.useMemo(() => {
+    const originalLength = content?.length || 0;
+    const normalized = normalizeMarkdown(content || '');
+    const sanitized = sanitizeContent(normalized);
+
+    if (originalLength > MAX_CONTENT_LENGTH) {
+      setIsTruncated(true);
+      return sanitized;
+    }
+    return sanitized;
+  }, [content]);
+
+  // Defer rendering to avoid blocking UI
+  React.useEffect(() => {
+    // Use requestIdleCallback for non-critical rendering
+    const handle = requestAnimationFrame(() => {
+      setIsReady(true);
+    });
+    return () => cancelAnimationFrame(handle);
+  }, [processedContent]);
+
+  // Create dynamic components with image handling
+  const componentsWithImages = React.useMemo(() => ({
+    ...markdownComponents,
+    img: ({ src, alt, title }: any) => {
+      if (!src) return null;
+      return <AuthenticatedImage src={src} alt={alt} title={title} notebookId={notebookId} fileId={fileId} />;
+    },
+  }), [notebookId, fileId]);
+
+  // Show loading state for initial render
+  if (!isReady) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <Loader2 className="h-6 w-6 animate-spin text-[#666666] mx-auto mb-2" />
+          <p className="text-[#666666] text-sm">Loading content...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="prose prose-sm max-w-none prose-headings:text-[#1E1E1E] prose-p:text-[#1E1E1E] prose-strong:text-[#1E1E1E] prose-a:text-[#2788D9] prose-code:text-[#CE0E2D] prose-pre:bg-[#24272A]">
+      {isTruncated && (
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mb-4 rounded text-sm text-amber-800">
+          Content truncated for performance. Original size: {(content?.length / 1024).toFixed(1)}KB
+        </div>
+      )}
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={REMARK_PLUGINS as any}
         rehypePlugins={[
           rehypeHighlight,
           rehypeRaw,
-          [rehypeKatex, {
-            strict: false,
-            throwOnError: false,
-            errorColor: '#CE0E2D',
-            trust: true,
-            macros: {
-              '\\abs': '\\left|#1\\right|',
-              '\\pmb': '\\boldsymbol{#1}',
-              '\\hdots': '\\cdots',
-              '\\RR': '\\mathbb{R}',
-              '\\NN': '\\mathbb{N}',
-              '\\CC': '\\mathbb{C}',
-              '\\ZZ': '\\mathbb{Z}',
-              '\\QQ': '\\mathbb{Q}',
-            }
-          }]
+          [rehypeKatex, REHYPE_KATEX_CONFIG]
         ]}
-        components={{
-          h1: ({ children }) => <h1 className="text-[28px] font-bold text-[#1E1E1E] mb-6 pb-3 border-b border-[#E3E3E3]">{children}</h1>,
-          h2: ({ children }) => <h2 className="text-[24px] font-bold text-[#1E1E1E] mt-8 mb-4">{children}</h2>,
-          h3: ({ children }) => <h3 className="text-[20px] font-semibold text-[#1E1E1E] mt-6 mb-3">{children}</h3>,
-          p: ({ children }) => <p className="text-[16px] text-[#1E1E1E] leading-[1.6] mb-4">{children}</p>,
-          ul: ({ children }) => <ul className="list-disc pl-6 mb-4 space-y-2 text-[#1E1E1E]">{children}</ul>,
-          ol: ({ children }) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-[#1E1E1E]">{children}</ol>,
-          li: ({ children }) => <li className="text-[#1E1E1E]">{children}</li>,
-          blockquote: ({ children }) => <blockquote className="border-l-4 border-[#E3E3E3] pl-4 italic text-[#666666] my-4">{children}</blockquote>,
-          code: ({ children }) => <code className="bg-[#F5F5F5] px-1 py-0.5 rounded text-[14px] font-mono text-[#1E1E1E]">{children}</code>,
-          pre: ({ children }) => <pre className="bg-[#24272A] text-[#F5F5F5] p-4 rounded-lg overflow-x-auto my-4">{children}</pre>,
-          img: ({ src, alt, title, ...props }) => {
-            if (!src) return null;
-            return <AuthenticatedImage src={src} alt={alt} title={title} notebookId={notebookId} fileId={fileId} />;
-          },
-          a: ({ href, children }) => (
-            <a
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[#2788D9] hover:underline break-all"
-            >
-              {children}
-            </a>
-          ),
-        }}
+        components={componentsWithImages}
       >
-        {sanitizedContent}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );

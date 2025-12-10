@@ -47,6 +47,61 @@ class DecomposeQueryInput(BaseModel):
     )
 
 
+def _build_keyword_query(original_query: str, api_key: Optional[str]) -> str:
+    """
+    Turn a natural-language question into 5-10 short English keyword phrases.
+
+    We keep this lightweight and deterministic; if anything fails, return the original query.
+    """
+    if not api_key:
+        return original_query
+
+    try:
+        from langchain.chat_models import init_chat_model
+        import re
+
+        model = init_chat_model(
+            model="openai:gpt-4.1-mini",
+            api_key=api_key,
+            temperature=0.1,
+        )
+
+        prompt = """Convert the user question into 5-10 short English keyword phrases.
+Each phrase should be 2-5 words, focused, and comma-separated.
+Do not output sentences. Do not translate names. Keep only the keyword list."""
+
+        response = model.invoke(
+            f"{prompt}\n\nUser question: {original_query}\n\nKeywords:"
+        )
+
+        raw = response.content.strip()
+        # Extract keywords from common separators
+        tokens = re.split(r"[,\n;]+", raw)
+        keywords: list[str] = []
+        seen = set()
+        for token in tokens:
+            kw = token.strip(" -*\"'").strip()
+            if kw and kw.lower() not in seen:
+                keywords.append(kw)
+                seen.add(kw.lower())
+
+        if len(keywords) >= 3:
+            keyword_query = "; ".join(keywords[:10])
+            logger.info(
+                f"Keyword query: '{original_query[:60]}...' -> {len(keywords[:10])} keywords"
+            )
+            return keyword_query
+
+        logger.warning(
+            f"Keyword extraction produced too few items; using original query: '{original_query[:80]}...'"
+        )
+        return original_query
+
+    except Exception as e:
+        logger.warning(f"Keyword query generation failed: {e}")
+        return original_query
+
+
 def _retrieve_knowledge_impl(
     query: str,
     top_k: int,
