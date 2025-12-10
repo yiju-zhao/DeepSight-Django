@@ -117,12 +117,12 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
     </div>
   );
 
-  // Use effect to handle modal state
+  // Use effect to handle modal state - only open when showSettings becomes true
   useEffect(() => {
     if (showSettings) {
       onOpenModal('gallerySettings', createSettingsContent());
     }
-  }, [showSettings, extractInterval, minWords]); // Re-create when state changes
+  }, [showSettings]); // Only depend on showSettings to prevent infinite loops
 
   // Attempt to load gallery images when extraction completes or component mounts
   useEffect(() => {
@@ -196,9 +196,14 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
     const fetchBlobs = async () => {
       const needFetch = images.filter((img) => !img.blobUrl && !img.loading);
 
+      if (needFetch.length === 0) return; // Exit early if nothing to fetch
+
+      // Create a map to track updates
+      const updates = new Map<number, Pick<GalleryImage, 'blobUrl' | 'loading'>>();
+
       await Promise.all(
         needFetch.map(async (img) => {
-          img.loading = true;
+          const idx = images.indexOf(img);
           try {
             // Use pre-signed URL if available, otherwise fetch through API
             let imageUrl;
@@ -216,22 +221,33 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
             });
             if (res.ok) {
               const blob = await res.blob();
-              img.blobUrl = URL.createObjectURL(blob);
+              updates.set(idx, { blobUrl: URL.createObjectURL(blob), loading: false });
+            } else {
+              updates.set(idx, { loading: false });
             }
           } catch (e) {
             console.error('Image fetch failed', img.name, e);
-          } finally {
-            img.loading = false;
-            setImages((prev) => [...prev]); // trigger re-render
+            updates.set(idx, { loading: false });
           }
         })
       );
+
+      // Apply all updates in a single state update
+      if (updates.size > 0) {
+        setImages((prev) => {
+          const next = [...prev];
+          updates.forEach((update, idx) => {
+            next[idx] = { ...next[idx], ...update };
+          });
+          return next;
+        });
+      }
     };
 
-    if (images.length) {
+    if (images.length > 0) {
       fetchBlobs();
     }
-  }, [images, API_BASE_URL, notebookId, videoFileId]);
+  }, [images.length, API_BASE_URL, notebookId, videoFileId]); // Only depend on images.length to prevent infinite loops
 
   const handleExtract = async () => {
     if (!videoFileId || !notebookId) return;
