@@ -195,7 +195,7 @@ class RetrievalService:
 
         return deduplicated
 
-    def _truncate_chunk_content(self, chunk: RetrievalChunk, max_length: int = 1000) -> str:
+    def _truncate_chunk_content(self, chunk: RetrievalChunk, max_length: int = 5000) -> str:
         """
         Truncate chunk content to maximum length.
 
