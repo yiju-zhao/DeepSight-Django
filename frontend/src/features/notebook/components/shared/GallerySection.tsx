@@ -191,64 +191,98 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
     }
   };
 
-  // Fetch blobs lazily for visible images
+  // Optimized blob fetching with concurrency control
   useEffect(() => {
+    let isCancelled = false;
+
     const fetchBlobs = async () => {
       const needFetch = images.filter((img) => !img.blobUrl && !img.loading);
 
       if (needFetch.length === 0) return; // Exit early if nothing to fetch
 
-      // Create a map to track updates
-      const updates = new Map<number, Pick<GalleryImage, 'blobUrl' | 'loading'>>();
+      // Limit concurrent requests to prevent browser freeze
+      const CONCURRENT_LIMIT = 3;
+      const batches: GalleryImage[][] = [];
 
-      await Promise.all(
-        needFetch.map(async (img) => {
-          const idx = images.indexOf(img);
-          try {
-            // Use pre-signed URL if available, otherwise fetch through API
-            let imageUrl;
-            if (img.imageUrl) {
-              imageUrl = img.imageUrl;
-            } else {
-              // Fallback to original API endpoint for direct file serving
-              const cacheBuster = Date.now();
-              imageUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${videoFileId}/images/${img.name}?t=${cacheBuster}`;
+      // Split into batches
+      for (let i = 0; i < needFetch.length; i += CONCURRENT_LIMIT) {
+        batches.push(needFetch.slice(i, i + CONCURRENT_LIMIT));
+      }
+
+      // Process batches sequentially, but items within each batch concurrently
+      for (const batch of batches) {
+        if (isCancelled) break;
+
+        // Create a map to track updates for this batch
+        const updates = new Map<number, Pick<GalleryImage, 'blobUrl' | 'loading'>>();
+
+        // Create index map for fast lookup
+        const indexMap = new Map<GalleryImage, number>();
+        images.forEach((img, idx) => indexMap.set(img, idx));
+
+        await Promise.all(
+          batch.map(async (img) => {
+            const idx = indexMap.get(img);
+            if (idx === undefined) return;
+
+            try {
+              // Use pre-signed URL if available, otherwise fetch through API
+              let imageUrl;
+              if (img.imageUrl) {
+                imageUrl = img.imageUrl;
+              } else {
+                // Fallback to original API endpoint for direct file serving
+                const cacheBuster = Date.now();
+                imageUrl = `${API_BASE_URL}/notebooks/${notebookId}/files/${videoFileId}/images/${img.name}?t=${cacheBuster}`;
+              }
+
+              const res = await fetch(imageUrl, {
+                credentials: 'include',
+                cache: 'no-cache'
+              });
+
+              if (!isCancelled && res.ok) {
+                const blob = await res.blob();
+                updates.set(idx, { blobUrl: URL.createObjectURL(blob), loading: false });
+              } else if (!isCancelled) {
+                updates.set(idx, { loading: false });
+              }
+            } catch (e) {
+              if (!isCancelled) {
+                console.error('Image fetch failed', img.name, e);
+                updates.set(idx, { loading: false });
+              }
             }
+          })
+        );
 
-            const res = await fetch(imageUrl, {
-              credentials: 'include',
-              cache: 'no-cache'
+        // Apply batch updates in a single state update
+        if (!isCancelled && updates.size > 0) {
+          setImages((prev) => {
+            const next = [...prev];
+            updates.forEach((update, idx) => {
+              if (next[idx]) {
+                Object.assign(next[idx], update);
+              }
             });
-            if (res.ok) {
-              const blob = await res.blob();
-              updates.set(idx, { blobUrl: URL.createObjectURL(blob), loading: false });
-            } else {
-              updates.set(idx, { loading: false });
-            }
-          } catch (e) {
-            console.error('Image fetch failed', img.name, e);
-            updates.set(idx, { loading: false });
-          }
-        })
-      );
-
-      // Apply all updates in a single state update
-      if (updates.size > 0) {
-        setImages((prev) => {
-          const next = [...prev];
-          updates.forEach((update, idx) => {
-            if (next[idx]) {
-              Object.assign(next[idx], update);
-            }
+            return next;
           });
-          return next;
-        });
+        }
+
+        // Small delay between batches to prevent overwhelming the browser
+        if (!isCancelled && batches.indexOf(batch) < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
       }
     };
 
     if (images.length > 0) {
       fetchBlobs();
     }
+
+    return () => {
+      isCancelled = true;
+    };
   }, [images.length, API_BASE_URL, notebookId, videoFileId]); // Only depend on images.length to prevent infinite loops
 
   const handleExtract = async () => {

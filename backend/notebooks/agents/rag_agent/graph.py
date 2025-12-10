@@ -232,7 +232,8 @@ def create_rag_agent(config: RAGAgentConfig):
                     "Agent returned without tool calls on first iteration. "
                     "Forcing retrieve_knowledge tool invocation."
                 )
-                forced_tool_call_id = f"forced-retrieval-{uuid4().hex}"
+                # OpenAI tool_call ids must be <= 40 chars; keep short prefix
+                forced_tool_call_id = f"frc-{uuid4().hex[:12]}"
                 forced_tool_call = AIMessage(
                     content="",
                     tool_calls=[

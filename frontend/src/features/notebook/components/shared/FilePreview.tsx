@@ -299,7 +299,7 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
       .replace(/<information>/gi, '')
       .replace(/<\/information>/gi, '')
       .replace(/<information\s*\/>/gi, '');
-  }, [content]);
+  }, [normalizedContent]); // Fixed dependency: use normalizedContent instead of content
 
   return (
     <div className="prose prose-sm max-w-none prose-headings:text-[#1E1E1E] prose-p:text-[#1E1E1E] prose-strong:text-[#1E1E1E] prose-a:text-[#2788D9] prose-code:text-[#CE0E2D] prose-pre:bg-[#24272A]">
@@ -451,7 +451,10 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
   }, [isOpen, blobManager]);
 
   // Resolve markdown image paths like images/xxx.jpg to presigned URLs
+  // Only run when modal is open to avoid unnecessary work
   useEffect(() => {
+    if (!isOpen) return; // Skip if modal is closed
+
     const resolveImagesInContent = async () => {
       try {
         if (!preview?.content || !notebookId || !source?.file_id) return;
@@ -510,7 +513,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     };
 
     resolveImagesInContent();
-  }, [preview?.content, notebookId, source?.file_id]);
+  }, [isOpen, preview?.content, notebookId, source?.file_id]); // Added isOpen dependency
 
 
   // Build copyable markdown text based on current preview and resolved content
