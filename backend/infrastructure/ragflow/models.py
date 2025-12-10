@@ -4,6 +4,8 @@ RAGFlow Pydantic models for API responses and entities.
 Provides type-safe models for all RAGFlow API interactions.
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Any, Generic, TypeVar
 
