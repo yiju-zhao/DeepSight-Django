@@ -217,7 +217,45 @@ def create_rag_agent(config: RAGAgentConfig):
                 },
             )
         else:
-            # No tool calls - agent has decided to finish
+            # No tool calls - force at least one retrieval on first iteration
+            from uuid import uuid4
+            from langchain_core.messages import AIMessage, HumanMessage
+
+            last_user_message = next(
+                (m for m in reversed(messages) if isinstance(m, HumanMessage)), None
+            )
+            user_query = last_user_message.content if last_user_message else ""
+
+            # Only force retrieval when we have a user query and configured datasets
+            if iteration_count == 0 and user_query and config.dataset_ids:
+                logger.info(
+                    "Agent returned without tool calls on first iteration. "
+                    "Forcing retrieve_knowledge tool invocation."
+                )
+                forced_tool_call_id = f"forced-retrieval-{uuid4().hex}"
+                forced_tool_call = AIMessage(
+                    content="",
+                    tool_calls=[
+                        {
+                            "id": forced_tool_call_id,
+                            "name": "retrieve_knowledge_bound",
+                            "args": {"query": user_query, "top_k": config.top_k},
+                        }
+                    ],
+                )
+
+                # Route to tools node with forced call
+                return Command(
+                    goto="tools",
+                    update={
+                        "messages": [forced_tool_call],
+                        "iteration_count": iteration_count + 1,
+                        "retrieval_history": state.get("retrieval_history", [])
+                        + [user_query],
+                    },
+                )
+
+            # No tool calls and no forced retrieval path available
             logger.info("Agent finished without tool calls")
             return Command(
                 goto=END, update={"messages": [response], "should_finish": True}
