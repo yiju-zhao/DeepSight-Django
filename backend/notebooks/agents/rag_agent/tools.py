@@ -146,16 +146,16 @@ def _retrieve_knowledge_impl(
             "Please inform the user that the knowledge base connection is not properly configured."
         )
 
-    if not dataset_ids:
-        logger.error("retrieve_knowledge called without dataset_ids")
-        return (
-            "⚠️ Configuration Error: No datasets are configured for this knowledge base.\n\n"
-            "This means I cannot access any documents to answer your question. "
-            "This is a configuration issue, not a problem with your query.\n\n"
-            "Please inform the user that dataset_ids need to be configured in the RAG agent settings. "
-            "Until this is fixed, I can only provide answers based on my general training data, "
-            "which may not be specific to your context."
-        )
+        if not dataset_ids:
+            logger.error("retrieve_knowledge called without dataset_ids")
+            return (
+                "⚠️ Configuration Error: No datasets are configured for this knowledge base.\n\n"
+                "This means I cannot access any documents to answer your question. "
+                "This is a configuration issue, not a problem with your query.\n\n"
+                "Please inform the user that dataset_ids need to be configured in the RAG agent settings. "
+                "Until this is fixed, I can only provide answers based on my general training data, "
+                "which may not be specific to your context."
+            )
 
     try:
         # If the query already contains multiple keyword phrases, fan out and merge.
@@ -170,6 +170,7 @@ def _retrieve_knowledge_impl(
         keywords = list(dict.fromkeys(keywords))  # dedupe while preserving order
 
         collected_chunks = []
+        query_records = []  # track which query produced which chunks
 
         if len(keywords) > 1:
             per_query_top_k = max(1, min(top_k, max(2, top_k // len(keywords) + 1)))
@@ -184,10 +185,13 @@ def _retrieve_knowledge_impl(
                     dataset_ids=dataset_ids,
                     top_k=min(per_query_top_k, 30),
                 )
+                associated_ids = []
                 for chunk in result.chunks:
                     if chunk.id not in seen_ids:
                         seen_ids.add(chunk.id)
                         collected_chunks.append(chunk)
+                        associated_ids.append(chunk.id)
+                query_records.append({"query": kw, "chunk_ids": associated_ids})
         else:
             # Single query path
             logger.info(f"Retrieving knowledge: query='{query[:100]}...', top_k={top_k}")
@@ -195,6 +199,9 @@ def _retrieve_knowledge_impl(
                 question=query, dataset_ids=dataset_ids, top_k=min(top_k, 30)
             )
             collected_chunks = result.chunks
+            query_records.append(
+                {"query": query, "chunk_ids": [c.id for c in result.chunks]}
+            )
 
         if not collected_chunks:
             return "No relevant information found in the knowledge base for this query."
@@ -202,8 +209,38 @@ def _retrieve_knowledge_impl(
         # Sort by similarity descending before formatting
         collected_chunks.sort(key=lambda c: c.similarity, reverse=True)
 
-        formatted = retrieval_service.format_chunks_for_agent(
+        formatted_chunks = retrieval_service.format_chunks_for_agent(
             collected_chunks, max_chunks=top_k
+        )
+
+        # Build QA-style mapping of query -> chunks
+        qa_blocks = []
+        for record in query_records:
+            if not record["chunk_ids"]:
+                qa_blocks.append(
+                    f"Query: {record['query']}\nNo chunks retrieved.\n"
+                )
+                continue
+
+            qa_blocks.append(f"Query: {record['query']}\nChunks:")
+            for idx, chunk_id in enumerate(record["chunk_ids"], 1):
+                # Find chunk by id to show a short preview
+                chunk = next((c for c in collected_chunks if c.id == chunk_id), None)
+                if not chunk:
+                    continue
+                qa_blocks.append(
+                    f"- [{idx}] {chunk.document_name} (similarity: {chunk.similarity:.2f})\n"
+                    f"  Preview: {chunk.content[:200]}..."
+                )
+            qa_blocks.append("")  # spacer
+
+        qa_section = "\n".join(qa_blocks).strip()
+
+        formatted = (
+            "### Retrieval QA Pairs\n"
+            f"{qa_section}\n\n"
+            "### Retrieved Passages\n"
+            f"{formatted_chunks}"
         )
 
         logger.info(
