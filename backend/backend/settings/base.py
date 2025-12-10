@@ -312,12 +312,12 @@ LOTUS_CONFIG = {
     "timeout": int(os.getenv("LOTUS_TIMEOUT", "3600")),
     "max_publications": int(os.getenv("LOTUS_MAX_PUBLICATIONS", "10000")),
     # Cascade optimization settings
-    "use_cascade": os.getenv("LOTUS_USE_CASCADE", "true").lower() == "true",
-    "embedding_model": os.getenv("LOTUS_EMBEDDING_MODEL", "intfloat/e5-base-v2"),
-    "cascade_recall_target": float(os.getenv("LOTUS_CASCADE_RECALL", "0.9")),
-    "cascade_precision_target": float(os.getenv("LOTUS_CASCADE_PRECISION", "0.9")),
-    "cascade_failure_probability": float(os.getenv("LOTUS_CASCADE_FAILURE_PROB", "0.2")),
-    "cascade_sampling_percentage": float(os.getenv("LOTUS_CASCADE_SAMPLING", "0.5")),
+#     "use_cascade": os.getenv("LOTUS_USE_CASCADE", "true").lower() == "true",
+#     "embedding_model": os.getenv("LOTUS_EMBEDDING_MODEL", "intfloat/e5-base-v2"),
+#     "cascade_recall_target": float(os.getenv("LOTUS_CASCADE_RECALL", "0.9")),
+#     "cascade_precision_target": float(os.getenv("LOTUS_CASCADE_PRECISION", "0.9")),
+#     "cascade_failure_probability": float(os.getenv("LOTUS_CASCADE_FAILURE_PROB", "0.2")),
+#     "cascade_sampling_percentage": float(os.getenv("LOTUS_CASCADE_SAMPLING", "0.5")),
 }
 
 # ==============================================================================
@@ -331,7 +331,7 @@ CHROMA_CONFIG = {
 
     # Xinference Embedding (Primary)
     "use_xinference": os.getenv("CHROMA_USE_XINFERENCE", "true").lower() == "true",
-    "xinference_url": os.getenv("XINFERENCE_API_BASE", "http://localhost:9997"),
+    "xinference_url": os.getenv("XINFERENCE_URL", "http://localhost:9997"),
     "xinference_api_key": os.getenv("XINFERENCE_API_KEY", "dummy"),
     "embedding_model": os.getenv("CHROMA_EMBEDDING_MODEL"),  # Admin specifies (e.g., "bge-base-en-v1.5")
 
