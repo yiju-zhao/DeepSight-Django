@@ -1171,7 +1171,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
                   videoFileId={source.file_id || ''}
                   onOpenModal={openModal}
                   onCloseModal={closeModal}
-                  onImagesLoaded={React.useCallback((hasImages: boolean) => updateState({ hasGalleryImages: hasImages }), [])}
+                  onImagesLoaded={(hasImages) => updateState({ hasGalleryImages: hasImages })}
                 />
               </div>
             </div>

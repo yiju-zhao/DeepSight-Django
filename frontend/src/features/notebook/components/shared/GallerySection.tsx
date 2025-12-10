@@ -10,7 +10,6 @@ interface GalleryImage {
   blobUrl?: string;
   loading?: boolean;
   imageUrl?: string | null;
-  failed?: boolean;
 }
 
 interface ExtractResult {
@@ -194,32 +193,12 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
 
   // Fetch blobs lazily for visible images
   useEffect(() => {
-    let mounted = true;
-
     const fetchBlobs = async () => {
-      // Create a local copy to avoid dependency on 'images' state directly in the loop
-      // Only fetch if not already loaded, failed, or currently loading
-      const needFetchIndices = images.map((img, idx) =>
-        (!img.blobUrl && !img.loading && !img.failed) ? idx : -1
-      ).filter(idx => idx !== -1);
+      const needFetch = images.filter((img) => !img.blobUrl && !img.loading);
 
-      if (needFetchIndices.length === 0) return;
-
-      // Mark as loading immediately to prevent concurrent fetches
-      setImages(prev => {
-        const next = [...prev];
-        needFetchIndices.forEach(idx => {
-          if (next[idx]) next[idx].loading = true;
-        });
-        return next;
-      });
-
-      // Fetch in parallel
       await Promise.all(
-        needFetchIndices.map(async (idx) => {
-          const img = images[idx];
-          if (!img) return;
-
+        needFetch.map(async (img) => {
+          img.loading = true;
           try {
             // Use pre-signed URL if available, otherwise fetch through API
             let imageUrl;
@@ -235,36 +214,15 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
               credentials: 'include',
               cache: 'no-cache'
             });
-
             if (res.ok) {
               const blob = await res.blob();
-              const blobUrl = URL.createObjectURL(blob);
-
-              if (mounted) {
-                setImages(prev => {
-                  const next = [...prev];
-                  if (next[idx]) {
-                    next[idx].blobUrl = blobUrl;
-                    next[idx].loading = false;
-                  }
-                  return next;
-                });
-              }
-            } else {
-              throw new Error(`Status ${res.status}`);
+              img.blobUrl = URL.createObjectURL(blob);
             }
           } catch (e) {
             console.error('Image fetch failed', img.name, e);
-            if (mounted) {
-              setImages(prev => {
-                const next = [...prev];
-                if (next[idx]) {
-                  next[idx].failed = true; // Mark as failed so we don't retry locally
-                  next[idx].loading = false;
-                }
-                return next;
-              });
-            }
+          } finally {
+            img.loading = false;
+            setImages((prev) => [...prev]); // trigger re-render
           }
         })
       );
@@ -273,13 +231,7 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
     if (images.length) {
       fetchBlobs();
     }
-
-    return () => {
-      mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [images.length, API_BASE_URL, notebookId, videoFileId]); // Removed 'images' to prevent infinite loop, rely on index-based or length-based checks
-
+  }, [images, API_BASE_URL, notebookId, videoFileId]);
 
   const handleExtract = async () => {
     if (!videoFileId || !notebookId) return;
