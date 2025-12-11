@@ -990,7 +990,7 @@ class ChatService(NotebookBaseService):
 
                             final_state = node_state
 
-                    return final_state
+                    yield final_state
 
                 # Run the async agent in a new event loop
                 loop = asyncio.new_event_loop()
