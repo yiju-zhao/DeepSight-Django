@@ -35,6 +35,59 @@ class MetadataFilter(BaseModel):
     )
 
 
+class RetrievalRequest(BaseModel):
+    """
+    Request model for chunk retrieval API.
+
+    Defines parameters for semantic search across RAGFlow datasets/documents,
+    combining vector similarity with term matching for optimal retrieval.
+    """
+
+    question: str = Field(..., description="User query or search keywords")
+    dataset_ids: list[str] | None = Field(
+        default=None,
+        description="List of dataset IDs to search (requires this or document_ids)"
+    )
+    document_ids: list[str] | None = Field(
+        default=None,
+        description="List of document IDs to search (requires this or dataset_ids)"
+    )
+    page: int = Field(default=1, description="Page number for pagination")
+    page_size: int = Field(default=30, description="Number of results per page")
+    similarity_threshold: float = Field(
+        default=0.2,
+        description="Minimum similarity score to include"
+    )
+    vector_similarity_weight: float = Field(
+        default=0.3,
+        description="Weight for vector cosine similarity (term weight = 1 - this value)"
+    )
+    top_k: int = Field(
+        default=1024,
+        description="Number of chunks for vector computation"
+    )
+    rerank_id: str | None = Field(
+        default=None,
+        description="Optional rerank model ID for re-ranking results"
+    )
+    keyword: bool = Field(
+        default=False,
+        description="Enable keyword-based matching"
+    )
+    highlight: bool = Field(
+        default=False,
+        description="Enable highlighting of matched terms in results"
+    )
+    cross_languages: list[str] | None = Field(
+        default=None,
+        description="Languages for query translation and cross-lingual retrieval"
+    )
+    metadata_condition: MetadataFilter | None = Field(
+        default=None,
+        description="Optional metadata filters for chunk filtering"
+    )
+
+
 class RetrievalResponse(BaseModel):
     """
     Response model for chunk retrieval API.
