@@ -153,13 +153,13 @@ async def create_rag_agent(config: RAGAgentConfig):
 
     def grade_documents(
         state: RAGAgentState,
-    ) -> Literal["generate_answer", "rewrite_question", "generate_query_or_respond"]:
+    ) -> Literal["generate_answer", "rewrite_question", "generate_query_or_respond", "prepare_followup_query"]:
         """
         Determine whether the retrieved documents are relevant and complete for the question.
 
         Returns the name of the next node to route to:
         - "generate_answer" if documents are relevant
-        - "generate_query_or_respond" if relevant but more retrieval is needed
+        - "prepare_followup_query" if relevant but more retrieval is needed
         - "rewrite_question" if documents are not relevant
         """
         logger.info("[grade_documents] Grading retrieved documents")
@@ -205,7 +205,7 @@ async def create_rag_agent(config: RAGAgentConfig):
                 return "rewrite_question"
 
             if completeness == "needs_more":
-                return "generate_query_or_respond"
+                return "prepare_followup_query"
 
             return "generate_answer"
 
@@ -281,6 +281,31 @@ async def create_rag_agent(config: RAGAgentConfig):
         logger.info(f"[route_after_query] Routing to: {result}")
         return result
 
+    def prepare_followup_query(state: RAGAgentState) -> dict:
+        """
+        Add a hint message to steer the next retrieval toward missing context.
+        """
+        question = state.get("question", "")
+        messages = state["messages"]
+
+        # Use the latest tool content as the anchor for continuation
+        latest_context = ""
+        for msg in reversed(messages):
+            if hasattr(msg, "type") and msg.type == "tool":
+                latest_context = format_tool_content(msg.content).strip()
+                break
+
+        tail_snippet = latest_context[-500:] if latest_context else ""
+        hint = (
+            "Continue searching for additional relevant chunks. "
+            "Focus on content that follows this recent snippet: "
+            f"{tail_snippet}"
+        )
+
+        logger.info("[prepare_followup_query] Adding follow-up hint for retrieval")
+
+        return {"messages": [HumanMessage(content=hint)]}
+
     # ===== Build Graph =====
 
     workflow = StateGraph(RAGAgentState)
@@ -290,6 +315,7 @@ async def create_rag_agent(config: RAGAgentConfig):
     workflow.add_node("retrieve", ToolNode(retrieval_tools))
     workflow.add_node("rewrite_question", rewrite_question)
     workflow.add_node("generate_answer", generate_answer)
+    workflow.add_node("prepare_followup_query", prepare_followup_query)
 
     # Add edges
     workflow.add_edge(START, "generate_query_or_respond")
@@ -312,11 +338,14 @@ async def create_rag_agent(config: RAGAgentConfig):
             "generate_answer": "generate_answer",
             "rewrite_question": "rewrite_question",
             "generate_query_or_respond": "generate_query_or_respond",
+            "prepare_followup_query": "prepare_followup_query",
         },
     )
 
     # After rewrite, go back to generate query
     workflow.add_edge("rewrite_question", "generate_query_or_respond")
+    # After preparing follow-up, go back to generate query
+    workflow.add_edge("prepare_followup_query", "generate_query_or_respond")
 
     # After answer, end
     workflow.add_edge("generate_answer", END)
