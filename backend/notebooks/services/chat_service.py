@@ -625,6 +625,11 @@ class ChatService(NotebookBaseService):
 
                 logger.info(f"[{trace_id}] Starting agentic RAG: {question[:100]}")
 
+                # Initialize event loop for async operations
+                import asyncio
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
                 # Get model config from RagFlow chat (if available)
                 # Fall back to default model if chat assistant is not found
                 model_name = None
@@ -666,11 +671,18 @@ class ChatService(NotebookBaseService):
                         f"Agent will not be able to retrieve information."
                     )
 
+                # Configure MCP server URL from settings
+                mcp_server_url = getattr(
+                    settings,
+                    "RAGFLOW_MCP_URL",
+                    "http://localhost:9382/mcp/"
+                )
+
                 config = RAGAgentConfig(
                     model_name=model_name,
                     api_key=api_key,
-                    retrieval_service=self.ragflow_service,
                     dataset_ids=dataset_ids,
+                    mcp_server_url=mcp_server_url,
                     max_iterations=5,
                     # ReAct uses different temperatures for different phases
                     temperature=0.7,  # Reasoning phase
@@ -679,11 +691,12 @@ class ChatService(NotebookBaseService):
                 )
 
                 logger.info(
-                    f"[{trace_id}] ReAct RAG Agent Config: model={model_name}, "
-                    f"dataset_ids={dataset_ids}, max_iterations=5"
+                    f"[{trace_id}] RAG Agent Config: model={model_name}, "
+                    f"dataset_ids={dataset_ids}, mcp_url={mcp_server_url}, max_iterations=5"
                 )
 
-                agent = create_rag_agent(config)
+                # Create agent (async)
+                agent = loop.run_until_complete(create_rag_agent(config))
 
                 # Load conversation history (for context in first reasoning step)
                 past_messages = SessionChatMessage.objects.filter(session=session).order_by(
@@ -718,12 +731,6 @@ class ChatService(NotebookBaseService):
                     "question": question,
                     "retrieved_chunks": [],
                 }
-
-                # Run agent synchronously using event loop
-                import asyncio
-
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
 
                 accumulated_content = ""
                 final_state = None
