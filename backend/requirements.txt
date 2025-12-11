@@ -35,12 +35,14 @@ jieba
 # Search and Retrieval
 tavily-python
 rank_bm25
+langchain
 langchain_community
 langchain-openai
 langchain_milvus
 langchain_text_splitters
 langchain-chroma
 langgraph
+langchain-mcp-adapters  # MCP integration for LangChain
 chromadb
 duckduckgo_search
 

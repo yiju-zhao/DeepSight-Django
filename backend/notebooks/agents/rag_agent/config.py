@@ -48,10 +48,13 @@ class RAGAgentConfig:
     max_iterations: int = 5
 
     # Retrieval configuration (improved thresholds)
-    retrieval_service: Optional[object] = None
     dataset_ids: list[str] = field(default_factory=list)
+    document_ids: list[str] = field(default_factory=list)  # Optional specific document IDs
     similarity_threshold: float = 0.4  # Raised from 0.2 to filter weak matches
     top_k: int = 10  # Increased from 6 for larger candidate set
+
+    # MCP Server configuration
+    mcp_server_url: str = "http://localhost:9382/mcp/"  # RAGFlow MCP server URL
 
     # History truncation configuration (deprecated - kept for backward compat)
     # These fields are no longer used in the new LangGraph tool-based architecture
@@ -84,12 +87,12 @@ class RAGAgentConfig:
         if self.keep_last_n_steps < 0:
             raise ValueError("keep_last_n_steps must be non-negative")
 
-        # Warn if retrieval service is provided but no datasets configured
-        if self.retrieval_service is not None and not self.dataset_ids:
+        # Warn if no datasets configured
+        if not self.dataset_ids:
             import logging
 
             logger = logging.getLogger(__name__)
             logger.warning(
-                "RAGAgentConfig: retrieval_service is configured but dataset_ids is empty. "
+                "RAGAgentConfig: dataset_ids is empty. "
                 "The agent will not be able to retrieve information from the knowledge base."
             )

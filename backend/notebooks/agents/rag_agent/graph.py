@@ -1,10 +1,10 @@
 """
-LangGraph workflow for RAG agent.
+LangGraph workflow for RAG agent using MCP (Model Context Protocol).
 
-Implements agentic RAG pattern following LangGraph best practices:
+Implements agentic RAG pattern following LangGraph best practices with MCP integration:
 - Uses MessagesState for standard message handling
 - LLM decides when to use retrieval tool via bind_tools()
-- ToolNode handles automatic tool execution
+- ToolNode handles automatic tool execution from MCP server
 - tools_condition routes based on tool calls
 - Document grading filters irrelevant results
 - Question rewriting improves failed searches
@@ -35,7 +35,7 @@ from .prompts import (
     MAX_RETRIEVAL_ATTEMPTS,
 )
 from .states import RAGAgentState
-from .tools import create_retrieval_tool
+from .tools import create_mcp_retrieval_tools
 
 logger = logging.getLogger(__name__)
 
@@ -48,9 +48,9 @@ class GradeDocuments(BaseModel):
     )
 
 
-def create_rag_agent(config: RAGAgentConfig):
+async def create_rag_agent(config: RAGAgentConfig):
     """
-    Build and compile the RAG agent graph following LangGraph best practices.
+    Build and compile the RAG agent graph using MCP server following LangGraph best practices.
 
     The graph structure:
     ```
@@ -77,25 +77,27 @@ def create_rag_agent(config: RAGAgentConfig):
         >>> from notebooks.agents.rag_agent import create_rag_agent, RAGAgentConfig
         >>> config = RAGAgentConfig(
         ...     model_name="gpt-4o-mini",
-        ...     retrieval_service=ragflow_service,
-        ...     dataset_ids=["kb1"]
+        ...     dataset_ids=["kb1"],
+        ...     mcp_server_url="http://localhost:9382/mcp/"
         ... )
-        >>> agent = create_rag_agent(config)
+        >>> agent = await create_rag_agent(config)
         >>> result = await agent.ainvoke({
         ...     "messages": [HumanMessage(content="What is deep learning?")],
         ...     "question": "What is deep learning?",
         ...     "retrieved_chunks": [],
         ... })
     """
-    logger.info(f"Creating RAG agent with model: {config.model_name}")
+    logger.info(f"Creating RAG agent with MCP integration, model: {config.model_name}")
+    logger.info(f"MCP server URL: {config.mcp_server_url}")
 
-    # Create retrieval tool
-    retriever_tool = create_retrieval_tool(
-        ragflow_service=config.retrieval_service,
+    # Create MCP retrieval tools
+    retrieval_tools = await create_mcp_retrieval_tools(
         dataset_ids=config.dataset_ids,
-        similarity_threshold=config.similarity_threshold,
-        top_k=config.top_k,
+        mcp_server_url=config.mcp_server_url,
+        document_ids=getattr(config, "document_ids", None),
     )
+
+    logger.info(f"Retrieved {len(retrieval_tools)} tools from MCP server")
 
     # Initialize chat models
     response_model = init_chat_model(
@@ -132,7 +134,7 @@ def create_rag_agent(config: RAGAgentConfig):
         messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
 
         # Call LLM with tool binding
-        response = response_model.bind_tools([retriever_tool]).invoke(messages)
+        response = response_model.bind_tools(retrieval_tools).invoke(messages)
 
         logger.debug(f"[generate_query_or_respond] Response type: {type(response)}")
 
@@ -263,7 +265,7 @@ def create_rag_agent(config: RAGAgentConfig):
 
     # Add nodes
     workflow.add_node("generate_query_or_respond", generate_query_or_respond)
-    workflow.add_node("retrieve", ToolNode([retriever_tool]))
+    workflow.add_node("retrieve", ToolNode(retrieval_tools))
     workflow.add_node("rewrite_question", rewrite_question)
     workflow.add_node("generate_answer", generate_answer)
 
