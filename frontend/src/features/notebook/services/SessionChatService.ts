@@ -127,8 +127,8 @@ class SessionChatService {
    * Update session title
    */
   async updateSessionTitle(
-    notebookId: string, 
-    sessionId: string, 
+    notebookId: string,
+    sessionId: string,
     request: UpdateSessionTitleRequest
   ): Promise<UpdateSessionTitleResponse> {
     const response = await fetch(`${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/sessions/${sessionId}/`, {
@@ -225,46 +225,37 @@ class SessionChatService {
   }
 
   /**
-   * Get available chat models and current model for notebook chat.
+   * @deprecated This method is deprecated. Chat models are now configured in backend settings.
+   * The /chat/models/ API endpoint has been removed.
+   * 
+   * Previously: Get available chat models and current model for notebook chat.
    */
-  async getChatModels(notebookId: string): Promise<ChatModelsResponse> {
-    const response = await fetch(
-      `${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/models/`,
-      {
-        credentials: 'include',
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch chat models');
-    }
-
-    return response.json();
+  async getChatModels(_notebookId: string): Promise<ChatModelsResponse> {
+    console.warn('[DEPRECATED] getChatModels: Chat model configuration is now handled in backend settings.');
+    // Return a mock response to prevent breaking existing code
+    // TODO: Remove this method and all usages in future cleanup
+    return {
+      available_models: [],
+      default_model: null,
+      current_model: null,
+    };
   }
 
   /**
-   * Update chat model for notebook chat.
+   * @deprecated This method is deprecated. Chat models are now configured in backend settings.
+   * The /chat/models/ API endpoint has been removed.
+   * 
+   * Previously: Update chat model for notebook chat.
    */
-  async updateChatModel(notebookId: string, model: string): Promise<ChatModelsResponse> {
-    const response = await fetch(
-      `${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/models/`,
-      {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': this.getCookie('csrftoken') || '',
-        },
-        body: JSON.stringify({ model }),
-      }
-    );
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Failed to update chat model' }));
-      throw new Error(error.detail || error.error || `HTTP ${response.status}`);
-    }
-
-    return response.json();
+  async updateChatModel(_notebookId: string, _model: string): Promise<ChatModelsResponse> {
+    console.warn('[DEPRECATED] updateChatModel: Chat model configuration is now handled in backend settings.');
+    // Return a mock response to prevent breaking existing code
+    // TODO: Remove this method and all usages in future cleanup
+    return {
+      available_models: [],
+      default_model: null,
+      current_model: null,
+    };
   }
 
   /**
@@ -281,12 +272,12 @@ class SessionChatService {
 
     const processChunk = (chunk: string) => {
       const lines = chunk.split('\n');
-      
+
       for (const line of lines) {
         if (line.startsWith('data: ')) {
           try {
             const data = JSON.parse(line.slice(6));
-            
+
             switch (data.type) {
               case 'token':
                 onToken(data.text || '');
@@ -315,11 +306,11 @@ class SessionChatService {
           if (done) break;
 
           buffer += decoder.decode(value, { stream: true });
-          
+
           // Process complete chunks
           const chunks = buffer.split('\n\n');
           buffer = chunks.pop() || ''; // Keep incomplete chunk in buffer
-          
+
           for (const chunk of chunks) {
             if (chunk.trim()) {
               processChunk(chunk);
@@ -367,18 +358,18 @@ class SessionChatService {
    * Export session as different formats
    */
   async exportSession(
-    notebookId: string, 
-    sessionId: string, 
+    notebookId: string,
+    sessionId: string,
     format: 'json' | 'txt' | 'csv' = 'json'
   ): Promise<Blob> {
     const response = await fetch(`${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/sessions/${sessionId}/export/?format=${format}`, {
       credentials: 'include',
     });
-    
+
     if (!response.ok) {
       throw new Error('Failed to export session');
     }
-    
+
     return response.blob();
   }
 }
