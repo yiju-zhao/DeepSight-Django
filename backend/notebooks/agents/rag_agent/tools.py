@@ -43,6 +43,10 @@ async def create_mcp_retrieval_tools(
     logger.info(f"[create_mcp_retrieval_tools] Connecting to MCP server: {mcp_server_url}")
     logger.info(f"[create_mcp_retrieval_tools] Dataset IDs: {dataset_ids}")
 
+    # Normalize IDs to strings to avoid type surprises in MCP payloads
+    default_dataset_ids = [str(ds_id) for ds_id in dataset_ids]
+    default_document_ids = [str(doc_id) for doc_id in (document_ids or [])]
+
     # Configure MCP client for RAGFlow server
     client = MultiServerMCPClient(
         {
@@ -59,10 +63,52 @@ async def create_mcp_retrieval_tools(
         logger.info(f"[create_mcp_retrieval_tools] Retrieved {len(tools)} tools from MCP server")
 
         # Store metadata on tools for later use
+        def _apply_defaults_to_payload(payload: Any) -> dict[str, Any]:
+            """
+            Ensure payload always includes dataset/document IDs for notebook scoping.
+            """
+            if payload is None:
+                payload = {}
+            if not isinstance(payload, dict):
+                # If the model sends a bare question string, wrap it
+                payload = {"question": payload}
+
+            # Never mutate caller's dict
+            merged = dict(payload)
+            merged.setdefault("dataset_ids", default_dataset_ids)
+            if default_document_ids:
+                merged.setdefault("document_ids", default_document_ids)
+            return merged
+
         for tool in tools:
-            # Store default parameters that will be used during invocations
-            tool._default_dataset_ids = dataset_ids
-            tool._default_document_ids = document_ids or []
+            # Store default parameters for debugging/inspection
+            tool._default_dataset_ids = default_dataset_ids
+            tool._default_document_ids = default_document_ids
+
+            # Wrap invoke/ainvoke to inject defaults even if the LLM omits them
+            if hasattr(tool, "invoke"):
+                original_invoke = tool.invoke
+
+                def invoke_with_defaults(
+                    payload,
+                    _orig=original_invoke,
+                    _apply=_apply_defaults_to_payload,
+                ):
+                    return _orig(_apply(payload))
+
+                tool.invoke = invoke_with_defaults  # type: ignore[attr-defined]
+
+            if hasattr(tool, "ainvoke"):
+                original_ainvoke = tool.ainvoke
+
+                async def ainvoke_with_defaults(
+                    payload,
+                    _orig=original_ainvoke,
+                    _apply=_apply_defaults_to_payload,
+                ):
+                    return await _orig(_apply(payload))
+
+                tool.ainvoke = ainvoke_with_defaults  # type: ignore[attr-defined]
 
         return tools
 

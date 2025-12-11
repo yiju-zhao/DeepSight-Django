@@ -15,6 +15,7 @@ from django.db import transaction
 from infrastructure.ragflow.service import get_ragflow_service
 from infrastructure.ragflow.exceptions import RagFlowError
 from rest_framework import status
+from notebooks.agents.rag_agent.utils import format_tool_content
 
 from ..models import ChatSession, Notebook, SessionChatMessage
 
@@ -786,23 +787,35 @@ class ChatService(NotebookBaseService):
                     for msg in final_state["messages"]:
                         if hasattr(msg, "type") and msg.type == "tool":
                             # Parse [N] Document Name patterns from tool response
-                            content = str(msg.content)
-                            matches = re.findall(r"\\[(\\d+)\\] ([^\\n(]+)", content)
-                            for idx, doc_name in matches:
-                                doc_name = doc_name.strip()
-                                if doc_name not in seen_docs:
-                                    seen_docs.add(doc_name)
-                                    # Get preview from content
-                                    preview_match = content.find(f"[{idx}] {doc_name}")
-                                    if preview_match >= 0:
-                                        preview = content[preview_match:preview_match + 250]
+                            content = format_tool_content(msg.content)
+                            matches = re.findall(r"\\[(\\d+)\\]\\s+([^\\n(]+)", content)
+                            for match in matches:
+                                if isinstance(match, tuple):
+                                    if len(match) >= 2:
+                                        idx, doc_name = match[0], match[1]
                                     else:
-                                        preview = content[:200]
-                                    citations.append({
-                                        "index": len(citations) + 1,
-                                        "document_name": doc_name,
-                                        "preview": preview
-                                    })
+                                        idx, doc_name = None, match[0]
+                                else:
+                                    idx, doc_name = None, match
+
+                                doc_name = doc_name.strip()
+                                if not doc_name or doc_name in seen_docs:
+                                    continue
+
+                                seen_docs.add(doc_name)
+                                # Get preview from content
+                                anchor = f"[{idx}] {doc_name}" if idx else doc_name
+                                preview_match = content.find(anchor)
+                                if preview_match >= 0:
+                                    preview = content[preview_match:preview_match + 250]
+                                else:
+                                    preview = content[:200]
+
+                                citations.append({
+                                    "index": len(citations) + 1,
+                                    "document_name": doc_name,
+                                    "preview": preview
+                                })
 
                 # Update assistant message
                 if assistant_message:

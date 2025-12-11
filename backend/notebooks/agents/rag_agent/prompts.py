@@ -46,7 +46,7 @@ Begin by analyzing the user's question and deciding whether to search the knowle
 
 # ===== GRADE_DOCUMENTS_PROMPT =====
 # Used to evaluate if retrieved documents are relevant to the question
-GRADE_DOCUMENTS_PROMPT = """You are a grader assessing relevance of a retrieved document to a user question.
+GRADE_DOCUMENTS_PROMPT = """You are a grader assessing retrieval results for a QA task.
 
 Here is the retrieved document:
 {context}
@@ -54,11 +54,11 @@ Here is the retrieved document:
 Here is the user question:
 {question}
 
-**Grading Criteria:**
-- If the document contains keywords or semantic meaning related to the question: grade as relevant
-- If the document discusses a different topic despite shared keywords: grade as not relevant
+Decide two things:
+1) relevance: 'yes' if the document helps answer the question, otherwise 'no'.
+2) completeness: 'complete' if the provided document(s) likely contain enough information to answer the question fully; 'needs_more' if important details might exist elsewhere or coverage appears partial (e.g., truncated sections, missing steps, references to other parts).
 
-Give a binary score 'yes' or 'no' to indicate whether the document is relevant to the question."""
+Return both fields."""
 
 
 # ===== REWRITE_QUESTION_PROMPT =====

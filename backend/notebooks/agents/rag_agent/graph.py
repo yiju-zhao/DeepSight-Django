@@ -42,10 +42,13 @@ logger = logging.getLogger(__name__)
 
 
 class GradeDocuments(BaseModel):
-    """Binary score for document relevance check."""
+    """Assess both relevance and completeness of retrieved documents."""
 
-    binary_score: str = Field(
+    relevance: str = Field(
         description="Relevance score: 'yes' if relevant, or 'no' if not relevant"
+    )
+    completeness: str = Field(
+        description="Coverage score: 'complete' if enough to answer, or 'needs_more' if more retrieval is needed"
     )
 
 
@@ -150,12 +153,13 @@ async def create_rag_agent(config: RAGAgentConfig):
 
     def grade_documents(
         state: RAGAgentState,
-    ) -> Literal["generate_answer", "rewrite_question"]:
+    ) -> Literal["generate_answer", "rewrite_question", "generate_query_or_respond"]:
         """
-        Determine whether the retrieved documents are relevant to the question.
+        Determine whether the retrieved documents are relevant and complete for the question.
 
         Returns the name of the next node to route to:
         - "generate_answer" if documents are relevant
+        - "generate_query_or_respond" if relevant but more retrieval is needed
         - "rewrite_question" if documents are not relevant
         """
         logger.info("[grade_documents] Grading retrieved documents")
@@ -180,14 +184,30 @@ async def create_rag_agent(config: RAGAgentConfig):
         try:
             grader_with_output = grader_model.with_structured_output(GradeDocuments)
             result = grader_with_output.invoke([{"role": "user", "content": prompt}])
-            score = result.binary_score.lower()
+            relevance = result.relevance.lower()
+            completeness = result.completeness.lower()
 
-            logger.info(f"[grade_documents] Relevance score: {score}")
+            logger.info(
+                f"[grade_documents] Relevance: {relevance}, Completeness: {completeness}"
+            )
 
-            if score == "yes":
+            # Avoid infinite loops: if we've already hit max attempts, proceed to answer
+            tool_call_count = sum(
+                1 for msg in messages if hasattr(msg, "type") and msg.type == "tool"
+            )
+            if tool_call_count >= MAX_RETRIEVAL_ATTEMPTS:
+                logger.info(
+                    "[grade_documents] Max retrieval attempts reached, proceeding to answer"
+                )
                 return "generate_answer"
-            else:
+
+            if relevance != "yes":
                 return "rewrite_question"
+
+            if completeness == "needs_more":
+                return "generate_query_or_respond"
+
+            return "generate_answer"
 
         except Exception as e:
             logger.warning(f"[grade_documents] Grading failed: {e}, defaulting to answer")
@@ -291,6 +311,7 @@ async def create_rag_agent(config: RAGAgentConfig):
         {
             "generate_answer": "generate_answer",
             "rewrite_question": "rewrite_question",
+            "generate_query_or_respond": "generate_query_or_respond",
         },
     )
 
