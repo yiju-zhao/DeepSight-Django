@@ -36,6 +36,7 @@ from .prompts import (
 )
 from .states import RAGAgentState
 from .tools import create_mcp_retrieval_tools
+from .utils import format_tool_content
 
 logger = logging.getLogger(__name__)
 
@@ -166,7 +167,7 @@ async def create_rag_agent(config: RAGAgentConfig):
         context = ""
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "tool":
-                context = msg.content
+                context = format_tool_content(msg.content).strip()
                 break
 
         if not context or context == "No relevant documents found.":
@@ -234,8 +235,9 @@ async def create_rag_agent(config: RAGAgentConfig):
         context_parts = []
         for msg in messages:
             if hasattr(msg, "type") and msg.type == "tool":
-                if msg.content and msg.content != "No relevant documents found.":
-                    context_parts.append(msg.content)
+                content = format_tool_content(msg.content).strip()
+                if content and content != "No relevant documents found.":
+                    context_parts.append(content)
 
         context = "\n\n".join(context_parts) if context_parts else "No context available."
 

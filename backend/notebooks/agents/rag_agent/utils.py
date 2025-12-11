@@ -300,3 +300,35 @@ def format_chunks(chunks: list[dict[str, Any]], max_content_length: int = 500) -
         formatted += f"Content: {content}\n\n"
 
     return formatted.strip()
+
+
+def format_tool_content(content: Any) -> str:
+    """
+    Normalize tool message content (which may be structured) into plain text.
+    """
+    if content is None:
+        return ""
+
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            formatted = format_tool_content(item)
+            if formatted:
+                parts.append(formatted)
+        return "\n".join(parts)
+
+    if isinstance(content, dict):
+        if isinstance(content.get("text"), str):
+            return content["text"]
+        if "content" in content:
+            return format_tool_content(content.get("content"))
+        if isinstance(content.get("data"), str):
+            return content["data"]
+
+    if hasattr(content, "text") and isinstance(getattr(content, "text"), str):
+        return getattr(content, "text")
+
+    return str(content)
