@@ -1,64 +1,45 @@
 """
 LangGraph state definitions for RAG agent.
 
-Defines the state structure that flows through the agent graph,
-supporting ReAct (Reasoning + Acting) pattern with iterative retrieval.
+Uses LangGraph's MessagesState pattern for compatibility with built-in
+tools_condition and ToolNode, while extending with additional fields
+needed for the RAG workflow.
 """
 
 from typing import Any
-from typing_extensions import TypedDict
+
+from langgraph.graph import MessagesState
 
 
-class RAGReActState(TypedDict):
+class RAGAgentState(MessagesState):
     """
-    State for the ReAct RAG agent workflow.
+    State for the RAG agent using LangGraph MessagesState pattern.
 
-    This state supports the ReAct pattern:
-    - REASON: Agent thinks and generates queries
-    - ACT: Execute retrieval based on queries
-    - EVALUATE: LLM assesses retrieval results and extracts relevant info
-    - OBSERVE: Add results to history and continue reasoning
+    Inherits from MessagesState which provides:
+    - messages: Annotated[list[BaseMessage], add_messages]
 
-    Flow through nodes:
-    reasoning → retrieval → evaluation → (continue reasoning OR synthesize answer)
+    The add_messages annotation means new messages are appended to the list
+    rather than replacing it.
+
+    Additional fields:
+    - question: Original user question (for reference in synthesis)
+    - retrieved_chunks: Accumulated chunks for citation extraction
+
+    Example:
+        >>> initial_state = {
+        ...     "messages": [HumanMessage(content="What is deep learning?")],
+        ...     "question": "What is deep learning?",
+        ...     "retrieved_chunks": [],
+        ... }
     """
 
-    # ===== Core Question =====
-    # Original user question
+    # Original user question for reference during synthesis
     question: str
 
-    # ===== ReAct Loop State =====
-    # Message history for LLM context (role + content dicts)
-    # Format: [{"role": "user"/"assistant", "content": "..."}]
-    message_history: list[dict[str, str]]
-
-    # All reasoning steps (includes queries and search results)
-    # Used for history truncation and context management
-    reasoning_steps: list[str]
-
-    # Current iteration number (0-indexed)
-    iteration: int
-
-    # ===== Query Management =====
-    # All executed queries (for deduplication)
-    executed_queries: list[str]
-
-    # Current reasoning output from reasoning_node
-    current_reasoning: str
-
-    # Current queries extracted from reasoning
-    current_queries: list[str]
-
-    # ===== Retrieval Results =====
-    # Current batch of retrieved chunks
-    current_retrieved: list[dict[str, Any]]
-
-    # All accumulated chunks (for final citations)
+    # Accumulated retrieved chunks for citation extraction after answer generation
+    # Format: [{"chunk_id": ..., "doc_name": ..., "content": ..., "similarity": ...}]
     retrieved_chunks: list[dict[str, Any]]
 
-    # ===== Final Output =====
-    # Final synthesized answer
-    final_answer: str
 
-    # Control flag (for conditional edges)
-    should_continue: bool
+# Type alias for backward compatibility
+RAGReActState = RAGAgentState

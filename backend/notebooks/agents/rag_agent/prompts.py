@@ -1,155 +1,90 @@
 """
-System prompts for ReAct RAG agent.
+System prompts for RAG agent.
 
-Implements the ReAct (Reasoning + Acting) pattern with:
-- REASON_PROMPT: Agent reasoning and query generation
-- RELEVANT_EXTRACTION_PROMPT: Result evaluation and filtering
+Prompts for the LangGraph agentic RAG pattern:
+- System prompt guiding tool usage
+- Document grading prompt
+- Question rewriting prompt
+- Answer synthesis prompt
 """
 
-# ===== Special Markers =====
-BEGIN_SEARCH_QUERY = "<|begin_search_query|>"
-END_SEARCH_QUERY = "<|end_search_query|>"
-BEGIN_SEARCH_RESULT = "<|begin_search_result|>"
-END_SEARCH_RESULT = "<|end_search_result|>"
-MAX_ITERATIONS = 5
+# ===== Constants =====
+MAX_RETRIEVAL_ATTEMPTS = 5
 
 
-# ===== REASON_PROMPT =====
-REASON_PROMPT = f"""You are an advanced reasoning agent specialized in knowledge base question answering.
+# ===== SYSTEM_PROMPT =====
+# Used to guide the agent on how to answer questions using the retrieval tool
+SYSTEM_PROMPT = """You are an expert research assistant with access to a knowledge base.
 
-**Your Task:**
-1. Analyze the user's question step by step
-2. If you need specific information, issue a search query
-3. Review the search results carefully
-4. Repeat the search process if needed
-5. Once you have sufficient information, indicate readiness to answer
+**Your Goal:**
+Answer user questions accurately using information from the knowledge base.
 
-**Tool Usage:**
-- To search, write your query between: {BEGIN_SEARCH_QUERY}your query{END_SEARCH_QUERY}
-- System will return results between: {BEGIN_SEARCH_RESULT}results{END_SEARCH_RESULT}
-- Maximum {MAX_ITERATIONS} search attempts
+**How to Work:**
+1. When you receive a question, consider if you need to search the knowledge base
+2. Use the `retrieve_documents` tool to search for relevant information
+3. Analyze the retrieved documents carefully
+4. If the initial search doesn't provide enough information, try different search queries
+5. Once you have sufficient information, provide a comprehensive answer
 
 **Search Strategy:**
-- **Focused Queries**: Use 3-8 specific keywords separated by semicolons
-  Example: "深度学习;医疗影像;CNN;肺结节检测"
-- **Iterative Refinement**: If first search is insufficient, adjust query:
-  - Broaden: Remove constraints (e.g., "医疗影像诊断" → "医疗影像")
-  - Narrow: Add specifics (e.g., "深度学习" → "卷积神经网络;ResNet")
-  - Pivot: Try different angles (e.g., "应用" → "案例;效果评估")
+- Use specific keywords that match the question's main concepts
+- If initial search is insufficient, try:
+  - Different wording or synonyms
+  - Broader terms if too specific
+  - More specific terms if too broad
+- Maximum {max_attempts} search attempts
 
-**Example Multi-Hop Question:**
+**Answer Guidelines:**
+- Be accurate and cite sources when making claims
+- If information is incomplete or not found, say so
+- Use clear, structured formatting (markdown)
+- Preserve important details (numbers, names, technical terms)
 
-Question: "深度学习在医疗影像诊断中的应用效果如何？"
-
-**Step 1:**
-I need to understand what deep learning techniques are used in medical imaging.
-{BEGIN_SEARCH_QUERY}深度学习;医疗影像;卷积神经网络;诊断{END_SEARCH_QUERY}
-
-[System returns results]
-{BEGIN_SEARCH_RESULT}
-深度学习在医疗影像中主要使用 CNN 架构，如 ResNet、U-Net。
-应用领域包括：肺结节检测、乳腺癌筛查、视网膜病变诊断。
-{END_SEARCH_RESULT}
-
-**Step 2:**
-Good, I found the main techniques (CNN, ResNet, U-Net) and application areas.
-Now I need specific performance metrics for these applications.
-{BEGIN_SEARCH_QUERY}ResNet;肺结节检测;准确率;敏感性;特异性{END_SEARCH_QUERY}
-
-[System returns results]
-{BEGIN_SEARCH_RESULT}
-ResNet-50 在肺结节检测任务上达到 95.3% 准确率，敏感性 92.1%，特异性 97.5%。
-对比传统方法提升约 12%。
-{END_SEARCH_RESULT}
-
-**Step 3:**
-I now have concrete performance data. Let me check if there are any limitations or challenges mentioned.
-{BEGIN_SEARCH_QUERY}深度学习;医疗诊断;局限性;挑战;数据集{END_SEARCH_QUERY}
-
-[System returns results]
-{BEGIN_SEARCH_RESULT}
-主要挑战：需要大量标注数据、模型可解释性不足、泛化能力有限。
-{END_SEARCH_RESULT}
-
-I have gathered sufficient information covering:
-- Main techniques (CNN, ResNet, U-Net)
-- Specific performance metrics (95.3% accuracy, 12% improvement)
-- Limitations (data requirements, interpretability)
-
-Ready to provide comprehensive answer.
-
----
-
-**Important Rules:**
-- **One Query at a Time**: Issue focused queries to find specific facts
-- **Evaluate Results**: After each search, assess if information is relevant and sufficient
-- **Be Precise**: Use domain-specific terms and keywords
-- **Language Consistency**: Search queries should match the user's question language
-- **Indicate Completion**: When you have enough information, explicitly state "Ready to answer" or "Sufficient information gathered"
-
-Now, begin your work.
-"""
+Begin by analyzing the user's question and deciding whether to search the knowledge base.
+""".format(max_attempts=MAX_RETRIEVAL_ATTEMPTS)
 
 
-# ===== RELEVANT_EXTRACTION_PROMPT =====
-RELEVANT_EXTRACTION_PROMPT = """You are a highly efficient information extraction and relevance evaluation module.
+# ===== GRADE_DOCUMENTS_PROMPT =====
+# Used to evaluate if retrieved documents are relevant to the question
+GRADE_DOCUMENTS_PROMPT = """You are a grader assessing relevance of a retrieved document to a user question.
 
-**Your Task:**
-1. Read the `Current Search Query` to understand the specific information need
-2. Scan the `Retrieved Documents` for relevant content
-3. Extract ONLY strongly relevant information
-4. Filter out weakly related or irrelevant content
+Here is the retrieved document:
+{context}
 
-**Relevance Criteria:**
+Here is the user question:
+{question}
 
-**INCLUDE (Strong Relevance):**
-- Directly answers the search query
-- Contains key entities, concepts, or data mentioned in the query
-- Provides necessary context or explanations
+**Grading Criteria:**
+- If the document contains keywords or semantic meaning related to the question: grade as relevant
+- If the document discusses a different topic despite shared keywords: grade as not relevant
 
-**EXCLUDE (Weak/No Relevance):**
-- Only mentions query keywords but discusses different topic
-- Overly general background information
-- Mismatched homonyms or ambiguous terms
+Give a binary score 'yes' or 'no' to indicate whether the document is relevant to the question."""
 
-**Output Format:**
 
-If relevant information found:
-Final Information
-[Extracted facts, 2-4 sentences max]
+# ===== REWRITE_QUESTION_PROMPT =====
+# Used to improve a question when initial retrieval returns irrelevant results
+REWRITE_QUESTION_PROMPT = """Look at the input and try to reason about the underlying semantic intent / meaning.
 
-If no relevant information found:
-Final Information
-No helpful information found.
+Here is the initial question:
+{question}
 
----
+The previous search did not return relevant results. Please reformulate the question to:
+1. Use different keywords or phrasing
+2. Make the intent clearer
+3. Focus on the core information need
 
-**Context (For Reference Only):**
-Previous Reasoning Steps:
-{prev_reasoning}
-
-**Current Search Query:**
-{search_query}
-
-**Retrieved Documents:**
-{document}
-
----
-
-Now extract the most relevant information for the current query.
-"""
+Formulate an improved question:"""
 
 
 # ===== SYNTHESIS_PROMPT =====
-SYNTHESIS_PROMPT = """You are a helpful AI assistant tasked with synthesizing a comprehensive answer.
+# Used to generate the final answer from retrieved context
+SYNTHESIS_PROMPT = """You are an assistant for question-answering tasks.
 
-Based on the reasoning process and retrieved information below, provide a complete answer to the user's question.
+Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
 
-**Question:**
-{question}
+**Question:** {question}
 
-**Reasoning Process:**
-{reasoning_process}
+**Context:** {context}
 
 **Guidelines:**
 - Be concise but comprehensive
@@ -158,22 +93,62 @@ Based on the reasoning process and retrieved information below, provide a comple
 - Acknowledge if information is incomplete
 - Use markdown formatting for readability
 
-Now provide the final answer.
-"""
+Now provide the final answer."""
 
 
-def format_synthesis_prompt(question: str, reasoning_process: str) -> str:
+def format_synthesis_prompt(question: str, context: str) -> str:
     """
-    Format synthesis prompt with question and reasoning history.
+    Format synthesis prompt with question and retrieved context.
 
     Args:
         question: Original user question
-        reasoning_process: All reasoning steps joined together
+        context: Retrieved document content
 
     Returns:
         Formatted synthesis prompt
     """
     return SYNTHESIS_PROMPT.format(
         question=question,
-        reasoning_process=reasoning_process
+        context=context
     )
+
+
+def format_grade_documents_prompt(question: str, context: str) -> str:
+    """
+    Format document grading prompt.
+
+    Args:
+        question: User question
+        context: Retrieved document content
+
+    Returns:
+        Formatted grading prompt
+    """
+    return GRADE_DOCUMENTS_PROMPT.format(
+        question=question,
+        context=context
+    )
+
+
+def format_rewrite_question_prompt(question: str) -> str:
+    """
+    Format question rewriting prompt.
+
+    Args:
+        question: Original question that needs improvement
+
+    Returns:
+        Formatted rewrite prompt
+    """
+    return REWRITE_QUESTION_PROMPT.format(question=question)
+
+
+# ===== Backward Compatibility =====
+# Keep old names as aliases for code that imports them
+REASON_PROMPT = SYSTEM_PROMPT
+RELEVANT_EXTRACTION_PROMPT = GRADE_DOCUMENTS_PROMPT
+BEGIN_SEARCH_QUERY = "<|begin_search_query|>"  # Deprecated
+END_SEARCH_QUERY = "<|end_search_query|>"  # Deprecated
+BEGIN_SEARCH_RESULT = "<|begin_search_result|>"  # Deprecated
+END_SEARCH_RESULT = "<|end_search_result|>"  # Deprecated
+MAX_ITERATIONS = MAX_RETRIEVAL_ATTEMPTS

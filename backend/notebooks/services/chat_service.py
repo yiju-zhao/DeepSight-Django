@@ -13,11 +13,7 @@ from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from infrastructure.ragflow.service import get_ragflow_service
-from infrastructure.ragflow.exceptions import (
-    RagFlowError,
-    RagFlowChatError,
-    RagFlowSessionError,
-)
+from infrastructure.ragflow.exceptions import RagFlowError
 from rest_framework import status
 
 from ..models import ChatSession, Notebook, SessionChatMessage
@@ -193,147 +189,6 @@ class ChatService(NotebookBaseService):
 
         return models
 
-    def get_current_chat_model(self, notebook: Notebook, user_id: int) -> dict:
-        # Get the first model from the configured RAGFLOW_CHAT_MODELS as the new default
-        available_models = self.get_available_chat_models()
-        new_default_model = available_models[0] if available_models else None
-
-        """
-        Get current chat model for a notebook by inspecting its RagFlow chat assistant.
-
-        Args:
-            notebook: Notebook instance
-            user_id: User ID (for access validation)
-
-        Returns:
-            Dict with success flag and current model name (if available)
-        """
-        try:
-            self.validate_notebook_access(notebook, notebook.user)
-
-            if not notebook.ragflow_dataset_id:
-                return {
-                    "success": False,
-                    "error": "Notebook does not have a RagFlow dataset configured.",
-                }
-
-            # Try to get existing chat assistant (don't auto-create)
-            chat_name = f"KB Assistant - {notebook.ragflow_dataset_id[:8]}"
-            try:
-                existing_chats = self.ragflow_service.list_chats(name=chat_name)
-                if not existing_chats:
-                    # No chat assistant exists yet - return default model
-                    default_model = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
-                    return {"success": True, "model": new_default_model}
-
-                chat = existing_chats[0]
-            except Exception as e:
-                logger.debug(f"No existing chat assistant found: {e}")
-                # Return default model if no chat exists
-                default_model = getattr(settings, "RAGFLOW_CHAT_MODEL", None)
-                return {"success": True, "model": new_default_model}
-
-            # Get model from existing chat
-            model_name = None
-            try:
-                if getattr(chat, "llm", None) is not None:
-                    model_name = getattr(chat.llm, "model_name", None)
-            except Exception:
-                model_name = None
-
-            if not model_name:
-                model_name = new_default_model
-
-            return {"success": True, "model": model_name}
-        except Exception as e:
-            logger.exception(
-                f"Failed to get chat model for notebook {notebook.id}: {e}"
-            )
-            return {
-                "success": False,
-                "error": "Failed to get chat model",
-                "details": str(e),
-            }
-
-    def update_chat_model(
-        self, notebook: Notebook, user_id: int, model_name: str
-    ) -> dict:
-        """
-        Update chat assistant LLM model for a notebook.
-
-        Args:
-            notebook: Notebook instance
-            user_id: User ID
-            model_name: Target model identifier
-
-        Returns:
-            Dict with success flag and updated model name
-        """
-        try:
-            self.validate_notebook_access(notebook, notebook.user)
-
-            # Validate against available models (if configured)
-            available_models = self.get_available_chat_models()
-            if available_models and model_name not in available_models:
-                return {
-                    "success": False,
-                    "error": "Selected model is not allowed.",
-                    "details": {
-                        "model": model_name,
-                        "allowed_models": available_models,
-                    },
-                }
-
-            if not notebook.ragflow_dataset_id:
-                return {
-                    "success": False,
-                    "error": "Notebook does not have a RagFlow dataset configured.",
-                }
-
-            # Get existing chat assistant (don't auto-create)
-            chat_name = f"KB Assistant - {notebook.ragflow_dataset_id[:8]}"
-            try:
-                existing_chats = self.ragflow_service.list_chats(name=chat_name)
-                if not existing_chats:
-                    return {
-                        "success": False,
-                        "error": "No chat assistant exists. Please create a chat session first.",
-                        "status_code": status.HTTP_400_BAD_REQUEST,
-                    }
-                chat_id = existing_chats[0].id
-            except Exception as e:
-                logger.debug(f"No existing chat assistant found: {e}")
-                return {
-                    "success": False,
-                    "error": "No chat assistant exists. Please create a chat session first.",
-                    "status_code": status.HTTP_400_BAD_REQUEST,
-                }
-
-            # Update RagFlow chat LLM configuration
-            self.ragflow_service.update_chat(
-                chat_id=chat_id,
-                llm={"model_name": model_name},
-            )
-
-            self.log_notebook_operation(
-                "chat_model_updated",
-                str(notebook.id),
-                user_id,
-                chat_id=chat_id,
-                model_name=model_name,
-            )
-
-            return {"success": True, "model": model_name}
-        except Exception as e:
-            logger.exception(
-                f"Failed to update chat model for notebook {notebook.id}: {e}"
-            )
-            return {
-                "success": False,
-                "error": "Failed to update chat model",
-                "details": str(e),
-            }
-
     def generate_suggested_questions(self, notebook, base_question: str = None) -> dict:
         """
         Generate suggested questions using RagFlow's related questions API.
@@ -401,72 +256,6 @@ class ChatService(NotebookBaseService):
                 "details": {"error": str(e), "suggestions": []},
             }
 
-    def _get_or_create_chat_assistant(self, dataset_id: str) -> dict:
-        """
-        Get or create chat assistant for the dataset.
-
-        Args:
-            dataset_id: RagFlow dataset ID
-
-        Returns:
-            Dict with chat assistant info or error
-        """
-        try:
-            # Check cache first
-            cache_key = f"ragflow_chat_assistant_{dataset_id}"
-            cached_chat_id = cache.get(cache_key)
-
-            if cached_chat_id:
-                return {"success": True, "chat_id": cached_chat_id, "cached": True}
-
-            # Create unique chat assistant name
-            chat_name = f"KB Assistant - {dataset_id[:8]}"
-
-            # Check if chat assistant already exists
-            try:
-                existing_chats = self.ragflow_service.list_chats(name=chat_name)
-                if existing_chats:
-                    chat_id = existing_chats[0].id
-                    logger.info(
-                        f"Using existing chat assistant {chat_id} for dataset {dataset_id}"
-                    )
-
-                    # Cache the chat ID
-                    cache.set(cache_key, chat_id, timeout=self._agent_cache_timeout)
-
-                    return {"success": True, "chat_id": chat_id, "cached": False}
-            except Exception as e:
-                logger.debug(f"No existing chat assistant found: {e}")
-
-            # Create new chat assistant
-            logger.info(f"Creating chat assistant for dataset {dataset_id}")
-
-            available_models = self.get_available_chat_models()
-            default_model_name = available_models[0] if available_models else None
-            llm_config = {"model_name": default_model_name} if default_model_name else None
-
-            chat = self.ragflow_service.create_chat(
-                name=chat_name, dataset_ids=[dataset_id], llm=llm_config
-            )
-
-            chat_id = chat.id
-            logger.info(f"Created chat assistant {chat_id} for dataset {dataset_id}")
-
-            # Cache the chat ID
-            cache.set(cache_key, chat_id, timeout=self._agent_cache_timeout)
-
-            return {"success": True, "chat_id": chat_id, "cached": False}
-
-        except Exception as e:
-            logger.exception(
-                f"Error creating chat assistant for dataset {dataset_id}: {e}"
-            )
-            return {
-                "error": "Failed to create chat assistant",
-                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "details": {"error": str(e)},
-            }
-
     # Session Management Methods
 
     @transaction.atomic
@@ -474,7 +263,10 @@ class ChatService(NotebookBaseService):
         self, notebook: Notebook, user_id: int, title: str = None
     ) -> dict:
         """
-        Create a new chat session for a notebook using chat assistant.
+        Create a new chat session for a notebook.
+
+        Note: Sessions are now purely local records since the RAG agent
+        handles all chat logic independently without RAGFlow chat assistants.
 
         Args:
             notebook: Notebook instance
@@ -500,38 +292,18 @@ class ChatService(NotebookBaseService):
                     "success": False,
                 }
 
-            # Get or create chat assistant for this notebook's dataset
-            chat_result = self._get_or_create_chat_assistant(
-                notebook.ragflow_dataset_id
-            )
-            if not chat_result.get("success"):
-                return chat_result
-
-            chat_id = chat_result["chat_id"]
-
-            # Get the chat assistant object
-            chats = self.ragflow_service.list_chats(chat_id=chat_id)
-            if not chats:
-                return {
-                    "error": "Chat assistant not found",
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                }
-
-            # Create session with chat assistant using the new service
+            # Create session name
             session_name = (
                 title
                 or f"Session {ChatSession.objects.filter(notebook=notebook).count() + 1}"
             )
-            ragflow_session = self.ragflow_service.create_chat_session(
-                chat_id=chat_id, name=session_name
-            )
 
-            # Create local session record
+            # Create local session record only
             chat_session = ChatSession.objects.create(
                 notebook=notebook,
                 title=title or session_name,
-                ragflow_session_id=ragflow_session.id,
-                ragflow_agent_id=chat_id,
+                ragflow_session_id=None,
+                ragflow_agent_id=None,  # No longer using RAGFlow chat assistants
                 session_metadata={
                     "created_by_user": str(user_id),
                     "dataset_id": str(notebook.ragflow_dataset_id)
@@ -545,7 +317,6 @@ class ChatService(NotebookBaseService):
                 str(notebook.id),
                 user_id,
                 session_id=str(chat_session.session_id),
-                ragflow_session_id=ragflow_session.id,
             )
 
             return {
@@ -557,18 +328,8 @@ class ChatService(NotebookBaseService):
                     "created_at": chat_session.created_at.isoformat(),
                     "message_count": 0,
                 },
-                "ragflow_session_id": ragflow_session.id,
             }
 
-        except (RagFlowError, RagFlowChatError, RagFlowSessionError) as e:
-            logger.exception(
-                f"RagFlow error creating session for notebook {notebook.id}: {e}"
-            )
-            return {
-                "error": f"RagFlow service error: {e}",
-                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
-                "details": {"ragflow_error": str(e)},
-            }
         except Exception as e:
             logger.exception(
                 f"Failed to create chat session for notebook {notebook.id}: {e}"
@@ -647,16 +408,20 @@ class ChatService(NotebookBaseService):
         session_id: str,
         notebook: Notebook,
         user_id: int,
-        delete_ragflow_session: bool = True,
+        delete_ragflow_session: bool = True,  # Deprecated, kept for API compatibility
     ) -> dict:
         """
         Close a chat session.
+
+        Note: RAGFlow session deletion is no longer performed since we don't
+        create RAGFlow sessions anymore. The delete_ragflow_session parameter
+        is kept for API compatibility but has no effect.
 
         Args:
             session_id: Session UUID
             notebook: Notebook instance
             user_id: User ID
-            delete_ragflow_session: Whether to delete the RagFlow session
+            delete_ragflow_session: Deprecated, kept for API compatibility
 
         Returns:
             Dict with operation result
@@ -676,24 +441,7 @@ class ChatService(NotebookBaseService):
                     "status_code": status.HTTP_404_NOT_FOUND,
                 }
 
-            # Delete RagFlow session if requested
-            # Note: ragflow_agent_id actually stores chat_id (naming kept for backward compat)
-            if (
-                delete_ragflow_session
-                and session.ragflow_session_id
-                and session.ragflow_agent_id
-            ):
-                try:
-                    self.ragflow_service.delete_chat_sessions(
-                        chat_id=session.ragflow_agent_id,
-                        session_ids=[session.ragflow_session_id],
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to delete RagFlow session {session.ragflow_session_id}: {e}"
-                    )
-
-            # Close the session
+            # Close the session (just updates local status)
             session.close()
 
             self.log_notebook_operation(
@@ -948,51 +696,30 @@ class ChatService(NotebookBaseService):
                     role = "user" if msg.sender == "user" else "assistant"
                     message_history.append({"role": role, "content": msg.message})
 
-                # Initialize ReAct state
+                # Initialize MessagesState-based state (LangGraph best practices)
+                from langchain_core.messages import HumanMessage as LCHumanMessage
+                
+                # Build message history for context
+                context_messages = []
+                for msg in past_messages[:-1]:  # Exclude the current question
+                    if msg.sender == "user":
+                        context_messages.append(LCHumanMessage(content=msg.message))
+                    else:
+                        from langchain_core.messages import AIMessage
+                        context_messages.append(AIMessage(content=msg.message))
+                
+                # Add current question
+                context_messages.append(LCHumanMessage(content=question))
+                
                 initial_state = {
+                    "messages": context_messages,
                     "question": question,
-                    "message_history": message_history + [{"role": "user", "content": question}],
-                    "reasoning_steps": [],
-                    "executed_queries": [],
-                    "current_reasoning": "",
-                    "current_queries": [],
-                    "current_retrieved": [],
                     "retrieved_chunks": [],
-                    "iteration": 0,
-                    "final_answer": "",
-                    "should_continue": True,
                 }
 
-                # Run ReAct agent loop with SSE streaming
+                # Run agent synchronously using event loop
                 import asyncio
 
-                # Execute async agent
-                async def run_react_agent_async():
-                    """Run ReAct agent and collect final state."""
-                    final_state = None
-
-                    async for event in agent.astream(initial_state):
-                        # Each event is {node_name: node_state}
-                        for node_name, node_state in event.items():
-                            # Emit status for each node
-                            if node_name == "reasoning":
-                                iteration = node_state.get('iteration', 0)
-                                yield f"data: {json.dumps({'type': 'status', 'message': f'🤔 Thinking (round {iteration})...'})}\n\n"
-                            elif node_name == "retrieval":
-                                queries = node_state.get("current_queries", [])
-                                if queries:
-                                    query_preview = queries[0][:50] + "..." if len(queries[0]) > 50 else queries[0]
-                                    yield f"data: {json.dumps({'type': 'status', 'message': f'🔍 Searching: {query_preview}'})}\n\n"
-                            elif node_name == "evaluation":
-                                yield f"data: {json.dumps({'type': 'status', 'message': '📊 Analyzing results...'})}\n\n"
-                            elif node_name == "synthesize":
-                                yield f"data: {json.dumps({'type': 'status', 'message': '✍️ Generating answer...'})}\n\n"
-
-                            final_state = node_state
-
-                    yield final_state
-
-                # Run the async agent in a new event loop
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
@@ -1000,19 +727,27 @@ class ChatService(NotebookBaseService):
                 final_state = None
 
                 try:
-                    # Stream status events
-                    async for status_event in run_react_agent_async():
-                        if isinstance(status_event, str):  # SSE formatted string
-                            yield status_event
-                        else:  # Final state
-                            final_state = status_event
+                    # Emit status before running agent
+                    yield f"data: {json.dumps({'type': 'status', 'message': '🤔 Analyzing question...'})}\n\n"
+                    
+                    # Run the agent to completion
+                    final_state = loop.run_until_complete(agent.ainvoke(initial_state))
 
-                    # If we got events but no final state, invoke once to get it
-                    if not final_state:
-                        final_state = loop.run_until_complete(agent.ainvoke(initial_state))
-
-                    # Extract and stream final answer
-                    final_answer = final_state.get("final_answer", "")
+                    # Extract final answer from last AI message in MessagesState
+                    final_answer = ""
+                    if final_state and "messages" in final_state:
+                        messages = final_state["messages"]
+                        # Find the last AI message (not a tool message)
+                        for msg in reversed(messages):
+                            if hasattr(msg, "type") and msg.type == "ai":
+                                if not (hasattr(msg, "tool_calls") and msg.tool_calls):
+                                    final_answer = msg.content
+                                    break
+                            elif hasattr(msg, "content") and not hasattr(msg, "tool_call_id"):
+                                # Fallback for AIMessage without explicit type
+                                if hasattr(msg, "role") and msg.role == "assistant":
+                                    final_answer = msg.content
+                                    break
 
                     if final_answer:
                         # Create assistant message
@@ -1034,30 +769,45 @@ class ChatService(NotebookBaseService):
                 finally:
                     loop.close()
 
-                # Extract citations from retrieved chunks
+                # Extract citations from tool messages (contain retrieval results)
                 citations = []
-                if final_state and "retrieved_chunks" in final_state:
+                if final_state and "messages" in final_state:
                     seen_docs = set()
-                    for chunk in final_state["retrieved_chunks"][:10]:  # Limit to top 10
-                        doc_name = chunk.get("doc_name", "Unknown Document")
-                        if doc_name not in seen_docs:
-                            seen_docs.add(doc_name)
-                            citations.append({
-                                "index": len(citations) + 1,
-                                "document_name": doc_name,
-                                "preview": chunk.get("content", "")[:200]
-                            })
+                    import re
+                    for msg in final_state["messages"]:
+                        if hasattr(msg, "type") and msg.type == "tool":
+                            # Parse [N] Document Name patterns from tool response
+                            content = str(msg.content)
+                            matches = re.findall(r"\\[(\\d+)\\] ([^\\n(]+)", content)
+                            for idx, doc_name in matches:
+                                doc_name = doc_name.strip()
+                                if doc_name not in seen_docs:
+                                    seen_docs.add(doc_name)
+                                    # Get preview from content
+                                    preview_match = content.find(f"[{idx}] {doc_name}")
+                                    if preview_match >= 0:
+                                        preview = content[preview_match:preview_match + 250]
+                                    else:
+                                        preview = content[:200]
+                                    citations.append({
+                                        "index": len(citations) + 1,
+                                        "document_name": doc_name,
+                                        "preview": preview
+                                    })
 
                 # Update assistant message
                 if assistant_message:
                     assistant_message.message = accumulated_content
-                    final_iteration = final_state.get("iteration", 0) if final_state else 0
+                    # Count tool calls as iterations
+                    tool_call_count = sum(
+                        1 for msg in final_state.get("messages", [])
+                        if hasattr(msg, "type") and msg.type == "tool"
+                    ) if final_state else 0
                     assistant_message.metadata = {
                         "status": "completed",
                         "trace_id": trace_id,
-                        "iterations": final_iteration,
+                        "iterations": tool_call_count,
                         "citations": citations,
-                        "executed_queries": final_state.get("executed_queries", []) if final_state else [],
                     }
                     assistant_message.save()
 
@@ -1076,53 +826,6 @@ class ChatService(NotebookBaseService):
 
         return session_stream()
 
-    def _extract_citations_from_messages(self, messages: list) -> list[dict]:
-        """
-        Extract citations from tool messages in agent conversation.
-
-        Parses tool responses for document references in the format:
-        [N] Document Name
-
-        Args:
-            messages: List of LangChain messages (including tool messages)
-
-        Returns:
-            List of citation dictionaries with index, document_name, and preview
-        """
-        import re
-
-        citations = []
-        seen_docs = set()
-
-        for msg in messages:
-            # Check if this is a tool message
-            if hasattr(msg, "type") and msg.type == "tool":
-                content = str(msg.content)
-
-                # Parse tool response for [N] Document Name patterns
-                matches = re.findall(r"\[(\d+)\] ([^\n]+)\n", content)
-
-                for idx, doc_name in matches:
-                    # Avoid duplicate citations
-                    if doc_name not in seen_docs:
-                        seen_docs.add(doc_name)
-
-                        # Extract preview (up to 200 chars around the match)
-                        match_pos = content.find(f"[{idx}] {doc_name}")
-                        if match_pos >= 0:
-                            preview_start = max(0, match_pos)
-                            preview_end = min(len(content), match_pos + 300)
-                            preview = content[preview_start:preview_end]
-                        else:
-                            preview = content[:200]
-
-                        citations.append(
-                            {"index": int(idx), "document_name": doc_name, "preview": preview}
-                        )
-
-        logger.debug(f"Extracted {len(citations)} citations from tool messages")
-
-        return citations
 
     def get_session_count_for_notebook(self, notebook: Notebook) -> int:
         """Get the number of active sessions for a notebook."""

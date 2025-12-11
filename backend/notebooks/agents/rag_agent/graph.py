@@ -1,56 +1,70 @@
 """
-LangGraph workflow for ReAct RAG agent.
+LangGraph workflow for RAG agent.
 
-Implements ReAct (Reasoning + Acting) pattern with iterative retrieval:
-- reasoning_node: Agent thinks and generates queries
-- retrieval_node: Execute retrieval based on queries
-- evaluation_node: LLM evaluates and extracts relevant info
-- synthesize_node: Generate final answer from all reasoning steps
+Implements agentic RAG pattern following LangGraph best practices:
+- Uses MessagesState for standard message handling
+- LLM decides when to use retrieval tool via bind_tools()
+- ToolNode handles automatic tool execution
+- tools_condition routes based on tool calls
+- Document grading filters irrelevant results
+- Question rewriting improves failed searches
 
-Flow: reasoning → retrieval → evaluation → (continue OR synthesize)
+Flow:
+START → generate_query_or_respond → [tools_condition] → retrieve → grade_documents
+                                          ↓                            ↓
+                                        END          [relevant?] → generate_answer → END
+                                                          ↓
+                                                   rewrite_question → generate_query_or_respond
 """
 
 import logging
 from typing import Literal
 
 from langchain.chat_models import init_chat_model
-from langgraph.graph import StateGraph, END
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.graph import StateGraph, START, END
+from langgraph.prebuilt import ToolNode, tools_condition
+from pydantic import BaseModel, Field
 
-from .states import RAGReActState
-from .prompts import (
-    REASON_PROMPT,
-    RELEVANT_EXTRACTION_PROMPT,
-    format_synthesis_prompt,
-    BEGIN_SEARCH_QUERY,
-    END_SEARCH_QUERY,
-    BEGIN_SEARCH_RESULT,
-    END_SEARCH_RESULT,
-    MAX_ITERATIONS,
-)
 from .config import RAGAgentConfig
-from .utils import (
-    extract_between,
-    truncate_reasoning_history,
-    format_chunks,
-    remove_query_tags,
+from .prompts import (
+    SYSTEM_PROMPT,
+    format_synthesis_prompt,
+    format_grade_documents_prompt,
+    format_rewrite_question_prompt,
+    MAX_RETRIEVAL_ATTEMPTS,
 )
+from .states import RAGAgentState
+from .tools import create_retrieval_tool
 
 logger = logging.getLogger(__name__)
 
 
+class GradeDocuments(BaseModel):
+    """Binary score for document relevance check."""
+
+    binary_score: str = Field(
+        description="Relevance score: 'yes' if relevant, or 'no' if not relevant"
+    )
+
+
 def create_rag_agent(config: RAGAgentConfig):
     """
-    Build and compile the ReAct RAG agent graph.
+    Build and compile the RAG agent graph following LangGraph best practices.
 
     The graph structure:
     ```
-    START → reasoning → [has_queries?] → retrieval → evaluation
-                                              ↓
-                      [no_queries] → synthesize → END
-                                              ↑
-                      [continue?] ←───────────┘
-                            ↓ [finish]
-                       synthesize → END
+    START → generate_query_or_respond → [tools_condition]
+                 ↓                              ↓
+               END (direct response)        retrieve (ToolNode)
+                                               ↓
+                                        grade_documents
+                                         ↓         ↓
+                              (relevant)          (not relevant)
+                                 ↓                      ↓
+                          generate_answer        rewrite_question
+                                 ↓                      ↓
+                               END         generate_query_or_respond
     ```
 
     Args:
@@ -60,36 +74,42 @@ def create_rag_agent(config: RAGAgentConfig):
         Compiled LangGraph that can be invoked or streamed
 
     Example:
-        >>> from backend.notebooks.agents.rag_agent import create_rag_agent, RAGAgentConfig
+        >>> from notebooks.agents.rag_agent import create_rag_agent, RAGAgentConfig
         >>> config = RAGAgentConfig(
         ...     model_name="gpt-4o-mini",
-        ...     retrieval_service=retrieval_service,
+        ...     retrieval_service=ragflow_service,
         ...     dataset_ids=["kb1"]
         ... )
         >>> agent = create_rag_agent(config)
         >>> result = await agent.ainvoke({
+        ...     "messages": [HumanMessage(content="What is deep learning?")],
         ...     "question": "What is deep learning?",
-        ...     "message_history": [],
-        ...     ...
+        ...     "retrieved_chunks": [],
         ... })
     """
-    logger.info(f"Creating ReAct RAG agent with model: {config.model_name}")
+    logger.info(f"Creating RAG agent with model: {config.model_name}")
 
-    # Initialize chat model for reasoning and synthesis
-    chat_model = init_chat_model(
+    # Create retrieval tool
+    retriever_tool = create_retrieval_tool(
+        ragflow_service=config.retrieval_service,
+        dataset_ids=config.dataset_ids,
+        similarity_threshold=config.similarity_threshold,
+        top_k=config.top_k,
+    )
+
+    # Initialize chat models
+    response_model = init_chat_model(
         model=f"openai:{config.model_name}",
         api_key=config.api_key,
         temperature=config.temperature,
     )
 
-    # Evaluation model (lower temperature for precision)
-    eval_model = init_chat_model(
+    grader_model = init_chat_model(
         model=f"openai:{config.model_name}",
         api_key=config.api_key,
         temperature=config.eval_temperature,
     )
 
-    # Synthesis model (balanced temperature)
     synthesis_model = init_chat_model(
         model=f"openai:{config.model_name}",
         api_key=config.api_key,
@@ -98,292 +118,186 @@ def create_rag_agent(config: RAGAgentConfig):
 
     # ===== Node Definitions =====
 
-    async def reasoning_node(state: RAGReActState) -> RAGReActState:
+    def generate_query_or_respond(state: RAGAgentState) -> dict:
         """
-        Agent self-reasoning node: thinks and generates queries.
+        Call the model to generate a response based on the current state.
 
-        Uses REASON_PROMPT to guide the agent through step-by-step reasoning.
-        Agent outputs queries wrapped in special markers.
+        Given the question, it will decide to:
+        - Use the retrieval tool to search the knowledge base
+        - Respond directly if no search is needed
         """
-        logger.info(f"[reasoning_node] Iteration {state['iteration']}")
+        logger.info("[generate_query_or_respond] Processing messages")
 
-        msg_history = state["message_history"].copy()
+        # Prepare messages with system prompt
+        messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
 
-        # If not first iteration, prompt to continue reasoning
-        if state["iteration"] > 0:
-            if not msg_history or msg_history[-1]["role"] != "user":
-                msg_history.append({
-                    "role": "user",
-                    "content": "Continue reasoning with the new information.\n"
-                })
+        # Call LLM with tool binding
+        response = response_model.bind_tools([retriever_tool]).invoke(messages)
+
+        logger.debug(f"[generate_query_or_respond] Response type: {type(response)}")
+
+        if hasattr(response, "tool_calls") and response.tool_calls:
+            logger.info(
+                f"[generate_query_or_respond] Tool calls: {len(response.tool_calls)}"
+            )
+        else:
+            logger.info("[generate_query_or_respond] Direct response (no tool calls)")
+
+        return {"messages": [response]}
+
+    def grade_documents(
+        state: RAGAgentState,
+    ) -> Literal["generate_answer", "rewrite_question"]:
+        """
+        Determine whether the retrieved documents are relevant to the question.
+
+        Returns the name of the next node to route to:
+        - "generate_answer" if documents are relevant
+        - "rewrite_question" if documents are not relevant
+        """
+        logger.info("[grade_documents] Grading retrieved documents")
+
+        question = state.get("question", "")
+        messages = state["messages"]
+
+        # Get the last tool message (contains retrieval results)
+        context = ""
+        for msg in reversed(messages):
+            if hasattr(msg, "type") and msg.type == "tool":
+                context = msg.content
+                break
+
+        if not context or context == "No relevant documents found.":
+            logger.info("[grade_documents] No documents to grade, rewriting question")
+            return "rewrite_question"
+
+        # Use structured output for grading
+        prompt = format_grade_documents_prompt(question=question, context=context)
+
+        try:
+            grader_with_output = grader_model.with_structured_output(GradeDocuments)
+            result = grader_with_output.invoke([{"role": "user", "content": prompt}])
+            score = result.binary_score.lower()
+
+            logger.info(f"[grade_documents] Relevance score: {score}")
+
+            if score == "yes":
+                return "generate_answer"
             else:
-                msg_history[-1]["content"] += "\n\nContinue reasoning with the new information.\n"
+                return "rewrite_question"
 
-        # Call LLM with REASON_PROMPT
-        messages = [{"role": "system", "content": REASON_PROMPT}] + msg_history
+        except Exception as e:
+            logger.warning(f"[grade_documents] Grading failed: {e}, defaulting to answer")
+            return "generate_answer"
 
-        reasoning_output = ""
-        async for chunk in chat_model.astream(messages):
-            if hasattr(chunk, "content"):
-                reasoning_output += chunk.content
-
-        logger.debug(f"[reasoning_node] Output: {reasoning_output[:200]}...")
-
-        # Extract queries from reasoning
-        queries = extract_between(reasoning_output, BEGIN_SEARCH_QUERY, END_SEARCH_QUERY)
-        logger.info(f"[reasoning_node] Extracted {len(queries)} queries: {queries}")
-
-        # Update state
-        return {
-            **state,
-            "current_reasoning": reasoning_output,
-            "current_queries": queries,
-            "reasoning_steps": state["reasoning_steps"] + [reasoning_output],
-            "iteration": state["iteration"] + 1,
-        }
-
-    async def retrieval_node(state: RAGReActState) -> RAGReActState:
+    def rewrite_question(state: RAGAgentState) -> dict:
         """
-        Execute retrieval for all current queries.
+        Rewrite the original user question to improve retrieval results.
 
-        Performs deduplication and uses config thresholds.
+        Called when retrieved documents are not relevant.
         """
-        logger.info(f"[retrieval_node] Processing {len(state['current_queries'])} queries")
+        logger.info("[rewrite_question] Rewriting question")
 
-        queries = state["current_queries"]
-        executed_queries = state["executed_queries"]
-        all_retrieved = []
+        question = state.get("question", "")
 
-        for query in queries:
-            # Skip if already executed
-            if query in executed_queries:
-                logger.info(f"[retrieval_node] Query already executed: {query}")
-                msg = f"\n{BEGIN_SEARCH_RESULT}\nYou have searched this query. Please refer to previous results.\n{END_SEARCH_RESULT}\n"
-                state["message_history"].append({"role": "user", "content": msg})
-                state["reasoning_steps"].append(msg)
-                continue
-
-            logger.info(f"[retrieval_node] Executing query: {query}")
-
-            # Execute retrieval
-            try:
-                # Call retrieval service (returns RetrievalResult object)
-                result = config.retrieval_service.retrieve_chunks(
-                    question=query,
-                    dataset_ids=config.dataset_ids,
-                    similarity_threshold=config.similarity_threshold,
-                    top_k=config.top_k,
-                )
-
-                # Extract chunks from result
-                chunks = result.chunks if hasattr(result, 'chunks') else []
-                logger.info(f"[retrieval_node] Retrieved {len(chunks)} chunks for query: {query}")
-
-                # Convert chunks to dict format for state
-                for chunk in chunks:
-                    chunk_dict = {
-                        "chunk_id": getattr(chunk, 'id', ''),
-                        "doc_name": getattr(chunk, 'document_name', 'Unknown'),
-                        "content": getattr(chunk, 'content', ''),
-                        "similarity": getattr(chunk, 'similarity', 0.0),
-                    }
-                    all_retrieved.append(chunk_dict)
-
-                executed_queries.append(query)
-
-            except Exception as e:
-                logger.error(f"[retrieval_node] Retrieval error: {e}")
-                # Add error message to context
-                error_msg = f"\n{BEGIN_SEARCH_RESULT}\nRetrieval failed: {str(e)}\n{END_SEARCH_RESULT}\n"
-                state["message_history"].append({"role": "user", "content": error_msg})
-                state["reasoning_steps"].append(error_msg)
-
-        # Update state
-        return {
-            **state,
-            "current_retrieved": all_retrieved,
-            "retrieved_chunks": state["retrieved_chunks"] + all_retrieved,
-            "executed_queries": executed_queries,
-        }
-
-    async def evaluation_node(state: RAGReActState) -> RAGReActState:
-        """
-        Evaluate retrieval results and extract relevant information.
-
-        Uses RELEVANT_EXTRACTION_PROMPT to filter and summarize.
-        """
-        logger.info(f"[evaluation_node] Evaluating {len(state['current_retrieved'])} chunks")
-
-        current_query = state["current_queries"][0] if state["current_queries"] else "unknown"
-        retrieved = state["current_retrieved"]
-
-        # Format chunks for LLM
-        document_text = format_chunks(retrieved, max_content_length=500)
-
-        # Truncate reasoning history
-        truncated_reasoning = truncate_reasoning_history(
-            state["reasoning_steps"],
-            keep_first_n=config.keep_first_n_steps,
-            keep_last_n=config.keep_last_n_steps,
+        # Check if we've already rewritten too many times
+        rewrite_count = sum(
+            1 for msg in state["messages"]
+            if isinstance(msg, HumanMessage) and msg.content != question
         )
 
-        # Build evaluation prompt
-        eval_prompt = RELEVANT_EXTRACTION_PROMPT.format(
-            prev_reasoning=truncated_reasoning,
-            search_query=current_query,
-            document=document_text,
-        )
+        if rewrite_count >= MAX_RETRIEVAL_ATTEMPTS:
+            logger.info("[rewrite_question] Max rewrites reached, proceeding to answer")
+            # Return empty to trigger direct answer
+            return {"messages": []}
 
-        # Call LLM for evaluation
-        messages = [{"role": "user", "content": eval_prompt}]
+        prompt = format_rewrite_question_prompt(question)
+        response = response_model.invoke([{"role": "user", "content": prompt}])
 
-        evaluation_output = ""
-        async for chunk in eval_model.astream(messages):
-            if hasattr(chunk, "content"):
-                evaluation_output += chunk.content
+        logger.info(f"[rewrite_question] Rewritten: {response.content[:100]}...")
 
-        logger.debug(f"[evaluation_node] Evaluation: {evaluation_output[:200]}...")
+        # Add the rewritten question as a new human message
+        return {"messages": [HumanMessage(content=response.content)]}
 
-        # Wrap in result tags
-        result_text = f"\n{BEGIN_SEARCH_RESULT}{evaluation_output}{END_SEARCH_RESULT}\n"
-
-        # Add to message history
-        state["message_history"].append({"role": "user", "content": result_text})
-        state["reasoning_steps"].append(result_text)
-
-        return state
-
-    async def synthesize_node(state: RAGReActState) -> RAGReActState:
+    def generate_answer(state: RAGAgentState) -> dict:
         """
-        Synthesize final answer from all reasoning steps.
+        Generate the final answer using retrieved context.
         """
-        logger.info("[synthesize_node] Generating final answer")
+        logger.info("[generate_answer] Generating final answer")
 
-        # Join all reasoning steps (remove query/result tags for cleaner output)
-        all_reasoning = "\n\n".join(
-            remove_query_tags(step) for step in state["reasoning_steps"]
-        )
+        question = state.get("question", "")
+        messages = state["messages"]
 
-        # Build synthesis prompt
-        synthesis_prompt = format_synthesis_prompt(
-            question=state["question"],
-            reasoning_process=all_reasoning,
-        )
+        # Extract context from tool messages
+        context_parts = []
+        for msg in messages:
+            if hasattr(msg, "type") and msg.type == "tool":
+                if msg.content and msg.content != "No relevant documents found.":
+                    context_parts.append(msg.content)
 
-        # Call LLM for synthesis
-        messages = [{"role": "user", "content": synthesis_prompt}]
+        context = "\n\n".join(context_parts) if context_parts else "No context available."
 
-        final_answer = ""
-        async for chunk in synthesis_model.astream(messages):
-            if hasattr(chunk, "content"):
-                final_answer += chunk.content
+        # Generate answer
+        prompt = format_synthesis_prompt(question=question, context=context)
+        response = synthesis_model.invoke([{"role": "user", "content": prompt}])
 
-        logger.info(f"[synthesize_node] Generated answer ({len(final_answer)} chars)")
+        logger.info(f"[generate_answer] Generated answer ({len(response.content)} chars)")
 
-        return {
-            **state,
-            "final_answer": final_answer,
-        }
+        return {"messages": [response]}
 
-    # ===== Conditional Edge Functions =====
+    # ===== Custom tools_condition wrapper =====
 
-    def should_retrieve(state: RAGReActState) -> Literal["retrieve", "synthesize"]:
+    def route_after_query(state: RAGAgentState) -> Literal["tools", "__end__"]:
         """
-        Decide whether to retrieve or synthesize.
+        Route based on whether the LLM wants to use tools.
 
-        Logic:
-        - If iteration 1 and no queries: force retrieval with original question
-        - If has queries: retrieve
-        - Otherwise: synthesize
+        Uses LangGraph's tools_condition internally but allows customization.
         """
-        queries = state.get("current_queries", [])
-        iteration = state.get("iteration", 0)
-
-        # First iteration without queries: force retrieval
-        if iteration == 1 and not queries:
-            logger.info("[should_retrieve] First iteration, forcing retrieval with original question")
-            state["current_queries"] = [state["question"]]
-            return "retrieve"
-
-        # Has queries: retrieve
-        if queries:
-            logger.info(f"[should_retrieve] Has {len(queries)} queries, routing to retrieval")
-            return "retrieve"
-
-        # No queries: synthesize
-        logger.info("[should_retrieve] No queries, routing to synthesis")
-        return "synthesize"
-
-    def should_continue_reasoning(state: RAGReActState) -> Literal["continue", "finish"]:
-        """
-        Decide whether to continue reasoning or finish.
-
-        Logic:
-        - If max iterations reached: finish
-        - If evaluation says "sufficient information": finish
-        - Otherwise: continue
-        """
-        iteration = state.get("iteration", 0)
-
-        # Max iterations reached
-        if iteration >= config.max_iterations:
-            logger.info(f"[should_continue_reasoning] Max iterations ({config.max_iterations}) reached, finishing")
-            return "finish"
-
-        # Check last reasoning step for completion signals
-        if state["reasoning_steps"]:
-            last_step = state["reasoning_steps"][-1].lower()
-
-            if any(phrase in last_step for phrase in [
-                "sufficient information",
-                "ready to answer",
-                "can now answer",
-                "have all the information",
-            ]):
-                logger.info("[should_continue_reasoning] Agent indicates completion, finishing")
-                return "finish"
-
-        logger.info("[should_continue_reasoning] Continuing reasoning")
-        return "continue"
+        result = tools_condition(state)
+        logger.info(f"[route_after_query] Routing to: {result}")
+        return result
 
     # ===== Build Graph =====
 
-    graph = StateGraph(RAGReActState)
+    workflow = StateGraph(RAGAgentState)
 
     # Add nodes
-    graph.add_node("reasoning", reasoning_node)
-    graph.add_node("retrieval", retrieval_node)
-    graph.add_node("evaluation", evaluation_node)
-    graph.add_node("synthesize", synthesize_node)
-
-    # Set entry point
-    graph.set_entry_point("reasoning")
+    workflow.add_node("generate_query_or_respond", generate_query_or_respond)
+    workflow.add_node("retrieve", ToolNode([retriever_tool]))
+    workflow.add_node("rewrite_question", rewrite_question)
+    workflow.add_node("generate_answer", generate_answer)
 
     # Add edges
-    graph.add_conditional_edges(
-        "reasoning",
-        should_retrieve,
+    workflow.add_edge(START, "generate_query_or_respond")
+
+    # Route based on tool calls
+    workflow.add_conditional_edges(
+        "generate_query_or_respond",
+        route_after_query,
         {
-            "retrieve": "retrieval",
-            "synthesize": "synthesize",
-        }
+            "tools": "retrieve",
+            "__end__": END,
+        },
     )
 
-    graph.add_edge("retrieval", "evaluation")
-
-    graph.add_conditional_edges(
-        "evaluation",
-        should_continue_reasoning,
+    # Grade documents after retrieval
+    workflow.add_conditional_edges(
+        "retrieve",
+        grade_documents,
         {
-            "continue": "reasoning",
-            "finish": "synthesize",
-        }
+            "generate_answer": "generate_answer",
+            "rewrite_question": "rewrite_question",
+        },
     )
 
-    graph.add_edge("synthesize", END)
+    # After rewrite, go back to generate query
+    workflow.add_edge("rewrite_question", "generate_query_or_respond")
+
+    # After answer, end
+    workflow.add_edge("generate_answer", END)
 
     # Compile and return
-    compiled_graph = graph.compile()
-    logger.info("ReAct RAG agent graph compiled successfully")
+    compiled_graph = workflow.compile()
+    logger.info("RAG agent graph compiled successfully")
 
     return compiled_graph

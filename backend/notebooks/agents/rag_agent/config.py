@@ -53,9 +53,10 @@ class RAGAgentConfig:
     similarity_threshold: float = 0.4  # Raised from 0.2 to filter weak matches
     top_k: int = 10  # Increased from 6 for larger candidate set
 
-    # History truncation configuration
-    keep_first_n_steps: int = 1  # Preserve initial reasoning
-    keep_last_n_steps: int = 4  # Preserve recent context
+    # History truncation configuration (deprecated - kept for backward compat)
+    # These fields are no longer used in the new LangGraph tool-based architecture
+    keep_first_n_steps: int = 1
+    keep_last_n_steps: int = 4
 
     def __post_init__(self):
         """Validate configuration after initialization."""
