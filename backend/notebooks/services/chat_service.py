@@ -700,8 +700,10 @@ class ChatService(NotebookBaseService):
                 from langchain_core.messages import HumanMessage as LCHumanMessage
                 
                 # Build message history for context
+                # Convert to list first since Django querysets don't support negative indexing
+                past_messages_list = list(past_messages)
                 context_messages = []
-                for msg in past_messages[:-1]:  # Exclude the current question
+                for msg in past_messages_list[:-1] if past_messages_list else []:  # Exclude the current question
                     if msg.sender == "user":
                         context_messages.append(LCHumanMessage(content=msg.message))
                     else:
