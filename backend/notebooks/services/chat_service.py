@@ -903,14 +903,9 @@ class ChatService(NotebookBaseService):
 
                 api_key = getattr(settings, "OPENAI_API_KEY", "")
 
-                # Initialize agent components
+                # Initialize ReAct RAG agent components
                 from notebooks.agents.rag_agent.graph import create_rag_agent
                 from notebooks.agents.rag_agent.config import RAGAgentConfig
-                from notebooks.services.retrieval_service import RetrievalService
-                from notebooks.agents.rag_agent.utils import get_chat_history_window
-                from langchain_core.messages import HumanMessage, AIMessage
-
-                retrieval_service = RetrievalService(self.ragflow_service)
 
                 # Get dataset_ids from notebook
                 # Each notebook has a ragflow_dataset_id stored in the database
@@ -926,108 +921,143 @@ class ChatService(NotebookBaseService):
                 config = RAGAgentConfig(
                     model_name=model_name,
                     api_key=api_key,
-                    retrieval_service=retrieval_service,
+                    retrieval_service=self.ragflow_service,
                     dataset_ids=dataset_ids,
                     max_iterations=5,
-                    temperature=0.3,
+                    # ReAct uses different temperatures for different phases
+                    temperature=0.7,  # Reasoning phase
+                    eval_temperature=0.1,  # Evaluation phase
+                    synthesis_temperature=0.3,  # Final answer
                 )
 
                 logger.info(
-                    f"[{trace_id}] RAG Agent Config: model={model_name}, "
+                    f"[{trace_id}] ReAct RAG Agent Config: model={model_name}, "
                     f"dataset_ids={dataset_ids}, max_iterations=5"
                 )
 
                 agent = create_rag_agent(config)
 
-                # Load and window conversation history
+                # Load conversation history (for context in first reasoning step)
                 past_messages = SessionChatMessage.objects.filter(session=session).order_by(
                     "timestamp"
-                )[:20]
+                )[:10]  # Limit to recent messages
 
-                history = []
+                # Build message history in simple dict format for ReAct
+                message_history = []
                 for msg in past_messages:
-                    if msg.sender == "user":
-                        history.append(HumanMessage(content=msg.message))
-                    else:
-                        history.append(AIMessage(content=msg.message))
+                    role = "user" if msg.sender == "user" else "assistant"
+                    message_history.append({"role": role, "content": msg.message})
 
-                windowed_history = get_chat_history_window(
-                    history, max_tokens=4000, model_name=model_name
-                )
-
-                # Initialize state
+                # Initialize ReAct state
                 initial_state = {
-                    "messages": [*windowed_history, HumanMessage(content=question)],
-                    "iteration_count": 0,
-                    "retrieval_history": [],
-                    "should_finish": False,
+                    "question": question,
+                    "message_history": message_history + [{"role": "user", "content": question}],
+                    "reasoning_steps": [],
+                    "executed_queries": [],
+                    "current_reasoning": "",
+                    "current_queries": [],
+                    "current_retrieved": [],
+                    "retrieved_chunks": [],
+                    "iteration": 0,
+                    "final_answer": "",
+                    "should_continue": True,
                 }
 
-                # Run agent loop with SSE streaming
+                # Run ReAct agent loop with SSE streaming
                 import asyncio
 
-                # Execute async agent and collect events
-                async def run_agent_async():
-                    events = []
-                    iteration_count = 0
+                # Execute async agent
+                async def run_react_agent_async():
+                    """Run ReAct agent and collect final state."""
+                    final_state = None
 
                     async for event in agent.astream(initial_state):
-                        iteration_count += 1
-                        events.append((iteration_count, event))
+                        # Each event is {node_name: node_state}
+                        for node_name, node_state in event.items():
+                            # Emit status for each node
+                            if node_name == "reasoning":
+                                iteration = node_state.get('iteration', 0)
+                                yield f"data: {json.dumps({'type': 'status', 'message': f'🤔 Thinking (round {iteration})...'})}\n\n"
+                            elif node_name == "retrieval":
+                                queries = node_state.get("current_queries", [])
+                                if queries:
+                                    query_preview = queries[0][:50] + "..." if len(queries[0]) > 50 else queries[0]
+                                    yield f"data: {json.dumps({'type': 'status', 'message': f'🔍 Searching: {query_preview}'})}\n\n"
+                            elif node_name == "evaluation":
+                                yield f"data: {json.dumps({'type': 'status', 'message': '📊 Analyzing results...'})}\n\n"
+                            elif node_name == "synthesize":
+                                yield f"data: {json.dumps({'type': 'status', 'message': '✍️ Generating answer...'})}\n\n"
 
-                    return events, iteration_count
+                            final_state = node_state
+
+                    return final_state
 
                 # Run the async agent in a new event loop
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
+
+                accumulated_content = ""
+                final_state = None
+
                 try:
-                    events, total_iterations = loop.run_until_complete(run_agent_async())
+                    # Stream status events
+                    async for status_event in run_react_agent_async():
+                        if isinstance(status_event, str):  # SSE formatted string
+                            yield status_event
+                        else:  # Final state
+                            final_state = status_event
+
+                    # If we got events but no final state, invoke once to get it
+                    if not final_state:
+                        final_state = loop.run_until_complete(agent.ainvoke(initial_state))
+
+                    # Extract and stream final answer
+                    final_answer = final_state.get("final_answer", "")
+
+                    if final_answer:
+                        # Create assistant message
+                        if not assistant_message:
+                            assistant_message = SessionChatMessage.objects.create(
+                                session=session,
+                                notebook=notebook,
+                                sender="assistant",
+                                message=final_answer,
+                                metadata={"status": "generating", "trace_id": trace_id},
+                            )
+
+                        # Stream tokens char by char
+                        for char in final_answer:
+                            yield f"data: {json.dumps({'type': 'token', 'text': char})}\n\n"
+
+                        accumulated_content = final_answer
+
                 finally:
                     loop.close()
 
-                # Process collected events and yield SSE
-                for iteration, event in events:
-                    if "agent" in event:
-                        node_output = event["agent"]
-                        if "messages" in node_output:
-                            last_msg = node_output["messages"][-1]
-
-                            # Tool call → emit status
-                            if hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-                                yield f"data: {json.dumps({'type': 'status', 'message': f'Searching knowledge base (iteration {iteration})...'})}\n\n"
-                                logger.info(f"[{trace_id}] Tool call in iteration {iteration}")
-
-                            # Final answer (no tool calls)
-                            elif hasattr(last_msg, "content") and last_msg.content:
-                                content = last_msg.content
-
-                                # Create assistant message on first content
-                                if not assistant_message:
-                                    assistant_message = SessionChatMessage.objects.create(
-                                        session=session,
-                                        notebook=notebook,
-                                        sender="assistant",
-                                        message=content,
-                                        metadata={"status": "generating", "trace_id": trace_id},
-                                    )
-
-                                # Stream tokens char by char
-                                for char in content:
-                                    yield f"data: {json.dumps({'type': 'token', 'text': char})}\n\n"
-
-                                accumulated_content = content
-
-                # Extract citations
-                citations = self._extract_citations_from_messages(initial_state["messages"])
+                # Extract citations from retrieved chunks
+                citations = []
+                if final_state and "retrieved_chunks" in final_state:
+                    seen_docs = set()
+                    for chunk in final_state["retrieved_chunks"][:10]:  # Limit to top 10
+                        doc_name = chunk.get("doc_name", "Unknown Document")
+                        if doc_name not in seen_docs:
+                            seen_docs.add(doc_name)
+                            citations.append({
+                                "index": len(citations) + 1,
+                                "document_name": doc_name,
+                                "preview": chunk.get("content", "")[:200]
+                            })
 
                 # Update assistant message
                 if assistant_message:
                     assistant_message.message = accumulated_content
+                    final_iteration = final_state.get("iteration", 0) if final_state else 0
                     assistant_message.metadata = {
                         "status": "completed",
                         "trace_id": trace_id,
-                        "iterations": total_iterations,
+                        "iterations": final_iteration,
                         "citations": citations,
+                        "executed_queries": final_state.get("executed_queries", []) if final_state else [],
                     }
                     assistant_message.save()
 

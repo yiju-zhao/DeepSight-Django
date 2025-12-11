@@ -1,35 +1,56 @@
 """
-LangGraph workflow for RAG agent.
+LangGraph workflow for ReAct RAG agent.
 
-Defines the agent graph with nodes for reasoning, tool execution,
-and conditional routing for multi-round retrieval.
+Implements ReAct (Reasoning + Acting) pattern with iterative retrieval:
+- reasoning_node: Agent thinks and generates queries
+- retrieval_node: Execute retrieval based on queries
+- evaluation_node: LLM evaluates and extracts relevant info
+- synthesize_node: Generate final answer from all reasoning steps
+
+Flow: reasoning → retrieval → evaluation → (continue OR synthesize)
 """
 
 import logging
 from typing import Literal
 
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import SystemMessage
-from langgraph.graph import StateGraph, START, END
-from langgraph.types import Command
-from langgraph.prebuilt import ToolNode
+from langgraph.graph import StateGraph, END
 
-from .states import RAGAgentState
-from .prompts import format_system_prompt
+from .states import RAGReActState
+from .prompts import (
+    REASON_PROMPT,
+    RELEVANT_EXTRACTION_PROMPT,
+    format_synthesis_prompt,
+    BEGIN_SEARCH_QUERY,
+    END_SEARCH_QUERY,
+    BEGIN_SEARCH_RESULT,
+    END_SEARCH_RESULT,
+    MAX_ITERATIONS,
+)
 from .config import RAGAgentConfig
+from .utils import (
+    extract_between,
+    truncate_reasoning_history,
+    format_chunks,
+    remove_query_tags,
+)
 
 logger = logging.getLogger(__name__)
 
 
 def create_rag_agent(config: RAGAgentConfig):
     """
-    Build and compile the RAG agent graph.
+    Build and compile the ReAct RAG agent graph.
 
     The graph structure:
     ```
-    START → agent_reasoning → [tool_calls?] → tools → agent_reasoning
-                            ↓ [no_calls]
-                            END
+    START → reasoning → [has_queries?] → retrieval → evaluation
+                                              ↓
+                      [no_queries] → synthesize → END
+                                              ↑
+                      [continue?] ←───────────┘
+                            ↓ [finish]
+                       synthesize → END
     ```
 
     Args:
@@ -41,273 +62,328 @@ def create_rag_agent(config: RAGAgentConfig):
     Example:
         >>> from backend.notebooks.agents.rag_agent import create_rag_agent, RAGAgentConfig
         >>> config = RAGAgentConfig(
-        ...     model_name="gpt-4.1-mini",
-        ...     api_key="sk-...",
+        ...     model_name="gpt-4o-mini",
         ...     retrieval_service=retrieval_service,
         ...     dataset_ids=["kb1"]
         ... )
         >>> agent = create_rag_agent(config)
-        >>> result = await agent.ainvoke({"messages": [HumanMessage("What is Python?")], ...})
+        >>> result = await agent.ainvoke({
+        ...     "question": "What is deep learning?",
+        ...     "message_history": [],
+        ...     ...
+        ... })
     """
-    logger.info(f"Creating RAG agent with model: {config.model_name}")
+    logger.info(f"Creating ReAct RAG agent with model: {config.model_name}")
 
-    # Initialize model
-    model = init_chat_model(
+    # Initialize chat model for reasoning and synthesis
+    chat_model = init_chat_model(
         model=f"openai:{config.model_name}",
         api_key=config.api_key,
         temperature=config.temperature,
     )
 
-    # Create tools with injected dependencies using closures
-    # This properly binds config dependencies without breaking LangChain's tool system
-    from functools import partial
-    from langchain_core.tools import tool as langchain_tool
-    from notebooks.agents.rag_agent.tools import (
-        RetrieveKnowledgeInput,
-        RewriteQueryInput,
-        DecomposeQueryInput,
+    # Evaluation model (lower temperature for precision)
+    eval_model = init_chat_model(
+        model=f"openai:{config.model_name}",
+        api_key=config.api_key,
+        temperature=config.eval_temperature,
     )
 
-    @langchain_tool(args_schema=RetrieveKnowledgeInput)
-    def retrieve_knowledge_bound(query: str, top_k: int = 6) -> str:
+    # Synthesis model (balanced temperature)
+    synthesis_model = init_chat_model(
+        model=f"openai:{config.model_name}",
+        api_key=config.api_key,
+        temperature=config.synthesis_temperature,
+    )
+
+    # ===== Node Definitions =====
+
+    async def reasoning_node(state: RAGReActState) -> RAGReActState:
         """
-        Retrieve relevant information from the knowledge base.
+        Agent self-reasoning node: thinks and generates queries.
 
-        🔴 CRITICAL: This is your PRIMARY tool. Use it FIRST for any substantive question.
-        The knowledge base contains the authoritative, up-to-date information the user wants.
-        Do NOT rely on your training data - ALWAYS retrieve first.
-
-        Args:
-            query: Specific search query
-            top_k: Number of passages to retrieve
-
-        Returns:
-            Formatted string with relevant passages and sources
+        Uses REASON_PROMPT to guide the agent through step-by-step reasoning.
+        Agent outputs queries wrapped in special markers.
         """
-        from notebooks.agents.rag_agent.tools import (
-            _retrieve_knowledge_impl,
-            _build_keyword_query,
-        )
+        logger.info(f"[reasoning_node] Iteration {state['iteration']}")
 
-        keyword_query = _build_keyword_query(query, config.api_key)
+        msg_history = state["message_history"].copy()
 
-        return _retrieve_knowledge_impl(
-            query=keyword_query,
-            top_k=top_k,
-            retrieval_service=config.retrieval_service,
-            dataset_ids=config.dataset_ids,
-        )
+        # If not first iteration, prompt to continue reasoning
+        if state["iteration"] > 0:
+            if not msg_history or msg_history[-1]["role"] != "user":
+                msg_history.append({
+                    "role": "user",
+                    "content": "Continue reasoning with the new information.\n"
+                })
+            else:
+                msg_history[-1]["content"] += "\n\nContinue reasoning with the new information.\n"
 
-    @langchain_tool(args_schema=RewriteQueryInput)
-    def rewrite_query_bound(original_query: str, context: str = "") -> str:
+        # Call LLM with REASON_PROMPT
+        messages = [{"role": "system", "content": REASON_PROMPT}] + msg_history
+
+        reasoning_output = ""
+        async for chunk in chat_model.astream(messages):
+            if hasattr(chunk, "content"):
+                reasoning_output += chunk.content
+
+        logger.debug(f"[reasoning_node] Output: {reasoning_output[:200]}...")
+
+        # Extract queries from reasoning
+        queries = extract_between(reasoning_output, BEGIN_SEARCH_QUERY, END_SEARCH_QUERY)
+        logger.info(f"[reasoning_node] Extracted {len(queries)} queries: {queries}")
+
+        # Update state
+        return {
+            **state,
+            "current_reasoning": reasoning_output,
+            "current_queries": queries,
+            "reasoning_steps": state["reasoning_steps"] + [reasoning_output],
+            "iteration": state["iteration"] + 1,
+        }
+
+    async def retrieval_node(state: RAGReActState) -> RAGReActState:
         """
-        Transform a user query into an optimized search query for the knowledge base.
+        Execute retrieval for all current queries.
 
-        Use this when you have a vague, verbose, or poorly worded question that needs
-        optimization before retrieval. Uses gpt-4.1-mini for fast, cost-effective query optimization.
-
-        Args:
-            original_query: The user's original question or query
-            context: Optional conversation context to inform rewriting
-
-        Returns:
-            Optimized search query string with key terms extracted
+        Performs deduplication and uses config thresholds.
         """
-        from notebooks.agents.rag_agent.tools import _rewrite_query_impl
+        logger.info(f"[retrieval_node] Processing {len(state['current_queries'])} queries")
 
-        return _rewrite_query_impl(
-            original_query=original_query,
-            context=context,
-            api_key=config.api_key,
-        )
+        queries = state["current_queries"]
+        executed_queries = state["executed_queries"]
+        all_retrieved = []
 
-    @langchain_tool(args_schema=DecomposeQueryInput)
-    def decompose_query_bound(complex_query: str) -> list[str]:
-        """
-        Break down a complex question into simpler, focused sub-queries.
+        for query in queries:
+            # Skip if already executed
+            if query in executed_queries:
+                logger.info(f"[retrieval_node] Query already executed: {query}")
+                msg = f"\n{BEGIN_SEARCH_RESULT}\nYou have searched this query. Please refer to previous results.\n{END_SEARCH_RESULT}\n"
+                state["message_history"].append({"role": "user", "content": msg})
+                state["reasoning_steps"].append(msg)
+                continue
 
-        Use this when a question has multiple parts or aspects that should be researched
-        separately for comprehensive coverage. Uses gpt-4.1-mini for fast, cost-effective query decomposition.
+            logger.info(f"[retrieval_node] Executing query: {query}")
 
-        Args:
-            complex_query: A multi-part or complex question
-
-        Returns:
-            List of simpler, focused sub-queries
-        """
-        from notebooks.agents.rag_agent.tools import _decompose_query_impl
-
-        return _decompose_query_impl(
-            complex_query=complex_query,
-            api_key=config.api_key,
-        )
-
-    # Bind tools to model for function calling
-    # retrieve_knowledge_bound: uses config (retrieval_service, dataset_ids)
-    # rewrite_query_bound: uses hardcoded gpt-4.1-mini + config.api_key (fast and cheap for query optimization)
-    # decompose_query_bound: uses hardcoded gpt-4.1-mini + config.api_key (fast and cheap for query optimization)
-    model_with_tools = model.bind_tools([
-        retrieve_knowledge_bound,
-        rewrite_query_bound,
-        decompose_query_bound,
-    ])
-
-    # Define agent reasoning node
-    def agent_reasoning(state: RAGAgentState) -> Command[Literal["tools", END]]:
-        """
-        Agent reasoning node: decides whether to retrieve or finish.
-
-        This node:
-        1. Checks iteration limit
-        2. Builds system message with context
-        3. Invokes LLM with tool access
-        4. Routes to tools node if tool calls present, otherwise finishes
-
-        Args:
-            state: Current agent state
-
-        Returns:
-            Command to either execute tools or end workflow
-        """
-        iteration_count = state.get("iteration_count", 0)
-        messages = state["messages"]
-
-        logger.debug(
-            f"Agent reasoning: iteration {iteration_count}/{config.max_iterations}"
-        )
-
-        # Check iteration limit
-        if iteration_count >= config.max_iterations:
-            logger.info(
-                f"Reached max iterations ({config.max_iterations}), forcing finish"
-            )
-            # Force finish - no more tool calls
-            # The agent should use accumulated knowledge to answer
-            return Command(goto=END, update={"should_finish": True})
-
-        # Build system message with iteration context
-        system_msg = SystemMessage(
-            content=format_system_prompt(iteration_count, config.max_iterations)
-        )
-
-        # Invoke model with system message + conversation history
-        try:
-            response = model_with_tools.invoke([system_msg] + list(messages))
-        except Exception as e:
-            logger.exception(f"Error invoking model: {e}")
-            # On error, force finish with error message
-            from langchain_core.messages import AIMessage
-
-            error_response = AIMessage(
-                content=f"I encountered an error while processing your request: {str(e)}"
-            )
-            return Command(
-                goto=END, update={"messages": [error_response], "should_finish": True}
-            )
-
-        # Check for tool calls
-        has_tool_calls = hasattr(response, "tool_calls") and response.tool_calls
-
-        if has_tool_calls:
-            logger.info(
-                f"Agent requested {len(response.tool_calls)} tool call(s) "
-                f"in iteration {iteration_count}"
-            )
-            # Update state and route to tools node
-            return Command(
-                goto="tools",
-                update={
-                    "messages": [response],
-                    "iteration_count": iteration_count + 1,
-                },
-            )
-        else:
-            # No tool calls - force at least one retrieval on first iteration
-            from uuid import uuid4
-            from langchain_core.messages import AIMessage, HumanMessage
-
-            last_user_message = next(
-                (m for m in reversed(messages) if isinstance(m, HumanMessage)), None
-            )
-            user_query = last_user_message.content if last_user_message else ""
-
-            # Only force retrieval when we have a user query and configured datasets
-            if iteration_count == 0 and user_query and config.dataset_ids:
-                logger.info(
-                    "Agent returned without tool calls on first iteration. "
-                    "Forcing retrieve_knowledge tool invocation."
-                )
-                # OpenAI tool_call ids must be <= 40 chars; keep short prefix
-                forced_tool_call_id = f"frc-{uuid4().hex[:12]}"
-                forced_tool_call = AIMessage(
-                    content="",
-                    tool_calls=[
-                        {
-                            "id": forced_tool_call_id,
-                            "name": "retrieve_knowledge_bound",
-                            "args": {"query": user_query, "top_k": config.top_k},
-                        }
-                    ],
+            # Execute retrieval
+            try:
+                # Call retrieval service (returns RetrievalResult object)
+                result = config.retrieval_service.retrieve_chunks(
+                    question=query,
+                    dataset_ids=config.dataset_ids,
+                    similarity_threshold=config.similarity_threshold,
+                    top_k=config.top_k,
                 )
 
-                # Route to tools node with forced call
-                return Command(
-                    goto="tools",
-                    update={
-                        "messages": [forced_tool_call],
-                        "iteration_count": iteration_count + 1,
-                        "retrieval_history": state.get("retrieval_history", [])
-                        + [user_query],
-                    },
-                )
+                # Extract chunks from result
+                chunks = result.chunks if hasattr(result, 'chunks') else []
+                logger.info(f"[retrieval_node] Retrieved {len(chunks)} chunks for query: {query}")
 
-            # No tool calls and no forced retrieval path available
-            logger.info("Agent finished without tool calls")
-            return Command(
-                goto=END, update={"messages": [response], "should_finish": True}
-            )
+                # Convert chunks to dict format for state
+                for chunk in chunks:
+                    chunk_dict = {
+                        "chunk_id": getattr(chunk, 'id', ''),
+                        "doc_name": getattr(chunk, 'document_name', 'Unknown'),
+                        "content": getattr(chunk, 'content', ''),
+                        "similarity": getattr(chunk, 'similarity', 0.0),
+                    }
+                    all_retrieved.append(chunk_dict)
 
-    # Define conditional routing after tool execution
-    def should_continue(state: RAGAgentState) -> Literal["agent", END]:
+                executed_queries.append(query)
+
+            except Exception as e:
+                logger.error(f"[retrieval_node] Retrieval error: {e}")
+                # Add error message to context
+                error_msg = f"\n{BEGIN_SEARCH_RESULT}\nRetrieval failed: {str(e)}\n{END_SEARCH_RESULT}\n"
+                state["message_history"].append({"role": "user", "content": error_msg})
+                state["reasoning_steps"].append(error_msg)
+
+        # Update state
+        return {
+            **state,
+            "current_retrieved": all_retrieved,
+            "retrieved_chunks": state["retrieved_chunks"] + all_retrieved,
+            "executed_queries": executed_queries,
+        }
+
+    async def evaluation_node(state: RAGReActState) -> RAGReActState:
         """
-        Determine whether to continue after tool execution.
+        Evaluate retrieval results and extract relevant information.
 
-        After tools execute, we always return to the agent for synthesis
-        unless we've hit the iteration limit.
-
-        Args:
-            state: Current agent state
-
-        Returns:
-            Next node name ("agent") or END signal
+        Uses RELEVANT_EXTRACTION_PROMPT to filter and summarize.
         """
-        iteration_count = state.get("iteration_count", 0)
+        logger.info(f"[evaluation_node] Evaluating {len(state['current_retrieved'])} chunks")
 
-        if state.get("should_finish", False) or iteration_count >= config.max_iterations:
-            logger.info("Finishing after tool execution")
-            return END
+        current_query = state["current_queries"][0] if state["current_queries"] else "unknown"
+        retrieved = state["current_retrieved"]
 
-        logger.debug("Continuing to agent after tool execution")
-        return "agent"
+        # Format chunks for LLM
+        document_text = format_chunks(retrieved, max_content_length=500)
 
-    # Build the graph
-    builder = StateGraph(RAGAgentState)
+        # Truncate reasoning history
+        truncated_reasoning = truncate_reasoning_history(
+            state["reasoning_steps"],
+            keep_first_n=config.keep_first_n_steps,
+            keep_last_n=config.keep_last_n_steps,
+        )
+
+        # Build evaluation prompt
+        eval_prompt = RELEVANT_EXTRACTION_PROMPT.format(
+            prev_reasoning=truncated_reasoning,
+            search_query=current_query,
+            document=document_text,
+        )
+
+        # Call LLM for evaluation
+        messages = [{"role": "user", "content": eval_prompt}]
+
+        evaluation_output = ""
+        async for chunk in eval_model.astream(messages):
+            if hasattr(chunk, "content"):
+                evaluation_output += chunk.content
+
+        logger.debug(f"[evaluation_node] Evaluation: {evaluation_output[:200]}...")
+
+        # Wrap in result tags
+        result_text = f"\n{BEGIN_SEARCH_RESULT}{evaluation_output}{END_SEARCH_RESULT}\n"
+
+        # Add to message history
+        state["message_history"].append({"role": "user", "content": result_text})
+        state["reasoning_steps"].append(result_text)
+
+        return state
+
+    async def synthesize_node(state: RAGReActState) -> RAGReActState:
+        """
+        Synthesize final answer from all reasoning steps.
+        """
+        logger.info("[synthesize_node] Generating final answer")
+
+        # Join all reasoning steps (remove query/result tags for cleaner output)
+        all_reasoning = "\n\n".join(
+            remove_query_tags(step) for step in state["reasoning_steps"]
+        )
+
+        # Build synthesis prompt
+        synthesis_prompt = format_synthesis_prompt(
+            question=state["question"],
+            reasoning_process=all_reasoning,
+        )
+
+        # Call LLM for synthesis
+        messages = [{"role": "user", "content": synthesis_prompt}]
+
+        final_answer = ""
+        async for chunk in synthesis_model.astream(messages):
+            if hasattr(chunk, "content"):
+                final_answer += chunk.content
+
+        logger.info(f"[synthesize_node] Generated answer ({len(final_answer)} chars)")
+
+        return {
+            **state,
+            "final_answer": final_answer,
+        }
+
+    # ===== Conditional Edge Functions =====
+
+    def should_retrieve(state: RAGReActState) -> Literal["retrieve", "synthesize"]:
+        """
+        Decide whether to retrieve or synthesize.
+
+        Logic:
+        - If iteration 1 and no queries: force retrieval with original question
+        - If has queries: retrieve
+        - Otherwise: synthesize
+        """
+        queries = state.get("current_queries", [])
+        iteration = state.get("iteration", 0)
+
+        # First iteration without queries: force retrieval
+        if iteration == 1 and not queries:
+            logger.info("[should_retrieve] First iteration, forcing retrieval with original question")
+            state["current_queries"] = [state["question"]]
+            return "retrieve"
+
+        # Has queries: retrieve
+        if queries:
+            logger.info(f"[should_retrieve] Has {len(queries)} queries, routing to retrieval")
+            return "retrieve"
+
+        # No queries: synthesize
+        logger.info("[should_retrieve] No queries, routing to synthesis")
+        return "synthesize"
+
+    def should_continue_reasoning(state: RAGReActState) -> Literal["continue", "finish"]:
+        """
+        Decide whether to continue reasoning or finish.
+
+        Logic:
+        - If max iterations reached: finish
+        - If evaluation says "sufficient information": finish
+        - Otherwise: continue
+        """
+        iteration = state.get("iteration", 0)
+
+        # Max iterations reached
+        if iteration >= config.max_iterations:
+            logger.info(f"[should_continue_reasoning] Max iterations ({config.max_iterations}) reached, finishing")
+            return "finish"
+
+        # Check last reasoning step for completion signals
+        if state["reasoning_steps"]:
+            last_step = state["reasoning_steps"][-1].lower()
+
+            if any(phrase in last_step for phrase in [
+                "sufficient information",
+                "ready to answer",
+                "can now answer",
+                "have all the information",
+            ]):
+                logger.info("[should_continue_reasoning] Agent indicates completion, finishing")
+                return "finish"
+
+        logger.info("[should_continue_reasoning] Continuing reasoning")
+        return "continue"
+
+    # ===== Build Graph =====
+
+    graph = StateGraph(RAGReActState)
 
     # Add nodes
-    builder.add_node("agent", agent_reasoning)
-    builder.add_node("tools", ToolNode([
-        retrieve_knowledge_bound,
-        rewrite_query_bound,
-        decompose_query_bound,
-    ]))
+    graph.add_node("reasoning", reasoning_node)
+    graph.add_node("retrieval", retrieval_node)
+    graph.add_node("evaluation", evaluation_node)
+    graph.add_node("synthesize", synthesize_node)
+
+    # Set entry point
+    graph.set_entry_point("reasoning")
 
     # Add edges
-    builder.add_edge(START, "agent")
-    builder.add_conditional_edges("tools", should_continue)
+    graph.add_conditional_edges(
+        "reasoning",
+        should_retrieve,
+        {
+            "retrieve": "retrieval",
+            "synthesize": "synthesize",
+        }
+    )
 
-    # Compile graph
-    graph = builder.compile()
+    graph.add_edge("retrieval", "evaluation")
 
-    logger.info("RAG agent graph compiled successfully")
+    graph.add_conditional_edges(
+        "evaluation",
+        should_continue_reasoning,
+        {
+            "continue": "reasoning",
+            "finish": "synthesize",
+        }
+    )
 
-    return graph
+    graph.add_edge("synthesize", END)
+
+    # Compile and return
+    compiled_graph = graph.compile()
+    logger.info("ReAct RAG agent graph compiled successfully")
+
+    return compiled_graph

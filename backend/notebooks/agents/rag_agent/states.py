@@ -2,38 +2,63 @@
 LangGraph state definitions for RAG agent.
 
 Defines the state structure that flows through the agent graph,
-including messages, iteration tracking, and retrieval history.
+supporting ReAct (Reasoning + Acting) pattern with iterative retrieval.
 """
 
-from typing import Annotated, Sequence
+from typing import Any
 from typing_extensions import TypedDict
 
-from langchain_core.messages import BaseMessage
-from langgraph.graph.message import add_messages
 
-
-class RAGAgentState(TypedDict):
+class RAGReActState(TypedDict):
     """
-    State for the RAG agent workflow.
+    State for the ReAct RAG agent workflow.
 
-    This state flows through the LangGraph nodes and tracks:
-    - Conversation messages (with tool calls and responses)
-    - Iteration count (to enforce max iterations)
-    - Retrieval history (for logging and debugging)
-    - Finish flag (to signal completion)
+    This state supports the ReAct pattern:
+    - REASON: Agent thinks and generates queries
+    - ACT: Execute retrieval based on queries
+    - EVALUATE: LLM assesses retrieval results and extracts relevant info
+    - OBSERVE: Add results to history and continue reasoning
+
+    Flow through nodes:
+    reasoning → retrieval → evaluation → (continue reasoning OR synthesize answer)
     """
 
-    # Message history with automatic merging of new messages
-    # add_messages reducer handles appending and updating messages
-    messages: Annotated[Sequence[BaseMessage], add_messages]
+    # ===== Core Question =====
+    # Original user question
+    question: str
 
-    # Iteration counter to enforce max_iterations limit
-    iteration_count: int
+    # ===== ReAct Loop State =====
+    # Message history for LLM context (role + content dicts)
+    # Format: [{"role": "user"/"assistant", "content": "..."}]
+    message_history: list[dict[str, str]]
 
-    # Track retrieval queries for logging/debugging
-    # List of query strings passed to retrieve_knowledge tool
-    retrieval_history: list[str]
+    # All reasoning steps (includes queries and search results)
+    # Used for history truncation and context management
+    reasoning_steps: list[str]
 
-    # Explicit finish signal
-    # Set to True when agent should stop iterating
-    should_finish: bool
+    # Current iteration number (0-indexed)
+    iteration: int
+
+    # ===== Query Management =====
+    # All executed queries (for deduplication)
+    executed_queries: list[str]
+
+    # Current reasoning output from reasoning_node
+    current_reasoning: str
+
+    # Current queries extracted from reasoning
+    current_queries: list[str]
+
+    # ===== Retrieval Results =====
+    # Current batch of retrieved chunks
+    current_retrieved: list[dict[str, Any]]
+
+    # All accumulated chunks (for final citations)
+    retrieved_chunks: list[dict[str, Any]]
+
+    # ===== Final Output =====
+    # Final synthesized answer
+    final_answer: str
+
+    # Control flag (for conditional edges)
+    should_continue: bool
