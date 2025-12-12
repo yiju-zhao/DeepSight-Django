@@ -167,19 +167,19 @@ async def create_rag_agent(config: RAGAgentConfig):
         question = state.get("question", "")
         messages = state["messages"]
 
-        # Get the last tool message (contains retrieval results)
-        context = ""
+        # Get latest tool output for grading
+        latest_tool_context = ""
         for msg in reversed(messages):
             if hasattr(msg, "type") and msg.type == "tool":
-                context = format_tool_content(msg.content).strip()
+                latest_tool_context = format_tool_content(msg.content).strip()
                 break
 
-        if not context or context == "No relevant documents found.":
+        if not latest_tool_context or latest_tool_context == "No relevant documents found.":
             logger.info("[grade_documents] No documents to grade, rewriting question")
             return "rewrite_question"
 
         # Use structured output for grading
-        prompt = format_grade_documents_prompt(question=question, context=context)
+        prompt = format_grade_documents_prompt(question=question, context=latest_tool_context)
 
         try:
             grader_with_output = grader_model.with_structured_output(GradeDocuments)
@@ -203,6 +203,12 @@ async def create_rag_agent(config: RAGAgentConfig):
 
             if relevance != "yes":
                 return "rewrite_question"
+
+            # Accumulate only after passing relevance
+            retrieved_chunks = state.get("retrieved_chunks", []) or []
+            if latest_tool_context not in [c.get("content") for c in retrieved_chunks]:
+                retrieved_chunks = retrieved_chunks + [{"content": latest_tool_context}]
+            state["retrieved_chunks"] = retrieved_chunks
 
             if completeness == "needs_more":
                 return "prepare_followup_query"
@@ -251,14 +257,9 @@ async def create_rag_agent(config: RAGAgentConfig):
         question = state.get("question", "")
         messages = state["messages"]
 
-        # Extract context from tool messages
-        context_parts = []
-        for msg in messages:
-            if hasattr(msg, "type") and msg.type == "tool":
-                content = format_tool_content(msg.content).strip()
-                if content and content != "No relevant documents found.":
-                    context_parts.append(content)
-
+        # Use accumulated relevant chunks gathered across retrieval passes
+        retrieved_chunks = state.get("retrieved_chunks", []) or []
+        context_parts = [c.get("content", "") for c in retrieved_chunks if c.get("content")]
         context = "\n\n".join(context_parts) if context_parts else "No context available."
 
         # Generate answer
@@ -288,12 +289,16 @@ async def create_rag_agent(config: RAGAgentConfig):
         question = state.get("question", "")
         messages = state["messages"]
 
-        # Use the latest tool content as the anchor for continuation
+        # Use the latest accumulated context as the anchor for continuation
         latest_context = ""
-        for msg in reversed(messages):
-            if hasattr(msg, "type") and msg.type == "tool":
-                latest_context = format_tool_content(msg.content).strip()
-                break
+        retrieved_chunks = state.get("retrieved_chunks", []) or []
+        if retrieved_chunks:
+            latest_context = retrieved_chunks[-1].get("content", "") or ""
+        else:
+            for msg in reversed(messages):
+                if hasattr(msg, "type") and msg.type == "tool":
+                    latest_context = format_tool_content(msg.content).strip()
+                    break
 
         tail_snippet = latest_context[-500:] if latest_context else ""
         hint = (
@@ -305,6 +310,25 @@ async def create_rag_agent(config: RAGAgentConfig):
         logger.info("[prepare_followup_query] Adding follow-up hint for retrieval")
 
         return {"messages": [HumanMessage(content=hint)]}
+
+    def accumulate_context(state: RAGAgentState) -> dict:
+        """
+        Capture the latest retrieval result into accumulated context for synthesis.
+        """
+        messages = state["messages"]
+        retrieved_chunks = state.get("retrieved_chunks", []) or []
+
+        latest_context = ""
+        for msg in reversed(messages):
+            if hasattr(msg, "type") and msg.type == "tool":
+                latest_context = format_tool_content(msg.content).strip()
+                break
+
+        if latest_context and latest_context != "No relevant documents found.":
+            updated_chunks = retrieved_chunks + [{"content": latest_context}]
+            return {"retrieved_chunks": updated_chunks}
+
+        return {}
 
     # ===== Build Graph =====
 
@@ -330,6 +354,7 @@ async def create_rag_agent(config: RAGAgentConfig):
         },
     )
 
+    # Grade documents after retrieval
     # Grade documents after retrieval
     workflow.add_conditional_edges(
         "retrieve",
