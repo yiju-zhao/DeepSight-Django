@@ -31,22 +31,6 @@ class ReportGenerationService:
         self.file_storage = StorageFactory.create_storage()
         self._temp_dirs = []
 
-    @property
-    def generator(self):
-        """Lazy-load the DeepReportGenerator."""
-        if self._generator is None:
-            try:
-                from agents.report_agent.deep_report_generator import (
-                    DeepReportGenerator,
-                )
-
-                self._generator = DeepReportGenerator()
-            except ImportError as e:
-                raise ImportError(f"Failed to import DeepReportGenerator: {e}")
-            except Exception as e:
-                raise Exception(f"Failed to initialize DeepReportGenerator: {e}")
-        return self._generator
-
     def generate_report(self, report_id: int) -> dict[str, Any]:
         try:
             try:
@@ -228,35 +212,21 @@ class ReportGenerationService:
             return False
 
     def _generate_report(self, config: dict[str, Any]) -> dict[str, Any]:
-        """Generate report using the core generator."""
-        try:
-            from agents.report_agent.deep_report_generator import ReportGenerationConfig
-
-            deep_config = ReportGenerationConfig.from_dict(config)
-            result = self.generator.generate_report(deep_config)
-
-            if not result.success:
-                return {
-                    "success": False,
-                    "error_message": result.error_message or "Report generation failed",
-                }
-
-            generated_files = result.generated_files or []
-            return {
-                "success": True,
-                "article_title": result.article_title,
-                "generated_topic": getattr(result, "generated_topic", None),
-                "report_content": getattr(result, "report_content", ""),
-                "generated_files": generated_files,
-                "processing_logs": result.processing_logs or [],
-                "error_message": None,
-            }
-        except Exception as e:
-            logger.error(f"Report generation failed: {e}")
-            return {
-                "success": False,
-                "error_message": f"Report generation failed: {str(e)}",
-            }
+        """
+        Generate report using the core generator.
+        DEPRECATED: This method relied on the legacy report_agent which has been removed.
+        Future implementations will use the chat-based agent architecture.
+        """
+        error_msg = (
+            "Legacy report generation is deprecated. "
+            "The report_agent module has been removed. "
+            "Please use the new chat-based agent workflow."
+        )
+        logger.error(error_msg)
+        return {
+            "success": False,
+            "error_message": error_msg,
+        }
 
     def validate_report_config(self, config: dict[str, Any]) -> bool:
         """Public wrapper for validate_configuration."""
