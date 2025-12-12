@@ -144,11 +144,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
     handleSendMessage('Please proceed with what you have');
   }, [handleSendMessage]);
 
-  // Show suggestions handler
-  const handleSuggestionClick = (suggestion: string) => {
-    handleSendMessage(suggestion);
-  };
-
   // Don't render anything if no session (prevents flash of "no session selected")
   if (!session) {
     return null;
@@ -159,7 +154,7 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
       <AssistantRuntimeProvider runtime={runtime}>
         {/* Messages Area */}
         <div className="flex-1 overflow-hidden relative">
-          <CustomThread />
+          <CustomThread suggestions={suggestions} />
 
           {/* Clarification Card Overlay */}
           {studioMode && clarification && clarification.questions.length > 0 && (
@@ -197,23 +192,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
           )}
         </div>
 
-        {/* Suggestions */}
-        {suggestions && suggestions.length > 0 && !studioMode && (
-          <div className="flex-shrink-0 px-6 py-2 bg-white shadow-inner">
-            <div className="flex flex-wrap gap-2">
-              {suggestions.slice(0, 3).map((sugg, i) => (
-                <Button
-                  key={`${i}-${sugg}`}
-                  size="sm"
-                  onClick={() => handleSuggestionClick(sugg)}
-                  className="h-6 rounded-full px-2 py-1 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700"
-                >
-                  {sugg}
-                </Button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Error display */}
         {studioMode && error && (

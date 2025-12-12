@@ -233,7 +233,12 @@ const CustomMessage: React.FC = () => {
 };
 
 // Custom Composer Component with Studio Mode Toggle
-const CustomComposer: React.FC = () => {
+interface CustomComposerProps {
+  suggestions?: string[];
+  onSuggestionClick?: (suggestion: string) => void;
+}
+
+const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggestionClick }) => {
   const composerRuntime = useComposerRuntime();
   const [inputValue, setInputValue] = React.useState('');
   const [isSending, setIsSending] = React.useState(false);
@@ -265,6 +270,14 @@ const CustomComposer: React.FC = () => {
     }
   };
 
+  const handleSuggestionClick = (suggestion: string) => {
+    setInputValue(suggestion);
+    composerRuntime.setText(suggestion);
+    if (onSuggestionClick) {
+      onSuggestionClick(suggestion);
+    }
+  };
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -274,6 +287,22 @@ const CustomComposer: React.FC = () => {
 
   return (
     <div className="flex-shrink-0 px-6 py-4 bg-white border-t border-[#F7F7F7]">
+      {/* Suggestions Area */}
+      {suggestions && suggestions.length > 0 && !studioMode && (
+        <div className="flex w-full gap-2 mb-3">
+          {suggestions.slice(0, 3).map((sugg, i) => (
+            <button
+              key={`${i}-${sugg}`}
+              onClick={() => handleSuggestionClick(sugg)}
+              className="flex-1 h-8 px-3 rounded-full bg-gray-50 hover:bg-gray-100 border border-gray-100 text-xs text-gray-600 font-medium transition-colors text-left overflow-hidden whitespace-nowrap text-ellipsis flex items-center"
+              title={sugg} // Show full text on hover
+            >
+              <span className="truncate w-full">{sugg}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="bg-[#F7F7F7] rounded-[24px] focus-within:ring-1 focus-within:ring-[#E5E5E5] transition-all duration-200">
         <div className="flex items-end space-x-3 px-4 py-3">
           {/* Studio Mode Toggle - bottom left (like ChatGPT search) */}
@@ -327,13 +356,17 @@ const CustomComposer: React.FC = () => {
 };
 
 // Custom Thread Component
-export const CustomThread: React.FC = () => {
+interface CustomThreadProps {
+  suggestions?: string[];
+}
+
+export const CustomThread: React.FC<CustomThreadProps> = ({ suggestions }) => {
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
         <CustomMessage />
       </div>
-      <CustomComposer />
+      <CustomComposer suggestions={suggestions} />
     </div>
   );
 };
