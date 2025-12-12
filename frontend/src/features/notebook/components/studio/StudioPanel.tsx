@@ -2,7 +2,7 @@
 // This component demonstrates all 5 SOLID principles in action
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { RefreshCw, Maximize2, Minimize2, Settings, Palette, Edit, Download, Save, X, Eye } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, Settings, Palette, Edit, Download, Save, X, Eye, FileText } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { useToast } from "@/shared/components/ui/use-toast";
 
@@ -20,6 +20,8 @@ import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
 import { useQueryClient } from '@tanstack/react-query';
 import { studioKeys } from '@/features/notebook/hooks/studio/useStudio';
 import { useNotebookSettings } from '@/features/notebook/contexts/NotebookSettingsContext';
+import { useNotes } from '@/features/notebook/hooks/notes/useNotes';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused UI components
@@ -28,6 +30,8 @@ import PodcastGenerationForm from './PodcastGenerationForm';
 import PodcastAudioPlayer from './PodcastAudioPlayer';
 import FileViewer from './FileViewer';
 import StudioList from './list/StudioList';
+import NotesList from './NotesList';
+import NoteViewer from './NoteViewer';
 
 // ====== INTERFACE SEGREGATION PRINCIPLE (ISP) ======
 // Import type definitions and prop creators
@@ -41,7 +45,7 @@ import {
 } from './types';
 
 // ====== UNIFIED STUDIO ITEMS ======
-import { combineStudioItems } from '@/features/notebook/adapters/studioItemAdapter';
+import { combineStudioItems, fromReports, fromPodcasts } from '@/features/notebook/adapters/studioItemAdapter';
 import type { ReportStudioItem, PodcastStudioItem } from '@/features/notebook/types/studioItem';
 
 // ====== DEPENDENCY INVERSION PRINCIPLE (DIP) ======
@@ -88,6 +92,10 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   // ====== SINGLE RESPONSIBILITY: File Selection State ======
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
   const [selectedSources, setSelectedSources] = useState<SourceItem[]>([]);
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+
+  // ====== SINGLE RESPONSIBILITY: Notes Data ======
+  const { notes } = useNotes(notebookId);
 
   // ====== DEPENDENCY INVERSION: Use consolidated overview hooks ======
   const reportJobs = useNotebookReportJobs(notebookId);
@@ -644,99 +652,156 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       {/* ====== SINGLE RESPONSIBILITY: Main content area ====== */}
       {!isReportPreview ? (
         <div className="flex-1 flex flex-col overflow-hidden bg-[#F5F5F5]">
-          {/* ====== FIXED SECTIONS: Generation Forms ====== */}
-          <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-[#F7F7F7]">
-            <div className="mb-4">
-              <p className="text-[12px] font-bold uppercase tracking-[0.05em] text-[#1E1E1E]">
-                Generation
-              </p>
+          <Tabs defaultValue="reports" className="flex-1 flex flex-col min-h-0">
+            <div className="bg-white border-b border-[#F7F7F7] px-6">
+              <TabsList className="w-full justify-start h-12 p-0 bg-transparent border-0">
+                <TabsTrigger
+                  value="reports"
+                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-[#CE0E2D] data-[state=active]:bg-transparent px-6"
+                >
+                  Reports
+                </TabsTrigger>
+                <TabsTrigger
+                  value="podcasts"
+                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-[#CE0E2D] data-[state=active]:bg-transparent px-6"
+                >
+                  Podcasts
+                </TabsTrigger>
+                <TabsTrigger
+                  value="notes"
+                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-[#CE0E2D] data-[state=active]:bg-transparent px-6 gap-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  Notes
+                  {notes?.length > 0 && (
+                    <span className="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                      {notes.length}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </TabsList>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <ReportGenerationForm
-                config={reportConfig}
-                onConfigChange={updateReportConfig}
-                availableModels={reportModels.data || {}}
-                generationState={{
-                  state: reportGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
-                  progress: reportGeneration.progress,
-                  error: reportGeneration.error || undefined,
-                  isGenerating: reportGeneration.isGenerating
-                }}
-                onGenerate={handleGenerateReport}
-                selectedFiles={selectedFiles}
-                onOpenModal={onOpenModal}
-                onCloseModal={onCloseModal}
-              />
 
-              <PodcastGenerationForm
-                config={podcastConfig}
-                onConfigChange={updatePodcastConfig}
-                generationState={{
-                  state: podcastGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
-                  progress: podcastGeneration.progress,
-                  error: podcastGeneration.error || undefined
-                }}
-                onGenerate={handleGeneratePodcast}
-                selectedFiles={selectedFiles}
-                selectedSources={selectedSources}
-                onOpenModal={onOpenModal}
-                onCloseModal={onCloseModal}
-              />
-            </div>
-          </div>
+            {/* ====== REPORTS TAB ====== */}
+            <TabsContent value="reports" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden">
+              <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-[#F7F7F7]">
+                <ReportGenerationForm
+                  config={reportConfig}
+                  onConfigChange={updateReportConfig}
+                  availableModels={reportModels.data || {}}
+                  generationState={{
+                    state: reportGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
+                    progress: reportGeneration.progress,
+                    error: reportGeneration.error || undefined,
+                    isGenerating: reportGeneration.isGenerating
+                  }}
+                  onGenerate={handleGenerateReport}
+                  selectedFiles={selectedFiles}
+                  onOpenModal={onOpenModal}
+                  onCloseModal={onCloseModal}
+                />
+              </div>
+              <div className="flex-1 overflow-auto scrollbar-overlay">
+                <StudioList
+                  items={fromReports(reportJobs.jobs)}
+                  isLoading={reportJobs.isLoading}
+                  error={reportJobs.error}
+                  notebookId={notebookId}
+                  expandedPodcasts={expandedPodcasts}
+                  onSelectReport={(item: ReportStudioItem) => {
+                    const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                    if (originalReport) handleSelectReport(originalReport);
+                  }}
+                  onDeleteReport={(item: ReportStudioItem) => {
+                    const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                    if (originalReport) handleDeleteReport(originalReport);
+                  }}
+                  onTogglePodcast={() => { }}
+                  onDeletePodcast={() => { }}
+                  onDownloadPodcast={() => { }}
+                />
+              </div>
+            </TabsContent>
 
-          {/* ====== SCROLLABLE SECTION: Generated Files List ====== */}
-          <div className={`flex-1 overflow-auto scrollbar-overlay ${selectedPodcast && selectedPodcast.status === 'completed' ? 'pb-20' : ''}`}>
-            <StudioList
-              items={combineStudioItems(reportJobs.jobs, podcastJobs.jobs)}
-              isLoading={reportJobs.isLoading || podcastJobs.isLoading}
-              error={reportJobs.error || podcastJobs.error}
-              notebookId={notebookId}
-              expandedPodcasts={expandedPodcasts}
-              onSelectReport={(item: ReportStudioItem) => {
-                // Find original report from jobs to pass to handler
-                const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                if (originalReport) handleSelectReport(originalReport);
-              }}
-              onDeleteReport={(item: ReportStudioItem) => {
-                const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                if (originalReport) handleDeleteReport(originalReport);
-              }}
-              onTogglePodcast={(item: PodcastStudioItem) => {
-                const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                if (originalPodcast) handlePodcastClick(originalPodcast);
-              }}
-              onDeletePodcast={(item: PodcastStudioItem) => {
-                const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                if (originalPodcast) handleDeletePodcast(originalPodcast);
-              }}
-              onDownloadPodcast={(item: PodcastStudioItem) => {
-                const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                if (originalPodcast) handleDownloadPodcast(originalPodcast);
-              }}
-            />
-          </div>
+            {/* ====== PODCASTS TAB ====== */}
+            <TabsContent value="podcasts" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden">
+              <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-[#F7F7F7]">
+                <PodcastGenerationForm
+                  config={podcastConfig}
+                  onConfigChange={updatePodcastConfig}
+                  generationState={{
+                    state: podcastGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
+                    progress: podcastGeneration.progress,
+                    error: podcastGeneration.error || undefined
+                  }}
+                  onGenerate={handleGeneratePodcast}
+                  selectedFiles={selectedFiles}
+                  selectedSources={selectedSources}
+                  onOpenModal={onOpenModal}
+                  onCloseModal={onCloseModal}
+                />
+              </div>
+              <div className={`flex-1 overflow-auto scrollbar-overlay ${selectedPodcast && selectedPodcast.status === 'completed' ? 'pb-20' : ''}`}>
+                <StudioList
+                  items={fromPodcasts(podcastJobs.jobs)}
+                  isLoading={podcastJobs.isLoading}
+                  error={podcastJobs.error}
+                  notebookId={notebookId}
+                  expandedPodcasts={expandedPodcasts}
+                  onSelectReport={() => { }}
+                  onDeleteReport={() => { }}
+                  onTogglePodcast={(item: PodcastStudioItem) => {
+                    const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                    if (originalPodcast) handlePodcastClick(originalPodcast);
+                  }}
+                  onDeletePodcast={(item: PodcastStudioItem) => {
+                    const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                    if (originalPodcast) handleDeletePodcast(originalPodcast);
+                  }}
+                  onDownloadPodcast={(item: PodcastStudioItem) => {
+                    const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                    if (originalPodcast) handleDownloadPodcast(originalPodcast);
+                  }}
+                />
+              </div>
+              {/* Podcast Player within Tab */}
+              {selectedPodcast && selectedPodcast.status === 'completed' && (
+                <div className="flex-shrink-0 bg-white shadow-inner">
+                  <PodcastAudioPlayer
+                    podcast={{
+                      id: selectedPodcast.id,
+                      title: selectedPodcast.title || 'Untitled Podcast',
+                      audio_url: (selectedPodcast as any).audio_url || selectedPodcast.audio_file || '',
+                      duration: selectedPodcast.duration,
+                      description: selectedPodcast.description || '',
+                      status: selectedPodcast.status,
+                      created_at: selectedPodcast.created_at || '',
+                      updated_at: selectedPodcast.updated_at || ''
+                    }}
+                    notebookId={notebookId}
+                    onDownload={() => handleDownloadPodcast(selectedPodcast)}
+                    onClose={() => setSelectedPodcast(null)}
+                  />
+                </div>
+              )}
+            </TabsContent>
 
-          {/* ====== FIXED BOTTOM: Podcast Player ====== */}
-          {selectedPodcast && selectedPodcast.status === 'completed' && (
-            <div className="flex-shrink-0 bg-white shadow-inner">
-              <PodcastAudioPlayer
-                podcast={{
-                  id: selectedPodcast.id,
-                  title: selectedPodcast.title || 'Untitled Podcast',
-                  audio_url: (selectedPodcast as any).audio_url || selectedPodcast.audio_file || '',
-                  duration: selectedPodcast.duration,
-                  description: selectedPodcast.description || '',
-                  status: selectedPodcast.status,
-                  created_at: selectedPodcast.created_at || '',
-                  updated_at: selectedPodcast.updated_at || ''
-                }}
-                notebookId={notebookId}
-                onDownload={() => handleDownloadPodcast(selectedPodcast)}
-                onClose={() => setSelectedPodcast(null)}
-              />
-            </div>
-          )}
+            {/* ====== NOTES TAB ====== */}
+            <TabsContent value="notes" className="flex-1 flex flex-col overflow-hidden mt-0 relative data-[state=inactive]:hidden">
+              {selectedNoteId ? (
+                <NoteViewer
+                  notebookId={notebookId}
+                  noteId={selectedNoteId}
+                  onClose={() => setSelectedNoteId(null)}
+                />
+              ) : (
+                <NotesList
+                  notebookId={notebookId}
+                  onSelectNote={setSelectedNoteId}
+                />
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       ) : (
         <div className="flex-1 overflow-hidden">

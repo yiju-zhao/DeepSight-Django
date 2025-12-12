@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { useSessionChat } from '@/features/notebook/hooks/chat/useSessionChat';
 import { useNotebook } from '@/features/notebook/queries';
-import SessionTabs from '@/features/notebook/components/chat/SessionTabs';
+
 import SessionChatWindow from '@/features/notebook/components/chat/SessionChatWindow';
 import WelcomeScreen from '@/features/notebook/components/chat/WelcomeScreen';
 import { PANEL_HEADERS, COLORS } from '@/features/notebook/config/uiConfig';
@@ -33,9 +33,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     error,
     clearError,
     createSession,
-    closeSession,
-    switchSession,
-    updateSessionTitle,
+    clearSession,
     sendMessage,
   } = useSessionChat(notebookId);
 
@@ -50,23 +48,11 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
   const handleSendMessage = async (message: string): Promise<boolean> => {
     if (!activeSessionId) return false;
 
-    // If the session is new, update the title with the first message
-    if (activeSession?.title.startsWith('New Chat')) {
-      // Truncate message to a reasonable length for a title
-      const newTitle = message.substring(0, 50) + (message.length > 50 ? '...' : '');
-      await updateSessionTitle(activeSessionId, newTitle, { silent: true });
-    }
-
     return await sendMessage(activeSessionId, message);
   };
 
-  const handleCloseSession = (sessionId: string) => {
-    closeSession(sessionId);
-  };
 
-  const handleUpdateTitle = async (sessionId: string, title: string) => {
-    await updateSessionTitle(sessionId, title);
-  };
+
 
   const showWelcomeScreen = sessions.length === 0 && !isLoading;
   const showChatInterface = sessions.length > 0 || isLoading;
@@ -111,20 +97,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Session Tabs (only show if we have sessions) */}
-      {showChatInterface && (
-        <SessionTabs
-          sessions={sessions}
-          activeSessionId={activeSessionId}
-          onCreateSession={createSession}
-          onSwitchSession={switchSession}
-          onCloseSession={handleCloseSession}
-          onUpdateTitle={handleUpdateTitle}
-          isLoading={isCreatingSession}
-          hasFiles={hasFiles}
-        />
-      )}
-
       {/* Main Content Area */}
       <div className="flex-1 min-h-0 overflow-hidden">
         <AnimatePresence mode="wait">
@@ -158,6 +130,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
                 suggestions={suggestions} // Pass suggestions
                 isLoading={isLoading}
                 onSendMessage={handleSendMessage}
+                onClearSession={clearSession}
                 notebookId={notebookId}
               />
             </motion.div>

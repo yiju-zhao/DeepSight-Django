@@ -20,7 +20,7 @@ import {
   useCreateSessionMutation,
   useDeleteSessionMutation,
   useClearSessionMutation,
-  useUpdateSessionTitleMutation,
+
   useSendMessageMutation,
   useSelectModelMutation,
   sessionKeys,
@@ -79,7 +79,6 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   const createMutation = useCreateSessionMutation(notebookId);
   const deleteMutation = useDeleteSessionMutation(notebookId);
   const clearMutation = useClearSessionMutation(notebookId);
-  const updateTitleMutation = useUpdateSessionTitleMutation(notebookId);
   const sendMessageMutation = useSendMessageMutation(notebookId);
   const selectModelMutation = useSelectModelMutation(notebookId);
 
@@ -191,34 +190,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
    * Update session title
    * Uses optimistic update for immediate feedback
    */
-  const updateSessionTitle = useCallback(
-    async (
-      sessionId: string,
-      title: string,
-      options?: { silent?: boolean }
-    ): Promise<boolean> => {
-      try {
-        await updateTitleMutation.mutateAsync({ sessionId, title });
 
-        if (!options?.silent) {
-          toast({
-            title: 'Title Updated',
-            description: 'Session title has been updated',
-          });
-        }
-
-        return true;
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: 'Failed to update title',
-          variant: 'destructive',
-        });
-        return false;
-      }
-    },
-    [updateTitleMutation, toast]
-  );
 
   /**
    * Send a message
@@ -372,7 +344,6 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     closeSession,
     clearSession,
     switchSession,
-    updateSessionTitle,
     sendMessage,
     loadSessionMessages,
     refreshSessions,

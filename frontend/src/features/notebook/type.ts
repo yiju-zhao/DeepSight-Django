@@ -357,7 +357,6 @@ export interface UseSessionChatReturn {
   closeSession: (sessionId: string) => Promise<boolean>;
   clearSession: (sessionId: string) => Promise<boolean>;
   switchSession: (sessionId: string) => void;
-  updateSessionTitle: (sessionId: string, title: string, options?: { silent?: boolean }) => Promise<boolean>;
   sendMessage: (sessionId: string, message: string) => Promise<boolean>;
   loadSessionMessages: (sessionId: string) => Promise<SessionChatMessage[]>;
 
@@ -393,6 +392,7 @@ export interface SessionChatWindowProps {
   suggestions: string[];
   isLoading: boolean;
   onSendMessage: (message: string) => Promise<boolean>;
+  onClearSession?: (sessionId: string) => Promise<boolean>;
   notebookId: string;
 }
 

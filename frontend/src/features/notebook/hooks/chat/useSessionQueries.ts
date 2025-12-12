@@ -16,7 +16,6 @@ import type {
   SessionChatMessage,
   SessionsCache,
   DeleteSessionMutationContext,
-  UpdateSessionTitleMutationContext,
   ModelsResponse,
   ListSessionsResponse,
   CreateSessionResponse,
@@ -247,61 +246,7 @@ export const useClearSessionMutation = (notebookId: string) => {
   });
 };
 
-/**
- * Mutation hook for updating session title
- * Uses optimistic update for immediate feedback
- */
-export const useUpdateSessionTitleMutation = (notebookId: string) => {
-  const queryClient = useQueryClient();
 
-  return useMutation<
-    void,
-    Error,
-    { sessionId: string; title: string },
-    UpdateSessionTitleMutationContext
-  >({
-    mutationFn: async ({ sessionId, title }): Promise<void> => {
-      await sessionChatService.updateSessionTitle(notebookId, sessionId, { title });
-    },
-
-    // Optimistic update
-    onMutate: async ({ sessionId, title }) => {
-      await queryClient.cancelQueries({ queryKey: sessionKeys.sessions(notebookId) });
-
-      const previousSessions = queryClient.getQueryData<SessionsCache>(
-        sessionKeys.sessions(notebookId)
-      );
-
-      // Optimistically update title in cache
-      queryClient.setQueryData<SessionsCache>(
-        sessionKeys.sessions(notebookId),
-        (old) => {
-          if (!old?.byId[sessionId]) return old;
-
-          return {
-            ...old,
-            byId: {
-              ...old.byId,
-              [sessionId]: { ...old.byId[sessionId], title },
-            },
-          };
-        }
-      );
-
-      return { previousSessions };
-    },
-
-    // Rollback on error
-    onError: (error, _, context) => {
-      if (context?.previousSessions) {
-        queryClient.setQueryData(
-          sessionKeys.sessions(notebookId),
-          context.previousSessions
-        );
-      }
-    },
-  });
-};
 
 /**
  * Mutation hook for sending a message

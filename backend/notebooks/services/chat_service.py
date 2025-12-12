@@ -130,11 +130,8 @@ class ChatService(NotebookBaseService):
         Returns:
             Generator yielding chat stream chunks
         """
-        # Create new session with first question as title
-        session_title = question[:80] if len(question) > 80 else question
-
         session_result = self.create_chat_session(
-            notebook, user_id, title=session_title
+            notebook, user_id, title="Chat Session"
         )
         if not session_result.get("success"):
             # Yield error
@@ -297,11 +294,7 @@ class ChatService(NotebookBaseService):
             # Archive any existing active sessions before creating new one
             ChatSession.ensure_single_active(notebook)
 
-            # Create session name
-            session_name = (
-                title
-                or f"Session {ChatSession.objects.filter(notebook=notebook).count() + 1}"
-            )
+            session_name = title or "Chat Session"
 
             # Create local session record only
             chat_session = ChatSession.objects.create(

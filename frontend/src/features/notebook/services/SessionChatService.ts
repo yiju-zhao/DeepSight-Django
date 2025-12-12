@@ -144,31 +144,7 @@ class SessionChatService {
     return response.json();
   }
 
-  /**
-   * Update session title
-   */
-  async updateSessionTitle(
-    notebookId: string,
-    sessionId: string,
-    request: UpdateSessionTitleRequest
-  ): Promise<UpdateSessionTitleResponse> {
-    const response = await fetch(`${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/sessions/${sessionId}/`, {
-      method: 'PATCH',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': this.getCookie('csrftoken') || '',
-      },
-      body: JSON.stringify(request),
-    });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Failed to update session title' }));
-      throw new Error(error.error || `HTTP ${response.status}`);
-    }
-
-    return response.json();
-  }
 
   // Messaging Methods
 

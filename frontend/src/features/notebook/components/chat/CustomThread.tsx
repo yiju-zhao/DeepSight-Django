@@ -23,6 +23,7 @@ import 'katex/dist/katex.min.css';
 
 // Import Studio Mode components
 import StudioModeToggle from './StudioModeToggle';
+import MessageActions from './MessageActions';
 import { useNotebookSettings } from '@/features/notebook/contexts/NotebookSettingsContext';
 
 // Normalizer to convert backend-specific LaTeX formats to standard Markdown LaTeX
@@ -168,7 +169,7 @@ const MarkdownContent = React.memo(({ content }: { content: string }) => {
 MarkdownContent.displayName = 'MarkdownContent';
 
 // Custom Message Component
-const CustomMessage: React.FC = () => {
+const CustomMessage: React.FC<{ notebookId: string }> = ({ notebookId }) => {
   const thread = useThread();
   const messages = thread.messages;
 
@@ -221,6 +222,13 @@ const CustomMessage: React.FC = () => {
                     <div className="px-6 py-4 rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-[#F7F7F7]">
                       <MarkdownContent content={text} />
                     </div>
+                  )}
+                  {!isUser && (
+                    <MessageActions
+                      messageContent={text}
+                      messageId={message.id}
+                      notebookId={notebookId}
+                    />
                   )}
                 </div>
               </div>
@@ -358,13 +366,14 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
 // Custom Thread Component
 interface CustomThreadProps {
   suggestions?: string[];
+  notebookId: string;
 }
 
-export const CustomThread: React.FC<CustomThreadProps> = ({ suggestions }) => {
+export const CustomThread: React.FC<CustomThreadProps> = ({ suggestions, notebookId }) => {
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
-        <CustomMessage />
+        <CustomMessage notebookId={notebookId} />
       </div>
       <CustomComposer suggestions={suggestions} />
     </div>
