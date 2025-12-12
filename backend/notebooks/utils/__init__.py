@@ -23,11 +23,11 @@ from .helpers import (
     check_source_duplicate,
     clean_title,
     cleanup_temp_file,
-    config,
     create_temp_file,
     extract_domain,
     format_file_size,
     generate_unique_filename,
+    get_notebooks_config,
     get_file_extension,
     get_mime_type_from_extension,
     is_safe_filename,
@@ -57,13 +57,14 @@ from .validators import (
 
 # Legacy imports with fallbacks for backward compatibility
 try:
-    from ..processors.upload_processor import UploadProcessor
+    from ..processors.upload_processor import UploadProcessor, get_upload_processor
 except ImportError:
     UploadProcessor = None
+    get_upload_processor = None
 
 __all__ = [
     # Configuration
-    "config",
+    "get_notebooks_config",
     "NotebooksConfig",
     # Validators
     "FileValidator",
@@ -103,4 +104,5 @@ __all__ = [
     "AsyncResponseMixin",
     # Legacy processors (may be None if not available)
     "UploadProcessor",
+    "get_upload_processor",
 ]

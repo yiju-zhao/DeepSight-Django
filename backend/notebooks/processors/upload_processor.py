@@ -8,7 +8,7 @@ import os
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from django.core.exceptions import ValidationError
 
@@ -17,7 +17,7 @@ from django.core.files.uploadedfile import UploadedFile as UploadFile
 
 try:
     from ..utils.helpers import ContentIndexingService, clean_title
-    from ..utils.helpers import config as settings
+    from ..utils.helpers import get_notebooks_config
     from ..utils.storage import FileStorageService
     from ..utils.validators import FileValidator
 except ImportError:
@@ -25,7 +25,7 @@ except ImportError:
     FileStorageService = None
     ContentIndexingService = None
     FileValidator = None
-    settings = None
+    get_notebooks_config = None
     clean_title = None
 
 # Import new ingestion module
@@ -468,5 +468,16 @@ class UploadProcessor:
             )
 
 
-# Global singleton instance
-upload_processor = UploadProcessor()
+# Lazy singleton factory
+_upload_processor_instance: Optional[UploadProcessor] = None
+
+
+def get_upload_processor() -> UploadProcessor:
+    """
+    Get or create the global UploadProcessor instance.
+    Uses lazy initialization to avoid creating services at import time.
+    """
+    global _upload_processor_instance
+    if _upload_processor_instance is None:
+        _upload_processor_instance = UploadProcessor()
+    return _upload_processor_instance

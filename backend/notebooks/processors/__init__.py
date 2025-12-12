@@ -8,9 +8,10 @@ This package contains processing logic:
 
 # Main upload processor
 try:
-    from .upload_processor import UploadProcessor
+    from .upload_processor import UploadProcessor, get_upload_processor
 except ImportError:
     UploadProcessor = None
+    get_upload_processor = None
 
 # Supporting service modules
 try:
@@ -20,5 +21,6 @@ except ImportError:
 
 __all__ = [
     "UploadProcessor",
+    "get_upload_processor",
     "MinIOPostProcessor",
 ]

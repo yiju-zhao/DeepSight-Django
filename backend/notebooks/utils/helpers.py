@@ -10,7 +10,7 @@ import re
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 from django.conf import settings as django_settings
@@ -123,8 +123,19 @@ class NotebooksConfig:
         return tempfile.mkdtemp(prefix=f"{prefix}_")
 
 
-# Global config instance
-config = NotebooksConfig()
+# Lazy singleton factory
+_config_instance: Optional[NotebooksConfig] = None
+
+
+def get_notebooks_config() -> NotebooksConfig:
+    """
+    Get or create the global NotebooksConfig instance.
+    Uses lazy initialization to avoid loading configuration at import time.
+    """
+    global _config_instance
+    if _config_instance is None:
+        _config_instance = NotebooksConfig()
+    return _config_instance
 
 
 # ===== TEXT UTILITIES =====
