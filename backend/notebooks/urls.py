@@ -18,6 +18,7 @@ from .views import (
     KnowledgeBaseViewSet,
     NotebookJobsSSEView,
     NotebookViewSet,
+    NoteViewSet,
     SessionChatViewSet,
     CoordinatorViewSet,
     StudioExecuteSSEView,
@@ -39,6 +40,7 @@ notebooks_router.register(
     r"knowledge", KnowledgeBaseViewSet, basename="notebook-knowledge"
 )
 notebooks_router.register(r"batches", BatchJobViewSet, basename="notebook-batches")
+notebooks_router.register(r"notes", NoteViewSet, basename="notebook-notes")
 
 # Coordinator/Studio router
 notebooks_router.register(

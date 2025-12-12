@@ -293,6 +293,10 @@ class ChatService(NotebookBaseService):
                     "success": False,
                 }
 
+            # Ensure only one active session per notebook
+            # Archive any existing active sessions before creating new one
+            ChatSession.ensure_single_active(notebook)
+
             # Create session name
             session_name = (
                 title
@@ -462,6 +466,63 @@ class ChatService(NotebookBaseService):
             logger.exception(f"Failed to close session {session_id}: {e}")
             return {
                 "error": "Failed to close chat session",
+                "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                "details": {"error": str(e)},
+            }
+
+    def clear_chat_session(
+        self, session_id: str, notebook: Notebook, user_id: int
+    ) -> dict:
+        """
+        Clear a chat session by archiving it.
+
+        This archives the session (sets status to 'archived') which hides it
+        from the UI but keeps it in the database for history.
+
+        Args:
+            session_id: Session UUID
+            notebook: Notebook instance
+            user_id: User ID
+
+        Returns:
+            Dict with operation result
+        """
+        try:
+            # Validate notebook access
+            self.validate_notebook_access(notebook, notebook.user)
+
+            # Get the session
+            session = ChatSession.objects.filter(
+                session_id=session_id, notebook=notebook
+            ).first()
+
+            if not session:
+                return {
+                    "error": "Session not found",
+                    "status_code": status.HTTP_404_NOT_FOUND,
+                }
+
+            # Archive the session
+            session.archive()
+
+            self.log_notebook_operation(
+                "chat_session_cleared",
+                str(notebook.id),
+                user_id,
+                session_id=str(session.session_id),
+            )
+
+            return {
+                "success": True,
+                "session_id": str(session.session_id),
+                "status": session.status,
+                "message": "Session cleared and archived successfully",
+            }
+
+        except Exception as e:
+            logger.exception(f"Failed to clear session {session_id}: {e}")
+            return {
+                "error": "Failed to clear chat session",
                 "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
                 "details": {"error": str(e)},
             }

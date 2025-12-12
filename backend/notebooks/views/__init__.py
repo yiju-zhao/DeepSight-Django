@@ -7,6 +7,7 @@ Re-exports all view classes from modular files.
 from .notebook_views import NotebookViewSet, KnowledgeBaseViewSet, BatchJobViewSet
 from .file_views import FileViewSet
 from .chat_views import SessionChatViewSet
+from .note_views import NoteViewSet
 from .sse_views import FileStatusSSEView, NotebookJobsSSEView
 from .coordinator_views import CoordinatorViewSet, StudioExecuteSSEView
 
@@ -15,17 +16,20 @@ __all__ = [
     'NotebookViewSet',
     'KnowledgeBaseViewSet',
     'BatchJobViewSet',
-    
+
     # File views
     'FileViewSet',
-    
+
     # Chat views
     'SessionChatViewSet',
-    
+
+    # Note views
+    'NoteViewSet',
+
     # SSE views
     'FileStatusSSEView',
     'NotebookJobsSSEView',
-    
+
     # Coordinator views
     'CoordinatorViewSet',
     'StudioExecuteSSEView',

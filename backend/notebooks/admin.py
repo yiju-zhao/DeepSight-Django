@@ -4,6 +4,7 @@ from django.utils.html import format_html
 from .models import (
     ChatSession,
     KnowledgeBaseItem,
+    Note,
     Notebook,
     SessionChatMessage,
 )
@@ -142,3 +143,62 @@ class SessionChatMessageAdmin(admin.ModelAdmin):
         return (obj.message[:75] + "...") if len(obj.message) > 75 else obj.message
 
     short_message.short_description = "Message"
+
+
+@admin.register(Note)
+class NoteAdmin(admin.ModelAdmin):
+    """Admin configuration for Note model."""
+
+    list_display = (
+        "id",
+        "title",
+        "notebook",
+        "created_by",
+        "is_pinned",
+        "tag_count",
+        "created_at",
+    )
+    list_filter = ("is_pinned", "created_at", "created_by", "notebook__user")
+    search_fields = ("title", "content", "notebook__name", "created_by__username")
+    readonly_fields = ("created_at", "updated_at")
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "notebook",
+                    "created_by",
+                    "title",
+                    "content",
+                    "is_pinned",
+                )
+            },
+        ),
+        (
+            "Categorization",
+            {"fields": ("tags",)},
+        ),
+        (
+            "Metadata",
+            {"fields": ("metadata",), "classes": ("collapse",)},
+        ),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
+    )
+
+    def tag_count(self, obj):
+        """Get number of tags."""
+        if isinstance(obj.tags, list):
+            return len(obj.tags)
+        return 0
+
+    tag_count.short_description = "Tags"
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("notebook", "created_by", "notebook__user")
+        )

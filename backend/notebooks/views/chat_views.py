@@ -161,3 +161,44 @@ class SessionChatViewSet(viewsets.ModelViewSet):
         except Exception as e:
             logger.exception(f"Failed to send message: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=True, methods=["post"], url_path="clear")
+    def clear(self, request, notebook_pk=None, pk=None):
+        """
+        Clear (archive) a chat session.
+
+        This archives the session, hiding it from the UI but keeping it in the database.
+        """
+        try:
+            session = self.get_object()
+            notebook = get_object_or_404(
+                Notebook.objects.filter(user=request.user), pk=notebook_pk
+            )
+
+            logger.info(f"Clearing session {session.session_id} for notebook {notebook_pk}")
+
+            # Call service to clear the session
+            result = self.chat_service.clear_chat_session(
+                session_id=str(session.session_id),
+                notebook=notebook,
+                user_id=request.user.id,
+            )
+
+            if not result.get("success"):
+                error_msg = result.get("error", "Failed to clear session")
+                status_code = result.get("status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
+                return Response({"detail": error_msg}, status=status_code)
+
+            return Response(
+                {
+                    "success": True,
+                    "message": result.get("message", "Session cleared successfully"),
+                    "session_id": result.get("session_id"),
+                    "status": result.get("status"),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            logger.exception(f"Failed to clear session: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

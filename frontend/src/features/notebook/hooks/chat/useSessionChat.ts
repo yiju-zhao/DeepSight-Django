@@ -19,6 +19,7 @@ import {
   useModelsQuery,
   useCreateSessionMutation,
   useDeleteSessionMutation,
+  useClearSessionMutation,
   useUpdateSessionTitleMutation,
   useSendMessageMutation,
   useSelectModelMutation,
@@ -77,6 +78,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
   // ============================================
   const createMutation = useCreateSessionMutation(notebookId);
   const deleteMutation = useDeleteSessionMutation(notebookId);
+  const clearMutation = useClearSessionMutation(notebookId);
   const updateTitleMutation = useUpdateSessionTitleMutation(notebookId);
   const sendMessageMutation = useSendMessageMutation(notebookId);
   const selectModelMutation = useSelectModelMutation(notebookId);
@@ -144,6 +146,37 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
       }
     },
     [deleteMutation, activeSessionId, sessions, setActiveSessionId, toast]
+  );
+
+  /**
+   * Clear (archive) the current session
+   * Clears all messages and archives the session, then creates a new one
+   */
+  const clearSession = useCallback(
+    async (sessionId: string): Promise<boolean> => {
+      try {
+        await clearMutation.mutateAsync(sessionId);
+
+        // Create a new session to replace the cleared one
+        const newSession = await createMutation.mutateAsync();
+        setActiveSessionId(newSession.id);
+
+        toast({
+          title: 'Session Cleared',
+          description: 'Chat session has been cleared and archived',
+        });
+
+        return true;
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: 'Failed to clear session',
+          variant: 'destructive',
+        });
+        return false;
+      }
+    },
+    [clearMutation, createMutation, toast]
   );
 
   /**
@@ -337,6 +370,7 @@ export const useSessionChat = (notebookId: string): UseSessionChatReturn => {
     // Actions
     createSession,
     closeSession,
+    clearSession,
     switchSession,
     updateSessionTitle,
     sendMessage,

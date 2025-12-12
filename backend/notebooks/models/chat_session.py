@@ -183,6 +183,24 @@ class ChatSession(BaseModel):
             return self.session_metadata.get(key, default)
         return default
 
+    @classmethod
+    def get_active_session(cls, notebook):
+        """Get the one active session for a notebook."""
+        return cls.objects.filter(notebook=notebook, status="active").first()
+
+    @classmethod
+    def ensure_single_active(cls, notebook):
+        """
+        Archive any existing active sessions before creating new one.
+
+        This ensures only one active session exists per notebook at a time.
+        """
+        from django.utils import timezone
+
+        cls.objects.filter(notebook=notebook, status="active").update(
+            status="archived", ended_at=timezone.now()
+        )
+
 
 class SessionChatMessage(BaseModel):
     """

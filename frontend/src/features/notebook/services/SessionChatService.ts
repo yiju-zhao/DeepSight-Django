@@ -124,6 +124,27 @@ class SessionChatService {
   }
 
   /**
+   * Clear (archive) a chat session
+   * This archives the session, hiding it from UI but keeping it in database
+   */
+  async clearSession(notebookId: string, sessionId: string): Promise<CloseSessionResponse> {
+    const response = await fetch(`${apiClient.getBaseUrl()}/notebooks/${notebookId}/chat/sessions/${sessionId}/clear/`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'X-CSRFToken': this.getCookie('csrftoken') || '',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Failed to clear session' }));
+      throw new Error(error.error || error.detail || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  /**
    * Update session title
    */
   async updateSessionTitle(

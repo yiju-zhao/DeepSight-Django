@@ -194,6 +194,60 @@ export const useDeleteSessionMutation = (notebookId: string) => {
 };
 
 /**
+ * Mutation hook for clearing (archiving) a session
+ * Uses optimistic update to immediately remove session from UI
+ */
+export const useClearSessionMutation = (notebookId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    void,
+    Error,
+    string,
+    DeleteSessionMutationContext
+  >({
+    mutationFn: async (sessionId: string): Promise<void> => {
+      await sessionChatService.clearSession(notebookId, sessionId);
+    },
+
+    // Optimistic update
+    onMutate: async (sessionId) => {
+      await queryClient.cancelQueries({ queryKey: sessionKeys.sessions(notebookId) });
+
+      const previousSessions = queryClient.getQueryData<SessionsCache>(
+        sessionKeys.sessions(notebookId)
+      );
+
+      // Optimistically remove session from cache (it's now archived)
+      queryClient.setQueryData<SessionsCache>(
+        sessionKeys.sessions(notebookId),
+        (old) => {
+          if (!old) return old;
+
+          const { [sessionId]: _, ...restById } = old.byId;
+          return {
+            byId: restById,
+            allIds: old.allIds.filter(id => id !== sessionId),
+          };
+        }
+      );
+
+      return { previousSessions, sessionId };
+    },
+
+    // Rollback on error
+    onError: (error, _, context) => {
+      if (context?.previousSessions) {
+        queryClient.setQueryData(
+          sessionKeys.sessions(notebookId),
+          context.previousSessions
+        );
+      }
+    },
+  });
+};
+
+/**
  * Mutation hook for updating session title
  * Uses optimistic update for immediate feedback
  */

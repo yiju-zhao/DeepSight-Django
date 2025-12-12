@@ -19,6 +19,15 @@ from .file_serializers import (
     KnowledgeBaseItemSerializer,
     VideoImageExtractionSerializer,
 )
+
+# Note serializers
+from .note_serializers import (
+    NoteCreateSerializer,
+    NoteFromMessageSerializer,
+    NoteListSerializer,
+    NoteSerializer,
+    NoteUpdateSerializer,
+)
 from .notebook_serializers import (
     NotebookCreateSerializer,
     NotebookListSerializer,
@@ -42,6 +51,12 @@ __all__ = [
     "NotebookListSerializer",
     "NotebookCreateSerializer",
     "NotebookUpdateSerializer",
+    # Note
+    "NoteSerializer",
+    "NoteListSerializer",
+    "NoteCreateSerializer",
+    "NoteUpdateSerializer",
+    "NoteFromMessageSerializer",
     # File processing
     "FileUploadSerializer",
     "VideoImageExtractionSerializer",
