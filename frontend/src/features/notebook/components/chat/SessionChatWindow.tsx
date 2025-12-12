@@ -11,9 +11,6 @@ import { AssistantRuntimeProvider } from '@assistant-ui/react';
 import { useExternalStoreRuntime } from '@assistant-ui/react';
 import type { AppendMessage } from '@assistant-ui/react';
 import { useToast } from '@/shared/components/ui/use-toast';
-import { Button } from '@/shared/components/ui/button';
-import { Trash2 } from 'lucide-react';
-import { DeleteConfirmationDialog } from '@/shared/components/ui/DeleteConfirmationDialog';
 import {
   convertMessagesToAssistantUI,
   extractTextFromMessage,
@@ -35,12 +32,10 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
   suggestions,
   isLoading,
   onSendMessage,
-  onClearSession,
   notebookId,
 }) => {
   const { toast } = useToast();
   const { studioMode, studioConfig } = useNotebookSettings();
-  const [isClearDialogOpen, setIsClearDialogOpen] = useState(false);
 
   // Coordinator execution hook
   const {
@@ -148,12 +143,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
     handleSendMessage('Please proceed with what you have');
   }, [handleSendMessage]);
 
-  const handleClearConfirm = useCallback(async () => {
-    if (session?.id && onClearSession) {
-      await onClearSession(session.id);
-      setIsClearDialogOpen(false);
-    }
-  }, [session, onClearSession]);
 
   // Don't render anything if no session (prevents flash of "no session selected")
   if (!session) {
@@ -162,23 +151,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
 
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Chat Header */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-[#F7F7F7]">
-        <h3 className="text-[16px] font-semibold text-[#1E1E1E]">Chat</h3>
-        {onClearSession && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setIsClearDialogOpen(true)}
-            className="text-[#666666] hover:text-[#CE0E2D] hover:bg-[#F5F5F5]"
-            title="Clear Chat History"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Clear
-          </Button>
-        )}
-      </div>
-
       <AssistantRuntimeProvider runtime={runtime}>
         {/* Messages Area */}
         <div className="flex-1 overflow-hidden relative">
@@ -231,14 +203,6 @@ const SessionChatWindow: React.FC<SessionChatWindowProps> = ({
         )}
       </AssistantRuntimeProvider>
 
-      <DeleteConfirmationDialog
-        isOpen={isClearDialogOpen}
-        title="Clear Chat History"
-        message="Are you sure you want to clear the current chat history? This will archive the current session and start a new one."
-        confirmLabel="Clear & Archive"
-        onConfirm={handleClearConfirm}
-        onCancel={() => setIsClearDialogOpen(false)}
-      />
     </div>
   );
 };

@@ -392,7 +392,6 @@ export interface SessionChatWindowProps {
   suggestions: string[];
   isLoading: boolean;
   onSendMessage: (message: string) => Promise<boolean>;
-  onClearSession?: (sessionId: string) => Promise<boolean>;
   notebookId: string;
 }
 

@@ -1,5 +1,8 @@
 import React from 'react';
-import { MessageCircle, AlertCircle } from 'lucide-react';
+import { MessageCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { Button } from '@/shared/components/ui/button';
+import { DeleteConfirmationDialog } from '@/shared/components/ui/DeleteConfirmationDialog';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import { Alert, AlertDescription } from '@/shared/components/ui/alert';
 import { useSessionChat } from '@/features/notebook/hooks/chat/useSessionChat';
@@ -21,6 +24,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
   sourcesListRef,
   onSelectionChange,
 }) => {
+  const [isClearDialogOpen, setIsClearDialogOpen] = React.useState(false);
   const {
     sessions,
     activeSessionId,
@@ -51,6 +55,13 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     return await sendMessage(activeSessionId, message);
   };
 
+  const handleClearConfirm = async () => {
+    if (activeSessionId) {
+      await clearSession(activeSessionId);
+      setIsClearDialogOpen(false);
+    }
+  };
+
 
 
 
@@ -68,6 +79,18 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
           </div>
           <div className={PANEL_HEADERS.actionsContainer}>
             {/* Legacy model selector removed */}
+            {activeSessionId && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsClearDialogOpen(true)}
+                className="text-[#666666] hover:text-[#CE0E2D] hover:bg-[#F5F5F5]"
+                title="Clear Chat History"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -130,7 +153,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
                 suggestions={suggestions} // Pass suggestions
                 isLoading={isLoading}
                 onSendMessage={handleSendMessage}
-                onClearSession={clearSession}
                 notebookId={notebookId}
               />
             </motion.div>
@@ -150,6 +172,15 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
           )}
         </AnimatePresence>
       </div>
+
+      <DeleteConfirmationDialog
+        isOpen={isClearDialogOpen}
+        title="Clear Chat History"
+        message="Are you sure you want to clear the current chat history? This will archive the current session and start a new one."
+        confirmLabel="Clear & Archive"
+        onConfirm={handleClearConfirm}
+        onCancel={() => setIsClearDialogOpen(false)}
+      />
     </div>
   );
 };
