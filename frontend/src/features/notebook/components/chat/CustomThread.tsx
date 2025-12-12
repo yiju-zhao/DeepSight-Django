@@ -335,7 +335,7 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
             ? "Describe your research goal... (Studio Mode)"
             : "Type your message..."
           }
-          className="min-h-[60px] max-h-[200px] w-full resize-none border-0 bg-transparent px-3 py-2 text-sm focus-visible:ring-0 placeholder:text-gray-400 scrollbar-thin scrollbar-thumb-gray-300"
+          className="min-h-[60px] max-h-[200px] w-full resize-none border-0 bg-transparent px-3 py-2 text-sm shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-gray-400 scrollbar-thin scrollbar-thumb-gray-300"
           disabled={isSending}
         />
 
