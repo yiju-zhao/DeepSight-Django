@@ -17,21 +17,21 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="bg-white border border-[#E3E3E3] rounded-2xl shadow-[rgba(0,0,0,0.04)_0px_4px_8px] px-6 py-8 md:px-8 md:py-10"
+          className="bg-white border border-border rounded-2xl shadow-[rgba(0,0,0,0.04)_0px_4px_8px] px-6 py-8 md:px-8 md:py-10"
         >
           {/* Icon + Title */}
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
-              <MessageCircle className="h-5 w-5 text-[#7F7F7F]" />
+            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+              <MessageCircle className="h-5 w-5 text-muted-foreground" />
             </div>
             <div className="flex flex-col">
-              <span className="text-[11px] uppercase tracking-[0.3px] text-[#7B7B7B]">
+              <span className="text-[11px] uppercase tracking-[0.3px] text-gray-500">
                 DeepDive Chat
               </span>
-              <h2 className="text-[20px] md:text-[22px] font-bold text-[#1E1E1E] leading-tight mt-0.5">
+              <h2 className="text-[20px] md:text-[22px] font-bold text-gray-900 leading-tight mt-0.5">
                 Start a conversation
               </h2>
-              <p className="text-sm text-[#666666] mt-1">
+              <p className="text-sm text-muted-foreground mt-1">
                 Ask questions about your sources and explore insights with the AI co-pilot.
               </p>
             </div>
@@ -65,11 +65,10 @@ const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
               onClick={onStartChat}
               disabled={isCreating || !hasFiles}
               size="lg"
-              className={`px-8 py-4 text-sm font-medium rounded-lg transition-all duration-300 ${
-                hasFiles && !isCreating
-                  ? 'bg-[#CE0E2D] hover:bg-[#A20A22] text-white shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px]'
-                  : 'bg-[#F5F5F5] hover:bg-[#F5F5F5] text-[#B1B1B1] cursor-not-allowed'
-              }`}
+              className={`px-8 py-4 text-sm font-medium rounded-lg transition-all duration-300 ${hasFiles && !isCreating
+                  ? 'bg-accent-red hover:bg-accent-red-hover text-white shadow-[rgba(0,0,0,0.08)_0px_8px_12px] hover:shadow-[rgba(0,0,0,0.12)_0px_12px_20px]'
+                  : 'bg-secondary hover:bg-secondary text-gray-400 cursor-not-allowed'
+                }`}
             >
               {isCreating ? (
                 <>

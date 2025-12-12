@@ -52,7 +52,7 @@ const NotesList: React.FC<NotesListProps> = ({ notebookId, onSelectNote }) => {
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-40">
-                <div className="w-6 h-6 border-2 border-[#CE0E2D] border-t-transparent rounded-full animate-spin" />
+                <div className="w-6 h-6 border-2 border-accent-red border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
@@ -109,7 +109,7 @@ const NotesList: React.FC<NotesListProps> = ({ notebookId, onSelectNote }) => {
 
                         {/* Persistent Pin Icon (hidden on hover when buttons appear) */}
                         {note.is_pinned && (
-                            <Pin className="h-3.5 w-3.5 text-[#CE0E2D] absolute top-4 right-4 group-hover:opacity-0 transition-opacity" />
+                            <Pin className="h-3.5 w-3.5 text-accent-red absolute top-4 right-4 group-hover:opacity-0 transition-opacity" />
                         )}
                     </div>
 

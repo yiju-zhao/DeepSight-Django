@@ -46,7 +46,7 @@ const CustomizeModal: React.FC<CustomizeModalProps> = ({
     },
     podcast: {
       icon: MessageSquare,
-      title: 'Customize Audio Overview', 
+      title: 'Customize Audio Overview',
       label: 'What should the AI hosts focus on?',
       placeholder: 'Enter specific instructions for the AI hosts...',
       examples: [
@@ -98,14 +98,7 @@ const CustomizeModal: React.FC<CustomizeModalProps> = ({
         </label>
         <textarea
           placeholder={currentConfig.placeholder}
-          className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-          style={{ 
-            backgroundColor: '#ffffff',
-            color: '#000000',
-            fontSize: '14px',
-            lineHeight: '1.5',
-            minHeight: '100px'
-          }}
+          className="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-accent-red focus:border-transparent bg-white text-gray-900 text-sm leading-relaxed min-h-[100px]"
           rows={4}
           value={inputValue}
           onChange={(e) => handleInputChange(e.target.value)}
@@ -127,11 +120,10 @@ const CustomizeModal: React.FC<CustomizeModalProps> = ({
       <div className="flex justify-end">
         <div className="relative group">
           <Button
-            className={`px-6 py-2.5 rounded-lg transition-all duration-200 ${
-              !hasSelectedFiles
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                : `${COLORS.tw.primary.bg[600]} ${COLORS.tw.primary.hover.bg[700]} text-white`
-            }`}
+            className={`px-6 py-2.5 rounded-lg transition-all duration-200 ${!hasSelectedFiles
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : `${COLORS.tw.primary.bg[600]} ${COLORS.tw.primary.hover.bg[700]} text-white`
+              }`}
             onClick={handleGenerate}
             disabled={!hasSelectedFiles}
           >

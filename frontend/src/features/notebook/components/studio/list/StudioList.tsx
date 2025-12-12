@@ -36,8 +36,8 @@ const StudioList: React.FC<StudioListProps> = ({
     return (
       <div className="flex-1 flex items-center justify-center p-10">
         <div className="text-center">
-          <Loader2 className="h-8 w-8 text-[#B1B1B1] animate-spin mx-auto mb-2" />
-          <p className="text-sm text-[#666666]">Loading content…</p>
+          <Loader2 className="h-8 w-8 text-gray-400 animate-spin mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Loading content…</p>
         </div>
       </div>
     );
@@ -48,12 +48,12 @@ const StudioList: React.FC<StudioListProps> = ({
     const errorMessage = error instanceof Error ? error.message : error;
     return (
       <div className="flex-1 flex items-center justify-center p-10">
-        <div className="max-w-md w-full bg-[#CE0E2D]/10 border border-[#CE0E2D]/20 rounded-lg px-6 py-5 text-center">
+        <div className="max-w-md w-full bg-accent-red/10 border border-accent-red/20 rounded-lg px-6 py-5 text-center">
           <div className="w-10 h-10 mx-auto mb-3 bg-white rounded-full flex items-center justify-center">
-            <FileText className="h-5 w-5 text-[#CE0E2D]" />
+            <FileText className="h-5 w-5 text-accent-red" />
           </div>
-          <h3 className="text-sm font-semibold text-[#1E1E1E] mb-1">Error loading content</h3>
-          <p className="text-xs text-[#666666]">{errorMessage}</p>
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">Error loading content</h3>
+          <p className="text-xs text-muted-foreground">{errorMessage}</p>
         </div>
       </div>
     );
@@ -64,11 +64,11 @@ const StudioList: React.FC<StudioListProps> = ({
     return (
       <div className="flex-1 flex items-center justify-center p-10">
         <div className="text-center">
-          <div className="w-12 h-12 mx-auto mb-3 bg-[#F5F5F5] rounded-xl flex items-center justify-center">
-            <FileText className="h-6 w-6 text-[#B1B1B1]" />
+          <div className="w-12 h-12 mx-auto mb-3 bg-secondary rounded-xl flex items-center justify-center">
+            <FileText className="h-6 w-6 text-gray-400" />
           </div>
-          <h3 className="text-sm font-semibold text-[#1E1E1E] mb-1">No generated content yet</h3>
-          <p className="text-xs text-[#666666]">
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">No generated content yet</h3>
+          <p className="text-xs text-muted-foreground">
             Create a research report or podcast to see it here.
           </p>
         </div>

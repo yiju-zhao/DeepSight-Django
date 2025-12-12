@@ -319,8 +319,8 @@ const GallerySection: React.FC<GallerySectionProps> = ({ videoFileId, notebookId
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div className="flex items-center space-x-2">
-          <ImageIcon className="h-4 w-4 text-[#1E1E1E]" />
-          <h4 className="text-[14px] font-bold text-[#1E1E1E]">Gallery</h4>
+          <ImageIcon className="h-4 w-4 text-gray-900" />
+          <h4 className="text-[14px] font-bold text-gray-900">Gallery</h4>
         </div>
         <div className="flex items-center space-x-1">
           {/* Settings Button - gear icon only */}

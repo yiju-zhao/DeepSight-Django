@@ -91,11 +91,11 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
 
   const containerClasses = [
     'rounded-2xl relative overflow-hidden transition-all duration-200 min-h-[140px] flex flex-col justify-between',
-    'bg-white border border-[#E3E3E3] shadow-[0_4px_8px_rgba(0,0,0,0.04)]',
+    'bg-white border border-border shadow-[0_4px_8px_rgba(0,0,0,0.04)]',
     !isGenerating
-      ? 'cursor-pointer hover:shadow-[0_12px_20px_rgba(0,0,0,0.12)] hover:border-[#CE0E2D] group'
+      ? 'cursor-pointer hover:shadow-[0_12px_20px_rgba(0,0,0,0.12)] hover:border-accent-red group'
       : '',
-    isGenerating ? 'ring-1 ring-[#CE0E2D] opacity-75' : ''
+    isGenerating ? 'ring-1 ring-accent-red opacity-75' : ''
   ].join(' ');
 
   const tooltipContent = isGenerating
@@ -113,25 +113,25 @@ const ReportGenerationForm: React.FC<ReportGenerationFormProps> = ({
           >
             {/* Icon */}
             <div className="absolute top-4 left-4">
-              <div className="w-8 h-8 bg-[#F5F5F5] rounded-full flex items-center justify-center group-hover:bg-[#FEF2F2] transition-colors">
-                <Search className="h-4 w-4 text-[#CE0E2D]" />
+              <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center group-hover:bg-red-50 transition-colors">
+                <Search className="h-4 w-4 text-accent-red" />
               </div>
             </div>
 
             {/* Settings indicator */}
             <div className="absolute top-4 right-4">
-              <div className="w-6 h-6 rounded-full flex items-center justify-center text-[#999999] group-hover:text-[#CE0E2D] transition-colors">
+              <div className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 group-hover:text-accent-red transition-colors">
                 <Settings className="h-3.5 w-3.5" />
               </div>
             </div>
 
             {/* Content */}
             <div className="p-5 pt-16">
-              <h3 className="text-[14px] font-bold text-[#1E1E1E] mb-1">Research Report</h3>
-              <p className="text-[12px] text-[#666666] leading-[1.5]">
+              <h3 className="text-[14px] font-bold text-gray-900 mb-1">Research Report</h3>
+              <p className="text-[12px] text-muted-foreground leading-[1.5]">
                 Configure settings for AI-powered research.
               </p>
-              <p className="text-[10px] text-[#999999] mt-2 italic">
+              <p className="text-[10px] text-gray-400 mt-2 italic">
                 Use Studio Mode in chat to generate
               </p>
             </div>

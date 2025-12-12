@@ -84,7 +84,7 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsClearDialogOpen(true)}
-                className="text-[#666666] hover:text-[#CE0E2D] hover:bg-[#F5F5F5]"
+                className="text-muted-foreground hover:text-accent-red hover:bg-secondary"
                 title="Clear Chat History"
               >
                 <Trash2 className="h-4 w-4 mr-2" />

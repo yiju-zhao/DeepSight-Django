@@ -740,7 +740,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             <Button
               variant="ghost"
               size="sm"
-              className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
+              className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary rounded-md transition-colors"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -754,7 +754,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-md transition-colors"
+                className="h-[32px] w-[32px] p-0 text-gray-400 hover:text-muted-foreground hover:bg-secondary rounded-md transition-colors"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -803,7 +803,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 px-2 text-xs text-[#666666] hover:text-[#1E1E1E]"
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-gray-900"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -825,8 +825,8 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               variant="ghost"
               size="sm"
               className={`h-6 px-2 text-xs transition-colors ${selectedCount > 0
-                ? 'text-[#666666] hover:text-[#CE0E2D]'
-                : 'text-[#D4D4D4] cursor-not-allowed'
+                ? 'text-muted-foreground hover:text-accent-red'
+                : 'text-gray-300 cursor-not-allowed'
                 }`}
               onClick={(e) => {
                 e.preventDefault();
@@ -854,7 +854,7 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         <Button
           variant="default"
           size="lg"
-          className="h-14 w-14 rounded-full bg-[#CE0E2D] hover:bg-[#A20A22] shadow-[rgba(0,0,0,0.16)_0px_8px_16px] hover:shadow-[rgba(0,0,0,0.2)_0px_12px_24px] transition-all duration-200 p-0 flex items-center justify-center group"
+          className="h-14 w-14 rounded-full bg-accent-red hover:bg-accent-red-hover shadow-[rgba(0,0,0,0.16)_0px_8px_16px] hover:shadow-[rgba(0,0,0,0.2)_0px_12px_24px] transition-all duration-200 p-0 flex items-center justify-center group"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -875,17 +875,17 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
             {Object.entries(processedSources as Record<string, Source[]>).map(
               ([type, groupSources]) => (
                 <div key={type}>
-                  <div className="px-4 py-2 bg-[#F7F7F7] sticky top-0 shadow-sm">
+                  <div className="px-4 py-2 bg-secondary/50 sticky top-0 shadow-sm">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
                         {React.createElement(fileIcons[type] || FileIcon, {
-                          className: "h-3 w-3 text-[#7F7F7F]"
+                          className: "h-3 w-3 text-gray-500"
                         })}
                       </div>
-                      <h4 className="text-[11px] font-semibold text-[#7B7B7B] uppercase tracking-[0.3px]">
+                      <h4 className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.3px]">
                         {type.toUpperCase()}
                       </h4>
-                      <Badge variant="outline" className="text-[11px] bg-white border-[#E3E3E3] text-[#666666]">
+                      <Badge variant="outline" className="text-[11px] bg-white border-border text-muted-foreground">
                         {groupSources.length}
                       </Badge>
                     </div>
@@ -925,18 +925,18 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
         {/* Empty/Loading States */}
         {!isLoading && sources.length === 0 && (
           <div className="p-10 text-center">
-            <div className="w-12 h-12 bg-[#F5F5F5] rounded-xl mx-auto mb-3 flex items-center justify-center">
-              <Upload className="h-6 w-6 text-[#B1B1B1]" />
+            <div className="w-12 h-12 bg-secondary rounded-xl mx-auto mb-3 flex items-center justify-center">
+              <Upload className="h-6 w-6 text-gray-400" />
             </div>
-            <h3 className="text-sm font-semibold text-[#1E1E1E] mb-1">No files yet</h3>
-            <p className="text-xs text-[#666666]">Add files to get started.</p>
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">No files yet</h3>
+            <p className="text-xs text-muted-foreground">Add files to get started.</p>
           </div>
         )}
 
         {isLoading && sources.length === 0 && (
           <div className="p-10 text-center">
-            <RefreshCw className="h-6 w-6 text-[#B1B1B1] animate-spin mx-auto mb-3" />
-            <p className="text-sm text-[#666666]">Loading sources…</p>
+            <RefreshCw className="h-6 w-6 text-gray-400 animate-spin mx-auto mb-3" />
+            <p className="text-sm text-muted-foreground">Loading sources…</p>
           </div>
         )}
       </div>

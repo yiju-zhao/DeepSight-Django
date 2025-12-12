@@ -138,10 +138,10 @@ const FileViewer: React.FC<FileViewerProps> = ({
       {/* ====== SINGLE RESPONSIBILITY: Toolbar rendering ====== */}
       {/* ====== SINGLE RESPONSIBILITY: Toolbar rendering ====== */}
       {!hideHeader && (
-        <div className="flex-shrink-0 bg-white border-b border-[#F7F7F7]">
+        <div className="flex-shrink-0 bg-white border-b border-gray-50">
           <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center space-x-3">
-              <h3 className="text-[16px] font-bold text-[#1E1E1E] truncate">
+              <h3 className="text-[16px] font-bold text-gray-900 truncate">
                 {formatFileTitle()}
               </h3>
             </div>
@@ -152,7 +152,7 @@ const FileViewer: React.FC<FileViewerProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={onEdit}
-                  className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] border-[#E3E3E3] rounded-md transition-colors"
+                  className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary border-border rounded-md transition-colors"
                 >
                   <Edit className="h-3.5 w-3.5 mr-1.5" />
                   {isPreviewingEdits ? 'Back to Edit' : 'Edit'}
@@ -164,7 +164,7 @@ const FileViewer: React.FC<FileViewerProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={handleSave}
-                  className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] border-[#E3E3E3] rounded-md transition-colors"
+                  className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary border-border rounded-md transition-colors"
                 >
                   <Save className="h-3.5 w-3.5 mr-1.5" />
                   Save
@@ -176,7 +176,7 @@ const FileViewer: React.FC<FileViewerProps> = ({
                   variant="outline"
                   size="sm"
                   onClick={onDownload}
-                  className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] border-[#E3E3E3] rounded-md transition-colors"
+                  className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary border-border rounded-md transition-colors"
                 >
                   <Download className="h-3.5 w-3.5 mr-1.5" />
                   Download
@@ -188,7 +188,7 @@ const FileViewer: React.FC<FileViewerProps> = ({
                 size="sm"
                 onClick={onToggleExpand}
                 title={isExpanded ? "Minimize" : "Expand"}
-                className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] border-[#E3E3E3] rounded-md transition-colors"
+                className="h-[32px] w-[32px] p-0 text-gray-400 hover:text-muted-foreground hover:bg-secondary border-border rounded-md transition-colors"
               >
                 {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
               </Button>
@@ -197,7 +197,7 @@ const FileViewer: React.FC<FileViewerProps> = ({
                 variant="outline"
                 size="sm"
                 onClick={onClose}
-                className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#CE0E2D] hover:bg-[#FEF2F2] border-[#E3E3E3] rounded-md transition-colors"
+                className="h-[32px] w-[32px] p-0 text-gray-400 hover:text-accent-red hover:bg-red-50 border-border rounded-md transition-colors"
               >
                 <X className="h-4 w-4" />
               </Button>

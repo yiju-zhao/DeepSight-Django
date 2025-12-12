@@ -342,11 +342,11 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
   return (
     <>
       {/* Header - Fixed at top */}
-      <div className="sticky top-0 z-50 bg-white pt-6 pb-4 px-8 border-b border-[#F7F7F7]">
+      <div className="sticky top-0 z-50 bg-white pt-6 pb-4 px-8 border-b border-gray-50">
         <div className="flex items-center justify-between mb-1">
           <div>
-            <h2 className="text-[20px] font-bold text-[#1E1E1E]">Add Source</h2>
-            <p className="text-[14px] text-[#666666] mt-1">Add files, links, or text to this notebook</p>
+            <h2 className="text-[20px] font-bold text-gray-900">Add Source</h2>
+            <p className="text-[14px] text-muted-foreground mt-1">Add files, links, or text to this notebook</p>
           </div>
           <Button
             variant="ghost"
@@ -356,7 +356,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
               e.stopPropagation();
               handleClose();
             }}
-            className="h-8 w-8 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-full transition-colors"
+            className="h-8 w-8 text-gray-400 hover:text-muted-foreground hover:bg-secondary rounded-full transition-colors"
           >
             <X className="h-5 w-5" />
           </Button>
@@ -364,18 +364,18 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
 
         {/* Custom Error Display */}
         {error && (
-          <div className="mt-4 p-3 bg-[#FEF2F2] border border-[#FCA5A5] rounded-lg flex items-start">
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
             <div className="flex-shrink-0 mt-0.5">
-              <svg className="h-4 w-4 text-[#CE0E2D]" viewBox="0 0 20 20" fill="currentColor">
+              <svg className="h-4 w-4 text-accent-red" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
               </svg>
             </div>
-            <div className="ml-3 flex-1 text-[13px] text-[#991B1B] leading-5">
+            <div className="ml-3 flex-1 text-[13px] text-red-800 leading-5">
               {error}
             </div>
             <button
               type="button"
-              className="ml-3 flex-shrink-0 text-[#EF4444] hover:text-[#991B1B]"
+              className="ml-3 flex-shrink-0 text-red-500 hover:text-red-800"
               onClick={() => setError(null)}
             >
               <X className="h-4 w-4" />
@@ -387,8 +387,8 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
       {/* Main Upload Area */}
       <div
         className={`border-2 border-dashed rounded-2xl p-8 mb-8 text-center transition-all duration-200 mt-8 mx-8 ${isDragOver
-          ? 'border-[#CE0E2D] bg-[#FEF2F2]'
-          : 'border-[#E3E3E3] bg-[#F9FAFB] hover:border-[#B1B1B1]'
+          ? 'border-accent-red bg-red-50'
+          : 'border-border bg-gray-50 hover:border-gray-400'
           }`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
@@ -396,12 +396,12 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
         onDrop={handleDrop}
       >
         <div className="flex flex-col items-center space-y-3">
-          <div className={`w-12 h-12 bg-[#CE0E2D] rounded-full flex items-center justify-center shadow-md`}>
+          <div className={`w-12 h-12 bg-accent-red rounded-full flex items-center justify-center shadow-md`}>
             <Upload className="h-6 w-6 text-white" />
           </div>
           <div>
-            <h3 className="text-[16px] font-bold text-[#1E1E1E] mb-1">Upload sources</h3>
-            <p className="text-[14px] text-[#666666]">
+            <h3 className="text-[16px] font-bold text-gray-900 mb-1">Upload sources</h3>
+            <p className="text-[14px] text-muted-foreground">
               Drag & drop or{' '}
               <button
                 onClick={(e) => {
@@ -409,7 +409,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
                   e.stopPropagation();
                   fileInputRef.current?.click();
                 }}
-                className="text-[#CE0E2D] hover:text-[#A30B24] font-medium hover:underline transition-colors"
+                className="text-accent-red hover:text-accent-red-hover font-medium hover:underline transition-colors"
                 disabled={isUploading}
               >
                 choose file to upload
@@ -417,7 +417,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
             </p>
           </div>
         </div>
-        <p className="text-[12px] text-[#999999] mt-4 max-w-md mx-auto leading-relaxed">
+        <p className="text-[12px] text-gray-400 mt-4 max-w-md mx-auto leading-relaxed">
           Supported file types: pdf, txt, markdown, pptx, docx, Audio (mp3, wav, m4a), Video (mp4, avi, mov, mkv, webm, wmv, m4v)
         </p>
       </div>
@@ -425,20 +425,20 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
       {/* Upload Options */}
       <div className="space-y-6 pb-8 px-8">
         {/* Link Section */}
-        <div className="bg-white border border-[#E3E3E3] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        <div className="bg-white border border-border rounded-2xl p-6 shadow-sm">
           <div className="flex items-center space-x-3 mb-5">
-            <div className="w-8 h-8 bg-[#CE0E2D] rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-accent-red rounded-lg flex items-center justify-center">
               <Link2 className="h-4 w-4 text-white" />
             </div>
-            <h3 className="text-[16px] font-bold text-[#1E1E1E]">Link</h3>
+            <h3 className="text-[16px] font-bold text-gray-900">Link</h3>
           </div>
 
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <button
                 className={`flex items-center justify-center space-x-2 p-2.5 rounded-lg transition-all duration-200 border ${urlProcessingType === 'website'
-                  ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
-                  : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
+                  ? 'bg-accent-red border-accent-red text-white shadow-md'
+                  : 'bg-white border-border text-muted-foreground hover:bg-secondary hover:text-gray-900'
                   }`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -453,8 +453,8 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
               </button>
               <button
                 className={`flex items-center justify-center space-x-2 p-2.5 rounded-lg transition-all duration-200 border ${urlProcessingType === 'document'
-                  ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
-                  : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
+                  ? 'bg-accent-red border-accent-red text-white shadow-md'
+                  : 'bg-white border-border text-muted-foreground hover:bg-secondary hover:text-gray-900'
                   }`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -469,8 +469,8 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
               </button>
               <button
                 className={`flex items-center justify-center space-x-2 p-2.5 rounded-lg transition-all duration-200 border ${urlProcessingType === 'media'
-                  ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
-                  : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
+                  ? 'bg-accent-red border-accent-red text-white shadow-md'
+                  : 'bg-white border-border text-muted-foreground hover:bg-secondary hover:text-gray-900'
                   }`}
                 onClick={(e) => {
                   e.preventDefault();
@@ -497,18 +497,18 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
                   rows={5}
-                  className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[#1E1E1E] placeholder-[#999999] focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] resize-none font-mono text-[13px] transition-all"
+                  className="w-full p-4 bg-gray-50 border border-border rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-accent-red focus:border-accent-red resize-none font-mono text-[13px] transition-all"
                   disabled={isUploading}
                 />
-                <div className="flex items-center justify-between text-[12px] text-[#666666] px-1">
+                <div className="flex items-center justify-between text-[12px] text-muted-foreground px-1">
                   <span>{parseUrls(urlInput).length} valid URLs</span>
                   <span>{urlInput.split('\n').length} lines</span>
                 </div>
 
                 {/* Batch Results Display */}
                 {batchResults && (
-                  <div className="space-y-2 p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl">
-                    <div className="text-[13px] font-medium text-[#1E1E1E]">
+                  <div className="space-y-2 p-4 bg-gray-50 border border-border rounded-xl">
+                    <div className="text-[13px] font-medium text-gray-900">
                       Results: {batchResults.successful.length} succeeded, {batchResults.failed.length} failed
                     </div>
                     {batchResults.successful.length > 0 && (
@@ -518,16 +518,16 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
                     )}
                     {batchResults.failed.length > 0 && (
                       <div className="space-y-1">
-                        <div className="text-[12px] font-medium text-[#CE0E2D]">
+                        <div className="text-[12px] font-medium text-accent-red">
                           ✗ Failed URLs:
                         </div>
                         {batchResults.failed.slice(0, 3).map((item, idx) => (
-                          <div key={idx} className="text-[12px] text-[#CE0E2D] pl-3">
+                          <div key={idx} className="text-[12px] text-accent-red pl-3">
                             • {item.url}: {item.reason}
                           </div>
                         ))}
                         {batchResults.failed.length > 3 && (
-                          <div className="text-[12px] text-[#666666] pl-3">
+                          <div className="text-[12px] text-muted-foreground pl-3">
                             ... and {batchResults.failed.length - 3} more
                           </div>
                         )}
@@ -539,7 +539,7 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
                 <Button
                   onClick={handleLinkUpload}
                   disabled={parseUrls(urlInput).length === 0 || isUploading}
-                  className="w-full h-10 bg-[#CE0E2D] hover:bg-[#A30B24] text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-10 bg-accent-red hover:bg-accent-red-hover text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUploading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -558,19 +558,19 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
         </div>
 
         {/* Paste Text Section */}
-        <div className="bg-white border border-[#E3E3E3] rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
+        <div className="bg-white border border-border rounded-2xl p-6 shadow-[0_2px_8px_rgba(0,0,0,0.04)]">
           <div className="flex items-center space-x-3 mb-5">
-            <div className="w-8 h-8 bg-[#CE0E2D] rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-accent-red rounded-lg flex items-center justify-center">
               <FileText className="h-4 w-4 text-white" />
             </div>
-            <h3 className="text-[16px] font-bold text-[#1E1E1E]">Paste text</h3>
+            <h3 className="text-[16px] font-bold text-gray-900">Paste text</h3>
           </div>
 
           <div className="space-y-4">
             <button
               className={`w-full flex items-center justify-center space-x-2 p-2.5 rounded-lg transition-all duration-200 border ${activeTab === 'text'
-                ? 'bg-[#CE0E2D] border-[#CE0E2D] text-white shadow-md'
-                : 'bg-white border-[#E3E3E3] text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]'
+                ? 'bg-accent-red border-accent-red text-white shadow-md'
+                : 'bg-white border-border text-muted-foreground hover:bg-secondary hover:text-gray-900'
                 }`}
               onClick={(e) => {
                 e.preventDefault();
@@ -592,17 +592,17 @@ const AddSourceModal: React.FC<AddSourceModalProps> = ({
                   onChange={(e) => setPasteText(e.target.value)}
                   maxLength={10000}
                   rows={6}
-                  className="w-full p-4 bg-[#F9FAFB] border border-[#E3E3E3] rounded-xl text-[#1E1E1E] placeholder-[#999999] focus:outline-none focus:ring-1 focus:ring-[#CE0E2D] focus:border-[#CE0E2D] resize-none text-[14px] transition-all"
+                  className="w-full p-4 bg-gray-50 border border-border rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-accent-red focus:border-accent-red resize-none text-[14px] transition-all"
                   disabled={isUploading}
                 />
-                <div className="flex items-center justify-between text-[12px] text-[#666666] px-1">
+                <div className="flex items-center justify-between text-[12px] text-muted-foreground px-1">
                   <span>{pasteText.length} characters</span>
                   <span>{pasteText.length} / 10000</span>
                 </div>
                 <Button
                   onClick={handleTextUpload}
                   disabled={!pasteText.trim() || isUploading}
-                  className="w-full h-10 bg-[#CE0E2D] hover:bg-[#A30B24] text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-10 bg-accent-red hover:bg-accent-red-hover text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isUploading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

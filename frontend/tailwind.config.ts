@@ -6,14 +6,14 @@ import type { Config } from 'tailwindcss';
 
 const config: Config = {
   darkMode: ['class'],
-  
+
   content: [
     './pages/**/*.{js,jsx,ts,tsx}',
     './components/**/*.{js,jsx,ts,tsx}',
     './app/**/*.{js,jsx,ts,tsx}',
     './src/**/*.{js,jsx,ts,tsx}',
   ],
-  
+
   theme: {
     container: {
       center: true,
@@ -22,7 +22,7 @@ const config: Config = {
         '2xl': '1400px',
       },
     },
-    
+
     extend: {
       // Font family configuration (Open Sans + Microsoft YaHei for Chinese)
       fontFamily: {
@@ -61,7 +61,7 @@ const config: Config = {
           'sans-serif',
         ],
       },
-      
+
       // Color system using CSS custom properties
       colors: {
         border: 'hsl(var(--border))',
@@ -90,6 +90,8 @@ const config: Config = {
           foreground: 'hsl(var(--accent-foreground))',
           red: 'hsl(var(--accent-red))',              // Huawei Red #CE0E2D
           'red-hover': 'hsl(var(--accent-red-hover))', // Darker Red #A20A22
+          'red-subtle': '#FEF2F4',                     // Studio Mode BG
+          'red-subtle-hover': '#FCE7EB',               // Studio Mode Hover BG
         },
         popover: {
           DEFAULT: 'hsl(var(--popover))',
@@ -100,7 +102,7 @@ const config: Config = {
           foreground: 'hsl(var(--card-foreground))',
         },
       },
-      
+
       // Dynamic border radius using CSS variables
       borderRadius: {
         lg: 'var(--radius)',
@@ -142,11 +144,11 @@ const config: Config = {
       },
     },
   },
-  
+
   plugins: [
     require('tailwindcss-animate'),
     require('@tailwindcss/typography'),
-    
+
     // Custom scrollbar utilities
     function ({ addUtilities }: { addUtilities: (utilities: Record<string, any>) => void }) {
       addUtilities({
@@ -160,16 +162,16 @@ const config: Config = {
             display: 'none',
           },
         },
-        
+
         '.scrollbar-overlay': {
           // Create a thin, unobtrusive scrollbar
           'overflow-y': 'auto',
           'overflow-x': 'hidden',
-          
+
           // Firefox
           'scrollbar-width': 'thin',
           'scrollbar-color': 'rgba(156, 163, 175, 0.3) transparent',
-          
+
           // Webkit browsers
           '&::-webkit-scrollbar': {
             width: '6px',

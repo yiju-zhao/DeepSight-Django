@@ -183,7 +183,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
   return (
     <span className="my-4 inline-block w-full">
       {isLoading && (
-        <span className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4 text-center text-[#666666] block">
+        <span className="bg-secondary border border-border rounded-lg p-4 text-center text-muted-foreground block">
           <span className="inline-flex items-center justify-center space-x-2">
             <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-[14px]">Loading image...</span>
@@ -196,7 +196,7 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
           src={imgSrc}
           alt={alt || 'Image'}
           title={title}
-          className="max-w-full h-auto rounded-lg border border-[#E3E3E3] shadow-sm"
+          className="max-w-full h-auto rounded-lg border border-border shadow-sm"
           style={{ maxHeight: '500px' }}
           onError={(e) => {
             console.error('Image failed to load:', { src: imgSrc, alt, title });
@@ -209,13 +209,13 @@ const AuthenticatedImage: React.FC<AuthenticatedImageProps> = ({ src, alt, title
       )}
 
       {!isLoading && imgError && (
-        <span className="bg-[#F5F5F5] border border-[#E3E3E3] rounded-lg p-4 text-center text-[#666666] block">
+        <span className="bg-secondary border border-border rounded-lg p-4 text-center text-muted-foreground block">
           <span className="inline-flex items-center justify-center space-x-2">
             <File className="h-5 w-5" />
             <span className="text-[14px]">Image could not be loaded</span>
           </span>
-          {alt && <span className="text-[12px] mt-1 text-[#7B7B7B] block">{alt}</span>}
-          <span className="text-[12px] mt-1 text-[#7B7B7B] break-all block">URL: {src}</span>
+          {alt && <span className="text-[12px] mt-1 text-gray-500 block">{alt}</span>}
+          <span className="text-[12px] mt-1 text-gray-500 break-all block">URL: {src}</span>
         </span>
       )}
     </span>
@@ -239,7 +239,7 @@ const REMARK_PLUGINS = [remarkGfm, remarkMath] as const;
 const REHYPE_KATEX_CONFIG = {
   strict: false,
   throwOnError: false,
-  errorColor: '#CE0E2D',
+  errorColor: 'hsl(var(--accent-red))',
   trust: true,
   macros: {
     '\\abs': '\\left|#1\\right|',
@@ -293,16 +293,16 @@ const sanitizeContent = (text: string): string => {
 
 // Static components object - created once
 const markdownComponents = {
-  h1: ({ children }: any) => <h1 className="text-[28px] font-bold text-[#1E1E1E] mb-6 pb-3 border-b border-[#E3E3E3]">{children}</h1>,
-  h2: ({ children }: any) => <h2 className="text-[24px] font-bold text-[#1E1E1E] mt-8 mb-4">{children}</h2>,
-  h3: ({ children }: any) => <h3 className="text-[20px] font-semibold text-[#1E1E1E] mt-6 mb-3">{children}</h3>,
-  p: ({ children }: any) => <p className="text-[16px] text-[#1E1E1E] leading-[1.6] mb-4">{children}</p>,
-  ul: ({ children }: any) => <ul className="list-disc pl-6 mb-4 space-y-2 text-[#1E1E1E]">{children}</ul>,
-  ol: ({ children }: any) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-[#1E1E1E]">{children}</ol>,
-  li: ({ children }: any) => <li className="text-[#1E1E1E]">{children}</li>,
-  blockquote: ({ children }: any) => <blockquote className="border-l-4 border-[#E3E3E3] pl-4 italic text-[#666666] my-4">{children}</blockquote>,
-  code: ({ children }: any) => <code className="bg-[#F5F5F5] px-1 py-0.5 rounded text-[14px] font-mono text-[#1E1E1E]">{children}</code>,
-  pre: ({ children }: any) => <pre className="bg-[#24272A] text-[#F5F5F5] p-4 rounded-lg overflow-x-auto my-4">{children}</pre>,
+  h1: ({ children }: any) => <h1 className="text-[28px] font-bold text-gray-900 mb-6 pb-3 border-b border-border">{children}</h1>,
+  h2: ({ children }: any) => <h2 className="text-[24px] font-bold text-gray-900 mt-8 mb-4">{children}</h2>,
+  h3: ({ children }: any) => <h3 className="text-[20px] font-semibold text-gray-900 mt-6 mb-3">{children}</h3>,
+  p: ({ children }: any) => <p className="text-[16px] text-gray-900 leading-[1.6] mb-4">{children}</p>,
+  ul: ({ children }: any) => <ul className="list-disc pl-6 mb-4 space-y-2 text-gray-900">{children}</ul>,
+  ol: ({ children }: any) => <ol className="list-decimal pl-6 mb-4 space-y-2 text-gray-900">{children}</ol>,
+  li: ({ children }: any) => <li className="text-gray-900">{children}</li>,
+  blockquote: ({ children }: any) => <blockquote className="border-l-4 border-border pl-4 italic text-muted-foreground my-4">{children}</blockquote>,
+  code: ({ children }: any) => <code className="bg-secondary px-1 py-0.5 rounded text-[14px] font-mono text-gray-900">{children}</code>,
+  pre: ({ children }: any) => <pre className="bg-[#24272A] text-white p-4 rounded-lg overflow-x-auto my-4">{children}</pre>,
   a: ({ href, children }: any) => (
     <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#2788D9] hover:underline break-all">
       {children}
@@ -350,15 +350,15 @@ const MarkdownContent = React.memo<MarkdownContentProps>(({ content, notebookId,
     return (
       <div className="flex items-center justify-center py-8">
         <div className="text-center">
-          <Loader2 className="h-6 w-6 animate-spin text-[#666666] mx-auto mb-2" />
-          <p className="text-[#666666] text-sm">Loading content...</p>
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground mx-auto mb-2" />
+          <p className="text-muted-foreground text-sm">Loading content...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="prose prose-sm max-w-none prose-headings:text-[#1E1E1E] prose-p:text-[#1E1E1E] prose-strong:text-[#1E1E1E] prose-a:text-[#2788D9] prose-code:text-[#CE0E2D] prose-pre:bg-[#24272A]">
+    <div className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-a:text-blue-600 prose-code:text-accent-red prose-pre:bg-[#24272A]">
       {isTruncated && (
         <div className="bg-amber-50 border-l-4 border-amber-400 p-3 mb-4 rounded text-sm text-amber-800">
           Content truncated for performance. Original size: {(content?.length / 1024).toFixed(1)}KB
@@ -657,8 +657,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Loader2 className="h-8 w-8 animate-spin text-[#666666] mx-auto mb-4" />
-            <p className="text-[#666666] text-[14px]">Loading preview...</p>
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground text-[14px]">Loading preview...</p>
           </div>
         </div>
       );
@@ -668,14 +668,14 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <File className="h-12 w-12 text-[#B1B1B1] mx-auto mb-4" />
-            <p className="text-[#CE0E2D] mb-2 font-medium">Preview Error</p>
-            <p className="text-[#666666] text-[14px] mb-4">{error?.message || 'Unknown error'}</p>
+            <File className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-accent-red mb-2 font-medium">Preview Error</p>
+            <p className="text-muted-foreground text-[14px] mb-4">{error?.message || 'Unknown error'}</p>
             <Button
               variant="outline"
               size="sm"
               onClick={() => refetch()}
-              className="h-[32px] px-[16px] text-[13px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
+              className="h-[32px] px-[16px] text-[13px] font-medium border-border text-gray-900 hover:bg-secondary"
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Retry
@@ -689,8 +689,8 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
-            <Eye className="h-12 w-12 text-[#B1B1B1] mx-auto mb-4" />
-            <p className="text-[#666666] text-[14px]">No preview available</p>
+            <Eye className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+            <p className="text-muted-foreground text-[14px]">No preview available</p>
           </div>
         </div>
       );
@@ -729,7 +729,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     const baseContent = state.resolvedContent || preview.content;
 
     return (
-      <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
+      <div className="relative bg-white rounded-lg p-6 border border-border shadow-sm min-h-[400px]">
         <MarkdownContent content={baseContent} notebookId={notebookId} fileId={source.file_id || ''} />
       </div>
     );
@@ -740,25 +740,25 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
 
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-[#F7F7F7]">
+        <div className="flex items-center justify-between pb-4 border-b border-secondary/50">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-full bg-[#F5F5F5] flex items-center justify-center">
-              <Globe className="h-5 w-5 text-[#1E1E1E]" />
+            <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center">
+              <Globe className="h-5 w-5 text-gray-900" />
             </div>
             <div>
-              <h3 className="text-[16px] font-bold text-[#1E1E1E]">{preview.title}</h3>
+              <h3 className="text-[16px] font-bold text-gray-900">{preview.title}</h3>
               <div className="flex items-center space-x-2 mt-1">
-                <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                <Badge variant="secondary" className="bg-secondary text-muted-foreground hover:bg-border border-0 rounded-sm px-2 py-0.5 text-[12px]">
                   {preview.processingType === 'media' ? 'Media' : 'Website'}
                 </Badge>
                 {preview.domain && (
-                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                  <Badge variant="secondary" className="bg-secondary text-muted-foreground hover:bg-border border-0 rounded-sm px-2 py-0.5 text-[12px]">
                     <Globe className="h-3 w-3 mr-1" />
                     {preview.domain}
                   </Badge>
                 )}
                 {preview.extractedAt && (
-                  <Badge variant="secondary" className="bg-[#F5F5F5] text-[#666666] hover:bg-[#E3E3E3] border-0 rounded-sm px-2 py-0.5 text-[12px]">
+                  <Badge variant="secondary" className="bg-secondary text-muted-foreground hover:bg-border border-0 rounded-sm px-2 py-0.5 text-[12px]">
                     <Calendar className="h-3 w-3 mr-1" />
                     {formatDate(preview.extractedAt)}
                   </Badge>
@@ -770,25 +770,25 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
             size="sm"
             variant="outline"
             onClick={() => window.open(preview?.url, '_blank')}
-            className="h-[32px] px-[16px] text-[13px] font-medium border-[#E3E3E3] text-[#1E1E1E] hover:bg-[#F5F5F5]"
+            className="h-[32px] px-[16px] text-[13px] font-medium border-border text-gray-900 hover:bg-secondary"
           >
             <ExternalLink className="h-3 w-3 mr-2" />
             Open Original
           </Button>
         </div>
 
-        <div className="bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm">
+        <div className="bg-white rounded-lg p-6 border border-border shadow-sm">
           <div className="mb-4">
-            <span className="text-[12px] font-medium text-[#666666] uppercase tracking-wider">Source URL</span>
-            <p className="text-[14px] text-[#2788D9] break-all mt-1 hover:underline cursor-pointer" onClick={() => window.open(preview?.url, '_blank')}>
+            <span className="text-[12px] font-medium text-muted-foreground uppercase tracking-wider">Source URL</span>
+            <p className="text-[14px] text-blue-600 break-all mt-1 hover:underline cursor-pointer" onClick={() => window.open(preview?.url, '_blank')}>
               {preview?.url}
             </p>
           </div>
 
           {preview?.content && (
             <div>
-              <span className="text-[12px] font-medium text-[#666666] uppercase tracking-wider">Content Preview</span>
-              <p className="text-[14px] text-[#1E1E1E] mt-2 leading-[1.6]">{preview?.content}</p>
+              <span className="text-[12px] font-medium text-muted-foreground uppercase tracking-wider">Content Preview</span>
+              <p className="text-[14px] text-gray-900 mt-2 leading-[1.6]">{preview?.content}</p>
             </div>
           )}
         </div>
@@ -947,7 +947,7 @@ const FilePreview: React.FC<FilePreviewComponentProps> = ({ source, isOpen, onCl
     const processedContent = baseContent;
 
     return (
-      <div className="relative bg-white rounded-lg p-6 border border-[#E3E3E3] shadow-sm min-h-[400px]">
+      <div className="relative bg-white rounded-lg p-6 border border-border shadow-sm min-h-[400px]">
         {processedContent ? (
           <MarkdownContent content={processedContent} notebookId={notebookId} fileId={source.file_id || ''} />
         ) : (

@@ -30,11 +30,11 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2">
-              <h4 className="text-[14px] font-medium truncate text-[#1E1E1E]">
+              <h4 className="text-[14px] font-medium truncate text-gray-900">
                 {item.title}
               </h4>
             </div>
-            <p className="text-[12px] text-[#666666] mt-0.5">Come back in a few minutes</p>
+            <p className="text-[12px] text-muted-foreground mt-0.5">Come back in a few minutes</p>
           </div>
         </div>
 
@@ -43,7 +43,7 @@ const GeneratingCard: React.FC<GeneratingCardProps> = ({ item, onDelete }) => {
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 text-[#B1B1B1] hover:text-[#CE0E2D] hover:bg-[#FEF2F2] rounded-full"
+            className="h-8 w-8 p-0 text-gray-400 hover:text-accent-red hover:bg-red-50 rounded-full"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(item);

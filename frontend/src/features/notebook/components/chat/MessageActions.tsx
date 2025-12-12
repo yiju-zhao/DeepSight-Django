@@ -78,7 +78,7 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
             <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 w-6 p-0 hover:bg-gray-100 text-gray-500 hover:text-[#CE0E2D]"
+                className="h-6 w-6 p-0 hover:bg-white/80 text-gray-500 hover:text-accent-red"
                 onClick={handleAddToStudio}
                 title="Add to Studio Notes"
             >

@@ -83,7 +83,7 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
     if (isLoading || !selectedNote) {
         return (
             <div className="flex items-center justify-center h-full">
-                <div className="w-6 h-6 border-2 border-[#CE0E2D] border-t-transparent rounded-full animate-spin" />
+                <div className="w-6 h-6 border-2 border-accent-red border-t-transparent rounded-full animate-spin" />
             </div>
         );
     }
@@ -121,7 +121,7 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
                     {isEditing ? (
                         <>
                             <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>Cancel</Button>
-                            <Button size="sm" onClick={handleSave} className="bg-[#CE0E2D] hover:bg-[#A20A22]">
+                            <Button size="sm" onClick={handleSave} className="bg-accent-red hover:bg-accent-red-hover">
                                 <Save className="h-4 w-4 mr-1.5" />
                                 Save
                             </Button>
@@ -156,7 +156,7 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
                         {selectedNote.created_from === 'chat' && (
                             <button
                                 onClick={handleViewSource}
-                                className="flex items-center hover:text-[#CE0E2D] transition-colors"
+                                className="flex items-center hover:text-accent-red transition-colors"
                                 disabled={!selectedNote.metadata?.session_id}
                             >
                                 <ExternalLink className="h-4 w-4 mr-1.5" />
@@ -202,7 +202,7 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
                                 placeholder="Write your note here..."
                             />
                         ) : (
-                            <div className="prose prose-sm max-w-none prose-p:text-gray-800 prose-headings:text-gray-900 prose-a:text-[#CE0E2D]">
+                            <div className="prose prose-sm max-w-none prose-p:text-gray-800 prose-headings:text-gray-900 prose-a:text-accent-red">
                                 <ReactMarkdown
                                     remarkPlugins={[remarkGfm, remarkMath]}
                                     rehypePlugins={[

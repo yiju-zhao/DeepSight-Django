@@ -39,10 +39,10 @@ const StudioModeToggle: React.FC<StudioModeToggleProps> = ({
                         disabled={disabled}
                         className={cn(
                             'h-8 w-8 rounded-lg flex items-center justify-center transition-all duration-200',
-                            'focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-[#CE0E2D]/50',
+                            'focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-accent-red/50',
                             isActive
-                                ? 'bg-gradient-to-br from-[#CE0E2D] to-[#FF4D6A] text-white shadow-md'
-                                : 'bg-[#F5F5F5] text-[#666666] hover:bg-[#E8E8E8] hover:text-[#1E1E1E]',
+                                ? 'bg-gradient-to-br from-accent-red to-[#FF4D6A] text-white shadow-md'
+                                : 'bg-secondary text-muted-foreground hover:bg-secondary/80 hover:text-gray-900',
                             disabled && 'opacity-50 cursor-not-allowed',
                             className
                         )}

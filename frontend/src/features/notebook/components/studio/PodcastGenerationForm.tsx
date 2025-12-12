@@ -80,11 +80,11 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
 
   const containerClasses = [
     'rounded-2xl relative overflow-hidden transition-all duration-200 min-h-[140px] flex flex-col justify-between',
-    'bg-white border border-[#E3E3E3] shadow-[0_4px_8px_rgba(0,0,0,0.04)]',
+    'bg-white border border-border shadow-[0_4px_8px_rgba(0,0,0,0.04)]',
     canGenerate && !isGenerating
-      ? 'cursor-pointer hover:shadow-[0_12px_20px_rgba(0,0,0,0.12)] hover:border-[#CE0E2D] group'
+      ? 'cursor-pointer hover:shadow-[0_12px_20px_rgba(0,0,0,0.12)] hover:border-accent-red group'
       : '',
-    isGenerating ? 'ring-1 ring-[#CE0E2D]' : ''
+    isGenerating ? 'ring-1 ring-accent-red' : ''
   ].join(' ');
 
   const tooltipContent = !hasSelectedFiles ? "Select files to generate a podcast" : "";
@@ -103,8 +103,8 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
             aria-busy={isGenerating}
           >
             <div className="absolute top-4 left-4">
-              <div className="w-8 h-8 bg-[#F5F5F5] rounded-full flex items-center justify-center group-hover:bg-[#FEF2F2] transition-colors">
-                <MessageSquare className="h-4 w-4 text-[#CE0E2D]" />
+              <div className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center group-hover:bg-red-50 transition-colors">
+                <MessageSquare className="h-4 w-4 text-accent-red" />
               </div>
             </div>
 
@@ -113,7 +113,7 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 w-8 p-0 text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-lg"
+                className="h-8 w-8 p-0 text-muted-foreground hover:text-gray-900 hover:bg-secondary rounded-lg"
                 onClick={(e) => {
                   e.stopPropagation();
                   // Import CustomizeModal component dynamically
@@ -138,8 +138,8 @@ const PodcastGenerationForm: React.FC<PodcastGenerationFormProps> = ({
             </div>
 
             <div className="p-5 pt-16">
-              <h3 className="text-[14px] font-bold text-[#1E1E1E] mb-1">AI Podcast</h3>
-              <p className="text-[12px] text-[#666666] leading-[1.5]">Create an audio conversation from your notebook sources.</p>
+              <h3 className="text-[14px] font-bold text-gray-900 mb-1">AI Podcast</h3>
+              <p className="text-[12px] text-muted-foreground leading-[1.5]">Create an audio conversation from your notebook sources.</p>
             </div>
           </div>
         </TooltipTrigger>

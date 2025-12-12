@@ -208,8 +208,8 @@ const CustomMessage: React.FC<{ notebookId: string }> = ({ notebookId }) => {
                 {/* Avatar */}
                 <div
                   className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${isUser
-                    ? 'bg-[#1E1E1E] text-white'
-                    : 'bg-[#CE0E2D] text-white'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-accent-red text-white'
                     }`}
                 >
                   {isUser ? (
@@ -222,11 +222,11 @@ const CustomMessage: React.FC<{ notebookId: string }> = ({ notebookId }) => {
                 {/* Message Content */}
                 <div className={`group relative ${isUser ? '' : 'w-full'}`}>
                   {isUser ? (
-                    <div className="px-5 py-3 rounded-2xl bg-[#F5F5F5] text-[#1E1E1E]">
+                    <div className="px-5 py-3 rounded-2xl bg-secondary text-gray-900">
                       <p className="text-[14px] leading-[1.6]">{text}</p>
                     </div>
                   ) : (
-                    <div className="px-6 py-4 rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-[#F7F7F7]">
+                    <div className="px-6 py-4 rounded-2xl bg-white shadow-[0_2px_8px_rgba(0,0,0,0.04)] border border-gray-50">
                       <MarkdownContent content={text} />
                     </div>
                   )}
@@ -320,8 +320,8 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
 
       <div className={cn(
         "rounded-2xl border transition-all duration-200 bg-white p-2",
-        "focus-within:ring-1 focus-within:ring-[#E5E5E5] focus-within:border-[#E5E5E5]",
-        "border-[#E5E5E5] shadow-sm hover:border-[#D4D4D4]"
+        "focus-within:ring-1 focus-within:ring-border focus-within:border-border",
+        "border-border shadow-sm hover:border-gray-300"
       )}>
         <Textarea
           ref={textareaRef}
@@ -335,7 +335,7 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
             ? "Describe your research goal... (Studio Mode)"
             : "Type your message..."
           }
-          className="min-h-[60px] max-h-[200px] w-full resize-none border-0 bg-transparent px-3 py-2 text-sm focus-visible:ring-0 placeholder:text-[#999999] scrollbar-thin scrollbar-thumb-gray-300"
+          className="min-h-[60px] max-h-[200px] w-full resize-none border-0 bg-transparent px-3 py-2 text-sm focus-visible:ring-0 placeholder:text-gray-400 scrollbar-thin scrollbar-thumb-gray-300"
           disabled={isSending}
         />
 
@@ -349,11 +349,11 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
                 className={cn(
                   "h-8 gap-2 rounded-lg px-3 text-xs font-medium transition-colors",
                   studioMode
-                    ? "bg-[#FEF2F4] text-[#CE0E2D] hover:bg-[#FCE7EB] hover:text-[#A20A22]"
-                    : "text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]"
+                    ? "bg-accent-red-subtle text-accent-red hover:bg-accent-red-subtle-hover hover:text-accent-red-hover"
+                    : "text-muted-foreground hover:bg-secondary hover:text-gray-900"
                 )}
               >
-                <Sparkles className={cn("h-4 w-4", studioMode && "fill-[#CE0E2D]")} />
+                <Sparkles className={cn("h-4 w-4", studioMode && "fill-accent-red")} />
                 Studio
               </Button>
             </PopoverTrigger>
@@ -362,16 +362,16 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
               className="w-[200px] p-2"
               sideOffset={8}
             >
-              <div className="flex items-center gap-2 rounded-lg p-2 hover:bg-[#F5F5F5] transition-colors cursor-pointer" onClick={toggleStudioMode}>
+              <div className="flex items-center gap-2 rounded-lg p-2 hover:bg-secondary transition-colors cursor-pointer" onClick={toggleStudioMode}>
                 <Checkbox
                   id="deep-research"
                   checked={studioMode}
                   onCheckedChange={toggleStudioMode}
-                  className="data-[state=checked]:bg-[#CE0E2D] data-[state=checked]:border-[#CE0E2D]"
+                  className="data-[state=checked]:bg-accent-red data-[state=checked]:border-accent-red"
                 />
                 <label
                   htmlFor="deep-research"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-[#1E1E1E]"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-gray-900"
                 >
                   Deep Research
                 </label>
@@ -387,8 +387,8 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
             className={cn(
               "h-8 w-8 rounded-full shadow-sm transition-all duration-200",
               inputValue.trim()
-                ? "bg-[#CE0E2D] hover:bg-[#A20A22] text-white"
-                : "bg-[#F5F5F5] text-[#999999] hover:bg-[#E5E5E5]"
+                ? "bg-accent-red hover:bg-accent-red-hover text-white"
+                : "bg-secondary text-gray-400 hover:bg-gray-200"
             )}
           >
             {isSending ? (

@@ -45,28 +45,28 @@ const ReportCard: React.FC<ReportCardProps> = ({ item, onSelect, onDelete }) => 
 
   return (
     <div
-      className="relative overflow-hidden cursor-pointer group transition-colors duration-150 bg-white hover:bg-[#F9FAFB] rounded-lg px-4 border border-[#E3E3E3] hover:border-[#CE0E2D] hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
+      className="relative overflow-hidden cursor-pointer group transition-colors duration-150 bg-white hover:bg-gray-50 rounded-lg px-4 border border-border hover:border-accent-red hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
       onClick={() => onSelect(item)}
     >
       <div className="flex items-center justify-between py-3 h-16">
         <div className="flex items-center space-x-4 flex-1 min-w-0">
           {/* Icon */}
-          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 bg-[#F5F5F5] rounded-full group-hover:bg-[#FEF2F2] transition-colors">
+          <div className="w-8 h-8 flex items-center justify-center flex-shrink-0 bg-secondary rounded-full group-hover:bg-red-50 transition-colors">
             {getStatusIcon()}
           </div>
 
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2">
-              <h4 className="text-[14px] font-medium truncate text-[#1E1E1E]">
+              <h4 className="text-[14px] font-medium truncate text-gray-900">
                 {item.title}
               </h4>
               {getStatusBadge()}
             </div>
             {item.error ? (
-              <p className="text-[12px] text-[#CE0E2D] mt-0.5 truncate">{item.error}</p>
+              <p className="text-[12px] text-accent-red mt-0.5 truncate">{item.error}</p>
             ) : (
-              <p className="text-[12px] text-[#666666] mt-0.5 truncate">Research Report</p>
+              <p className="text-[12px] text-muted-foreground mt-0.5 truncate">Research Report</p>
             )}
           </div>
         </div>
@@ -76,7 +76,7 @@ const ReportCard: React.FC<ReportCardProps> = ({ item, onSelect, onDelete }) => 
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 w-8 p-0 text-[#B1B1B1] hover:text-[#CE0E2D] hover:bg-[#FEF2F2] rounded-full"
+            className="h-8 w-8 p-0 text-gray-400 hover:text-accent-red hover:bg-red-50 rounded-full"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(item);

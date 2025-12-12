@@ -564,7 +564,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
+                    className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary rounded-md transition-colors"
                     onClick={() => setViewMode('edit')}
                   >
                     <Edit className="h-3.5 w-3.5 mr-1.5" />
@@ -576,7 +576,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
+                      className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary rounded-md transition-colors"
                       onClick={handlePreviewEdits}
                     >
                       <Eye className="h-3.5 w-3.5 mr-1.5" />
@@ -585,7 +585,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
+                      className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary rounded-md transition-colors"
                       onClick={() => handleSaveFile(selectedFileContent)}
                     >
                       <Save className="h-3.5 w-3.5 mr-1.5" />
@@ -597,7 +597,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
+                    className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary rounded-md transition-colors"
                     onClick={() => handleDownloadReport(selectedFile)}
                   >
                     <Download className="h-3.5 w-3.5 mr-1.5" />
@@ -607,7 +607,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-md transition-colors"
+                  className="h-[32px] w-[32px] p-0 text-gray-400 hover:text-muted-foreground hover:bg-secondary rounded-md transition-colors"
                   onClick={toggleExpanded}
                 >
                   {isStudioExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -615,7 +615,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-md transition-colors"
+                  className="h-[32px] w-[32px] p-0 text-gray-400 hover:text-muted-foreground hover:bg-secondary rounded-md transition-colors"
                   onClick={handleCloseFile}
                 >
                   <X className="h-4 w-4" />
@@ -627,7 +627,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-[32px] px-[12px] text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors"
+                  className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary rounded-md transition-colors"
                   onClick={handleRefresh}
                   disabled={reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading}
                 >
@@ -638,7 +638,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-[32px] w-[32px] p-0 text-[#B1B1B1] hover:text-[#666666] hover:bg-[#F5F5F5] rounded-md transition-colors"
+                  className="h-[32px] w-[32px] p-0 text-gray-400 hover:text-muted-foreground hover:bg-secondary rounded-md transition-colors"
                   onClick={toggleExpanded}
                 >
                   {isStudioExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
@@ -651,25 +651,25 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
       {/* ====== SINGLE RESPONSIBILITY: Main content area ====== */}
       {!isReportPreview ? (
-        <div className="flex-1 flex flex-col overflow-hidden bg-[#F5F5F5]">
+        <div className="flex-1 flex flex-col overflow-hidden bg-secondary">
           <Tabs defaultValue="reports" className="flex-1 flex flex-col min-h-0">
-            <div className="bg-white border-b border-[#F7F7F7] px-6">
+            <div className="bg-white border-b border-gray-50 px-6">
               <TabsList className="w-full justify-start h-12 p-0 bg-transparent border-0">
                 <TabsTrigger
                   value="reports"
-                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-[#CE0E2D] data-[state=active]:bg-transparent px-6"
+                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-red data-[state=active]:bg-transparent px-6"
                 >
                   Reports
                 </TabsTrigger>
                 <TabsTrigger
                   value="podcasts"
-                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-[#CE0E2D] data-[state=active]:bg-transparent px-6"
+                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-red data-[state=active]:bg-transparent px-6"
                 >
                   Podcasts
                 </TabsTrigger>
                 <TabsTrigger
                   value="notes"
-                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-[#CE0E2D] data-[state=active]:bg-transparent px-6 gap-2"
+                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-red data-[state=active]:bg-transparent px-6 gap-2"
                 >
                   <FileText className="h-4 w-4" />
                   Notes
@@ -684,7 +684,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
             {/* ====== REPORTS TAB ====== */}
             <TabsContent value="reports" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden">
-              <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-[#F7F7F7]">
+              <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-gray-50">
                 <ReportGenerationForm
                   config={reportConfig}
                   onConfigChange={updateReportConfig}
@@ -725,7 +725,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
             {/* ====== PODCASTS TAB ====== */}
             <TabsContent value="podcasts" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden">
-              <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-[#F7F7F7]">
+              <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-gray-50">
                 <PodcastGenerationForm
                   config={podcastConfig}
                   onConfigChange={updatePodcastConfig}

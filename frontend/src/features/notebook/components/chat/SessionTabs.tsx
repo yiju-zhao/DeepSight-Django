@@ -56,7 +56,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
 
   return (
     <TooltipProvider>
-      <div className="flex items-center bg-white px-6 gap-2 overflow-x-auto scrollbar-hide border-b border-[#F7F7F7]">
+      <div className="flex items-center bg-white px-6 gap-2 overflow-x-auto scrollbar-hide border-b border-border">
         <AnimatePresence>
           {sessions.map((session) => {
             const isActive = session.id === activeSessionId;
@@ -70,8 +70,8 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                 exit={{ opacity: 0, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
                 className={`group relative flex items-center gap-2 px-1 py-3 cursor-pointer transition-colors ${isActive
-                    ? 'text-[#1E1E1E]'
-                    : 'text-[#666666] hover:text-[#1E1E1E]'
+                  ? 'text-gray-900'
+                  : 'text-muted-foreground hover:text-gray-900'
                   }`}
                 onClick={() => !isEditing && onSwitchSession(session.id)}
               >
@@ -111,7 +111,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                       onCloseSession(session.id);
                     }}
                   >
-                    <X className="h-3 w-3 text-[#666666]" />
+                    <X className="h-3 w-3 text-muted-foreground" />
                   </Button>
                 )}
 
@@ -119,7 +119,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
                 {isActive && (
                   <motion.div
                     layoutId="activeTab"
-                    className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#CE0E2D]"
+                    className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent-red"
                     transition={{ type: "spring", duration: 0.3 }}
                   />
                 )}
@@ -132,7 +132,7 @@ const SessionTabs: React.FC<SessionTabsProps> = ({
         <Button
           variant="ghost"
           size="sm"
-          className="flex-shrink-0 h-8 px-3 text-[12px] font-medium text-[#666666] hover:text-[#1E1E1E] hover:bg-[#F5F5F5] rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-2"
+          className="flex-shrink-0 h-8 px-3 text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ml-2"
           onClick={onCreateSession}
           disabled={isLoading || !hasFiles}
           title={!hasFiles ? "Upload and parse at least one source to enable chat" : ""}
