@@ -20,15 +20,46 @@ export const MessageActions: React.FC<MessageActionsProps> = ({
 
     const handleCopy = async () => {
         try {
-            await navigator.clipboard.writeText(messageContent);
-            toast({
-                title: 'Copied to clipboard',
-                description: 'Message content copied to clipboard',
-            });
+            // Modern clipboard API (requires HTTPS or localhost)
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(messageContent);
+                toast({
+                    title: 'Copied to clipboard',
+                    description: 'Message content copied to clipboard',
+                });
+            } else {
+                // Fallback for older browsers or non-HTTPS
+                const textArea = document.createElement('textarea');
+                textArea.value = messageContent;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                try {
+                    const successful = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+
+                    if (successful) {
+                        toast({
+                            title: 'Copied to clipboard',
+                            description: 'Message content copied to clipboard',
+                        });
+                    } else {
+                        throw new Error('execCommand failed');
+                    }
+                } catch (err) {
+                    document.body.removeChild(textArea);
+                    throw err;
+                }
+            }
         } catch (error) {
+            console.error('Copy failed:', error);
             toast({
                 title: 'Copy failed',
-                description: 'Failed to copy to clipboard',
+                description: 'Failed to copy to clipboard. Please try selecting and copying manually.',
                 variant: 'destructive',
             });
         }
