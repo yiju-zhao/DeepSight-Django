@@ -18,11 +18,18 @@ import {
 } from '@assistant-ui/react';
 import { Button } from '@/shared/components/ui/button';
 import { Textarea } from '@/shared/components/ui/textarea';
+import { Checkbox } from '@/shared/components/ui/checkbox';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/shared/components/ui/popover';
+import { ArrowUp, Sparkles } from 'lucide-react';
+import { cn } from '@/shared/utils/utils';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
 
 // Import Studio Mode components
-import StudioModeToggle from './StudioModeToggle';
 import MessageActions from './MessageActions';
 import { useNotebookSettings } from '@/features/notebook/contexts/NotebookSettingsContext';
 
@@ -260,7 +267,7 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = 'auto';
-      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
     }
   }, [inputValue]);
 
@@ -294,7 +301,7 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
   };
 
   return (
-    <div className="flex-shrink-0 px-6 py-4 bg-white border-t border-[#F7F7F7]">
+    <div className="flex-shrink-0 px-6 py-4 bg-white">
       {/* Suggestions Area */}
       {suggestions && suggestions.length > 0 && !studioMode && (
         <div className="flex w-full gap-2 mb-3">
@@ -311,54 +318,87 @@ const CustomComposer: React.FC<CustomComposerProps> = ({ suggestions, onSuggesti
         </div>
       )}
 
-      <div className="bg-[#F7F7F7] rounded-[24px] focus-within:ring-1 focus-within:ring-[#E5E5E5] transition-all duration-200">
-        <div className="flex items-end space-x-3 px-4 py-3">
-          {/* Studio Mode Toggle - bottom left (like ChatGPT search) */}
-          <StudioModeToggle
-            isActive={studioMode}
-            onToggle={toggleStudioMode}
-            disabled={isSending}
-          />
+      <div className={cn(
+        "rounded-2xl border transition-all duration-200 bg-white p-2",
+        "focus-within:ring-1 focus-within:ring-[#E5E5E5] focus-within:border-[#E5E5E5]",
+        "border-[#E5E5E5] shadow-sm hover:border-[#D4D4D4]"
+      )}>
+        <Textarea
+          ref={textareaRef}
+          value={inputValue}
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            composerRuntime.setText(e.target.value);
+          }}
+          onKeyDown={handleKeyPress}
+          placeholder={studioMode
+            ? "Describe your research goal... (Studio Mode)"
+            : "Type your message..."
+          }
+          className="min-h-[60px] max-h-[200px] w-full resize-none border-0 bg-transparent px-3 py-2 text-sm focus-visible:ring-0 placeholder:text-[#999999] scrollbar-thin scrollbar-thumb-gray-300"
+          disabled={isSending}
+        />
 
-          <div className="flex-1 min-h-[24px] flex items-center">
-            <Textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
-                composerRuntime.setText(e.target.value);
-              }}
-              onKeyDown={handleKeyPress}
-              placeholder={studioMode
-                ? "Describe your research goal... (Studio Mode)"
-                : "Type your message..."
-              }
-              className="border-0 resize-none shadow-none focus-visible:ring-0 p-0 max-h-[120px] min-h-[24px] scrollbar-thin scrollbar-thumb-gray-300 bg-transparent text-[14px] placeholder:text-[#999999]"
-              disabled={isSending}
-            />
-          </div>
+        <div className="flex items-center justify-between px-2 pt-2 pb-1">
+          {/* Studio Toggle */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "h-8 gap-2 rounded-lg px-3 text-xs font-medium transition-colors",
+                  studioMode
+                    ? "bg-[#FEF2F4] text-[#CE0E2D] hover:bg-[#FCE7EB] hover:text-[#A20A22]"
+                    : "text-[#666666] hover:bg-[#F5F5F5] hover:text-[#1E1E1E]"
+                )}
+              >
+                <Sparkles className={cn("h-4 w-4", studioMode && "fill-[#CE0E2D]")} />
+                Studio
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="w-[200px] p-2"
+              sideOffset={8}
+            >
+              <div className="flex items-center gap-2 rounded-lg p-2 hover:bg-[#F5F5F5] transition-colors cursor-pointer" onClick={toggleStudioMode}>
+                <Checkbox
+                  id="deep-research"
+                  checked={studioMode}
+                  onCheckedChange={toggleStudioMode}
+                  className="data-[state=checked]:bg-[#CE0E2D] data-[state=checked]:border-[#CE0E2D]"
+                />
+                <label
+                  htmlFor="deep-research"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer text-[#1E1E1E]"
+                >
+                  Deep Research
+                </label>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Send Button */}
           <Button
             onClick={handleSend}
             disabled={!inputValue.trim() || isSending}
-            size="sm"
-            className="h-8 w-8 p-0 rounded-full bg-[#CE0E2D] hover:bg-[#A20A22] text-white shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center flex-shrink-0 mb-0.5"
+            size="icon"
+            className={cn(
+              "h-8 w-8 rounded-full shadow-sm transition-all duration-200",
+              inputValue.trim()
+                ? "bg-[#CE0E2D] hover:bg-[#A20A22] text-white"
+                : "bg-[#F5F5F5] text-[#999999] hover:bg-[#E5E5E5]"
+            )}
           >
             {isSending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Send className="h-4 w-4 ml-0.5" />
+              <ArrowUp className="h-5 w-5" />
             )}
           </Button>
         </div>
       </div>
-
-      {/* Studio Mode indicator */}
-      {studioMode && (
-        <div className="mt-2 px-1 text-[11px] text-[#CE0E2D] flex items-center gap-1">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#CE0E2D] animate-pulse" />
-          Studio Mode: Messages will use AI agents for research & reports
-        </div>
-      )}
     </div>
   );
 };
