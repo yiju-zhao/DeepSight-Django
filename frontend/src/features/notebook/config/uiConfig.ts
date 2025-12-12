@@ -6,8 +6,8 @@
 // Layout configurations
 export const LAYOUT_RATIOS = {
   sources: 3,    // 3fr for sources panel
-  chat: 6.5,     // 6.5fr for chat panel  
-  studio: 4.5    // 4.5fr for studio panel
+  chat: 7.5,     // 7.5fr for chat panel (Increased from 6.5)
+  studio: 3.5    // 3.5fr for studio panel (Decreased from 4.5)
 };
 
 // Animation configurations
