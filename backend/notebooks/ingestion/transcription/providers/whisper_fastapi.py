@@ -4,7 +4,6 @@ Whisper-FastAPI transcription provider.
 
 import logging
 import os
-from typing import Optional
 
 import aiohttp
 
@@ -20,7 +19,7 @@ class WhisperFastapiProvider(TranscriptionClient):
         whisper_api_base_url: str = "http://localhost:5005",
         vad_filter: bool = True,
         language: str = "und",
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ):
         super().__init__(logger)
         self.whisper_api_base_url = whisper_api_base_url.rstrip("/")

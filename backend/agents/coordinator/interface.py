@@ -7,7 +7,7 @@ handling the complete flow from clarification to final output.
 
 import asyncio
 import logging
-from typing import Optional, Callable, Awaitable
+from typing import Callable, Awaitable
 
 from .schema import TaskResult, TaskOptions, TaskStatus, ClarificationResult
 from .coordinator import Coordinator
@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 
 async def execute_task(
     user_goal: str,
-    options: Optional[TaskOptions] = None,
-    clarification_callback: Optional[Callable[[ClarificationResult], Awaitable[str]]] = None,
+    options: TaskOptions | None = None,
+    clarification_callback: Callable[[ClarificationResult], Awaitable[str]] | None = None,
 ) -> TaskResult:
     """
     Main entry point for task execution.
@@ -134,7 +134,7 @@ async def execute_task(
 
 def execute_task_sync(
     user_goal: str,
-    options: Optional[TaskOptions] = None,
+    options: TaskOptions | None = None,
 ) -> TaskResult:
     """
     Synchronous wrapper for execute_task.
@@ -158,7 +158,7 @@ def execute_task_sync(
 async def execute_research_and_write(
     topic: str,
     style: str = "academic",
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
 ) -> TaskResult:
     """
     Convenience function for the common research-and-write workflow.

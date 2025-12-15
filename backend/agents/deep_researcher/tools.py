@@ -8,7 +8,7 @@ Note: Report writing tools (refine_draft_report) are in report_writer module.
 """
 
 import logging
-from typing import List, Literal
+from typing import Literal
 
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage
@@ -59,11 +59,11 @@ def _get_tavily_client():
 # ============================================================================
 
 def tavily_search_multiple(
-    search_queries: List[str],
+    search_queries: list[str],
     max_results: int = 3,
     topic: Literal["general", "news", "finance"] = "general",
     include_raw_content: bool = True,
-) -> List[dict]:
+) -> list[dict]:
     """
     Perform search using Tavily API for multiple queries.
 
@@ -128,7 +128,7 @@ def summarize_webpage_content(webpage_content: str) -> str:
         return webpage_content[:1000] + "..." if len(webpage_content) > 1000 else webpage_content
 
 
-def deduplicate_search_results(search_results: List[dict]) -> dict:
+def deduplicate_search_results(search_results: list[dict]) -> dict:
     """
     Deduplicate search results by URL to avoid processing duplicate content.
 

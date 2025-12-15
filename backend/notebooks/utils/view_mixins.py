@@ -3,7 +3,7 @@ Common view mixins and utilities for notebooks app.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from django.shortcuts import get_object_or_404
 from rest_framework import authentication, permissions, status
@@ -187,7 +187,7 @@ class ETagCacheMixin:
     properly cached response (or 304 if client cache is fresh).
     """
 
-    def _compute_storage_etag(self, storage, object_key: str) -> Optional[str]:
+    def _compute_storage_etag(self, storage, object_key: str) -> str | None:
         try:
             meta = storage.get_file_metadata(object_key)
             if isinstance(meta, dict):
@@ -198,7 +198,7 @@ class ETagCacheMixin:
             return None
         return None
 
-    def _client_etag_matches(self, request, etag: Optional[str]) -> bool:
+    def _client_etag_matches(self, request, etag: str | None) -> bool:
         if not etag:
             return False
         client_etag = request.META.get("HTTP_IF_NONE_MATCH")
@@ -215,7 +215,7 @@ class ETagCacheMixin:
         filename: str,
         content_type: str,
         content_bytes: bytes,
-        etag: Optional[str] = None,
+        etag: str | None = None,
         max_age: int = 3600,
         disposition: str = "inline",
     ) -> HttpResponse:

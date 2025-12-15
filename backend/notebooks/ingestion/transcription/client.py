@@ -4,13 +4,12 @@ Minimal transcription client interface.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class TranscriptionClient(ABC):
     """Abstract transcription client."""
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self, logger: logging.Logger | None = None):
         self.logger = logger or logging.getLogger(__name__)
 
     @abstractmethod

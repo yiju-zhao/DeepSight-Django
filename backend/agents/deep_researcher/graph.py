@@ -6,7 +6,6 @@ for executing research workflows.
 """
 
 import logging
-from typing import Optional, List
 
 from langchain_core.messages import HumanMessage
 
@@ -17,7 +16,7 @@ from .supervisor import get_supervisor_agent, get_notes_from_tool_calls
 logger = logging.getLogger(__name__)
 
 
-def extract_sources_from_notes(notes: List[str]) -> List[SourceInfo]:
+def extract_sources_from_notes(notes: list[str]) -> list[SourceInfo]:
     """
     Extract source information from research notes.
     
@@ -64,7 +63,7 @@ def extract_sources_from_notes(notes: List[str]) -> List[SourceInfo]:
 
 async def run_research_graph(
     research_brief: str,
-    max_iterations: Optional[int] = None,
+    max_iterations: int | None = None,
 ) -> dict:
     """
     Execute the research graph with the given brief.
@@ -131,7 +130,7 @@ def compile_research_result(graph_output: dict, research_brief: str) -> Research
 
 async def execute_research(
     topic: str,
-    max_iterations: Optional[int] = None,
+    max_iterations: int | None = None,
 ) -> ResearchResult:
     """
     Execute a complete research workflow.

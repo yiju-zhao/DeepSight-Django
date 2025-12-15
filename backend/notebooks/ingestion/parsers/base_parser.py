@@ -4,7 +4,7 @@ Base parser interface and common types for ingestion module.
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 
 @dataclass
@@ -14,7 +14,7 @@ class ParseResult:
     content: str
     metadata: dict[str, Any] = field(default_factory=dict)
     features_available: list[str] = field(default_factory=list)
-    mineru_extraction_result: Optional[dict[str, Any]] = (
+    mineru_extraction_result: dict[str, Any] | None = (
         None  # For MinerU extraction results
     )
 

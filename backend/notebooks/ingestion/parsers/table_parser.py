@@ -4,7 +4,7 @@ Converts Excel sheets to markdown tables.
 """
 
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from ..exceptions import ParseError
 from .base_parser import BaseParser, ParseResult
@@ -13,7 +13,7 @@ from .base_parser import BaseParser, ParseResult
 class TableParser(BaseParser):
     """Parser for Excel files that converts data to markdown tables."""
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(self, logger: logging.Logger | None = None):
         self.logger = logger or logging.getLogger(__name__)
 
     async def parse(self, file_path: str, metadata: dict[str, Any]) -> ParseResult:

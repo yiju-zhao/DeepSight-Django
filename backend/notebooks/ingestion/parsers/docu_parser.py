@@ -9,7 +9,7 @@ import os
 import subprocess
 import tempfile
 import time
-from typing import Any, Optional
+from typing import Any
 
 import requests
 
@@ -29,7 +29,7 @@ class DocuParser(BaseParser):
     def __init__(
         self,
         mineru_base_url: str,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ):
         # Normalize URL
         if not str(mineru_base_url).lower().startswith(("http://", "https://")):

@@ -6,7 +6,6 @@ and retrieval settings.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 
 @dataclass
@@ -37,7 +36,7 @@ class RAGAgentConfig:
 
     # Model configuration
     model_name: str = "gpt-5"  # Using GPT-5 (latest model)
-    api_key: Optional[str] = None
+    api_key: str | None = None
 
     # Temperature settings for different phases
     temperature: float = 0.7  # Reasoning phase (encourage exploration)

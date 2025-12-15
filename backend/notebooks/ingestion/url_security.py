@@ -5,7 +5,6 @@ URL security validation and SSRF protection.
 import ipaddress
 import logging
 import socket
-from typing import Optional
 from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
@@ -19,7 +18,7 @@ class SSRFProtectionError(Exception):
 
 def validate_url_security(
     url: str, allow_private_networks: bool = False
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """
     Validate URL against SSRF attacks.
 
@@ -93,7 +92,7 @@ def validate_url_security(
 
 def validate_redirect_security(
     redirect_url: str, allow_private_networks: bool = False
-) -> tuple[bool, Optional[str]]:
+) -> tuple[bool, str | None]:
     """
     Validate redirect URL for SSRF protection.
 

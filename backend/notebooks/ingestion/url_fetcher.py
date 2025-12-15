@@ -16,7 +16,7 @@ import re
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Optional, TypedDict
+from typing import Any, Literal, TypedDict
 from urllib.parse import urlparse
 
 from ..utils.helpers import clean_title
@@ -75,9 +75,9 @@ class UrlFetchResult:
     """Unified URL fetch result with type-safe metadata."""
 
     fetch_type: Literal["webpage", "document", "media"]
-    content: Optional[str] = None  # For webpage content
-    local_path: Optional[str] = None  # For downloaded files
-    filename: Optional[str] = None
+    content: str | None = None  # For webpage content
+    local_path: str | None = None  # For downloaded files
+    filename: str | None = None
     metadata: DocumentMetadata | MediaMetadata | WebpageMetadata | dict[str, Any] = (
         field(default_factory=dict)
     )
@@ -96,7 +96,7 @@ class UrlFetcher:
 
     def __init__(
         self,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
         allow_private_networks: bool = False,
     ):
         self.logger = logger or logging.getLogger(__name__)
@@ -603,7 +603,7 @@ class UrlFetcher:
 
     async def _download_video(
         self, url: str, temp_dir: str, base_filename: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """Download video using yt-dlp."""
         try:
             import yt_dlp
@@ -636,7 +636,7 @@ class UrlFetcher:
 
     async def _download_audio(
         self, url: str, temp_dir: str, base_filename: str
-    ) -> Optional[str]:
+    ) -> str | None:
         """Download audio using yt-dlp."""
         try:
             import yt_dlp
@@ -711,7 +711,7 @@ class UrlFetcher:
             self.logger.error(f"Bilibili media fetch error: {e}")
             raise SourceError(f"Failed to fetch Bilibili media: {e}") from e
 
-    async def _download_bilibili_video(self, url: str, temp_dir: str) -> Optional[str]:
+    async def _download_bilibili_video(self, url: str, temp_dir: str) -> str | None:
         """Download Bilibili video using bilix."""
         try:
             from bilix.sites.bilibili import DownloaderBilibili

@@ -7,7 +7,7 @@ output schemas, and data contracts for the coordinator.
 """
 
 import operator
-from typing import Optional, List, Sequence
+from typing import Sequence
 from typing_extensions import TypedDict, Annotated
 
 from pydantic import BaseModel, Field
@@ -24,7 +24,7 @@ class SourceInfo(BaseModel):
     url: str = Field(description="URL of the source")
     title: str = Field(description="Title of the source document")
     snippet: str = Field(description="Relevant excerpt from the source")
-    relevance_score: Optional[float] = Field(
+    relevance_score: float | None = Field(
         default=None, 
         description="Relevance score (0-1) if available"
     )
@@ -40,15 +40,15 @@ class ResearchResult(BaseModel):
     findings: str = Field(
         description="Compressed research summary with key insights"
     )
-    sources: List[SourceInfo] = Field(
+    sources: list[SourceInfo] = Field(
         default_factory=list,
         description="List of cited sources with URLs and snippets"
     )
-    raw_notes: List[str] = Field(
+    raw_notes: list[str] = Field(
         default_factory=list,
         description="Unprocessed research notes for audit/reference"
     )
-    research_brief: Optional[str] = Field(
+    research_brief: str | None = Field(
         default=None,
         description="Original research query/brief"
     )
@@ -76,7 +76,7 @@ class ResearcherState(TypedDict):
     # Compressed summary of research findings
     compressed_research: str
     # Raw unprocessed notes from research
-    raw_notes: Annotated[List[str], operator.add]
+    raw_notes: Annotated[list[str], operator.add]
 
 
 class ResearcherOutputState(TypedDict):
@@ -87,7 +87,7 @@ class ResearcherOutputState(TypedDict):
     with compressed findings and all raw notes.
     """
     compressed_research: str
-    raw_notes: Annotated[List[str], operator.add]
+    raw_notes: Annotated[list[str], operator.add]
     researcher_messages: Annotated[Sequence[BaseMessage], add_messages]
 
 
@@ -103,11 +103,11 @@ class SupervisorState(TypedDict):
     # Detailed research brief that guides the overall research direction
     research_brief: str
     # Processed and structured notes ready for final compilation
-    notes: Annotated[List[str], operator.add]
+    notes: Annotated[list[str], operator.add]
     # Counter tracking the number of research iterations performed
     research_iterations: int
     # Raw unprocessed research notes collected from sub-agent research
-    raw_notes: Annotated[List[str], operator.add]
+    raw_notes: Annotated[list[str], operator.add]
 
 
 # ============================================================================

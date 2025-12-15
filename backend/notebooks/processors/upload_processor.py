@@ -8,7 +8,7 @@ import os
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from django.core.exceptions import ValidationError
 
@@ -469,7 +469,7 @@ class UploadProcessor:
 
 
 # Lazy singleton factory
-_upload_processor_instance: Optional[UploadProcessor] = None
+_upload_processor_instance: UploadProcessor | None = None
 
 
 def get_upload_processor() -> UploadProcessor:

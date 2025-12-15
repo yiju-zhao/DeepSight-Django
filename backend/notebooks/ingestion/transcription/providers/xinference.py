@@ -4,7 +4,6 @@ Xinference transcription provider.
 
 import asyncio
 import logging
-from typing import Optional
 
 from ...exceptions import TranscriptionError
 from ..client import TranscriptionClient
@@ -17,7 +16,7 @@ class XinferenceProvider(TranscriptionClient):
         self,
         xinference_url: str = "http://localhost:9997",
         model_uid: str = "Bella-whisper-large-v3-zh",
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ):
         super().__init__(logger)
         self.xinference_url = xinference_url

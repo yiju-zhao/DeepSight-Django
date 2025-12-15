@@ -7,7 +7,6 @@ research findings into polished reports.
 
 import logging
 import re
-from typing import List, Optional
 from datetime import datetime
 
 from langchain.chat_models import init_chat_model
@@ -47,7 +46,7 @@ def get_today_str() -> str:
 # PARSING UTILITIES
 # ============================================================================
 
-def parse_sections(report: str) -> List[Section]:
+def parse_sections(report: str) -> list[Section]:
     """
     Parse a markdown report into sections.
     
@@ -133,9 +132,9 @@ def detect_language(text: str) -> str:
 async def generate_report(
     research_brief: str,
     findings: str,
-    sources: List[dict],
+    sources: list[dict],
     style: str = "academic",
-    draft_outline: Optional[str] = None,
+    draft_outline: str | None = None,
 ) -> str:
     """
     Generate a report from research findings.
@@ -225,9 +224,9 @@ async def polish_report(
 async def write_report(
     research_brief: str,
     findings: str,
-    sources: List[dict],
+    sources: list[dict],
     style: str = "academic",
-    draft_outline: Optional[str] = None,
+    draft_outline: str | None = None,
     polish: bool = True,
 ) -> WriterResult:
     """

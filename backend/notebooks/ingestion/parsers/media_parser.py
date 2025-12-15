@@ -8,7 +8,7 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from ...utils.helpers import clean_title
 from ..exceptions import ParseError, TranscriptionError
@@ -22,7 +22,7 @@ class MediaParser(BaseParser):
     def __init__(
         self,
         transcription_client: TranscriptionClient,
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ):
         self.transcription_client = transcription_client
         self.logger = logger or logging.getLogger(__name__)

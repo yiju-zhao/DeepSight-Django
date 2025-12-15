@@ -105,7 +105,7 @@ class ConferenceImportService:
         source_string = f"{url}_{user_id}"
         return hashlib.sha256(source_string.encode()).hexdigest()
 
-    def _extract_publication_metadata(self, publication) -> Dict:
+    def _extract_publication_metadata(self, publication) -> dict:
         """Extract metadata from publication for storage in KB item"""
         return {
             "source_type": "conference_publication",
@@ -126,8 +126,8 @@ class ConferenceImportService:
         }
 
     def _validate_publications(
-        self, publication_ids: List[str], user_id: int, notebook_id: str = None
-    ) -> Dict:
+        self, publication_ids: list[str], user_id: int, notebook_id: str = None
+    ) -> dict:
         """
         Validate publications and extract valid PDF URLs.
 
@@ -247,10 +247,10 @@ class ConferenceImportService:
     @transaction.atomic
     def import_publications_to_notebook(
         self,
-        publication_ids: List[str],
+        publication_ids: list[str],
         notebook,
         user,
-    ) -> Dict:
+    ) -> dict:
         """
         Import conference publications to a notebook.
 
@@ -409,7 +409,7 @@ class ConferenceImportService:
         else:
             return status.HTTP_400_BAD_REQUEST  # Nothing processed
 
-    def get_active_imports(self, user) -> List[Dict]:
+    def get_active_imports(self, user) -> list[dict]:
         """
         Get active and recent conference import jobs for a user.
 

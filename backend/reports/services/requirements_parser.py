@@ -7,7 +7,6 @@ format that can be injected into the STORM pipeline.
 
 import json
 import logging
-from typing import Optional
 
 import dspy
 from django.conf import settings
@@ -88,7 +87,7 @@ class RequirementsParser:
             logger.error(f"Failed to setup language model: {e}")
             raise
 
-    def parse(self, requirements_text: str) -> Optional[dict]:
+    def parse(self, requirements_text: str) -> dict | None:
         """
         Parse user's free-text requirements into structured format.
 
@@ -215,7 +214,7 @@ class RequirementsParser:
 
 def parse_custom_requirements(
     requirements_text: str, model_provider: str = "openai"
-) -> Optional[dict]:
+) -> dict | None:
     """
     Convenience function to parse custom requirements.
 

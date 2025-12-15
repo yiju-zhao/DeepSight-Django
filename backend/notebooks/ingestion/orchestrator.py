@@ -9,7 +9,7 @@ import tempfile
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from ..processors.minio_post_processor import MinIOPostProcessor
 from ..utils.helpers import clean_title
@@ -45,7 +45,7 @@ class IngestionOrchestrator:
         model_uid: str = "Bella-whisper-large-v3-zh",
         whisper_api_base_url: str = "http://localhost:5005",
         transcription_provider: str = "whisper_fastapi",
-        logger: Optional[logging.Logger] = None,
+        logger: logging.Logger | None = None,
     ):
         self.logger = logger or logging.getLogger(__name__)
 
@@ -138,7 +138,7 @@ class IngestionOrchestrator:
         user_pk: int,
         notebook_id: int,
         mode: Literal["webpage", "document", "media"],
-        kb_item_id: Optional[str] = None,
+        kb_item_id: str | None = None,
     ) -> IngestionResult:
         """
         Ingest content from URL.
@@ -262,7 +262,7 @@ class IngestionOrchestrator:
         user_pk: int,
         notebook_id: int,
         metadata: dict[str, Any],
-        kb_item_id: Optional[str] = None,
+        kb_item_id: str | None = None,
     ) -> IngestionResult:
         """
         Ingest uploaded file.
@@ -351,9 +351,9 @@ class IngestionOrchestrator:
         metadata: dict[str, Any],
         user_pk: int,
         notebook_id: int,
-        original_file_path: Optional[str],
+        original_file_path: str | None,
         source_identifier: str,
-        kb_item_id: Optional[str],
+        kb_item_id: str | None,
     ) -> str:
         """Store parsing result using FileStorageService."""
         try:

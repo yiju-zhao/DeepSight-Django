@@ -7,7 +7,6 @@ suitable for use by the coordinator or direct API calls.
 
 import asyncio
 import logging
-from typing import Optional, List
 
 from .states import WriterResult
 from .writer import write_report
@@ -19,11 +18,11 @@ logger = logging.getLogger(__name__)
 async def run_writer(
     research_brief: str,
     findings: str,
-    sources: Optional[List[dict]] = None,
-    draft_outline: Optional[str] = None,
+    sources: list[dict] | None = None,
+    draft_outline: str | None = None,
     style: str = "academic",
     polish: bool = True,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
 ) -> WriterResult:
     """
     Generate a polished report from research findings.
@@ -126,11 +125,11 @@ async def run_writer(
 def run_writer_sync(
     research_brief: str,
     findings: str,
-    sources: Optional[List[dict]] = None,
-    draft_outline: Optional[str] = None,
+    sources: list[dict] | None = None,
+    draft_outline: str | None = None,
     style: str = "academic",
     polish: bool = True,
-    timeout: Optional[float] = None,
+    timeout: float | None = None,
 ) -> WriterResult:
     """
     Synchronous wrapper for run_writer.

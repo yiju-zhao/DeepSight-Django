@@ -10,7 +10,7 @@ import re
 import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 from urllib.parse import urlparse
 
 from django.conf import settings as django_settings
@@ -124,7 +124,7 @@ class NotebooksConfig:
 
 
 # Lazy singleton factory
-_config_instance: Optional[NotebooksConfig] = None
+_config_instance: NotebooksConfig | None = None
 
 
 def get_notebooks_config() -> NotebooksConfig:

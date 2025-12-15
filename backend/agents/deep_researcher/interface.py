@@ -7,7 +7,6 @@ suitable for use by the coordinator or direct API calls.
 
 import asyncio
 import logging
-from typing import Optional
 
 from .states import ResearchResult
 from .graph import execute_research
@@ -20,8 +19,8 @@ logger = logging.getLogger(__name__)
 async def run_research(
     topic: str,
     max_depth: int = 3,
-    max_iterations: Optional[int] = None,
-    timeout: Optional[float] = None,
+    max_iterations: int | None = None,
+    timeout: float | None = None,
 ) -> ResearchResult:
     """
     Execute a deep research workflow on the given topic.
@@ -105,8 +104,8 @@ async def run_research(
 def run_research_sync(
     topic: str,
     max_depth: int = 3,
-    max_iterations: Optional[int] = None,
-    timeout: Optional[float] = None,
+    max_iterations: int | None = None,
+    timeout: float | None = None,
 ) -> ResearchResult:
     """
     Synchronous wrapper for run_research.

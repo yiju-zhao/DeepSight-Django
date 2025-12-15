@@ -6,7 +6,7 @@ Only research_agent and report_writer are exposed to the coordinator.
 Additional agents (data_analyst, reviewer) are internal to research_agent.
 """
 
-from typing import Dict, List, Type
+from typing import Type
 
 from .schema import AgentCapability, RESEARCH_AGENT_CAPABILITY, WRITER_AGENT_CAPABILITY
 
@@ -19,7 +19,7 @@ class AgentRegistry:
     can directly invoke. Internal agents are not exposed here.
     """
     
-    AGENTS: Dict[str, AgentCapability] = {
+    AGENTS: dict[str, AgentCapability] = {
         "research": RESEARCH_AGENT_CAPABILITY,
         "writer": WRITER_AGENT_CAPABILITY,
     }
@@ -43,12 +43,12 @@ class AgentRegistry:
         return cls.AGENTS[name]
     
     @classmethod
-    def list_capabilities(cls) -> List[AgentCapability]:
+    def list_capabilities(cls) -> list[AgentCapability]:
         """Get list of all available agent capabilities."""
         return list(cls.AGENTS.values())
     
     @classmethod
-    def list_names(cls) -> List[str]:
+    def list_names(cls) -> list[str]:
         """Get list of all available agent names."""
         return list(cls.AGENTS.keys())
     

@@ -9,7 +9,7 @@ import asyncio
 import logging
 import uuid
 import time
-from typing import Optional, List, Dict, Any
+from typing import Any
 
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
@@ -137,14 +137,14 @@ class Coordinator:
     
     def __init__(self):
         self.model = get_coordinator_model()
-        self.conversation_history: List[Dict[str, str]] = []
+        self.conversation_history: list[dict[str, str]] = []
         self.clarification_rounds = 0
         self.max_clarification_rounds = 3
     
     async def clarify_requirements(
         self,
         user_goal: str,
-        user_response: Optional[str] = None,
+        user_response: str | None = None,
     ) -> ClarificationResult:
         """
         Multi-turn clarification until confident.
@@ -247,8 +247,8 @@ class Coordinator:
     async def create_plan(
         self,
         user_goal: str,
-        requirements: Dict[str, Any],
-        options: Optional[TaskOptions] = None,
+        requirements: dict[str, Any],
+        options: TaskOptions | None = None,
     ) -> TaskPlan:
         """
         Generate execution plan based on goal and requirements.
@@ -328,7 +328,7 @@ class Coordinator:
         task_type: TaskType,
         user_goal: str,
         options: TaskOptions,
-    ) -> List[TaskStep]:
+    ) -> list[TaskStep]:
         """Create default execution steps based on task type."""
         steps = []
         
@@ -357,7 +357,7 @@ class Coordinator:
         self,
         plan: TaskPlan,
         user_goal: str,
-        options: Optional[TaskOptions] = None,
+        options: TaskOptions | None = None,
     ) -> TaskResult:
         """
         Execute the plan, handling parallel/sequential agents.
@@ -373,8 +373,8 @@ class Coordinator:
         options = options or TaskOptions()
         start_time = time.time()
         
-        execution_logs: List[ExecutionLog] = []
-        step_results: Dict[str, Any] = {}
+        execution_logs: list[ExecutionLog] = []
+        step_results: dict[str, Any] = {}
         
         # Track outputs
         findings = None

@@ -5,7 +5,6 @@ This module defines the state objects and structured schemas used for
 the report writer workflow.
 """
 
-from typing import Optional, List
 from pydantic import BaseModel, Field
 
 
@@ -26,7 +25,7 @@ class WriterResult(BaseModel):
     final_report: str = Field(
         description="Complete report in markdown format"
     )
-    sections: List[Section] = Field(
+    sections: list[Section] = Field(
         default_factory=list,
         description="Parsed sections of the report"
     )
@@ -52,11 +51,11 @@ class WriterInput(BaseModel):
     findings: str = Field(
         description="Compressed research findings"
     )
-    sources: List[dict] = Field(
+    sources: list[dict] = Field(
         default_factory=list,
         description="List of source information dictionaries"
     )
-    draft_outline: Optional[str] = Field(
+    draft_outline: str | None = Field(
         default=None,
         description="Optional outline to follow"
     )

@@ -10,7 +10,6 @@ Options:
 """
 
 import logging
-from typing import List, Tuple
 
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -136,7 +135,7 @@ class Command(BaseCommand):
             )
         self.stdout.write("=" * 70 + "\n")
 
-    def _collect_resources(self, service) -> Tuple[List[dict], List[dict], List[dict]]:
+    def _collect_resources(self, service) -> tuple[list[dict], list[dict], list[dict]]:
         """
         Collect all RagFlow resources directly from RagFlow API.
 
@@ -182,9 +181,9 @@ class Command(BaseCommand):
 
     def _display_summary(
         self,
-        datasets: List[dict],
-        chat_assistants: List[dict],
-        chat_sessions: List[dict],
+        datasets: list[dict],
+        chat_assistants: list[dict],
+        chat_sessions: list[dict],
     ):
         """Display summary of resources to be deleted."""
         self.stdout.write(self.style.NOTICE("Summary of resources to cleanup:\n"))
@@ -230,7 +229,7 @@ class Command(BaseCommand):
     def _cleanup_chat_sessions(
         self,
         service,
-        chat_sessions: List[dict],
+        chat_sessions: list[dict],
         dry_run: bool,
     ) -> bool:
         """Delete all chat sessions from RagFlow."""
@@ -283,7 +282,7 @@ class Command(BaseCommand):
     def _cleanup_chat_assistants(
         self,
         service,
-        chat_assistants: List[dict],
+        chat_assistants: list[dict],
         dry_run: bool,
     ) -> bool:
         """Delete all chat assistants from RagFlow."""
@@ -319,7 +318,7 @@ class Command(BaseCommand):
         )
         return success
 
-    def _cleanup_datasets(self, service, datasets: List[dict], dry_run: bool) -> bool:
+    def _cleanup_datasets(self, service, datasets: list[dict], dry_run: bool) -> bool:
         """Delete all datasets from RagFlow."""
         self.stdout.write(
             self.style.NOTICE(f"\n[3/3] Deleting {len(datasets)} datasets...")
