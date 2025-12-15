@@ -21,12 +21,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { studioKeys } from '@/features/notebook/hooks/studio/useStudio';
 import { useNotebookSettings } from '@/features/notebook/contexts/NotebookSettingsContext';
 import { useNotes } from '@/features/notebook/hooks/notes/useNotes';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/shared/components/ui/tabs';
-
-// ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
-// Import focused UI components
-import ReportGenerationForm from './ReportGenerationForm';
-import PodcastGenerationForm from './PodcastGenerationForm';
 import PodcastAudioPlayer from './PodcastAudioPlayer';
 import FileViewer from './FileViewer';
 import StudioList from './list/StudioList';
@@ -652,121 +646,121 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       {/* ====== SINGLE RESPONSIBILITY: Main content area ====== */}
       {!isReportPreview ? (
         <div className="flex-1 flex flex-col overflow-hidden bg-secondary">
-          <Tabs defaultValue="reports" className="flex-1 flex flex-col min-h-0">
-            <div className="bg-white border-b border-gray-50 px-6">
-              <TabsList className="w-full justify-start h-12 p-0 bg-transparent border-0">
-                <TabsTrigger
-                  value="reports"
-                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-red data-[state=active]:bg-transparent px-6"
-                >
-                  Reports
-                </TabsTrigger>
-                <TabsTrigger
-                  value="podcasts"
-                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-red data-[state=active]:bg-transparent px-6"
-                >
-                  Podcasts
-                </TabsTrigger>
-                <TabsTrigger
-                  value="notes"
-                  className="h-full rounded-none border-b-2 border-transparent data-[state=active]:border-accent-red data-[state=active]:bg-transparent px-6 gap-2"
-                >
-                  <FileText className="h-4 w-4" />
-                  Notes
+
+          {/* UPPER SECTION: Agent Runtime States */}
+          <div className="h-[35%] min-h-[200px] flex flex-col bg-white border-b border-gray-200">
+            <div className="px-4 py-3 border-b border-gray-50 flex justify-between items-center">
+              <h4 className="text-sm font-medium text-gray-700">Agent Runtime States</h4>
+              {/* Optional: Add status indicators or controls here */}
+            </div>
+            <div className="flex-1 p-4 overflow-auto">
+              {/* Placeholder for Agent Runtime Visualization */}
+              <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed border-gray-100 rounded-lg">
+                <div className="p-2 rounded-full bg-gray-50 mb-3">
+                  <RefreshCw className="h-5 w-5 text-gray-400" />
+                </div>
+                <p className="text-sm font-medium">Runtime Visualization</p>
+                <p className="text-xs text-gray-400 mt-1 max-w-[200px]">Agent activities and state changes will appear here</p>
+              </div>
+            </div>
+          </div>
+
+          {/* LOWER SECTION: Generated Content */}
+          <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/50">
+            <div className="flex-1 overflow-y-auto scrollbar-overlay pb-6">
+
+              {/* Section Header: Reports & Podcasts */}
+              {/* We need to combine items here. Since we can't easily add useMemo hook inside this return block replacement, 
+                    we will use the raw arrays if combineStudioItems is not memoized or just call it directly. 
+                    Ideally we added useMemo above, but we are inside a replace block. 
+                    Let's assume we can call combineStudioItems directly here or rely on StudioList to handle it if we modify it? 
+                    No, StudioList takes `items`. 
+                    
+                    Wait, I didn't add the `combinedItems` useMemo hook in the previous chunk. 
+                    I should just call `combineStudioItems(reportJobs.jobs || [], podcastJobs.jobs || [])` inline for now or access the imported function.
+                */}
+
+              <div className="px-4 pt-6 pb-2">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Generated Content</h4>
+              </div>
+
+              <StudioList
+                items={combineStudioItems(
+                  reportJobs.jobs || [],
+                  podcastJobs.jobs || []
+                )}
+                isLoading={reportJobs.isLoading || podcastJobs.isLoading}
+                error={reportJobs.error || podcastJobs.error}
+                notebookId={notebookId}
+                expandedPodcasts={expandedPodcasts}
+                onSelectReport={(item: ReportStudioItem) => {
+                  const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                  if (originalReport) handleSelectReport(originalReport);
+                }}
+                onDeleteReport={(item: ReportStudioItem) => {
+                  const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                  if (originalReport) handleDeleteReport(originalReport);
+                }}
+                onTogglePodcast={(item: PodcastStudioItem) => {
+                  const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                  if (originalPodcast) handlePodcastClick(originalPodcast);
+                }}
+                onDeletePodcast={(item: PodcastStudioItem) => {
+                  const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                  if (originalPodcast) handleDeletePodcast(originalPodcast);
+                }}
+                onDownloadPodcast={(item: PodcastStudioItem) => {
+                  const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                  if (originalPodcast) handleDownloadPodcast(originalPodcast);
+                }}
+              />
+
+              {/* Section Header: Notes */}
+              <div className="px-4 pt-6 pb-2 border-t border-gray-100 mt-4">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
+                  <span>Notes</span>
                   {notes?.length > 0 && (
-                    <span className="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                    <span className="bg-gray-200 text-gray-600 py-0.5 px-2 rounded-full text-[10px]">
                       {notes.length}
                     </span>
                   )}
-                </TabsTrigger>
-              </TabsList>
-            </div>
+                </h4>
+              </div>
 
-            {/* ====== REPORTS TAB ====== */}
-            <TabsContent value="reports" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden">
-              <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-gray-50">
-                <ReportGenerationForm
-                  config={reportConfig}
-                  onConfigChange={updateReportConfig}
-                  availableModels={reportModels.data || {}}
-                  generationState={{
-                    state: reportGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
-                    progress: reportGeneration.progress,
-                    error: reportGeneration.error || undefined,
-                    isGenerating: reportGeneration.isGenerating
-                  }}
-                  onGenerate={handleGenerateReport}
-                  selectedFiles={selectedFiles}
-                  onOpenModal={onOpenModal}
-                  onCloseModal={onCloseModal}
-                />
+              <div className="px-4">
+                {selectedNoteId ? (
+                  <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                    <div className="flex justify-end p-2 bg-gray-50 border-b border-gray-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedNoteId(null)}
+                        className="h-6 px-2 text-xs"
+                      >
+                        Close Note
+                      </Button>
+                    </div>
+                    <NoteViewer
+                      notebookId={notebookId}
+                      noteId={selectedNoteId}
+                      onClose={() => setSelectedNoteId(null)}
+                    />
+                  </div>
+                ) : (
+                  <NotesList
+                    notebookId={notebookId}
+                    onSelectNote={setSelectedNoteId}
+                  />
+                )}
               </div>
-              <div className="flex-1 overflow-auto scrollbar-overlay">
-                <StudioList
-                  items={fromReports(reportJobs.jobs)}
-                  isLoading={reportJobs.isLoading}
-                  error={reportJobs.error}
-                  notebookId={notebookId}
-                  expandedPodcasts={expandedPodcasts}
-                  onSelectReport={(item: ReportStudioItem) => {
-                    const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                    if (originalReport) handleSelectReport(originalReport);
-                  }}
-                  onDeleteReport={(item: ReportStudioItem) => {
-                    const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                    if (originalReport) handleDeleteReport(originalReport);
-                  }}
-                  onTogglePodcast={() => { }}
-                  onDeletePodcast={() => { }}
-                  onDownloadPodcast={() => { }}
-                />
-              </div>
-            </TabsContent>
 
-            {/* ====== PODCASTS TAB ====== */}
-            <TabsContent value="podcasts" className="flex-1 flex flex-col overflow-hidden mt-0 data-[state=inactive]:hidden">
-              <div className="flex-shrink-0 px-6 py-6 bg-white border-b border-gray-50">
-                <PodcastGenerationForm
-                  config={podcastConfig}
-                  onConfigChange={updatePodcastConfig}
-                  generationState={{
-                    state: podcastGeneration.isGenerating ? GenerationState.GENERATING : GenerationState.IDLE,
-                    progress: podcastGeneration.progress,
-                    error: podcastGeneration.error || undefined
-                  }}
-                  onGenerate={handleGeneratePodcast}
-                  selectedFiles={selectedFiles}
-                  selectedSources={selectedSources}
-                  onOpenModal={onOpenModal}
-                  onCloseModal={onCloseModal}
-                />
-              </div>
-              <div className={`flex-1 overflow-auto scrollbar-overlay ${selectedPodcast && selectedPodcast.status === 'completed' ? 'pb-20' : ''}`}>
-                <StudioList
-                  items={fromPodcasts(podcastJobs.jobs)}
-                  isLoading={podcastJobs.isLoading}
-                  error={podcastJobs.error}
-                  notebookId={notebookId}
-                  expandedPodcasts={expandedPodcasts}
-                  onSelectReport={() => { }}
-                  onDeleteReport={() => { }}
-                  onTogglePodcast={(item: PodcastStudioItem) => {
-                    const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                    if (originalPodcast) handlePodcastClick(originalPodcast);
-                  }}
-                  onDeletePodcast={(item: PodcastStudioItem) => {
-                    const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                    if (originalPodcast) handleDeletePodcast(originalPodcast);
-                  }}
-                  onDownloadPodcast={(item: PodcastStudioItem) => {
-                    const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                    if (originalPodcast) handleDownloadPodcast(originalPodcast);
-                  }}
-                />
-              </div>
-              {/* Podcast Player within Tab */}
+              {/* Podcast Player Floating (if needed) or inline? 
+                    The current implementation has it inside the TabsContent. 
+                    If we want it to persist, we can put it at the bottom of the container or fixed.
+                    The previous code had it in the Podcasts tab.
+                */}
               {selectedPodcast && selectedPodcast.status === 'completed' && (
-                <div className="flex-shrink-0 bg-white shadow-inner">
+                <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-0 z-10">
                   <PodcastAudioPlayer
                     podcast={{
                       id: selectedPodcast.id,
@@ -784,24 +778,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   />
                 </div>
               )}
-            </TabsContent>
-
-            {/* ====== NOTES TAB ====== */}
-            <TabsContent value="notes" className="flex-1 flex flex-col overflow-hidden mt-0 relative data-[state=inactive]:hidden">
-              {selectedNoteId ? (
-                <NoteViewer
-                  notebookId={notebookId}
-                  noteId={selectedNoteId}
-                  onClose={() => setSelectedNoteId(null)}
-                />
-              ) : (
-                <NotesList
-                  notebookId={notebookId}
-                  onSelectNote={setSelectedNoteId}
-                />
-              )}
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="flex-1 overflow-hidden">
@@ -827,11 +805,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
             />
           )}
         </div>
-      )}
+      )
+      }
 
       {/* File viewer is rendered inline when report preview is active */}
 
-    </div>
+    </div >
   );
 };
 
