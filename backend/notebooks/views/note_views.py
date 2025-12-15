@@ -99,8 +99,8 @@ class NoteViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_authenticated:
             return Note.objects.none()
 
-        # Get notebook from URL
-        notebook_id = self.kwargs.get("notebook_id")
+        # Get notebook from URL (notebook_pk from NestedDefaultRouter)
+        notebook_id = self.kwargs.get("notebook_pk")
 
         if not notebook_id:
             return Note.objects.none()
@@ -114,7 +114,7 @@ class NoteViewSet(viewsets.ModelViewSet):
 
     def get_notebook(self):
         """Get the notebook instance from URL kwargs."""
-        notebook_id = self.kwargs.get("notebook_id")
+        notebook_id = self.kwargs.get("notebook_pk")
 
         if not notebook_id:
             raise serializers.ValidationError({"detail": "Notebook ID is required."})
@@ -142,7 +142,7 @@ class NoteViewSet(viewsets.ModelViewSet):
     def get_serializer_context(self):
         """Add notebook to serializer context."""
         context = super().get_serializer_context()
-        if hasattr(self, "kwargs") and "notebook_id" in self.kwargs:
+        if hasattr(self, "kwargs") and "notebook_pk" in self.kwargs:
             try:
                 context["notebook"] = self.get_notebook()
             except Exception:
