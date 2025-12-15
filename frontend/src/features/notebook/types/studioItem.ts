@@ -1,7 +1,7 @@
 // ====== UNIFIED STUDIO ITEM TYPES ======
 // Discriminated union for type-safe rendering
 
-export type StudioItemKind = 'report' | 'podcast';
+export type StudioItemKind = 'report' | 'podcast' | 'note';
 export type StudioItemStatus = 'idle' | 'generating' | 'completed' | 'failed' | 'cancelled';
 
 // Base interface with common fields
@@ -32,8 +32,16 @@ export interface PodcastStudioItem extends BaseStudioItem {
   description?: string;
 }
 
+// Note-specific fields
+export interface NoteStudioItem extends BaseStudioItem {
+  kind: 'note';
+  content?: string;
+  source_message_id?: number | null;
+  tags?: string[];
+}
+
 // Discriminated union
-export type StudioItem = ReportStudioItem | PodcastStudioItem;
+export type StudioItem = ReportStudioItem | PodcastStudioItem | NoteStudioItem;
 
 // Type guards
 export const isReportItem = (item: StudioItem): item is ReportStudioItem => {
@@ -42,6 +50,10 @@ export const isReportItem = (item: StudioItem): item is ReportStudioItem => {
 
 export const isPodcastItem = (item: StudioItem): item is PodcastStudioItem => {
   return item.kind === 'podcast';
+};
+
+export const isNoteItem = (item: StudioItem): item is NoteStudioItem => {
+  return item.kind === 'note';
 };
 
 // Rendering phase derived from status

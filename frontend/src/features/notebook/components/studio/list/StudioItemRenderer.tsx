@@ -2,11 +2,12 @@
 // Strategy pattern: selects the appropriate card component based on item kind and status
 
 import React from 'react';
-import type { StudioItem, ReportStudioItem, PodcastStudioItem } from '../../../types/studioItem';
+import type { StudioItem, ReportStudioItem, PodcastStudioItem, NoteStudioItem } from '../../../types/studioItem';
 import { statusToPhase } from '../../../types/studioItem';
 import GeneratingCard from '../items/GeneratingCard';
 import ReportCard from '../items/ReportCard';
 import PodcastCard from '../items/PodcastCard';
+import NoteCard from '../items/NoteCard';
 
 // Callback types
 interface StudioItemCallbacks {
@@ -15,6 +16,8 @@ interface StudioItemCallbacks {
   onTogglePodcast: (item: PodcastStudioItem) => void;
   onDeletePodcast: (item: PodcastStudioItem) => void;
   onDownloadPodcast: (item: PodcastStudioItem) => void;
+  onSelectNote: (item: NoteStudioItem) => void;
+  onDeleteNote: (item: NoteStudioItem) => void;
   isPodcastExpanded: (itemId: string) => boolean;
   notebookId: string;
 }
@@ -57,6 +60,16 @@ const StudioItemRenderer: React.FC<StudioItemRendererProps> = ({ item, callbacks
         onToggleExpand={callbacks.onTogglePodcast}
         onDelete={callbacks.onDeletePodcast}
         onDownload={callbacks.onDownloadPodcast}
+      />
+    );
+  }
+
+  if (item.kind === 'note') {
+    return (
+      <NoteCard
+        item={item}
+        onSelect={callbacks.onSelectNote}
+        onDelete={callbacks.onDeleteNote}
       />
     );
   }

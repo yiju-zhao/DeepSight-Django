@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { FileText, Loader2 } from 'lucide-react';
-import type { StudioItem, ReportStudioItem, PodcastStudioItem } from '../../../types/studioItem';
+import type { StudioItem, ReportStudioItem, PodcastStudioItem, NoteStudioItem } from '../../../types/studioItem';
 import StudioItemRenderer from './StudioItemRenderer';
 
 interface StudioListProps {
@@ -17,6 +17,8 @@ interface StudioListProps {
   onTogglePodcast: (item: PodcastStudioItem) => void;
   onDeletePodcast: (item: PodcastStudioItem) => void;
   onDownloadPodcast: (item: PodcastStudioItem) => void;
+  onSelectNote: (item: NoteStudioItem) => void;
+  onDeleteNote: (item: NoteStudioItem) => void;
 }
 
 const StudioList: React.FC<StudioListProps> = ({
@@ -29,7 +31,9 @@ const StudioList: React.FC<StudioListProps> = ({
   onDeleteReport,
   onTogglePodcast,
   onDeletePodcast,
-  onDownloadPodcast
+  onDownloadPodcast,
+  onSelectNote,
+  onDeleteNote
 }) => {
   // Loading state
   if (isLoading) {
@@ -83,6 +87,8 @@ const StudioList: React.FC<StudioListProps> = ({
     onTogglePodcast,
     onDeletePodcast,
     onDownloadPodcast,
+    onSelectNote,
+    onDeleteNote,
     isPodcastExpanded: (itemId: string) => expandedPodcasts.has(itemId),
     notebookId
   };

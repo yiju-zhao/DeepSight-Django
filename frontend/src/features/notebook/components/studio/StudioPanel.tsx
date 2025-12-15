@@ -24,7 +24,7 @@ import { useNotes } from '@/features/notebook/hooks/notes/useNotes';
 import PodcastAudioPlayer from './PodcastAudioPlayer';
 import FileViewer from './FileViewer';
 import StudioList from './list/StudioList';
-import NotesList from './NotesList';
+
 import NoteViewer from './NoteViewer';
 
 // ====== INTERFACE SEGREGATION PRINCIPLE (ISP) ======
@@ -40,7 +40,7 @@ import {
 
 // ====== UNIFIED STUDIO ITEMS ======
 import { combineStudioItems, fromReports, fromPodcasts } from '@/features/notebook/adapters/studioItemAdapter';
-import type { ReportStudioItem, PodcastStudioItem } from '@/features/notebook/types/studioItem';
+import type { ReportStudioItem, PodcastStudioItem, NoteStudioItem } from '@/features/notebook/types/studioItem';
 
 // ====== DEPENDENCY INVERSION PRINCIPLE (DIP) ======
 // Service instances - can be injected for testing
@@ -89,7 +89,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
 
   // ====== SINGLE RESPONSIBILITY: Notes Data ======
-  const { notes } = useNotes(notebookId);
+  const { notes, deleteNote } = useNotes(notebookId);
 
   // ====== DEPENDENCY INVERSION: Use consolidated overview hooks ======
   const reportJobs = useNotebookReportJobs(notebookId);
@@ -537,6 +537,20 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
     setViewMode('preview');
   }, []);
 
+  const handleSelectNote = useCallback((note: NoteStudioItem) => {
+    setSelectedNoteId(Number(note.id));
+  }, []);
+
+  const handleDeleteNote = useCallback(async (note: NoteStudioItem) => {
+    if (!confirm('Are you sure you want to delete this note?')) return;
+    try {
+      await deleteNote(Number(note.id));
+      toast({ title: "Note Deleted", description: "Note deleted successfully" });
+    } catch (error) {
+      toast({ title: "Delete Failed", description: "Failed to delete note", variant: "destructive" });
+    }
+  }, [deleteNote, toast]);
+
   // ====== OPEN/CLOSED PRINCIPLE (OCP) ======
   // Render method that can be extended without modification
   return (
@@ -684,52 +698,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Generated Content</h4>
               </div>
 
-              <StudioList
-                items={combineStudioItems(
-                  reportJobs.jobs || [],
-                  podcastJobs.jobs || []
-                )}
-                isLoading={reportJobs.isLoading || podcastJobs.isLoading}
-                error={reportJobs.error || podcastJobs.error}
-                notebookId={notebookId}
-                expandedPodcasts={expandedPodcasts}
-                onSelectReport={(item: ReportStudioItem) => {
-                  const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                  if (originalReport) handleSelectReport(originalReport);
-                }}
-                onDeleteReport={(item: ReportStudioItem) => {
-                  const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                  if (originalReport) handleDeleteReport(originalReport);
-                }}
-                onTogglePodcast={(item: PodcastStudioItem) => {
-                  const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                  if (originalPodcast) handlePodcastClick(originalPodcast);
-                }}
-                onDeletePodcast={(item: PodcastStudioItem) => {
-                  const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                  if (originalPodcast) handleDeletePodcast(originalPodcast);
-                }}
-                onDownloadPodcast={(item: PodcastStudioItem) => {
-                  const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                  if (originalPodcast) handleDownloadPodcast(originalPodcast);
-                }}
-              />
-
-              {/* Section Header: Notes */}
-              <div className="px-4 pt-6 pb-2 border-t border-gray-100 mt-4">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider flex items-center justify-between">
-                  <span>Notes</span>
-                  {notes?.length > 0 && (
-                    <span className="bg-gray-200 text-gray-600 py-0.5 px-2 rounded-full text-[10px]">
-                      {notes.length}
-                    </span>
-                  )}
-                </h4>
-              </div>
-
-              <div className="px-4">
+              <div className="relative flex-1 overflow-hidden">
                 {selectedNoteId ? (
-                  <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+                  <div className="absolute inset-0 z-10 bg-white">
                     <div className="flex justify-end p-2 bg-gray-50 border-b border-gray-100">
                       <Button
                         variant="ghost"
@@ -747,9 +718,38 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                     />
                   </div>
                 ) : (
-                  <NotesList
+                  <StudioList
+                    items={combineStudioItems(
+                      reportJobs.jobs || [],
+                      podcastJobs.jobs || [],
+                      notes || []
+                    )}
+                    isLoading={reportJobs.isLoading || podcastJobs.isLoading}
+                    error={reportJobs.error || podcastJobs.error}
                     notebookId={notebookId}
-                    onSelectNote={setSelectedNoteId}
+                    expandedPodcasts={expandedPodcasts}
+                    onSelectReport={(item: ReportStudioItem) => {
+                      const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                      if (originalReport) handleSelectReport(originalReport);
+                    }}
+                    onDeleteReport={(item: ReportStudioItem) => {
+                      const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                      if (originalReport) handleDeleteReport(originalReport);
+                    }}
+                    onTogglePodcast={(item: PodcastStudioItem) => {
+                      const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                      if (originalPodcast) handlePodcastClick(originalPodcast);
+                    }}
+                    onDeletePodcast={(item: PodcastStudioItem) => {
+                      const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                      if (originalPodcast) handleDeletePodcast(originalPodcast);
+                    }}
+                    onDownloadPodcast={(item: PodcastStudioItem) => {
+                      const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                      if (originalPodcast) handleDownloadPodcast(originalPodcast);
+                    }}
+                    onSelectNote={handleSelectNote}
+                    onDeleteNote={handleDeleteNote}
                   />
                 )}
               </div>

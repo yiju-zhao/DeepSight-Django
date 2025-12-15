@@ -3,10 +3,12 @@
 
 import type { Report } from '@/features/report/types/type';
 import type { Podcast } from '@/features/podcast/types/type';
+import type { Note, NoteListItem } from '../types/note';
 import type {
   StudioItem,
   ReportStudioItem,
   PodcastStudioItem,
+  NoteStudioItem,
   StudioItemStatus
 } from '../types/studioItem';
 
@@ -62,16 +64,38 @@ export const fromPodcasts = (podcasts: Podcast[]): PodcastStudioItem[] => {
   return podcasts.map(fromPodcast);
 };
 
+export const fromNote = (note: Note | NoteListItem): NoteStudioItem => {
+  const content = 'content' in note ? note.content : note.content_preview;
+  const source_message_id = 'source_message_id' in note ? note.source_message_id : undefined;
+
+  return {
+    kind: 'note',
+    id: String(note.id),
+    title: note.title || 'Untitled Note',
+    createdAt: note.created_at,
+    status: 'completed', // Notes are always ready
+    content: content,
+    source_message_id: source_message_id,
+    tags: note.tags
+  };
+};
+
+export const fromNotes = (notes: (Note | NoteListItem)[]): NoteStudioItem[] => {
+  return notes.map(fromNote);
+};
+
 // Combined adapter for mixed list
 export const combineStudioItems = (
   reports: Report[],
-  podcasts: Podcast[]
+  podcasts: Podcast[],
+  notes: (Note | NoteListItem)[] = []
 ): StudioItem[] => {
   const reportItems = fromReports(reports);
   const podcastItems = fromPodcasts(podcasts);
+  const noteItems = fromNotes(notes);
 
   // Combine and sort by creation date (newest first)
-  const combined = [...reportItems, ...podcastItems];
+  const combined = [...reportItems, ...podcastItems, ...noteItems];
   combined.sort((a, b) => {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
