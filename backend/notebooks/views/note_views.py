@@ -226,11 +226,11 @@ class NoteViewSet(viewsets.ModelViewSet):
         ],
     )
     @action(detail=False, methods=["post"], url_path="from-message")
-    def from_message(self, request, notebook_id=None):
+    def from_message(self, request, notebook_pk=None):
         """
         Create a note from a chat message.
 
-        Endpoint: POST /api/v1/notebooks/{notebook_id}/notes/from-message/
+        Endpoint: POST /api/v1/notebooks/{notebook_pk}/notes/from-message/
         """
         try:
             notebook = self.get_notebook()
@@ -272,11 +272,11 @@ class NoteViewSet(viewsets.ModelViewSet):
         responses={200: NoteSerializer},
     )
     @action(detail=True, methods=["post"], url_path="pin")
-    def pin(self, request, notebook_id=None, pk=None):
+    def pin(self, request, notebook_pk=None, pk=None):
         """
         Pin a note to the top.
 
-        Endpoint: POST /api/v1/notebooks/{notebook_id}/notes/{id}/pin/
+        Endpoint: POST /api/v1/notebooks/{notebook_pk}/notes/{id}/pin/
         """
         try:
             note = self.get_object()
@@ -298,11 +298,11 @@ class NoteViewSet(viewsets.ModelViewSet):
         responses={200: NoteSerializer},
     )
     @action(detail=True, methods=["post"], url_path="unpin")
-    def unpin(self, request, notebook_id=None, pk=None):
+    def unpin(self, request, notebook_pk=None, pk=None):
         """
         Unpin a note.
 
-        Endpoint: POST /api/v1/notebooks/{notebook_id}/notes/{id}/unpin/
+        Endpoint: POST /api/v1/notebooks/{notebook_pk}/notes/{id}/unpin/
         """
         try:
             note = self.get_object()
