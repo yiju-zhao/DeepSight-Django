@@ -452,7 +452,7 @@ class ContentIndexingService:
 
     def __init__(self):
         self.logger = logging.getLogger(f"{__name__}.content_indexing")
-        self.enabled = config.ENABLE_CONTENT_INDEXING
+        self.enabled = get_notebooks_config().ENABLE_CONTENT_INDEXING
 
     def index_content(
         self,
@@ -492,7 +492,7 @@ class ContentIndexingService:
 
         try:
             # Basic search implementation - could be extended
-            limit = limit or config.MAX_SEARCH_RESULTS
+            limit = limit or get_notebooks_config().MAX_SEARCH_RESULTS
             self.logger.info(
                 f"Searching content for user {user_id} with query: {query}"
             )
