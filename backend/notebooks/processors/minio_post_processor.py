@@ -7,19 +7,6 @@ import os
 from datetime import UTC, datetime
 from typing import Any
 
-# Direct import of caption generator utility
-try:
-    from reports.utils import (
-        extract_all_image_references,
-        extract_figure_data_from_markdown,
-    )
-
-    from ..utils.image_processing.caption_generator import generate_caption_for_image
-except ImportError:
-    generate_caption_for_image = None
-    extract_figure_data_from_markdown = None
-    extract_all_image_references = None
-
 
 class MinIOPostProcessor:
     """Handle post-processing of extracted files and storage in MinIO."""
@@ -66,6 +53,16 @@ class MinIOPostProcessor:
         Post-process MinerU extraction results by storing them in MinIO.
         This replaces the file system organization with MinIO object storage.
         """
+        # Lazy import of heavy dependencies to avoid loading torch at startup
+        try:
+            from reports.utils import (
+                extract_all_image_references,
+                extract_figure_data_from_markdown,
+            )
+        except ImportError:
+            extract_all_image_references = None
+            extract_figure_data_from_markdown = None
+
         try:
             if not mineru_extraction_result.get("success"):
                 return

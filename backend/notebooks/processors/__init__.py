@@ -13,14 +13,10 @@ except ImportError:
     UploadProcessor = None
     get_upload_processor = None
 
-# Supporting service modules
-try:
-    from .minio_post_processor import MinIOPostProcessor
-except ImportError:
-    MinIOPostProcessor = None
+# MinIOPostProcessor is imported lazily in orchestrator to avoid loading
+# heavy dependencies (torch, transformers) at startup
 
 __all__ = [
     "UploadProcessor",
     "get_upload_processor",
-    "MinIOPostProcessor",
 ]

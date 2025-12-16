@@ -1,29 +1,20 @@
 """
 Image processing module for video frame extraction, deduplication, and captioning.
+
+All modules are imported lazily to avoid loading heavy dependencies
+(torch, transformers, CLIP) at startup time.
+
+Usage:
+    from notebooks.utils.image_processing.caption_generator import generate_captions_for_directory
+    from notebooks.utils.image_processing.image_deduplicator import global_deep_dedupe
 """
 
-from .caption_generator import generate_captions_for_directory
-from .frame_extractor import extract_frames
-from .image_deduplicator import (
-    get_optimal_device,
-    global_deep_dedupe,
-    global_pixel_dedupe,
-    load_clip_model_and_preprocessing,
-    prepare_work_dir,
-    sequential_deep_dedupe,
-    setup_cuda_environment,
-    text_ocr_filter_dedupe,
-)
+# Modules are imported directly from their respective files, not here,
+# to avoid loading torch/transformers at import time
 
 __all__ = [
-    "extract_frames",
-    "prepare_work_dir",
-    "text_ocr_filter_dedupe",
-    "global_pixel_dedupe",
-    "sequential_deep_dedupe",
-    "global_deep_dedupe",
-    "load_clip_model_and_preprocessing",
-    "setup_cuda_environment",
-    "get_optimal_device",
-    "generate_captions_for_directory",
+    # Available modules (import directly from submodules):
+    # - caption_generator: generate_captions_for_directory
+    # - frame_extractor: extract_frames
+    # - image_deduplicator: various deduplication functions
 ]

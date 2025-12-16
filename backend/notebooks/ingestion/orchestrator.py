@@ -11,7 +11,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Literal
 
-from ..processors.minio_post_processor import MinIOPostProcessor
 from ..utils.helpers import clean_title
 from ..utils.storage import FileStorageService
 from .exceptions import IngestionError, ParseError, SourceError, StorageError
@@ -47,6 +46,9 @@ class IngestionOrchestrator:
         transcription_provider: str = "whisper_fastapi",
         logger: logging.Logger | None = None,
     ):
+        # Lazy import to avoid loading heavy dependencies at module import time
+        from ..processors.minio_post_processor import MinIOPostProcessor
+
         self.logger = logger or logging.getLogger(__name__)
 
         # Initialize components
