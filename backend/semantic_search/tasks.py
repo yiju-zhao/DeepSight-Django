@@ -13,8 +13,6 @@ from celery import shared_task
 from django.conf import settings
 from django.core.cache import cache
 
-from .services import lotus_semantic_search_service
-
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +36,9 @@ def semantic_search_streaming_task(
     Returns:
         Final search results dictionary
     """
+    # Lazy import to avoid loading torch/transformers at startup
+    from .services import lotus_semantic_search_service
+
     total_publications = len(publication_ids)
 
     logger.info(
