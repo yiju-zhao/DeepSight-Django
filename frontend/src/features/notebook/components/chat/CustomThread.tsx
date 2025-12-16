@@ -412,7 +412,7 @@ interface CustomThreadProps {
 export const CustomThread: React.FC<CustomThreadProps> = ({ suggestions, notebookId }) => {
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
         <CustomMessage notebookId={notebookId} />
       </div>
       <CustomComposer suggestions={suggestions} />
