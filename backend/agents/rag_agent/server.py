@@ -144,17 +144,25 @@ async def validate_django_session_middleware(request: Request, call_next):
         # Validate session with Django
         from django.contrib.sessions.backends.db import SessionStore
         from django.contrib.auth import get_user_model
+        from asgiref.sync import sync_to_async
 
         User = get_user_model()
         session = SessionStore(session_key=session_cookie)
 
-        if not session.exists(session_cookie):
+        @sync_to_async
+        def check_session_and_get_user(session_store, cookie):
+            if not session_store.exists(cookie):
+                return False, None
+            return True, session_store.get("_auth_user_id")
+
+        is_valid, user_id = await check_session_and_get_user(session, session_cookie)
+
+        if not is_valid:
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Invalid or expired session"},
             )
 
-        user_id = session.get("_auth_user_id")
         if not user_id:
             return JSONResponse(
                 status_code=401,
