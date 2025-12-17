@@ -215,9 +215,9 @@ async def validate_django_session_middleware(request: Request, call_next):
     return response
 
 
-# Add authentication middleware
-app.middleware("http")(validate_django_session_middleware)
+# Middleware order matters: unwrap the CopilotKit envelope first, then validate session
 app.middleware("http")(unwrap_ag_ui_envelope_middleware)
+app.middleware("http")(validate_django_session_middleware)
 
 
 async def agent_factory(request: Request, config: dict[str, Any]) -> LangGraphAGUIAgent:
