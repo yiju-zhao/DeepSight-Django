@@ -112,13 +112,13 @@ export function NotebookChatContainer({
             runtimeUrl={runtimeUrl}
             agent={agentName}
             properties={properties}
-            credentials="include"
-            // Optional: Custom headers for debugging
-            // headers={{
-            //     'X-Notebook-ID': notebookId,
-            // }}
-            // Optional: Enable debug mode in development
-            // showDevConsole={import.meta.env.DEV}
+        // credentials="include"
+        // Optional: Custom headers for debugging
+        // headers={{
+        //     'X-Notebook-ID': notebookId,
+        // }}
+        // Optional: Enable debug mode in development
+        // showDevConsole={import.meta.env.DEV}
         >
             {children}
         </CopilotKit>
