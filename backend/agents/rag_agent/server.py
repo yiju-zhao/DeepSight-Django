@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import sys
+from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Optional
 
@@ -55,6 +56,9 @@ RAG_AGENT_PORT = int(os.getenv("RAG_AGENT_PORT", "8101"))
 
 # Create FastAPI application with CORS and health check
 app = create_agent_server("RAG Agent Service", RAG_AGENT_PORT)
+
+# Track the current request for dynamic agent creation inside the AG-UI endpoint
+current_request: ContextVar[Request | None] = ContextVar("current_request", default=None)
 
 
 async def create_notebook_rag_graph(notebook_id: Any, user_id: Any):
@@ -182,7 +186,13 @@ async def validate_django_session_middleware(request: Request, call_next):
                 content={"detail": "User not found or inactive"},
             )
 
+        # Store request in context var so downstream agent creation can access it
+        current_request.set(request)
+
     response = await call_next(request)
+
+    # Clear context var after request completes
+    current_request.set(None)
     return response
 
 
@@ -190,61 +200,60 @@ async def validate_django_session_middleware(request: Request, call_next):
 app.middleware("http")(validate_django_session_middleware)
 
 
-async def agent_factory(request: Request, config: dict[str, Any]) -> LangGraphAGUIAgent:
+class DynamicRAGAgent:
     """
-    Factory function to create notebook-specific RAG agents.
+    Wrapper that creates a LangGraphAGUIAgent per request using context vars.
 
-    This is called by add_langgraph_fastapi_endpoint for each request.
-    The function receives configuration from the frontend CopilotKit provider
-    (passed via properties prop) and creates an agent for that notebook.
-
-    Args:
-        request: FastAPI request object (contains user_id in request.state)
-        config: Configuration dict from frontend with notebook_id
-
-    Returns:
-        LangGraphAGUIAgent instance for the notebook
+    ag-ui-langgraph expects an object with a `run` method. We build the agent
+    on-demand so we can inject notebook_id and user_id from the current request.
     """
-    # Extract notebook_id from config (passed from frontend)
-    notebook_id = config.get("configurable", {}).get("notebook_id")
 
-    if not notebook_id:
-        raise HTTPException(
-            status_code=400,
-            detail="notebook_id is required in configuration",
+    async def run(self, input_data: dict[str, Any]):
+        req = current_request.get()
+        if req is None:
+            raise HTTPException(status_code=500, detail="Request context unavailable")
+
+        # Extract notebook_id from configurable
+        configurable = input_data.get("configurable", {}) if isinstance(input_data, dict) else {}
+        notebook_id = configurable.get("notebook_id")
+        if not notebook_id:
+            raise HTTPException(
+                status_code=400,
+                detail="notebook_id is required in configuration",
+            )
+
+        user_id = getattr(req.state, "user_id", None)
+        if not user_id:
+            raise HTTPException(
+                status_code=401,
+                detail="User authentication failed",
+            )
+
+        logger.info(f"Creating agent for notebook {notebook_id}, user {user_id}")
+
+        graph = await create_notebook_rag_graph(
+            notebook_id=notebook_id,
+            user_id=user_id,
         )
 
-    # Get user_id from middleware
-    user_id = getattr(request.state, "user_id", None)
-    if not user_id:
-        raise HTTPException(
-            status_code=401,
-            detail="User authentication failed",
+        agent = LangGraphAGUIAgent(
+            name="rag_assistant",
+            description=(
+                f"Research assistant for notebook {notebook_id} that can query and synthesize "
+                "information from your documents"
+            ),
+            graph=graph,
         )
 
-    logger.info(f"Creating agent for notebook {notebook_id}, user {user_id}")
-
-    # Create notebook-specific graph
-    graph = await create_notebook_rag_graph(
-        notebook_id=notebook_id,
-        user_id=user_id,
-    )
-
-    # Wrap in LangGraphAGUIAgent
-    agent = LangGraphAGUIAgent(
-        name="rag_assistant",
-        description=f"Research assistant for notebook {notebook_id} that can query and synthesize information from your documents",
-        graph=graph,
-    )
-
-    return agent
+        # Delegate to the underlying agent's runner
+        return agent.run(input_data)
 
 
 # Add the CopilotKit endpoint using official SDK
 # This replaces the manual AG-UI protocol implementation
 add_langgraph_fastapi_endpoint(
     app=app,
-    agent=agent_factory,  # Pass factory function for per-request agent creation
+    agent=DynamicRAGAgent(),  # Object with .run, builds per-request agent
     path="/copilotkit/internal",
 )
 
