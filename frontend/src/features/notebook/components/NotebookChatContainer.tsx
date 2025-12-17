@@ -91,11 +91,9 @@ export function NotebookChatContainer({
     notebookId,
     children,
 }: NotebookChatContainerProps) {
-    // Build runtime URL (direct connection to FastAPI)
-    const runtimeUrl = useMemo(
-        () => `http://${RAG_AGENT_HOST}:${RAG_AGENT_PORT}/copilotkit`,
-        []
-    );
+    // Build runtime URL (Relative path to use Vite Proxy)
+    // This goes to http://localhost:5173/copilotkit -> proxies to Port 8101
+    const runtimeUrl = "/copilotkit";
 
     // Agent configuration
     const agentName = "rag_assistant"; // Must match backend LangGraphAGUIAgent name

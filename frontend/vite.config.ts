@@ -261,6 +261,11 @@ export default defineConfig(({ mode }) => {
         changeOrigin: true,
         secure: false,
       },
+      '/copilotkit': {
+        target: `http://${env.VITE_RAG_AGENT_HOST || 'localhost'}:${env.VITE_RAG_AGENT_PORT || '8101'}`,
+        changeOrigin: true,
+        secure: false,
+      },
     },
     cors: true,
     headers: {
