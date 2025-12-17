@@ -1,10 +1,13 @@
 """
 FastAPI server for RAG Agent with CopilotKit AG-UI protocol.
 
-Provides the RAG agent as a CopilotKit-compatible endpoint that:
-- Validates Django session authentication
-- Creates notebook-specific agent instances
-- Streams agent state updates via AG-UI protocol
+Refactored to use official CopilotKit Python SDK with LangGraphAGUIAgent
+and add_langgraph_fastapi_endpoint for proper AG-UI protocol integration.
+
+The agent supports notebook-specific RAG via configuration:
+- Frontend passes notebook_id via CopilotKit properties prop
+- LangGraph receives it via config["configurable"]["notebook_id"]
+- Django session authentication validates access
 
 Usage:
     cd backend && python -m agents.rag_agent.server
@@ -17,10 +20,10 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
-from fastapi import Depends, Request
-from fastapi.responses import StreamingResponse
+from fastapi import Request, HTTPException, status
+from fastapi.responses import JSONResponse
 
 # Setup Django before other imports
 backend_dir = Path(__file__).resolve().parent.parent.parent
@@ -32,7 +35,10 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings.development")
 import django
 django.setup()
 
-from agents.copilotkit_common.auth import verify_django_session, get_notebook_config
+# Import CopilotKit SDK components
+from copilotkit import LangGraphAGUIAgent
+from ag_ui_langgraph import add_langgraph_fastapi_endpoint
+
 from agents.copilotkit_common.base_server import create_agent_server
 from agents.copilotkit_common.utils import get_openai_api_key, get_mcp_server_url
 
@@ -45,57 +51,51 @@ logger = logging.getLogger(__name__)
 # Agent port configuration
 RAG_AGENT_PORT = int(os.getenv("RAG_AGENT_PORT", "8101"))
 
-# Create FastAPI application
+# Create FastAPI application with CORS and health check
 app = create_agent_server("RAG Agent Service", RAG_AGENT_PORT)
 
 
-@app.post("/copilotkit/notebooks/{notebook_id}/agent")
-async def rag_agent_endpoint(
-    notebook_id: int,
-    request: Request,
-    user_id: int = Depends(verify_django_session),
-):
+async def create_notebook_rag_graph(notebook_id: int, user_id: int):
     """
-    CopilotKit-compatible RAG agent endpoint.
-    
-    This endpoint:
-    1. Validates Django session authentication
-    2. Loads notebook configuration with access control
-    3. Creates a RAG agent instance for the notebook
-    4. Streams responses using AG-UI protocol
-    
+    Create a notebook-specific RAG agent graph.
+
+    This function:
+    1. Validates notebook access for the user
+    2. Loads notebook configuration (dataset IDs)
+    3. Creates and returns a RAG graph for that notebook
+
     Args:
         notebook_id: Notebook primary key
-        request: FastAPI request object
-        user_id: Authenticated user ID from session
-        
+        user_id: Authenticated user ID
+
     Returns:
-        Streaming response with AG-UI protocol events
+        Compiled LangGraph for the notebook
+
+    Raises:
+        HTTPException: If notebook not found or access denied
     """
-    logger.info(f"RAG agent request: notebook={notebook_id}, user={user_id}")
-    
-    # Load notebook with access validation
-    notebook = await get_notebook_config(notebook_id, user_id)
-    
-    # Get request body for CopilotKit protocol
-    body = await request.json()
-    messages = body.get("messages", [])
-    
-    # Extract the latest user message
-    user_message = ""
-    for msg in reversed(messages):
-        if msg.get("role") == "user":
-            user_message = msg.get("content", "")
-            break
-    
-    if not user_message:
-        return {"error": "No user message found"}
-    
+    from notebooks.models import Notebook
+
+    try:
+        # Load notebook with access validation
+        notebook = await Notebook.objects.select_related("user").aget(
+            id=notebook_id,
+            user_id=user_id,
+        )
+    except Notebook.DoesNotExist:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notebook not found or access denied",
+        )
+
     # Build dataset IDs from notebook
     dataset_ids = []
     if notebook.ragflow_dataset_id:
         dataset_ids = [notebook.ragflow_dataset_id]
-    
+
+    if not dataset_ids:
+        logger.warning(f"Notebook {notebook_id} has no datasets configured")
+
     # Create agent configuration
     config = RAGAgentConfig(
         model_name=os.getenv("RAG_AGENT_MODEL", "gpt-4o-mini"),
@@ -107,70 +107,134 @@ async def rag_agent_endpoint(
         eval_temperature=0.1,
         synthesis_temperature=0.3,
     )
-    
-    # Create and run agent
-    agent = await create_rag_agent(config)
-    
-    async def generate_stream():
-        """Generate AG-UI protocol events from agent execution."""
-        from langchain_core.messages import HumanMessage, AIMessage
-        
-        # Build message history
-        context_messages = []
-        for msg in messages[:-1]:  # Exclude current message
-            if msg.get("role") == "user":
-                context_messages.append(HumanMessage(content=msg.get("content", "")))
-            else:
-                context_messages.append(AIMessage(content=msg.get("content", "")))
-        
-        # Add current question
-        context_messages.append(HumanMessage(content=user_message))
-        
-        # Initial state
-        initial_state = {
-            "messages": context_messages,
-            "question": user_message,
-            "retrieved_chunks": [],
-        }
-        
+
+    # Create and return RAG graph
+    graph = await create_rag_agent(config)
+    logger.info(f"Created RAG graph for notebook {notebook_id}")
+
+    return graph
+
+
+async def validate_django_session_middleware(request: Request, call_next):
+    """
+    Middleware to validate Django session for CopilotKit requests.
+
+    Validates session cookies for all /copilotkit/* endpoints and injects
+    user_id into request.state for downstream use.
+    """
+    if request.url.path.startswith("/copilotkit"):
+        # Extract session cookie
+        session_cookie = request.cookies.get("sessionid")
+
+        if not session_cookie:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Authentication required"},
+            )
+
+        # Validate session with Django
+        from django.contrib.sessions.backends.db import SessionStore
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        session = SessionStore(session_key=session_cookie)
+
+        if not session.exists(session_cookie):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Invalid or expired session"},
+            )
+
+        user_id = session.get("_auth_user_id")
+        if not user_id:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "User not authenticated"},
+            )
+
+        # Verify user exists and is active
         try:
-            # Stream agent execution
-            async for event in agent.astream(initial_state):
-                # Extract the final message if present
-                if "messages" in event:
-                    for msg in event["messages"]:
-                        if hasattr(msg, "content") and msg.content:
-                            # Yield content as AG-UI text delta
-                            yield f"data: {{\n"
-                            yield f'  "type": "text_delta",\n'
-                            yield f'  "content": {repr(msg.content)}\n'
-                            yield f"}}\n\n"
-            
-            # Signal completion
-            yield f"data: {{\n"
-            yield f'  "type": "done"\n'
-            yield f"}}\n\n"
-            
-        except Exception as e:
-            logger.exception(f"Agent execution error: {e}")
-            yield f"data: {{\n"
-            yield f'  "type": "error",\n'
-            yield f'  "message": {repr(str(e))}\n'
-            yield f"}}\n\n"
-    
-    return StreamingResponse(
-        generate_stream(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-        },
+            user = await User.objects.aget(pk=int(user_id), is_active=True)
+            # Store user_id in request state for graph factory
+            request.state.user_id = user.pk
+        except User.DoesNotExist:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "User not found or inactive"},
+            )
+
+    response = await call_next(request)
+    return response
+
+
+# Add authentication middleware
+app.middleware("http")(validate_django_session_middleware)
+
+
+async def agent_factory(request: Request, config: dict[str, Any]) -> LangGraphAGUIAgent:
+    """
+    Factory function to create notebook-specific RAG agents.
+
+    This is called by add_langgraph_fastapi_endpoint for each request.
+    The function receives configuration from the frontend CopilotKit provider
+    (passed via properties prop) and creates an agent for that notebook.
+
+    Args:
+        request: FastAPI request object (contains user_id in request.state)
+        config: Configuration dict from frontend with notebook_id
+
+    Returns:
+        LangGraphAGUIAgent instance for the notebook
+    """
+    # Extract notebook_id from config (passed from frontend)
+    notebook_id = config.get("configurable", {}).get("notebook_id")
+
+    if not notebook_id:
+        raise HTTPException(
+            status_code=400,
+            detail="notebook_id is required in configuration",
+        )
+
+    # Get user_id from middleware
+    user_id = getattr(request.state, "user_id", None)
+    if not user_id:
+        raise HTTPException(
+            status_code=401,
+            detail="User authentication failed",
+        )
+
+    logger.info(f"Creating agent for notebook {notebook_id}, user {user_id}")
+
+    # Create notebook-specific graph
+    graph = await create_notebook_rag_graph(
+        notebook_id=int(notebook_id),
+        user_id=user_id,
     )
+
+    # Wrap in LangGraphAGUIAgent
+    agent = LangGraphAGUIAgent(
+        name="rag_assistant",
+        description=f"Research assistant for notebook {notebook_id} that can query and synthesize information from your documents",
+        graph=graph,
+    )
+
+    return agent
+
+
+# Add the CopilotKit endpoint using official SDK
+# This replaces the manual AG-UI protocol implementation
+add_langgraph_fastapi_endpoint(
+    app=app,
+    agent=agent_factory,  # Pass factory function for per-request agent creation
+    path="/copilotkit",
+)
+
+logger.info("RAG agent server initialized with CopilotKit SDK")
 
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     logger.info(f"Starting RAG Agent server on port {RAG_AGENT_PORT}")
     uvicorn.run(
         "agents.rag_agent.server:app",

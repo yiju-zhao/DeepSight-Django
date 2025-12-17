@@ -8,7 +8,6 @@ django-filter
 
 # Database and Storage
 redis
-pymilvus
 django-storages
 boto3
 minio
@@ -22,7 +21,6 @@ transformers
 torch
 numpy
 scikit_learn
-dspy_ai==2.4.9
 crewai
 crewai-tools
 litellm
@@ -38,7 +36,6 @@ rank_bm25
 langchain
 langchain_community
 langchain-openai
-langchain_milvus
 langchain_text_splitters
 langchain-chroma
 langgraph
@@ -79,8 +76,9 @@ yt-dlp
 bilix
 
 # FastAPI and CopilotKit (Agent UI Protocol)
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
-python-multipart>=0.0.9
-copilotkit>=0.1.30
-ag-ui-protocol>=0.1.0
+fastapi
+uvicorn[standard]
+python-multipart
+copilotkit
+ag-ui-protocol
+ag-ui-langgraph
