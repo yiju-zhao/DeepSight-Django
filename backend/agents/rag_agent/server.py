@@ -127,10 +127,15 @@ async def validate_django_session_middleware(request: Request, call_next):
         return await call_next(request)
 
     if request.url.path.startswith("/copilotkit"):
+        # Debug: Log all cookies and headers
+        logger.info(f"Request cookies: {request.cookies.keys()}")
+        logger.info(f"Session cookie present: {'sessionid' in request.cookies}")
+        
         # Extract session cookie
         session_cookie = request.cookies.get("sessionid")
 
         if not session_cookie:
+            logger.warning("Authentication failed: No session cookie found")
             return JSONResponse(
                 status_code=401,
                 content={"detail": "Authentication required"},
