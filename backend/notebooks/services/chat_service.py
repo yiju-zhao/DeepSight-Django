@@ -15,7 +15,6 @@ from django.db import transaction
 from infrastructure.ragflow.service import get_ragflow_service
 from infrastructure.ragflow.exceptions import RagFlowError
 from rest_framework import status
-from notebooks.agents.rag_agent.utils import format_tool_content
 
 from ..models import ChatSession, Notebook, SessionChatMessage
 
@@ -655,6 +654,13 @@ class ChatService(NotebookBaseService):
             Generator yielding SSE-formatted chat stream chunks
         """
 
+        async def _async_gen_to_list(async_gen):
+            """Convert async generator to list for sync consumption."""
+            result = []
+            async for item in async_gen:
+                result.append(item)
+            return result
+
         def session_stream():
             accumulated_content = ""
             assistant_message = None
@@ -712,8 +718,9 @@ class ChatService(NotebookBaseService):
                 api_key = getattr(settings, "OPENAI_API_KEY", "")
 
                 # Initialize ReAct RAG agent components
-                from notebooks.agents.rag_agent.graph import create_rag_agent
-                from notebooks.agents.rag_agent.config import RAGAgentConfig
+                from agents.rag_agent.graph import create_rag_agent
+                from agents.rag_agent.config import RAGAgentConfig
+                from agents.rag_agent.utils import format_tool_content
 
                 # Get dataset_ids from notebook
                 # Each notebook has a ragflow_dataset_id stored in the database
@@ -790,32 +797,128 @@ class ChatService(NotebookBaseService):
                 accumulated_content = ""
                 final_state = None
 
+                # Agent state tracking for AG-UI protocol
+                agent_state = {
+                    "current_step": "idle",
+                    "iteration_count": 0,
+                    "graded_documents": [],
+                    "query_rewrites": [],
+                    "synthesis_progress": 0,
+                    "total_tool_calls": 0,
+                    "agent_reasoning": "",
+                    "retrieved_chunks": []
+                }
+
                 try:
-                    # Emit status before running agent
-                    yield f"data: {json.dumps({'type': 'status', 'message': '🤔 Analyzing question...'})}\n\n"
-                    
-                    # Run the agent to completion
-                    final_state = loop.run_until_complete(agent.ainvoke(initial_state))
+                    # Emit initial status
+                    yield f"data: {json.dumps({'type': 'status', 'message': '🤔 Starting analysis...'})}\n\n"
 
-                    # Extract final answer from last AI message in MessagesState
-                    final_answer = ""
-                    if final_state and "messages" in final_state:
-                        messages = final_state["messages"]
-                        # Find the last AI message (not a tool message)
-                        for msg in reversed(messages):
-                            if hasattr(msg, "type") and msg.type == "ai":
-                                if not (hasattr(msg, "tool_calls") and msg.tool_calls):
-                                    final_answer = msg.content
-                                    break
-                            elif hasattr(msg, "content") and not hasattr(msg, "tool_call_id"):
-                                # Fallback for AIMessage without explicit type
-                                if hasattr(msg, "role") and msg.role == "assistant":
-                                    final_answer = msg.content
-                                    break
+                    # Helper to emit agent state
+                    def emit_agent_state():
+                        return f"data: {json.dumps({'type': 'agent_state', 'state': agent_state})}\n\n"
 
-                    if final_answer:
+                    # Stream agent execution with detailed events
+                    async def process_agent_stream():
+                        nonlocal final_state, accumulated_content, assistant_message
+
+                        current_node = None
+                        tool_call_count = 0
+                        final_answer = ""
+
+                        async for event in agent.astream_events(initial_state, version="v2"):
+                            event_type = event.get("event")
+                            name = event.get("name", "")
+
+                            # Track node execution
+                            if event_type == "on_chain_start":
+                                if "generate_query_or_respond" in name:
+                                    current_node = "analyzing"
+                                    agent_state["current_step"] = "analyzing"
+                                    agent_state["agent_reasoning"] = "Analyzing question and deciding on retrieval strategy..."
+                                    yield emit_agent_state()
+                                elif "retrieve" in name:
+                                    current_node = "retrieving"
+                                    agent_state["current_step"] = "retrieving"
+                                    agent_state["agent_reasoning"] = "Searching knowledge base..."
+                                    yield emit_agent_state()
+                                elif "grade_documents" in name:
+                                    current_node = "grading"
+                                    agent_state["current_step"] = "grading"
+                                    agent_state["agent_reasoning"] = "Evaluating document relevance..."
+                                    yield emit_agent_state()
+                                elif "rewrite_question" in name:
+                                    current_node = "rewriting"
+                                    agent_state["current_step"] = "rewriting"
+                                    agent_state["agent_reasoning"] = "Rewriting query to improve retrieval..."
+                                    agent_state["iteration_count"] = agent_state.get("iteration_count", 0) + 1
+                                    yield emit_agent_state()
+                                elif "generate_answer" in name:
+                                    current_node = "synthesizing"
+                                    agent_state["current_step"] = "synthesizing"
+                                    agent_state["agent_reasoning"] = "Generating final answer from context..."
+                                    agent_state["synthesis_progress"] = 0
+                                    yield emit_agent_state()
+
+                            # Track tool calls
+                            elif event_type == "on_tool_start":
+                                tool_call_count += 1
+                                agent_state["total_tool_calls"] = tool_call_count
+                                agent_state["agent_reasoning"] = f"Retrieving documents (call #{tool_call_count})..."
+                                yield emit_agent_state()
+
+                            # Capture tool results (retrieved documents)
+                            elif event_type == "on_tool_end":
+                                output = event.get("data", {}).get("output")
+                                if output and isinstance(output, str):
+                                    formatted_content = format_tool_content(output)
+                                    # Parse document chunks from output
+                                    import re
+                                    matches = re.findall(r"\[(\d+)\]\s+([^\n(]+)", formatted_content)
+                                    for match in matches:
+                                        if len(match) >= 2:
+                                            idx, doc_name = match[0], match[1].strip()
+                                            # Extract content preview
+                                            content_start = formatted_content.find(f"[{idx}] {doc_name}")
+                                            if content_start >= 0:
+                                                content_preview = formatted_content[content_start:content_start + 200]
+                                                agent_state["retrieved_chunks"].append({
+                                                    "document_name": doc_name,
+                                                    "content": content_preview,
+                                                    "score": 0.0  # Score not available in tool output
+                                                })
+                                    agent_state["agent_reasoning"] = f"Retrieved {len(agent_state['retrieved_chunks'])} document chunks"
+                                    yield emit_agent_state()
+
+                            # Capture final answer streaming
+                            elif event_type == "on_chat_model_stream":
+                                chunk = event.get("data", {}).get("chunk")
+                                if chunk and hasattr(chunk, "content") and chunk.content:
+                                    final_answer += chunk.content
+                                    accumulated_content += chunk.content
+
+                                    # Emit token
+                                    yield f"data: {json.dumps({'type': 'token', 'text': chunk.content})}\n\n"
+
+                                    # Update synthesis progress
+                                    if current_node == "synthesizing":
+                                        # Estimate progress based on token count (rough approximation)
+                                        agent_state["synthesis_progress"] = min(100, len(final_answer) // 5)
+                                        if len(final_answer) % 50 == 0:  # Emit every 50 chars to avoid spam
+                                            yield emit_agent_state()
+
+                            # Capture final state
+                            elif event_type == "on_chain_end":
+                                if "RunnableSequence" in name or "StateGraph" in name:
+                                    final_state = event.get("data", {}).get("output")
+
+                        # Mark as complete
+                        agent_state["current_step"] = "complete"
+                        agent_state["synthesis_progress"] = 100
+                        agent_state["agent_reasoning"] = "Response complete"
+                        yield emit_agent_state()
+
                         # Create assistant message
-                        if not assistant_message:
+                        if final_answer and not assistant_message:
                             assistant_message = SessionChatMessage.objects.create(
                                 session=session,
                                 notebook=notebook,
@@ -824,11 +927,10 @@ class ChatService(NotebookBaseService):
                                 metadata={"status": "generating", "trace_id": trace_id},
                             )
 
-                        # Stream tokens char by char
-                        for char in final_answer:
-                            yield f"data: {json.dumps({'type': 'token', 'text': char})}\n\n"
-
-                        accumulated_content = final_answer
+                    # Run the async streaming
+                    async_gen = process_agent_stream()
+                    for chunk in loop.run_until_complete(_async_gen_to_list(async_gen)):
+                        yield chunk
 
                 finally:
                     loop.close()

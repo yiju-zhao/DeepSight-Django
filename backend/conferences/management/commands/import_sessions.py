@@ -1,23 +1,23 @@
-import csv
+import json
 import datetime
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from conferences.models import Instance, Session, Venue
 
 class Command(BaseCommand):
-    help = "Imports sessions from a CSV file."
+    help = "Imports sessions from a JSON file."
 
     def add_arguments(self, parser):
-        parser.add_argument("csv_file", type=str, help="Path to the CSV file.")
+        parser.add_argument("json_file", type=str, help="Path to the JSON file.")
         parser.add_argument("--venue-name", type=str, required=True, help="Name of the venue.")
         parser.add_argument("--year", type=int, required=True, help="Conference year.")
-        parser.add_argument("--location", type=str, required=True, help="Conference location.")
+        parser.add_argument("--location", type=str, required=True, help="Conference location (for the instance).")
         parser.add_argument("--start-date", type=str, required=True, help="Start date (YYYY-MM-DD).")
         parser.add_argument("--end-date", type=str, required=True, help="End date (YYYY-MM-DD).")
         parser.add_argument("--venue-type", type=str, default="Conference", help="Type of venue.")
 
     def handle(self, *args, **options):
-        csv_file_path = options["csv_file"]
+        json_file_path = options["json_file"]
         year = options["year"]
         
         try:
@@ -45,43 +45,54 @@ class Command(BaseCommand):
                     }
                 )
 
-                with open(csv_file_path, 'r', encoding='utf-8') as f:
-                    reader = csv.DictReader(f)
+                with open(json_file_path, 'r', encoding='utf-8') as f:
+                    sessions_data = json.load(f)
                     sessions_created = 0
                     
-                    for row in reader:
-                        # Parse Date: "TUE 2 DEC" -> Date object
-                        date_str = row['date'].strip()
-                        # Remove day name (TUE) and extra spaces
-                        day_month = " ".join(date_str.split()[1:]) 
-                        date_obj = datetime.datetime.strptime(f"{day_month} {year}", "%d %b %Y").date()
+                    for item in sessions_data:
+                        # Parse Date: "2025-11-30" -> Date object
+                        date_str = item.get('date')
+                        date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d").date() if date_str else None
 
-                        # Parse Time: "8:30 a.m." or "9:30 AM" -> Time object
-                        def parse_time(t_str):
-                            t_str = t_str.strip().replace(".", "").upper() # "8:30 AM"
-                            return datetime.datetime.strptime(t_str, "%I:%M %p").time()
+                        # Parse Time from start_datetime/end_datetime
+                        # Format: "2025-11-30T11:00:00"
+                        start_datetime_str = item.get('start_datetime')
+                        end_datetime_str = item.get('end_datetime')
+                        
+                        start_time = None
+                        end_time = None
 
-                        start_time = parse_time(row['time'])
-                        end_time = parse_time(row['end_time'])
+                        if start_datetime_str:
+                            start_time = datetime.datetime.fromisoformat(start_datetime_str).time()
+                        
+                        if end_datetime_str:
+                            end_time = datetime.datetime.fromisoformat(end_datetime_str).time()
+
+                        # If date_obj is missing but we have start_datetime, use that
+                        if not date_obj and start_datetime_str:
+                             date_obj = datetime.datetime.fromisoformat(start_datetime_str).date()
 
                         Session.objects.create(
                             instance=instance,
                             date=date_obj,
                             start_time=start_time,
                             end_time=end_time,
-                            type=row['type'],
-                            title=row['title'],
-                            url=row['url'],
-                            speaker=row.get('speaker', ''),
-                            abstract=row.get('abstract', ''),
-                            overview=row.get('overview', ''),
-                            transcript=row.get('transcript', '')
+                            type=item.get('type', ''),
+                            title=item.get('title', ''),
+                            url=item.get('url', ''),
+                            speaker=item.get('speaker', ''),
+                            abstract=item.get('abstract', ''),
+                            overview=item.get('overview', ''),
+                            transcript=item.get('transcript', ''), # Assuming transcript might be in JSON or just empty
+                            location=item.get('location', '')
                         )
                         sessions_created += 1
                         
                     self.stdout.write(self.style.SUCCESS(f"Successfully imported {sessions_created} sessions."))
 
         except FileNotFoundError:
-            raise CommandError(f"File not found: {csv_file_path}")
+            raise CommandError(f"File not found: {json_file_path}")
+        except json.JSONDecodeError:
+             raise CommandError(f"Error decoding JSON file: {json_file_path}")
         except Exception as e:
             raise CommandError(f"Error importing sessions: {e}")

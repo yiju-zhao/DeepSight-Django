@@ -1,0 +1,155 @@
+/**
+ * Inline Agent State Component Styles
+ *
+ * Minimal, clean styling for in-chat agent state display
+ */
+
+.inline-agent-state {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 8px 0;
+  background: var(--card, #ffffff);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease;
+}
+
+.inline-agent-state:hover {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Header */
+.inline-agent-state .progress-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.inline-agent-state .step-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--foreground, #1f2937);
+}
+
+.inline-agent-state .expand-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: var(--muted-foreground, #6b7280);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.inline-agent-state .expand-button:hover {
+  background-color: var(--accent, #f3f4f6);
+  color: var(--foreground, #1f2937);
+}
+
+/* Progress Bar */
+.inline-agent-state .progress-bar {
+  height: 4px;
+  background: var(--muted, #f3f4f6);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.inline-agent-state .progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.inline-agent-state .progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Expanded Details */
+.inline-agent-state .expanded-details {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e2e8f0);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.inline-agent-state .stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+}
+
+.inline-agent-state .stat span:first-child {
+  color: var(--muted-foreground, #6b7280);
+}
+
+.inline-agent-state .stat-value {
+  font-weight: 600;
+  color: var(--foreground, #1f2937);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .inline-agent-state {
+    background: var(--card, #1f2937);
+    border-color: var(--border, #374151);
+  }
+
+  .inline-agent-state .step-label {
+    color: var(--foreground, #f9fafb);
+  }
+
+  .inline-agent-state .expand-button {
+    color: var(--muted-foreground, #9ca3af);
+  }
+
+  .inline-agent-state .expand-button:hover {
+    background-color: var(--accent, #374151);
+    color: var(--foreground, #f9fafb);
+  }
+
+  .inline-agent-state .progress-bar {
+    background: var(--muted, #374151);
+  }
+
+  .inline-agent-state .stat span:first-child {
+    color: var(--muted-foreground, #9ca3af);
+  }
+
+  .inline-agent-state .stat-value {
+    color: var(--foreground, #f9fafb);
+  }
+
+  .inline-agent-state .expanded-details {
+    border-top-color: var(--border, #374151);
+  }
+}

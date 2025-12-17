@@ -54,6 +54,11 @@ HOST_IP = os.getenv("HOST_IP", "localhost")
 BACKEND_PORT = os.getenv("BACKEND_PORT", "8000")
 FRONTEND_PORT = os.getenv("FRONTEND_PORT", "5173")
 
+# FastAPI agent ports
+RAG_AGENT_PORT = os.getenv("RAG_AGENT_PORT", "8002")
+REPORT_AGENT_PORT = os.getenv("REPORT_AGENT_PORT", "8003")  # Future
+PANEL_CREW_PORT = os.getenv("PANEL_CREW_PORT", "8004")  # Future
+
 # ==============================================================================
 # APPLICATION DEFINITION
 # ==============================================================================
@@ -208,8 +213,13 @@ CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
     f"http://{HOST_IP}:{FRONTEND_PORT}",
     f"http://localhost:{FRONTEND_PORT}",
+    f"http://localhost:{RAG_AGENT_PORT}",  # RAG Agent CopilotKit
 ]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
+
+# Session cookie settings for cross-port communication
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_HTTPONLY = True
 
 CORS_ALLOW_HEADERS = [
     "accept",

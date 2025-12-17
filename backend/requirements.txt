@@ -77,3 +77,10 @@ ffmpeg-python
 aiohttp
 yt-dlp
 bilix
+
+# FastAPI and CopilotKit (Agent UI Protocol)
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.9
+copilotkit>=0.1.30
+ag-ui-protocol>=0.1.0
