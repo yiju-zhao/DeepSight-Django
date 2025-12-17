@@ -176,5 +176,5 @@ if __name__ == "__main__":
         "agents.rag_agent.server:app",
         host="0.0.0.0",
         port=RAG_AGENT_PORT,
-        reload=True,
+        reload=False,
     )

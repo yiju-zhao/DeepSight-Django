@@ -40,11 +40,6 @@ export function NotebookChatContainer({
     // Build the runtime URL for this specific notebook's agent
     const runtimeUrl = `http://${RAG_AGENT_HOST}:${RAG_AGENT_PORT}/copilotkit/notebooks/${notebookId}/agent`;
 
-    // Legacy mode - render children without CopilotKit
-    if (!USE_COPILOTKIT) {
-        return <>{children}</>;
-    }
-
     return (
         <CopilotKit runtimeUrl={runtimeUrl}>
             {children}
