@@ -3,6 +3,7 @@ GEMINI.md
 AGENTS.md
 .DS_Store
 *.pyc
+*.backup
 .env
 .env.*
 .windsurfrules
