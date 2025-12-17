@@ -55,7 +55,7 @@ RAG_AGENT_PORT = int(os.getenv("RAG_AGENT_PORT", "8101"))
 app = create_agent_server("RAG Agent Service", RAG_AGENT_PORT)
 
 
-async def create_notebook_rag_graph(notebook_id: int, user_id: int):
+async def create_notebook_rag_graph(notebook_id: Any, user_id: Any):
     """
     Create a notebook-specific RAG agent graph.
 
@@ -65,8 +65,8 @@ async def create_notebook_rag_graph(notebook_id: int, user_id: int):
     3. Creates and returns a RAG graph for that notebook
 
     Args:
-        notebook_id: Notebook primary key
-        user_id: Authenticated user ID
+        notebook_id: Notebook primary key (UUID or int)
+        user_id: Authenticated user ID (UUID or int)
 
     Returns:
         Compiled LangGraph for the notebook
@@ -171,7 +171,7 @@ async def validate_django_session_middleware(request: Request, call_next):
 
         # Verify user exists and is active
         try:
-            user = await User.objects.aget(pk=int(user_id), is_active=True)
+            user = await User.objects.aget(pk=user_id, is_active=True)
             # Store user_id in request state for graph factory
             request.state.user_id = user.pk
         except User.DoesNotExist:
@@ -224,7 +224,7 @@ async def agent_factory(request: Request, config: dict[str, Any]) -> LangGraphAG
 
     # Create notebook-specific graph
     graph = await create_notebook_rag_graph(
-        notebook_id=int(notebook_id),
+        notebook_id=notebook_id,
         user_id=user_id,
     )
 
