@@ -112,7 +112,7 @@ export function NotebookChatContainer({
             runtimeUrl={runtimeUrl}
             agent={agentName}
             properties={properties}
-        // credentials="include"
+            credentials="include"
         // Optional: Custom headers for debugging
         // headers={{
         //     'X-Notebook-ID': notebookId,
