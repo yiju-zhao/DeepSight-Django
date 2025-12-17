@@ -16,11 +16,12 @@ Or with uvicorn:
     cd backend && uvicorn agents.rag_agent.server:app --port 8101 --reload
 """
 
+import json
 import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, Callable, Awaitable
 
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
@@ -53,6 +54,36 @@ RAG_AGENT_PORT = int(os.getenv("RAG_AGENT_PORT", "8101"))
 
 # Create FastAPI application with CORS and health check
 app = create_agent_server("RAG Agent Service", RAG_AGENT_PORT)
+
+
+async def unwrap_ag_ui_envelope_middleware(request: Request, call_next: Callable[[Request], Awaitable[Any]]):
+    """
+    CopilotKit (React) sends a JSON-RPC style envelope by default:
+        { "method": "agent/connect", "params": {...}, "body": { ...actual payload... } }
+    The `add_langgraph_fastapi_endpoint` helper expects the flat AG-UI payload at the
+    top level, so we unwrap the `body` key before it reaches the endpoint.
+    """
+    if request.url.path.startswith("/copilotkit") and request.method == "POST":
+        try:
+            raw_body = await request.body()
+            if raw_body:
+                payload = json.loads(raw_body)
+                if isinstance(payload, dict) and isinstance(payload.get("body"), dict):
+                    inner = payload["body"]
+
+                    async def receive() -> dict[str, Any]:
+                        return {
+                            "type": "http.request",
+                            "body": json.dumps(inner).encode("utf-8"),
+                            "more_body": False,
+                        }
+
+                    # Recreate the request with the unwrapped body for downstream handlers
+                    request = Request(request.scope, receive=receive)
+        except Exception as exc:  # noqa: BLE001 - defensive: never block request
+            logger.warning("Failed to unwrap CopilotKit envelope: %s", exc)
+
+    return await call_next(request)
 
 
 async def create_notebook_rag_graph(notebook_id: Any, user_id: Any):
@@ -186,6 +217,7 @@ async def validate_django_session_middleware(request: Request, call_next):
 
 # Add authentication middleware
 app.middleware("http")(validate_django_session_middleware)
+app.middleware("http")(unwrap_ag_ui_envelope_middleware)
 
 
 async def agent_factory(request: Request, config: dict[str, Any]) -> LangGraphAGUIAgent:
