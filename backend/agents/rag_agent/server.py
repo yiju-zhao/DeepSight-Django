@@ -21,11 +21,11 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional, Callable, Awaitable
+from typing import Any, Optional
 
+import httpx
 from fastapi import Request, HTTPException, status
-from fastapi.responses import JSONResponse
-from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
 
 # Setup Django before other imports
 backend_dir = Path(__file__).resolve().parent.parent.parent
@@ -55,66 +55,6 @@ RAG_AGENT_PORT = int(os.getenv("RAG_AGENT_PORT", "8101"))
 
 # Create FastAPI application with CORS and health check
 app = create_agent_server("RAG Agent Service", RAG_AGENT_PORT)
-
-
-class UnwrapCopilotKitEnvelopeMiddleware(BaseHTTPMiddleware):
-    """
-    CopilotKit (React) sends a JSON-RPC style envelope by default:
-        { "method": "agent/connect", "params": {...}, "body": { ...actual payload... } }
-    The `add_langgraph_fastapi_endpoint` helper expects the flat AG-UI payload at the
-    top level, so we unwrap the `body` key before it reaches the endpoint.
-    """
-
-    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Any]]):
-        if request.url.path.startswith("/copilotkit"):
-            try:
-                raw_body = await request.body()
-                if raw_body:
-                    payload = json.loads(raw_body)
-                    logger.info("CopilotKit envelope received: keys=%s", list(payload.keys()))
-                    # Short-circuit the CopilotKit runtime info probe
-                    if payload.get("method") == "info":
-                        return JSONResponse(
-                            {
-                                "agents": [
-                                    {
-                                        "id": "rag_assistant",
-                                        "name": "rag_assistant",
-                                        "description": "Notebook RAG assistant",
-                                    }
-                                ]
-                            }
-                        )
-                    if isinstance(payload, dict) and isinstance(payload.get("body"), dict):
-                        inner = payload["body"]
-                        new_body = json.dumps(inner).encode("utf-8")
-                        logger.info("Unwrapped CopilotKit body keys=%s", list(inner.keys()))
-
-                        async def receive() -> dict[str, Any]:
-                            return {
-                                "type": "http.request",
-                                "body": new_body,
-                                "more_body": False,
-                            }
-
-                        # Replace the request with the unwrapped body
-                        request = Request(request.scope, receive=receive)
-                        request._body = new_body  # type: ignore[attr-defined]
-                    else:
-                        # If there is no nested body, forward as-is (e.g., unexpected shapes)
-                        async def receive_passthrough() -> dict[str, Any]:
-                            return {
-                                "type": "http.request",
-                                "body": raw_body,
-                                "more_body": False,
-                            }
-
-                        request = Request(request.scope, receive=receive_passthrough)
-                        request._body = raw_body  # type: ignore[attr-defined]
-            except Exception as exc:  # noqa: BLE001 - defensive: never block request
-                logger.warning("Failed to unwrap CopilotKit envelope: %s", exc)
-
-        return await call_next(request)
 
 
 async def create_notebook_rag_graph(notebook_id: Any, user_id: Any):
@@ -246,8 +186,7 @@ async def validate_django_session_middleware(request: Request, call_next):
     return response
 
 
-# Middleware order matters: unwrap the CopilotKit envelope first, then validate session
-app.add_middleware(UnwrapCopilotKitEnvelopeMiddleware)
+# Middleware: validate session for all CopilotKit routes
 app.middleware("http")(validate_django_session_middleware)
 
 
@@ -306,8 +245,73 @@ async def agent_factory(request: Request, config: dict[str, Any]) -> LangGraphAG
 add_langgraph_fastapi_endpoint(
     app=app,
     agent=agent_factory,  # Pass factory function for per-request agent creation
-    path="/copilotkit",
+    path="/copilotkit/internal",
 )
+
+
+@app.post("/copilotkit")
+async def copilotkit_proxy(request: Request):
+    """
+    Accept CopilotKit JSON-RPC envelope and forward the inner body to the internal AG-UI path.
+
+    This mirrors the CopilotKit Runtime behavior from the example, but keeps the agent hosted
+    on FastAPI instead of LangGraph Platform.
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={"detail": "Invalid JSON payload"},
+        )
+
+    method = payload.get("method")
+    inner_body = payload.get("body", {})
+    if not isinstance(inner_body, dict):
+        inner_body = {}
+
+    # Handle runtime info probe directly
+    if method == "info":
+        return JSONResponse(
+            {
+                "agents": [
+                    {
+                        "id": "rag_assistant",
+                        "name": "rag_assistant",
+                        "description": "Notebook RAG assistant",
+                    }
+                ]
+            }
+        )
+
+    forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/internal"
+    async with httpx.AsyncClient() as client:
+        try:
+            async with client.stream(
+                "POST",
+                forward_url,
+                json=inner_body,
+                cookies=request.cookies,
+                headers={"Content-Type": "application/json"},
+                timeout=None,  # allow streaming
+            ) as forward_resp:
+                # Stream the response through to the client to preserve SSE behavior
+                headers = {
+                    "Content-Type": forward_resp.headers.get(
+                        "Content-Type", "application/json"
+                    )
+                }
+                return StreamingResponse(
+                    forward_resp.aiter_raw(),
+                    status_code=forward_resp.status_code,
+                    headers=headers,
+                )
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to forward CopilotKit request: %s", exc)
+            return JSONResponse(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                content={"detail": "Failed to forward CopilotKit request"},
+            )
 
 logger.info("RAG agent server initialized with CopilotKit SDK")
 
