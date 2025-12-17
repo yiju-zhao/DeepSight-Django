@@ -122,6 +122,10 @@ async def validate_django_session_middleware(request: Request, call_next):
     Validates session cookies for all /copilotkit/* endpoints and injects
     user_id into request.state for downstream use.
     """
+    # Skip validation for OPTIONS requests (CORS preflight)
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
     if request.url.path.startswith("/copilotkit"):
         # Extract session cookie
         session_cookie = request.cookies.get("sessionid")
