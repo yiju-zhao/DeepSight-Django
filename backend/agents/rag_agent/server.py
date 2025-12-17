@@ -249,11 +249,16 @@ class DynamicRAGAgent:
         return agent.run(input_data)
 
 
+
 # Add the CopilotKit endpoint using official SDK
 # This replaces the manual AG-UI protocol implementation
+rag_agent_instance = DynamicRAGAgent()
+logger.info(f"DEBUG: Initializing endpoint with agent type: {type(rag_agent_instance)}")
+logger.info(f"DEBUG: Agent has run method: {hasattr(rag_agent_instance, 'run')}")
+
 add_langgraph_fastapi_endpoint(
     app=app,
-    agent=DynamicRAGAgent(),  # Object with .run, builds per-request agent
+    agent=rag_agent_instance,  # Object with .run, builds per-request agent
     path="/copilotkit/internal",
 )
 
