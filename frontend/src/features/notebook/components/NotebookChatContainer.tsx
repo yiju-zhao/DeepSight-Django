@@ -18,7 +18,7 @@ import "@copilotkit/react-ui/styles.css";
 const USE_COPILOTKIT = import.meta.env.VITE_USE_COPILOTKIT === "true";
 
 // Agent server configuration
-const RAG_AGENT_PORT = import.meta.env.VITE_RAG_AGENT_PORT || "8002";
+const RAG_AGENT_PORT = import.meta.env.VITE_RAG_AGENT_PORT || "8101";
 const RAG_AGENT_HOST = import.meta.env.VITE_RAG_AGENT_HOST || "localhost";
 
 interface NotebookChatContainerProps {

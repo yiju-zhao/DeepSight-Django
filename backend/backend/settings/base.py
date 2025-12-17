@@ -55,9 +55,9 @@ BACKEND_PORT = os.getenv("BACKEND_PORT", "8000")
 FRONTEND_PORT = os.getenv("FRONTEND_PORT", "5173")
 
 # FastAPI agent ports
-RAG_AGENT_PORT = os.getenv("RAG_AGENT_PORT", "8002")
-REPORT_AGENT_PORT = os.getenv("REPORT_AGENT_PORT", "8003")  # Future
-PANEL_CREW_PORT = os.getenv("PANEL_CREW_PORT", "8004")  # Future
+RAG_AGENT_PORT = os.getenv("RAG_AGENT_PORT", "8101")
+REPORT_AGENT_PORT = os.getenv("REPORT_AGENT_PORT", "8102")  # Future
+PANEL_CREW_PORT = os.getenv("PANEL_CREW_PORT", "8103")  # Future
 
 # ==============================================================================
 # APPLICATION DEFINITION

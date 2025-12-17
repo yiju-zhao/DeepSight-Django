@@ -11,7 +11,7 @@ export const USE_COPILOTKIT = import.meta.env.VITE_USE_COPILOTKIT === 'true';
 // Agent server configuration
 export const RAG_AGENT_CONFIG = {
     host: import.meta.env.VITE_RAG_AGENT_HOST || 'localhost',
-    port: import.meta.env.VITE_RAG_AGENT_PORT || '8002',
+    port: import.meta.env.VITE_RAG_AGENT_PORT || '8101',
 
     // Build full URL for notebook-specific agent endpoint
     getAgentUrl: (notebookId: string) =>

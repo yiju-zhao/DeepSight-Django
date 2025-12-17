@@ -10,7 +10,7 @@ Usage:
     cd backend && python -m agents.rag_agent.server
 
 Or with uvicorn:
-    cd backend && uvicorn agents.rag_agent.server:app --port 8002 --reload
+    cd backend && uvicorn agents.rag_agent.server:app --port 8101 --reload
 """
 
 import logging
