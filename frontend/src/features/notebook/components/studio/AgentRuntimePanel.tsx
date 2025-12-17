@@ -51,13 +51,13 @@ export function AgentRuntimePanel({ state }: AgentRuntimePanelProps) {
       </section>
 
       {/* Retrieved Documents */}
-      {state.retrieved_chunks.length > 0 && (
+      {(state.retrieved_chunks?.length || 0) > 0 && (
         <section className="retrieved-documents">
           <h3 className="section-title">
-            Retrieved Documents ({state.retrieved_chunks.length})
+            Retrieved Documents ({state.retrieved_chunks?.length})
           </h3>
           <div className="document-list">
-            {state.retrieved_chunks.map((chunk, idx) => (
+            {state.retrieved_chunks?.map((chunk, idx) => (
               <div key={idx} className="document-card">
                 <div className="header">
                   <FileText size={16} className="icon" />
@@ -77,19 +77,19 @@ export function AgentRuntimePanel({ state }: AgentRuntimePanelProps) {
       )}
 
       {/* Graded Documents */}
-      {state.graded_documents.length > 0 && (
+      {(state.graded_documents?.length || 0) > 0 && (
         <section className="graded-documents">
           <h3 className="section-title">Grading Results</h3>
           <div className="grading-stats">
             <span className="relevant">
-              ✓ {state.graded_documents.filter(d => d.relevant).length} Relevant
+              ✓ {state.graded_documents?.filter(d => d.relevant).length} Relevant
             </span>
             <span className="not-relevant">
-              ✗ {state.graded_documents.filter(d => !d.relevant).length} Not Relevant
+              ✗ {state.graded_documents?.filter(d => !d.relevant).length} Not Relevant
             </span>
           </div>
           <div className="document-list">
-            {state.graded_documents.map((doc, idx) => (
+            {state.graded_documents?.map((doc, idx) => (
               <div
                 key={idx}
                 className={`document-card ${doc.relevant ? 'relevant' : 'not-relevant'}`}
@@ -119,13 +119,13 @@ export function AgentRuntimePanel({ state }: AgentRuntimePanelProps) {
       )}
 
       {/* Query Rewrites */}
-      {state.query_rewrites.length > 0 && (
+      {(state.query_rewrites?.length || 0) > 0 && (
         <section className="query-rewrites">
           <h3 className="section-title">
-            Query Rewrites ({state.query_rewrites.length})
+            Query Rewrites ({state.query_rewrites?.length})
           </h3>
           <div className="rewrite-list">
-            {state.query_rewrites.map((query, idx) => (
+            {state.query_rewrites?.map((query, idx) => (
               <div key={idx} className="rewrite-item">
                 <RefreshCw size={14} className="icon" />
                 <span className="iteration">Iteration {idx + 1}:</span>
