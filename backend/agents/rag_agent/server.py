@@ -25,6 +25,7 @@ from typing import Any, Optional, Callable, Awaitable
 
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Setup Django before other imports
 backend_dir = Path(__file__).resolve().parent.parent.parent
@@ -56,34 +57,64 @@ RAG_AGENT_PORT = int(os.getenv("RAG_AGENT_PORT", "8101"))
 app = create_agent_server("RAG Agent Service", RAG_AGENT_PORT)
 
 
-async def unwrap_ag_ui_envelope_middleware(request: Request, call_next: Callable[[Request], Awaitable[Any]]):
+class UnwrapCopilotKitEnvelopeMiddleware(BaseHTTPMiddleware):
     """
     CopilotKit (React) sends a JSON-RPC style envelope by default:
         { "method": "agent/connect", "params": {...}, "body": { ...actual payload... } }
     The `add_langgraph_fastapi_endpoint` helper expects the flat AG-UI payload at the
     top level, so we unwrap the `body` key before it reaches the endpoint.
     """
-    if request.url.path.startswith("/copilotkit") and request.method == "POST":
-        try:
-            raw_body = await request.body()
-            if raw_body:
-                payload = json.loads(raw_body)
-                if isinstance(payload, dict) and isinstance(payload.get("body"), dict):
-                    inner = payload["body"]
 
-                    async def receive() -> dict[str, Any]:
-                        return {
-                            "type": "http.request",
-                            "body": json.dumps(inner).encode("utf-8"),
-                            "more_body": False,
-                        }
+    async def dispatch(self, request: Request, call_next: Callable[[Request], Awaitable[Any]]):
+        if request.url.path.startswith("/copilotkit"):
+            try:
+                raw_body = await request.body()
+                if raw_body:
+                    payload = json.loads(raw_body)
+                    logger.info("CopilotKit envelope received: keys=%s", list(payload.keys()))
+                    # Short-circuit the CopilotKit runtime info probe
+                    if payload.get("method") == "info":
+                        return JSONResponse(
+                            {
+                                "agents": [
+                                    {
+                                        "id": "rag_assistant",
+                                        "name": "rag_assistant",
+                                        "description": "Notebook RAG assistant",
+                                    }
+                                ]
+                            }
+                        )
+                    if isinstance(payload, dict) and isinstance(payload.get("body"), dict):
+                        inner = payload["body"]
+                        new_body = json.dumps(inner).encode("utf-8")
+                        logger.info("Unwrapped CopilotKit body keys=%s", list(inner.keys()))
 
-                    # Recreate the request with the unwrapped body for downstream handlers
-                    request = Request(request.scope, receive=receive)
-        except Exception as exc:  # noqa: BLE001 - defensive: never block request
-            logger.warning("Failed to unwrap CopilotKit envelope: %s", exc)
+                        async def receive() -> dict[str, Any]:
+                            return {
+                                "type": "http.request",
+                                "body": new_body,
+                                "more_body": False,
+                            }
 
-    return await call_next(request)
+                        # Replace the request with the unwrapped body
+                        request = Request(request.scope, receive=receive)
+                        request._body = new_body  # type: ignore[attr-defined]
+                    else:
+                        # If there is no nested body, forward as-is (e.g., unexpected shapes)
+                        async def receive_passthrough() -> dict[str, Any]:
+                            return {
+                                "type": "http.request",
+                                "body": raw_body,
+                                "more_body": False,
+                            }
+
+                        request = Request(request.scope, receive=receive_passthrough)
+                        request._body = raw_body  # type: ignore[attr-defined]
+            except Exception as exc:  # noqa: BLE001 - defensive: never block request
+                logger.warning("Failed to unwrap CopilotKit envelope: %s", exc)
+
+        return await call_next(request)
 
 
 async def create_notebook_rag_graph(notebook_id: Any, user_id: Any):
@@ -216,7 +247,7 @@ async def validate_django_session_middleware(request: Request, call_next):
 
 
 # Middleware order matters: unwrap the CopilotKit envelope first, then validate session
-app.middleware("http")(unwrap_ag_ui_envelope_middleware)
+app.add_middleware(UnwrapCopilotKitEnvelopeMiddleware)
 app.middleware("http")(validate_django_session_middleware)
 
 
