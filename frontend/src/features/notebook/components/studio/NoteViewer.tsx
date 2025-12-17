@@ -17,7 +17,7 @@ import { Textarea } from '@/shared/components/ui/textarea';
 import { Badge } from '@/shared/components/ui/badge';
 import { DeleteConfirmationDialog } from '@/shared/components/ui/DeleteConfirmationDialog';
 import { useToast } from '@/shared/components/ui/use-toast';
-import { useSessionChat } from '@/features/notebook/hooks/chat/useSessionChat';
+// import { useSessionChat } from '@/features/notebook/hooks/chat/useSessionChat';
 
 interface NoteViewerProps {
     notebookId: string;
@@ -27,7 +27,7 @@ interface NoteViewerProps {
 
 const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) => {
     const { selectedNote, selectNote, updateNote, deleteNote, isLoading } = useNotes(notebookId);
-    const { switchSession } = useSessionChat(notebookId);
+    // const { switchSession } = useSessionChat(notebookId);
     const { toast } = useToast();
 
     const [isEditing, setIsEditing] = useState(false);
@@ -90,11 +90,9 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
 
     // Handle viewing source message
     const handleViewSource = () => {
-        if (selectedNote.metadata?.session_id) {
-            // Switch session if needed
-            // Though we might need to scroll to message which is harder
-            switchSession(selectedNote.metadata.session_id);
-            toast({ title: "Switched to source session" });
+        if (selectedNote?.metadata?.session_id) {
+            // switchSession(selectedNote.metadata.session_id);
+            toast({ title: "View source not available in new chat system" });
         }
     };
 

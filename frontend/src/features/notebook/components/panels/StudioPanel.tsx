@@ -13,6 +13,8 @@ interface StudioPanelProps {
   onSelectionChange: (selection: any) => void;
   onOpenModal: (modalType: string, data?: any) => void;
   onCloseModal: (modalType: string) => void;
+  onToggleExpand?: () => void;
+  isStudioExpanded?: boolean;
 }
 
 /**

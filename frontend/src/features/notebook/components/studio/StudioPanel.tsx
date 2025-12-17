@@ -26,6 +26,9 @@ import FileViewer from './FileViewer';
 import StudioList from './list/StudioList';
 
 import NoteViewer from './NoteViewer';
+import { useCoAgent } from "@copilotkit/react-core";
+import { AgentRuntimePanel } from './AgentRuntimePanel';
+import { RAGAgentState, INITIAL_RAG_STATE } from '../../types/agent';
 
 // ====== INTERFACE SEGREGATION PRINCIPLE (ISP) ======
 // Import type definitions and prop creators
@@ -59,6 +62,12 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { reportConfig, podcastConfig, updateReportConfig, updatePodcastConfig } = useNotebookSettings();
+
+  // ====== CopilotKit Agent State ======
+  const { state: agentState } = useCoAgent<RAGAgentState>({
+    name: "rag_agent",
+    initialState: INITIAL_RAG_STATE,
+  });
 
   // ====== SINGLE RESPONSIBILITY: UI State Management ======
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
@@ -667,15 +676,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
               <h4 className="text-sm font-medium text-gray-700">Agent Runtime States</h4>
               {/* Optional: Add status indicators or controls here */}
             </div>
-            <div className="flex-1 p-4 overflow-auto">
-              {/* Placeholder for Agent Runtime Visualization */}
-              <div className="h-full flex flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed border-gray-100 rounded-lg">
-                <div className="p-2 rounded-full bg-gray-50 mb-3">
-                  <RefreshCw className="h-5 w-5 text-gray-400" />
-                </div>
-                <p className="text-sm font-medium">Runtime Visualization</p>
-                <p className="text-xs text-gray-400 mt-1 max-w-[200px]">Agent activities and state changes will appear here</p>
-              </div>
+            <div className="flex-1 p-0 overflow-auto">
+              <AgentRuntimePanel state={agentState || INITIAL_RAG_STATE} />
             </div>
           </div>
 

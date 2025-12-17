@@ -47,16 +47,7 @@ export function NotebookChatContainer({
 
     return (
         <CopilotKit runtimeUrl={runtimeUrl}>
-            <CopilotSidebar
-                instructions="Research assistant for your notebook documents. Ask questions about your uploaded files and I'll search the knowledge base to find relevant information."
-                defaultOpen={false}
-                labels={{
-                    title: "Research Assistant",
-                    placeholder: "Ask a question about your documents...",
-                }}
-            >
-                {children}
-            </CopilotSidebar>
+            {children}
         </CopilotKit>
     );
 }

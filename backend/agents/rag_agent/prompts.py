@@ -46,7 +46,11 @@ Begin by analyzing the user's question and deciding whether to search the knowle
 
 # ===== GRADE_DOCUMENTS_PROMPT =====
 # Used to evaluate if retrieved documents are relevant to the question
-GRADE_DOCUMENTS_PROMPT = """You are a grader assessing retrieval results for a QA task.
+# Based on Self-RAG: uses LENIENT grading to filter erroneous retrievals
+GRADE_DOCUMENTS_PROMPT = """You are a grader assessing relevance of a retrieved document to a user question.
+
+**IMPORTANT: This is NOT a stringent test.**
+The goal is to FILTER OUT erroneous retrievals, not to demand exact matches.
 
 Here is the retrieved document:
 {context}
@@ -54,26 +58,62 @@ Here is the retrieved document:
 Here is the user question:
 {question}
 
-Decide two things:
-1) relevance: 'yes' if the document helps answer the question, otherwise 'no'.
-2) completeness: 'complete' if the provided document(s) likely contain enough information to answer the question fully; 'needs_more' if important details might exist elsewhere or coverage appears partial (e.g., truncated sections, missing steps, references to other parts).
+**Grading Rules (BE LENIENT):**
+If the document contains ANY of the following, mark as relevant:
+- Keywords related to the question (even partial matches)
+- Semantic meaning related to the question  
+- Background information that helps understand the topic
+- IGNORE: typos, spelling variants (optimize/optimise), abbreviations (LLM/Large Language Model)
+- IGNORE: different word forms (retrieve/retrieval/retrieved)
 
-Return both fields."""
+**Key Principle:** When in doubt, mark as RELEVANT. It's better to include marginally relevant docs than miss useful ones.
+
+Give a binary score 'yes' or 'no' to indicate whether the document is relevant to the question."""
 
 
 # ===== REWRITE_QUESTION_PROMPT =====
 # Used to improve a question when initial retrieval returns irrelevant results
-REWRITE_QUESTION_PROMPT = """Look at the input and try to reason about the underlying semantic intent / meaning.
+# Based on Self-RAG: optimized for vectorstore retrieval
+REWRITE_QUESTION_PROMPT = """You are a question re-writer that converts an input question to a better version optimized for vectorstore retrieval.
 
 Here is the initial question:
 {question}
 
-The previous search did not return relevant results. Please reformulate the question to:
-1. Use different keywords or phrasing
-2. Make the intent clearer
-3. Focus on the core information need
+Look at the input and reason about the underlying SEMANTIC INTENT / MEANING.
 
-Formulate an improved question:"""
+The previous search did not return relevant results. Generate an improved search query by:
+1. Extracting the core semantic intent
+2. Using different keywords or synonyms
+3. Making the query more specific OR more general (depending on the original)
+4. Keeping it SHORT (2-5 words, keyword-focused)
+
+Return ONLY the improved search query, nothing else."""
+
+
+# ===== HALLUCINATION_GRADER_PROMPT =====
+# Used to check if generation is grounded in retrieved documents
+HALLUCINATION_GRADER_PROMPT = """You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved facts.
+
+Set of facts:
+{documents}
+
+LLM generation:
+{generation}
+
+Give a binary score 'yes' or 'no'. 'Yes' means the answer IS grounded in / supported by the set of facts."""
+
+
+# ===== ANSWER_GRADER_PROMPT =====
+# Used to check if the answer addresses the question
+ANSWER_GRADER_PROMPT = """You are a grader assessing whether an answer addresses / resolves a question.
+
+User question:
+{question}
+
+LLM generation:
+{generation}
+
+Give a binary score 'yes' or 'no'. 'Yes' means the answer resolves the question."""
 
 
 # ===== SYNTHESIS_PROMPT =====
