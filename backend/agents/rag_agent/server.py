@@ -285,33 +285,42 @@ async def copilotkit_proxy(request: Request):
         )
 
     forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/internal"
-    async with httpx.AsyncClient() as client:
-        try:
-            async with client.stream(
-                "POST",
-                forward_url,
-                json=inner_body,
-                cookies=request.cookies,
-                headers={"Content-Type": "application/json"},
-                timeout=None,  # allow streaming
-            ) as forward_resp:
-                # Stream the response through to the client to preserve SSE behavior
-                headers = {
-                    "Content-Type": forward_resp.headers.get(
-                        "Content-Type", "application/json"
-                    )
-                }
-                return StreamingResponse(
-                    forward_resp.aiter_raw(),
-                    status_code=forward_resp.status_code,
-                    headers=headers,
-                )
-        except Exception as exc:  # noqa: BLE001
-            logger.exception("Failed to forward CopilotKit request: %s", exc)
-            return JSONResponse(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                content={"detail": "Failed to forward CopilotKit request"},
+    client = httpx.AsyncClient(timeout=None)  # keep connection open for streaming
+    try:
+        forward_resp = await client.post(
+            forward_url,
+            json=inner_body,
+            cookies=request.cookies,
+            headers={"Content-Type": "application/json"},
+            stream=True,
+        )
+
+        headers = {
+            "Content-Type": forward_resp.headers.get(
+                "Content-Type", "application/json"
             )
+        }
+
+        async def iter_bytes():
+            try:
+                async for chunk in forward_resp.aiter_raw():
+                    yield chunk
+            finally:
+                await forward_resp.aclose()
+                await client.aclose()
+
+        return StreamingResponse(
+            iter_bytes(),
+            status_code=forward_resp.status_code,
+            headers=headers,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to forward CopilotKit request: %s", exc)
+        await client.aclose()
+        return JSONResponse(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            content={"detail": "Failed to forward CopilotKit request"},
+        )
 
 logger.info("RAG agent server initialized with CopilotKit SDK")
 
