@@ -276,13 +276,14 @@ async def copilotkit_adapter(request: Request):
     # Handle GET requests (agent discovery)
     if request.method == "GET":
         return JSONResponse({
-            "agents": [
-                {
+            "agents": {
+                "rag_agent": {
                     "id": "rag_agent",
                     "name": "rag_agent",
                     "description": "RAG agent for notebook documents",
+                    "agentType": "langgraph",
                 }
-            ]
+            }
         })
 
     # Handle POST requests
@@ -293,14 +294,14 @@ async def copilotkit_adapter(request: Request):
         # Handle /info method (agent discovery)
         if method == "info":
             return JSONResponse({
-                "agents": [
-                    {
+                "agents": {
+                    "rag_agent": {
                         "id": "rag_agent",
                         "name": "rag_agent",
                         "description": "RAG agent for notebook documents",
                         "agentType": "langgraph",
                     }
-                ]
+                }
             })
 
         # For all other requests, forward to the AG-UI endpoint
