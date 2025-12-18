@@ -26,7 +26,7 @@ from typing import Any, Optional
 
 import httpx
 from fastapi import Request, HTTPException, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse, Response
 
 # Setup Django before other imports
 backend_dir = Path(__file__).resolve().parent.parent.parent
@@ -259,13 +259,74 @@ class DynamicRAGAgent:
             yield event
 
 
-# Add the CopilotKit endpoint directly at /copilotkit
-# This creates a native AG-UI endpoint that handles agent discovery automatically
+# Add the LangGraph endpoint at /copilotkit/ag-ui (internal path)
 add_langgraph_fastapi_endpoint(
     app=app,
     agent=DynamicRAGAgent(rag_agent),
-    path="/copilotkit",
+    path="/copilotkit/ag-ui",
 )
+
+
+@app.api_route("/copilotkit", methods=["GET", "POST"])
+async def copilotkit_adapter(request: Request):
+    """
+    Lightweight adapter for CopilotKit protocol.
+    Handles /info requests and forwards agent requests to AG-UI endpoint.
+    """
+    # Handle GET requests (agent discovery)
+    if request.method == "GET":
+        return JSONResponse({
+            "agents": [
+                {
+                    "id": "rag_agent",
+                    "name": "rag_agent",
+                    "description": "RAG agent for notebook documents",
+                }
+            ]
+        })
+
+    # Handle POST requests
+    try:
+        payload = await request.json()
+        method = payload.get("method")
+
+        # Handle /info method (agent discovery)
+        if method == "info":
+            return JSONResponse({
+                "agents": [
+                    {
+                        "id": "rag_agent",
+                        "name": "rag_agent",
+                        "description": "RAG agent for notebook documents",
+                    }
+                ]
+            })
+
+        # For all other requests, forward to the AG-UI endpoint
+        # The AG-UI endpoint expects the full request body
+        forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/ag-ui"
+
+        async with httpx.AsyncClient(timeout=None) as client:
+            forward_resp = await client.post(
+                forward_url,
+                json=payload,
+                cookies=request.cookies,
+                headers={"Content-Type": "application/json"},
+            )
+
+            # Return the response with proper headers
+            return Response(
+                content=forward_resp.content,
+                status_code=forward_resp.status_code,
+                headers=dict(forward_resp.headers),
+            )
+
+    except Exception as exc:
+        logger.exception("Adapter error: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": str(exc)},
+        )
 
 
 logger.info("RAG agent server initialized with CopilotKit SDK")
