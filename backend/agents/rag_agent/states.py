@@ -6,43 +6,40 @@ Refactored to match the requested GraphState schema:
 - generation: str
 - documents: list[str]
 
-Uses TypedDict instead of Pydantic model to avoid serialization recursion issues
-in ag_ui_langgraph.
+Inherits from CopilotKitState for frontend compatibility (messages support).
 """
 
-from typing import Any, Annotated, TypedDict
-from langchain_core.messages import BaseMessage
-from langgraph.graph import add_messages
+from typing import Any, List, Optional
+
+from copilotkit import CopilotKitState
 
 
-class RAGAgentState(TypedDict):
+class RAGAgentState(CopilotKitState):
     """
     State for the RAG agent aligning with the requested GraphState schema.
-    Defined as TypedDict to ensure safe serialization.
     
     Attributes:
-        messages: Chat history (reducer: add_messages)
         question: The user's question or the rewritten query.
         generation: The LLM generated answer.
         documents: List of retrieved document contents.
+        
+    CopilotKit Integration:
+        messages: Maintained by CopilotKitState for chat history.
     """
-    
-    # --- CopilotKit Integration ---
-    messages: Annotated[list[BaseMessage], add_messages]
 
     # --- Core GraphState Attributes ---
     question: str
     generation: str
-    documents: list[str]
+    documents: List[str]
 
     # --- CopilotKit AG-UI protocol fields for UI Rendering ---
-    current_step: str | None
-    iteration_count: int | None
-    graded_documents: list[dict[str, Any]] | None
-    query_rewrites: list[str] | None
-    synthesis_progress: int | None
-    total_tool_calls: int | None
-    agent_reasoning: str | None
+    current_step: str | None = None
+    iteration_count: int | None = None
+    graded_documents: list[dict[str, Any]] | None = None
+    query_rewrites: list[str] | None = None
+    synthesis_progress: int | None = None
+    total_tool_calls: int | None = None
+    agent_reasoning: str | None = None
 
 
 # Type alias for backward compatibility
