@@ -298,6 +298,7 @@ async def copilotkit_adapter(request: Request):
                         "id": "rag_agent",
                         "name": "rag_agent",
                         "description": "RAG agent for notebook documents",
+                        "agentType": "langgraph",
                     }
                 ]
             })
