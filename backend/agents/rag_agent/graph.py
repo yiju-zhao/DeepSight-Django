@@ -6,7 +6,6 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AI
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
 from .config import RAGAgentConfig
@@ -17,7 +16,6 @@ from .prompts import (
     format_rewrite_question_prompt,
     HALLUCINATION_GRADER_PROMPT,
     ANSWER_GRADER_PROMPT,
-    MAX_RETRIEVAL_ATTEMPTS,
 )
 from .states import RAGAgentState
 from .tools import create_mcp_retrieval_tools
@@ -84,6 +82,7 @@ class DeepSightRAGAgent:
 
         # Build graph
         workflow.add_edge(START, "initialize_request")
+        
         # If initialization fails (no input), end
         workflow.add_conditional_edges(
             "initialize_request",
@@ -125,11 +124,13 @@ class DeepSightRAGAgent:
     # --- Nodes ---
 
     def initialize_request(self, state: RAGAgentState) -> dict:
-        """Extract user question from messages."""
+        """
+        Extract user question from messages. 
+        Acts as the bridge between CopilotKit (messages) and Self-RAG (question state).
+        """
         logger.info("---INITIALIZE REQUEST---")
         messages = state.get("messages", [])
-        question = state.get("question", "")
-
+        
         # Find the latest human message
         last_human_message = None
         for msg in reversed(messages):
@@ -140,11 +141,16 @@ class DeepSightRAGAgent:
         if last_human_message:
             question = last_human_message.content
             logger.info(f"Extracted question: {question}")
-            return {"question": question, "documents": [], "current_step": "analyzing"}
+            # Reset state for new turn
+            return {
+                "question": question, 
+                "documents": [], 
+                "generation": "",
+                "current_step": "analyzing"
+            }
         
-        # If no question is found, we should not proceed.
-        # Returning empty dict might leave 'question' empty if not initialized.
-        return {"question": "", "documents": []}
+        # If no question is found, return empty to trigger check_initialization -> end
+        return {}
 
     def check_initialization(self, state: RAGAgentState) -> Literal["retrieve", "end"]:
         """Check if we have a valid question to start retrieval."""
@@ -154,7 +160,15 @@ class DeepSightRAGAgent:
         return "end"
 
     async def retrieve(self, state: RAGAgentState, config: RunnableConfig) -> dict:
-        """Retrieve documents."""
+        """
+        Retrieve documents
+        
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            state (dict): New key added to state, documents, that contains retrieved documents
+        """
         logger.info("---RETRIEVE---")
         question = state["question"]
         
@@ -166,44 +180,37 @@ class DeepSightRAGAgent:
                 mcp_server_url=self.config.mcp_server_url
             )
         
-        # Execute retrieval using the first available tool (assuming 1 retrieval tool for now)
         documents = []
         if tools:
-            # We use the model to formulate the query for the tool, or just pass the question?
-            # Self-RAG typically passes the question.
-            # Here we simulate tool execution manually or use bind_tools.
-            # To match the "node" style, we'll invoke the tool directly or use the model to call it.
-            
-            # Simple approach: Search with the question directly
-            # This requires knowing the tool implementation.
-            # Since our tools are MCP tools, we can't easily invoke them without the model.
-            
-            # We'll use the model to decide how to search
+            # We use the model to formulate the query or pass question directly.
+            # Using bind_tools allows flexibility.
             model_with_tools = self.response_model.bind_tools(tools)
+            # Invoke model to generate tool call
             response = await model_with_tools.ainvoke([HumanMessage(content=f"Search for: {question}")], config)
             
-            # If tool called, execute it
+            # If tool called, execute it manually (since we are not using ToolNode)
             if response.tool_calls:
-                # We need to execute the tool calls.
-                # We can use LangGraph's ToolNode for this, but we are inside a custom node.
-                # We'll manually execute for this specific flow.
-                tool_node = ToolNode(tools)
-                # ToolNode expects a state with 'messages' where the last message has tool_calls
-                # We construct a temporary state
-                temp_state = {"messages": [response]}
-                tool_output = await tool_node.ainvoke(temp_state, config)
-                
-                # Extract content from ToolMessages
-                for msg in tool_output["messages"]:
-                    if isinstance(msg, ToolMessage):
-                        # Format: "Content: ... Source: ..."
-                        content = format_tool_content(msg.content)
+                for tool_call in response.tool_calls:
+                    # Find the matching tool
+                    tool = next((t for t in tools if t.name == tool_call["name"]), None)
+                    if tool:
+                        tool_output = await tool.ainvoke(tool_call["args"], config)
+                        # Format output
+                        content = format_tool_content(tool_output)
                         documents.append(content)
 
         return {"documents": documents, "question": question, "current_step": "retrieving"}
 
     async def grade_documents(self, state: RAGAgentState, config: RunnableConfig) -> dict:
-        """Determines whether the retrieved documents are relevant to the question."""
+        """
+        Determines whether the retrieved documents are relevant to the question.
+
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            state (dict): Updates documents key with only filtered relevant documents
+        """
         logger.info("---CHECK DOCUMENT RELEVANCE---")
         question = state["question"]
         documents = state["documents"]
@@ -215,7 +222,6 @@ class DeepSightRAGAgent:
         graded_docs_meta = [] # For UI
 
         for d in documents:
-            # Grade
             prompt = format_grade_documents_prompt(question=question, context=d)
             score = await structured_grader.ainvoke([HumanMessage(content=prompt)], config)
             grade = score.binary_score
@@ -243,7 +249,15 @@ class DeepSightRAGAgent:
         }
 
     async def generate(self, state: RAGAgentState, config: RunnableConfig) -> dict:
-        """Generate answer."""
+        """
+        Generate answer
+
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            state (dict): New key added to state, generation, that contains LLM generation
+        """
         logger.info("---GENERATE---")
         question = state["question"]
         documents = state["documents"]
@@ -254,17 +268,26 @@ class DeepSightRAGAgent:
         response = await self.synthesis_model.ainvoke([HumanMessage(content=prompt)], config)
         generation = response.content
         
+        # We also append the generation to the chat history for CopilotKit
         return {
             "documents": documents, 
             "question": question, 
             "generation": generation,
-            "messages": [AIMessage(content=generation)], # Update chat history
+            "messages": [AIMessage(content=generation)],
             "current_step": "synthesizing",
             "synthesis_progress": 100
         }
 
     async def transform_query(self, state: RAGAgentState, config: RunnableConfig) -> dict:
-        """Transform the query to produce a better question."""
+        """
+        Transform the query to produce a better question.
+
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            state (dict): Updates question key with a re-phrased question
+        """
         logger.info("---TRANSFORM QUERY---")
         question = state["question"]
         documents = state["documents"]
@@ -283,12 +306,21 @@ class DeepSightRAGAgent:
     # --- Edges ---
 
     def decide_to_generate(self, state: RAGAgentState) -> Literal["transform_query", "generate"]:
-        """Determines whether to generate an answer, or re-generate a question."""
+        """
+        Determines whether to generate an answer, or re-generate a question.
+
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            str: Binary decision for next node to call
+        """
         logger.info("---ASSESS GRADED DOCUMENTS---")
         filtered_documents = state["documents"]
 
         if not filtered_documents:
             # All documents have been filtered check_relevance
+            # We will re-generate a new query
             logger.info("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT, TRANSFORM QUERY---")
             return "transform_query"
         else:
@@ -297,7 +329,15 @@ class DeepSightRAGAgent:
             return "generate"
 
     async def grade_generation_v_documents_and_question(self, state: RAGAgentState, config: RunnableConfig) -> Literal["not supported", "useful", "not useful"]:
-        """Determines whether the generation is grounded in the document and answers question."""
+        """
+        Determines whether the generation is grounded in the document and answers question.
+
+        Args:
+            state (dict): The current graph state
+
+        Returns:
+            str: Decision for next node to call
+        """
         logger.info("---CHECK HALLUCINATIONS---")
         question = state["question"]
         documents = state["documents"]
@@ -308,7 +348,6 @@ class DeepSightRAGAgent:
         # Check hallucination
         hallucination_grader = self.grader_model.with_structured_output(GradeHallucinations)
         
-        # We need a prompt for this
         h_prompt = f"Facts:\n{context}\n\nAnswer:\n{generation}"
         score = await hallucination_grader.ainvoke([
             SystemMessage(content=HALLUCINATION_GRADER_PROMPT),
@@ -339,11 +378,9 @@ class DeepSightRAGAgent:
             logger.info("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
             return "not supported"
 
-# Define the graph export for direct usage
-# We initialize it with a base configuration as nodes handle dynamic overrides
-# via config['configurable'] at runtime.
+# Define the graph export
 graph = DeepSightRAGAgent(RAGAgentConfig(
-    model_name="gpt-4o-mini",
+    model_name="gpt-5.2",
     dataset_ids=[],
     mcp_server_url="http://localhost:9382/mcp/"
 )).graph
