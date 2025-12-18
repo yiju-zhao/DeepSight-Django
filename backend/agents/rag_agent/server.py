@@ -221,6 +221,20 @@ add_langgraph_fastapi_endpoint(
 )
 
 
+@app.get("/copilotkit/info")
+async def copilotkit_info():
+    """Handle GET /copilotkit/info requests (REST-style protocol)."""
+    return JSONResponse({
+        "agents": [
+            {
+                "id": "rag_assistant",
+                "name": "rag_assistant",
+                "description": "RAG assistant for notebook documents",
+            }
+        ]
+    })
+
+
 @app.post("/copilotkit")
 async def copilotkit_proxy(request: Request):
     """Proxy to handle AG-UI protocol routing and session forwarding."""
