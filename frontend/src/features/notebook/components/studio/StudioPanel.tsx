@@ -65,7 +65,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   // ====== CopilotKit Agent State ======
   const { state: agentState } = useCoAgent<RAGAgentState>({
-    name: "rag_assistant",
+    name: "rag_agent",
     initialState: INITIAL_RAG_STATE,
   });
 

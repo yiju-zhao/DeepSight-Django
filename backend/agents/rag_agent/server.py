@@ -249,9 +249,9 @@ async def copilotkit_proxy(request: Request):
             return JSONResponse({
                 "agents": [
                     {
-                        "id": "rag_assistant",
-                        "name": "rag_assistant",
-                        "description": "RAG assistant for notebook documents",
+                        "id": "rag_agent",
+                        "name": "rag_agent",
+                        "description": "RAG agent for notebook documents",
                     }
                 ]
             })

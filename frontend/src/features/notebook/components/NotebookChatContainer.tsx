@@ -9,7 +9,7 @@
  * │ React App (Frontend - Port 5173)                            │
  * │  ├─ NotebookChatContainer (CopilotKit Provider)             │
  * │  │   ├─ runtimeUrl: http://localhost:8101/copilotkit        │
- * │  │   ├─ agent: "rag_assistant"                              │
+ * │  │   ├─ agent: "rag_agent"                                  │
  * │  │   └─ properties: { notebook_id: "123" }                  │
  * │  │                                                           │
  * │  └─ SessionChatPanel (CopilotChat Component)                │
