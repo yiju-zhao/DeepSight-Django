@@ -188,15 +188,21 @@ class DeepSightRAGAgent:
             # Invoke model to generate tool call
             response = await model_with_tools.ainvoke([HumanMessage(content=f"Search for: {question}")], config)
             
-            # If tool called, execute it manually (since we are not using ToolNode)
+            # If tool called, execute it using ToolNode to ensure proper event emission
             if response.tool_calls:
-                for tool_call in response.tool_calls:
-                    # Find the matching tool
-                    tool = next((t for t in tools if t.name == tool_call["name"]), None)
-                    if tool:
-                        tool_output = await tool.ainvoke(tool_call["args"], config)
+                tool_node = ToolNode(tools)
+                # ToolNode expects a state with 'messages' where the last message has tool_calls
+                # We create a temporary state with the model's response
+                temp_state = {"messages": [response]}
+                
+                # Invoke ToolNode
+                tool_output = await tool_node.ainvoke(temp_state, config)
+                
+                # Extract content from ToolMessages
+                for msg in tool_output.get("messages", []):
+                    if isinstance(msg, ToolMessage):
                         # Format output
-                        content = format_tool_content(tool_output)
+                        content = format_tool_content(msg.content)
                         documents.append(content)
 
         return {"documents": documents, "question": question, "current_step": "retrieving"}
