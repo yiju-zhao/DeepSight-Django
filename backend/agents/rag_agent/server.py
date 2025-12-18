@@ -133,6 +133,9 @@ class DynamicRAGAgent:
         Main entry point for ag-ui-langgraph.
         Returns an async generator of events.
         """
+        logger.info(f"DynamicRAGAgent.run received input_data type: {type(input_data)}")
+        logger.info(f"input_data: {input_data}")
+
         req = current_request.get()
         if req is None:
             raise HTTPException(status_code=500, detail="Request context unavailable")
