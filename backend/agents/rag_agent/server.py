@@ -291,16 +291,16 @@ async def copilotkit_adapter(request: Request):
         method = payload.get("method")
 
         # Handle /info method (agent discovery)
-        if method == "info":
-            return JSONResponse({
-                "agents": [
-                    {
-                        "id": "rag_agent",
-                        "name": "rag_agent",
-                        "description": "RAG agent for notebook documents",
-                    }
-                ]
-            })
+        # if method == "info":
+        #     return JSONResponse({
+        #         "agents": [
+        #             {
+        #                 "id": "rag_agent",
+        #                 "name": "rag_agent",
+        #                 "description": "RAG agent for notebook documents",
+        #             }
+        #         ]
+        #     })
 
         # For all other requests, forward to the AG-UI endpoint
         # Extract the body content - AG-UI expects body directly, not wrapped
