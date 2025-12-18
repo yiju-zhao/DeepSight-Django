@@ -237,6 +237,14 @@ async def copilotkit_proxy(request: Request):
                 }]
             })
 
+        # Merge properties into configurable if present
+        properties = payload.get("properties", {})
+        if properties:
+            if "configurable" not in inner_body:
+                inner_body["configurable"] = {}
+            inner_body["configurable"].update(properties)
+            logger.info(f"Merged properties into inner_body: {inner_body['configurable']}")
+
         # Forward to internal endpoint
         forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/internal"
         
