@@ -259,15 +259,110 @@ class DynamicRAGAgent:
             yield event
 
 
-# Add the LangGraph endpoint directly at /copilotkit
-# This handles both /info (discovery) and / (execution) automatically
+# Add the LangGraph endpoint at /copilotkit/ag-ui (internal path)
 add_langgraph_fastapi_endpoint(
     app=app,
     agent=DynamicRAGAgent(rag_agent),
-    path="/copilotkit",
+    path="/copilotkit/ag-ui",
 )
 
-logger.info("RAG agent server initialized with CopilotKit SDK at /copilotkit")
+
+@app.api_route("/copilotkit", methods=["GET", "POST"])
+async def copilotkit_adapter(request: Request):
+    """
+    Lightweight adapter for CopilotKit protocol.
+    Handles /info requests and forwards agent requests to AG-UI endpoint.
+    """
+    # Handle GET requests (agent discovery)
+    if request.method == "GET":
+        return JSONResponse({
+            "agents": [
+                {
+                    "id": "rag_agent",
+                    "name": "rag_agent",
+                    "description": "RAG agent for notebook documents",
+                }
+            ]
+        })
+
+    # Handle POST requests
+    try:
+        payload = await request.json()
+        method = payload.get("method")
+
+        # Handle /info method (agent discovery)
+        if method == "info":
+            return JSONResponse({
+                "agents": [
+                    {
+                        "id": "rag_agent",
+                        "name": "rag_agent",
+                        "description": "RAG agent for notebook documents",
+                    }
+                ]
+            })
+
+        # For all other requests, forward to the AG-UI endpoint
+        # Extract the body content - AG-UI expects body directly, not wrapped
+        inner_body = payload.get("body", {})
+
+        # Merge forwardedProps into configurable for LangGraph
+        forwarded_props = inner_body.get("forwardedProps", {})
+        if forwarded_props:
+            if "configurable" not in inner_body:
+                inner_body["configurable"] = {}
+            inner_body["configurable"].update(forwarded_props)
+            logger.info(f"Merged forwardedProps: {forwarded_props}")
+
+        forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/ag-ui"
+
+        # Use a client for streaming
+        client = httpx.AsyncClient(timeout=None)
+        try:
+            req = client.build_request(
+                "POST",
+                forward_url,
+                json=inner_body,
+                cookies=request.cookies,
+                headers={"Content-Type": "application/json"},
+            )
+            r = await client.send(req, stream=True)
+        except Exception:
+            await client.aclose()
+            raise
+
+        async def stream_response():
+            try:
+                async for chunk in r.aiter_raw():
+                    yield chunk
+            finally:
+                await r.aclose()
+                await client.aclose()
+
+        # Return the response with proper headers
+        # Filter out headers that might conflict with the new Response or have been handled by httpx
+        headers = dict(r.headers)
+        keys_to_remove = ["content-length", "transfer-encoding", "content-encoding", "connection"]
+        for key in keys_to_remove:
+            for h in list(headers.keys()):
+                if h.lower() == key:
+                    del headers[h]
+
+        return StreamingResponse(
+            stream_response(),
+            status_code=r.status_code,
+            headers=headers,
+        )
+
+    except Exception as exc:
+        logger.exception("Adapter error: %s", exc)
+        return JSONResponse(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": str(exc)},
+        )
+
+
+logger.info("RAG agent server initialized with CopilotKit SDK")
 
 
 if __name__ == "__main__":
