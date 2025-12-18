@@ -5,6 +5,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, START, END
+from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import ToolNode, tools_condition
 from pydantic import BaseModel, Field
 
@@ -110,8 +111,10 @@ class DeepSightRAGAgent:
         # After answer, end
         workflow.add_edge("generate_answer", END)
 
-        self.graph = workflow.compile()
-        logger.info("RAG agent graph compiled successfully")
+        # Add checkpointer for conversation state management
+        memory = MemorySaver()
+        self.graph = workflow.compile(checkpointer=memory)
+        logger.info("RAG agent graph compiled successfully with MemorySaver checkpointer")
 
     async def generate_query_or_respond(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """Call the model to generate a response or determine search queries."""
