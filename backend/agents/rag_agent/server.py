@@ -79,16 +79,17 @@ async def validate_django_session_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
-    # Allow unauthenticated access to /info endpoint for CopilotKit runtime sync
-    if request.url.path == "/copilotkit/info":
-        return await call_next(request)
-
-    # For /copilotkit POST, let the handler decide auth based on method
-    # The copilotkit_proxy handler will check for "info" method and skip auth
-    if request.url.path == "/copilotkit":
-        return await call_next(request)
-
+    # Allow all /copilotkit requests through - DynamicRAGAgent.run() will handle auth
+    # The /info endpoint provided by LangGraph needs to be public for agent discovery
     if request.url.path.startswith("/copilotkit"):
+        # Store request context for DynamicRAGAgent.run() to access
+        current_request.set(request)
+        response = await call_next(request)
+        current_request.set(None)
+        return response
+
+    # For other paths, require session authentication
+    if request.url.path.startswith("/api"):
         session_cookie = request.cookies.get("sessionid")
 
         if not session_cookie:
@@ -151,6 +152,27 @@ class DynamicRAGAgent:
         if req is None:
             raise HTTPException(status_code=500, detail="Request context unavailable")
 
+        # Authenticate the request - /info requests won't reach here, only actual agent runs
+        session_cookie = req.cookies.get("sessionid")
+        if not session_cookie:
+            raise HTTPException(status_code=401, detail="Authentication required")
+
+        # Validate Django session
+        from django.contrib.sessions.backends.db import SessionStore
+        from asgiref.sync import sync_to_async
+
+        session = SessionStore(session_key=session_cookie)
+
+        @sync_to_async
+        def get_auth_user_id(session_store, cookie):
+            if not session_store.exists(cookie):
+                return None
+            return session_store.get("_auth_user_id")
+
+        user_id = await get_auth_user_id(session, session_cookie)
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid session")
+
         # Extract notebook_id
         if hasattr(input_data, "configurable"):
             configurable = getattr(input_data, "configurable", {})
@@ -183,8 +205,7 @@ class DynamicRAGAgent:
             logger.error(f"notebook_id still missing in input_data: {input_data}")
             raise HTTPException(status_code=400, detail="notebook_id missing")
 
-        user_id = request_user_id = getattr(req.state, "user_id", None)
-        
+        # user_id already authenticated above
         # Load notebook configuration asynchronously
         from notebooks.models import Notebook
         try:
@@ -222,129 +243,12 @@ class DynamicRAGAgent:
             yield event
 
 
-# Add the CopilotKit endpoint using corrected wrapper
+# Add the CopilotKit endpoint - LangGraph handles /info automatically
 add_langgraph_fastapi_endpoint(
     app=app,
     agent=DynamicRAGAgent(rag_agent),
-    path="/copilotkit/internal",
+    path="/copilotkit",
 )
-
-
-@app.get("/copilotkit/info")
-async def copilotkit_info():
-    """Handle GET /copilotkit/info requests (REST-style protocol)."""
-    return JSONResponse({
-        "agents": [
-            {
-                "id": "rag_agent",
-                "name": "rag_agent",
-                "description": "RAG agent for notebook documents",
-            }
-        ]
-    })
-
-
-@app.post("/copilotkit")
-async def copilotkit_proxy(request: Request):
-    """Proxy to handle AG-UI protocol routing and session forwarding."""
-    try:
-        payload = await request.json()
-        logger.info(f"copilotkit_proxy received payload: {payload}")
-        method = payload.get("method")
-        inner_body = payload.get("body", {})
-
-        # Handle /info requests directly (SDK's endpoint doesn't handle AG-UI protocol format)
-        # Info requests don't require authentication for agent discovery
-        if method == "info":
-            return JSONResponse({
-                "agents": [
-                    {
-                        "id": "rag_agent",
-                        "name": "rag_agent",
-                        "description": "RAG agent for notebook documents",
-                    }
-                ]
-            })
-
-        # All other methods require authentication
-        session_cookie = request.cookies.get("sessionid")
-        if not session_cookie:
-            return JSONResponse(status_code=401, content={"detail": "Authentication required"})
-
-        from django.contrib.sessions.backends.db import SessionStore
-        from asgiref.sync import sync_to_async
-
-        session = SessionStore(session_key=session_cookie)
-
-        @sync_to_async
-        def get_auth_user_id(session_store, cookie):
-            if not session_store.exists(cookie):
-                return None
-            return session_store.get("_auth_user_id")
-
-        user_id = await get_auth_user_id(session, session_cookie)
-        if not user_id:
-            return JSONResponse(status_code=401, content={"detail": "Invalid session"})
-
-
-        # Extract forwardedProps from the body (CopilotKit's protocol)
-        forwarded_props = inner_body.get("forwardedProps", {})
-        
-        # Also check for top-level properties (older protocol)
-        top_level_props = payload.get("properties", {})
-        
-        # Merge both into configurable
-        if forwarded_props or top_level_props:
-            if "configurable" not in inner_body:
-                inner_body["configurable"] = {}
-            
-            # Priority: forwardedProps > top-level properties
-            inner_body["configurable"].update(top_level_props)
-            inner_body["configurable"].update(forwarded_props)
-            
-            logger.info(f"Merged props into configurable: {inner_body['configurable']}")
-
-        # Forward to internal endpoint
-        forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/internal"
-        
-        # Use follow_redirects=True if needed, but here we just stream
-        async with httpx.AsyncClient(timeout=None) as client:
-            # Forward cookies for authentication
-            async with client.stream(
-                "POST",
-                forward_url,
-                json=inner_body,
-                cookies=request.cookies,
-                headers={"Content-Type": "application/json"},
-            ) as forward_resp:
-                
-                async def iter_bytes():
-                    try:
-                        async for chunk in forward_resp.aiter_raw():
-                            yield chunk
-                    except Exception as e:
-                        logger.error(f"Stream error: {e}")
-                
-                # Filter out headers that shouldn't be copied for streaming responses
-                response_headers = dict(forward_resp.headers)
-                # Remove Content-Length as we're streaming and it may not match
-                response_headers.pop('content-length', None)
-                response_headers.pop('Content-Length', None)
-                # Transfer-Encoding is handled by FastAPI/Starlette
-                response_headers.pop('transfer-encoding', None)
-                response_headers.pop('Transfer-Encoding', None)
-                
-                return StreamingResponse(
-                    iter_bytes(),
-                    status_code=forward_resp.status_code,
-                    headers=response_headers,
-                )
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("Failed to forward CopilotKit request: %s", exc)
-        return JSONResponse(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            content={"detail": "Failed to forward CopilotKit request"},
-        )
 
 logger.info("RAG agent server initialized with CopilotKit SDK")
 
