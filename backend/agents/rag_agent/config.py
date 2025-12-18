@@ -55,11 +55,6 @@ class RAGAgentConfig:
     # MCP Server configuration
     mcp_server_url: str = "http://localhost:9382/mcp/"  # RAGFlow MCP server URL
 
-    # History truncation configuration (deprecated - kept for backward compat)
-    # These fields are no longer used in the new LangGraph tool-based architecture
-    keep_first_n_steps: int = 1
-    keep_last_n_steps: int = 4
-
     def __post_init__(self):
         """Validate configuration after initialization."""
         # Validate temperature ranges
@@ -79,12 +74,6 @@ class RAGAgentConfig:
 
         if self.top_k < 1:
             raise ValueError("top_k must be at least 1")
-
-        if self.keep_first_n_steps < 0:
-            raise ValueError("keep_first_n_steps must be non-negative")
-
-        if self.keep_last_n_steps < 0:
-            raise ValueError("keep_last_n_steps must be non-negative")
 
         # Warn if no datasets configured
         if not self.dataset_ids:

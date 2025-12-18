@@ -145,9 +145,6 @@ class DynamicRAGAgent:
         Main entry point for ag-ui-langgraph.
         Returns an async generator of events.
         """
-        logger.info(f"DynamicRAGAgent.run received input_data type: {type(input_data)}")
-        logger.info(f"input_data: {input_data}")
-
         req = current_request.get()
         if req is None:
             raise HTTPException(status_code=500, detail="Request context unavailable")
@@ -181,8 +178,6 @@ class DynamicRAGAgent:
         else:
             configurable = {}
 
-        logger.info(f"Extracted configurable: {configurable}")
-        
         notebook_id = configurable.get("notebook_id")
         if not notebook_id:
             # Try to see if it's in metadata
@@ -193,13 +188,11 @@ class DynamicRAGAgent:
             else:
                 metadata = {}
             notebook_id = metadata.get("notebook_id")
-            logger.info(f"Tried metadata, found notebook_id: {notebook_id}")
 
         if not notebook_id:
             # Last ditch effort: search the whole input_data if it's a dict
             if isinstance(input_data, dict):
                 notebook_id = input_data.get("notebook_id")
-                logger.info(f"Tried top-level, found notebook_id: {notebook_id}")
 
         if not notebook_id:
             logger.error(f"notebook_id still missing in input_data: {input_data}")
@@ -251,8 +244,6 @@ class DynamicRAGAgent:
                 "notebook_id": notebook_id,
                 "user_id": user_id,
             })
-
-        logger.info(f"Running agent with input_data: {input_data}")
 
         # STREAM events from the agent
         async for event in aguiaagent.run(input_data):
@@ -314,7 +305,6 @@ async def copilotkit_adapter(request: Request):
             if "configurable" not in inner_body:
                 inner_body["configurable"] = {}
             inner_body["configurable"].update(forwarded_props)
-            logger.info(f"Merged forwardedProps: {forwarded_props}")
 
         forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/ag-ui"
 
