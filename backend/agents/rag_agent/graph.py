@@ -142,6 +142,8 @@ class DeepSightRAGAgent:
             logger.info(f"Extracted question: {question}")
             return {"question": question, "documents": [], "current_step": "analyzing"}
         
+        # If no question is found, we should not proceed.
+        # Returning empty dict might leave 'question' empty if not initialized.
         return {"question": "", "documents": []}
 
     def check_initialization(self, state: RAGAgentState) -> Literal["retrieve", "end"]:

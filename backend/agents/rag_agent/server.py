@@ -33,7 +33,7 @@ backend_dir = Path(__file__).resolve().parent.parent.parent
 if str(backend_dir) not in sys.path:
     sys.path.insert(0, str(backend_dir))
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings.development")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
 
 import django
 django.setup()

@@ -58,14 +58,7 @@ def create_agent_server(title: str, port: int) -> FastAPI:
         for origin in extra_origins:
             if origin not in allowed_origins:
                 allowed_origins.append(origin)
-        
-        # If we are in development and still getting CORS issues with 10.x.x.x IPs,
-        # we can use allow_origin_regex or just add the specific IP to allowed_origins
-        # via HOST_IP environment variable.
-        print(f"⚠️  CORS: Development mode - Specific origins required for credentials support")
     
-    print(f"✓ CORS: Allowing origins: {allowed_origins}")
-
     # Add CORS middleware with credentials support for session cookies
     app.add_middleware(
         CORSMiddleware,
