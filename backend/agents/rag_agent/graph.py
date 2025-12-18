@@ -6,6 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AI
 from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.prebuilt import ToolNode
 from pydantic import BaseModel, Field
 
 from .config import RAGAgentConfig
