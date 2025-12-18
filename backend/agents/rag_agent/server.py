@@ -325,10 +325,18 @@ async def copilotkit_adapter(request: Request):
             )
 
             # Return the response with proper headers
+            # Filter out headers that might conflict with the new Response or have been handled by httpx
+            headers = dict(forward_resp.headers)
+            keys_to_remove = ["content-length", "transfer-encoding", "content-encoding", "connection"]
+            for key in keys_to_remove:
+                for h in list(headers.keys()):
+                    if h.lower() == key:
+                        del headers[h]
+
             return Response(
                 content=forward_resp.content,
                 status_code=forward_resp.status_code,
-                headers=dict(forward_resp.headers),
+                headers=headers,
             )
 
     except Exception as exc:
