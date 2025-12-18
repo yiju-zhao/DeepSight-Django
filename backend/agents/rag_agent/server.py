@@ -316,28 +316,43 @@ async def copilotkit_adapter(request: Request):
 
         forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/ag-ui"
 
-        async with httpx.AsyncClient(timeout=None) as client:
-            forward_resp = await client.post(
+        # Use a client for streaming
+        client = httpx.AsyncClient(timeout=None)
+        try:
+            req = client.build_request(
+                "POST",
                 forward_url,
-                json=inner_body,  # Send unwrapped body
+                json=inner_body,
                 cookies=request.cookies,
                 headers={"Content-Type": "application/json"},
             )
+            r = await client.send(req, stream=True)
+        except Exception:
+            await client.aclose()
+            raise
 
-            # Return the response with proper headers
-            # Filter out headers that might conflict with the new Response or have been handled by httpx
-            headers = dict(forward_resp.headers)
-            keys_to_remove = ["content-length", "transfer-encoding", "content-encoding", "connection"]
-            for key in keys_to_remove:
-                for h in list(headers.keys()):
-                    if h.lower() == key:
-                        del headers[h]
+        async def stream_response():
+            try:
+                async for chunk in r.aiter_raw():
+                    yield chunk
+            finally:
+                await r.aclose()
+                await client.aclose()
 
-            return Response(
-                content=forward_resp.content,
-                status_code=forward_resp.status_code,
-                headers=headers,
-            )
+        # Return the response with proper headers
+        # Filter out headers that might conflict with the new Response or have been handled by httpx
+        headers = dict(r.headers)
+        keys_to_remove = ["content-length", "transfer-encoding", "content-encoding", "connection"]
+        for key in keys_to_remove:
+            for h in list(headers.keys()):
+                if h.lower() == key:
+                    del headers[h]
+
+        return StreamingResponse(
+            stream_response(),
+            status_code=r.status_code,
+            headers=headers,
+        )
 
     except Exception as exc:
         logger.exception("Adapter error: %s", exc)
