@@ -305,6 +305,7 @@ class DeepSightRAGAgent:
         logger.info("---TRANSFORM QUERY---")
         question = state["question"]
         documents = state["documents"]
+        iteration_count = state.get("iteration_count", 0) + 1
         
         prompt = format_rewrite_question_prompt(question)
         response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
@@ -313,6 +314,7 @@ class DeepSightRAGAgent:
         return {
             "documents": documents, 
             "question": better_question,
+            "iteration_count": iteration_count,
             "current_step": "rewriting",
             "agent_reasoning": f"Rewrote query to: {better_question}"
         }
