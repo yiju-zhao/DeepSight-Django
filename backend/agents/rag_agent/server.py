@@ -290,31 +290,48 @@ async def copilotkit_protocol_adapter(request: Request):
         # Forward to the internal LangGraph endpoint with just the body
         forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/internal"
 
-        async with httpx.AsyncClient(timeout=None) as client:
-            async with client.stream(
-                "POST",
-                forward_url,
-                json=inner_body,
-                cookies=request.cookies,
-                headers={"Content-Type": "application/json"},
-            ) as forward_resp:
+        # Create a persistent client and stream that won't close prematurely
+        client = httpx.AsyncClient(timeout=None)
 
-                async def iter_bytes():
+        try:
+            # Start the streaming request
+            forward_resp = await client.send(
+                client.build_request(
+                    "POST",
+                    forward_url,
+                    json=inner_body,
+                    cookies=request.cookies,
+                    headers={"Content-Type": "application/json"},
+                ),
+                stream=True,
+            )
+
+            # Generator that properly closes resources after streaming completes
+            async def iter_bytes():
+                try:
                     async for chunk in forward_resp.aiter_raw():
                         yield chunk
+                finally:
+                    # Close the response and client after streaming is done
+                    await forward_resp.aclose()
+                    await client.aclose()
 
-                # Copy headers, excluding content-length and transfer-encoding
-                response_headers = dict(forward_resp.headers)
-                response_headers.pop('content-length', None)
-                response_headers.pop('Content-Length', None)
-                response_headers.pop('transfer-encoding', None)
-                response_headers.pop('Transfer-Encoding', None)
+            # Copy headers, excluding content-length and transfer-encoding
+            response_headers = dict(forward_resp.headers)
+            response_headers.pop('content-length', None)
+            response_headers.pop('Content-Length', None)
+            response_headers.pop('transfer-encoding', None)
+            response_headers.pop('Transfer-Encoding', None)
 
-                return StreamingResponse(
-                    iter_bytes(),
-                    status_code=forward_resp.status_code,
-                    headers=response_headers,
-                )
+            return StreamingResponse(
+                iter_bytes(),
+                status_code=forward_resp.status_code,
+                headers=response_headers,
+            )
+        except Exception as e:
+            # Clean up on error
+            await client.aclose()
+            raise e
 
     except Exception as exc:
         logger.exception("Protocol adapter error: %s", exc)
