@@ -230,6 +230,18 @@ async def copilotkit_proxy(request: Request):
         method = payload.get("method")
         inner_body = payload.get("body", {})
 
+        # Handle /info requests directly (SDK's endpoint doesn't handle AG-UI protocol format)
+        if method == "info":
+            return JSONResponse({
+                "agents": [
+                    {
+                        "id": "rag_assistant",
+                        "name": "rag_assistant",
+                        "description": "RAG assistant for notebook documents",
+                    }
+                ]
+            })
+
 
         # Extract forwardedProps from the body (CopilotKit's protocol)
         forwarded_props = inner_body.get("forwardedProps", {})
