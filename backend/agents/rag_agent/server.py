@@ -269,10 +269,19 @@ async def copilotkit_proxy(request: Request):
                     except Exception as e:
                         logger.error(f"Stream error: {e}")
                 
+                # Filter out headers that shouldn't be copied for streaming responses
+                response_headers = dict(forward_resp.headers)
+                # Remove Content-Length as we're streaming and it may not match
+                response_headers.pop('content-length', None)
+                response_headers.pop('Content-Length', None)
+                # Transfer-Encoding is handled by FastAPI/Starlette
+                response_headers.pop('transfer-encoding', None)
+                response_headers.pop('Transfer-Encoding', None)
+                
                 return StreamingResponse(
                     iter_bytes(),
                     status_code=forward_resp.status_code,
-                    headers=dict(forward_resp.headers),
+                    headers=response_headers,
                 )
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to forward CopilotKit request: %s", exc)
