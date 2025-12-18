@@ -127,6 +127,8 @@ class DynamicRAGAgent:
     def __init__(self, agent: DeepSightRAGAgent):
         self.agent = agent
         self.name = "rag_assistant"
+        self.id = "rag_assistant"  # Required for AG-UI protocol /info
+        self.description = "RAG assistant for notebook documents"
 
     async def run(self, input_data: dict[str, Any]):
         """
