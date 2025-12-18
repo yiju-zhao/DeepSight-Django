@@ -1,3 +1,4 @@
+import json
 import logging
 from typing import Literal, cast
 
@@ -120,8 +121,14 @@ class DeepSightRAGAgent:
 
         # Add checkpointer for conversation state management
         memory = MemorySaver()
-        self.graph = workflow.compile(checkpointer=memory)
-        logger.info("RAG agent graph compiled successfully with Self-RAG structure")
+        # Set recursion_limit to prevent infinite loops in Self-RAG workflow
+        # Default is 25, increase to 50 to allow more query refinement iterations
+        # When limit is hit, the graph will stop and return the current state
+        self.graph = workflow.compile(
+            checkpointer=memory,
+            recursion_limit=50
+        )
+        logger.info("RAG agent graph compiled successfully with Self-RAG structure (recursion_limit=50)")
 
     # --- Nodes ---
 
@@ -315,6 +322,9 @@ class DeepSightRAGAgent:
     def decide_to_generate(self, state: RAGAgentState) -> Literal["transform_query", "generate"]:
         """
         Determines whether to generate an answer, or re-generate a question.
+        
+        Checks iteration count to prevent infinite loops - if approaching recursion limit,
+        forces generation even if documents aren't perfect.
 
         Args:
             state (dict): The current graph state
@@ -324,6 +334,12 @@ class DeepSightRAGAgent:
         """
         logger.info("---ASSESS GRADED DOCUMENTS---")
         filtered_documents = state["documents"]
+        iteration_count = state.get("iteration_count", 0)
+
+        # Force generation if approaching recursion limit (45 out of 50)
+        if iteration_count >= 45:
+            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/50), FORCING GENERATION---")
+            return "generate"
 
         if not filtered_documents:
             # All documents have been filtered check_relevance
@@ -338,6 +354,9 @@ class DeepSightRAGAgent:
     async def grade_generation_v_documents_and_question(self, state: RAGAgentState, config: RunnableConfig) -> Literal["not supported", "useful", "not useful"]:
         """
         Determines whether the generation is grounded in the document and answers question.
+        
+        Checks iteration count to prevent infinite loops - if approaching recursion limit,
+        accepts the current generation to produce output.
 
         Args:
             state (dict): The current graph state
@@ -349,6 +368,12 @@ class DeepSightRAGAgent:
         question = state["question"]
         documents = state["documents"]
         generation = state["generation"]
+        iteration_count = state.get("iteration_count", 0)
+        
+        # Force acceptance if approaching recursion limit (45 out of 50)
+        if iteration_count >= 45:
+            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/50), ACCEPTING GENERATION---")
+            return "useful"
         
         context = "\n\n".join(documents)
 

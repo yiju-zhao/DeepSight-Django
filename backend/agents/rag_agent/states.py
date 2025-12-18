@@ -34,7 +34,7 @@ class RAGAgentState(CopilotKitState):
 
     # --- CopilotKit AG-UI protocol fields for UI Rendering ---
     current_step: str | None = None
-    iteration_count: int | None = None
+    iteration_count: int = 0  # Track iterations to handle recursion limit gracefully
     graded_documents: list[dict[str, Any]] | None = None
     query_rewrites: list[str] | None = None
     synthesis_progress: int | None = None
