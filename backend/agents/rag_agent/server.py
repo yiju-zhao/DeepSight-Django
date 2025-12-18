@@ -141,9 +141,35 @@ class DynamicRAGAgent:
             raise HTTPException(status_code=500, detail="Request context unavailable")
 
         # Extract notebook_id
-        configurable = input_data.get("configurable", {}) if isinstance(input_data, dict) else {}
+        if hasattr(input_data, "configurable"):
+            configurable = getattr(input_data, "configurable", {})
+        elif isinstance(input_data, dict):
+            configurable = input_data.get("configurable", {})
+        else:
+            configurable = {}
+
+        logger.info(f"Extracted configurable: {configurable}")
+        
         notebook_id = configurable.get("notebook_id")
         if not notebook_id:
+            # Try to see if it's in metadata
+            if hasattr(input_data, "metadata"):
+                metadata = getattr(input_data, "metadata", {})
+            elif isinstance(input_data, dict):
+                metadata = input_data.get("metadata", {})
+            else:
+                metadata = {}
+            notebook_id = metadata.get("notebook_id")
+            logger.info(f"Tried metadata, found notebook_id: {notebook_id}")
+
+        if not notebook_id:
+            # Last ditch effort: search the whole input_data if it's a dict
+            if isinstance(input_data, dict):
+                notebook_id = input_data.get("notebook_id")
+                logger.info(f"Tried top-level, found notebook_id: {notebook_id}")
+
+        if not notebook_id:
+            logger.error(f"notebook_id still missing in input_data: {input_data}")
             raise HTTPException(status_code=400, detail="notebook_id missing")
 
         user_id = request_user_id = getattr(req.state, "user_id", None)
@@ -198,6 +224,7 @@ async def copilotkit_proxy(request: Request):
     """Proxy to handle AG-UI protocol routing and session forwarding."""
     try:
         payload = await request.json()
+        logger.info(f"copilotkit_proxy received payload: {payload}")
         method = payload.get("method")
         inner_body = payload.get("body", {})
 
