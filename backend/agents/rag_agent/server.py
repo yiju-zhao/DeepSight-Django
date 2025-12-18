@@ -303,13 +303,23 @@ async def copilotkit_adapter(request: Request):
             })
 
         # For all other requests, forward to the AG-UI endpoint
-        # The AG-UI endpoint expects the full request body
+        # Extract the body content - AG-UI expects body directly, not wrapped
+        inner_body = payload.get("body", {})
+
+        # Merge forwardedProps into configurable for LangGraph
+        forwarded_props = inner_body.get("forwardedProps", {})
+        if forwarded_props:
+            if "configurable" not in inner_body:
+                inner_body["configurable"] = {}
+            inner_body["configurable"].update(forwarded_props)
+            logger.info(f"Merged forwardedProps: {forwarded_props}")
+
         forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/ag-ui"
 
         async with httpx.AsyncClient(timeout=None) as client:
             forward_resp = await client.post(
                 forward_url,
-                json=payload,
+                json=inner_body,  # Send unwrapped body
                 cookies=request.cookies,
                 headers={"Content-Type": "application/json"},
             )
