@@ -83,26 +83,10 @@ async def validate_django_session_middleware(request: Request, call_next):
     if request.url.path == "/copilotkit/info":
         return await call_next(request)
 
-    # Allow unauthenticated access to AG-UI protocol /info requests
-    # CopilotKit POSTs to /copilotkit with method: "info" to discover agents
-    if request.url.path == "/copilotkit" and request.method == "POST":
-        try:
-            # Peek at the body to check if it's an info request
-            body = await request.body()
-            import json
-            payload = json.loads(body) if body else {}
-            if payload.get("method") == "info":
-                # Re-create request with the body for downstream handlers
-                from starlette.requests import Request as StarletteRequest
-                scope = request.scope.copy()
-
-                async def receive():
-                    return {"type": "http.request", "body": body}
-
-                new_request = StarletteRequest(scope, receive)
-                return await call_next(new_request)
-        except Exception:
-            pass  # If we can't parse, continue with normal auth flow
+    # For /copilotkit POST, let the handler decide auth based on method
+    # The copilotkit_proxy handler will check for "info" method and skip auth
+    if request.url.path == "/copilotkit":
+        return await call_next(request)
 
     if request.url.path.startswith("/copilotkit"):
         session_cookie = request.cookies.get("sessionid")
@@ -270,6 +254,7 @@ async def copilotkit_proxy(request: Request):
         inner_body = payload.get("body", {})
 
         # Handle /info requests directly (SDK's endpoint doesn't handle AG-UI protocol format)
+        # Info requests don't require authentication for agent discovery
         if method == "info":
             return JSONResponse({
                 "agents": [
@@ -280,6 +265,26 @@ async def copilotkit_proxy(request: Request):
                     }
                 ]
             })
+
+        # All other methods require authentication
+        session_cookie = request.cookies.get("sessionid")
+        if not session_cookie:
+            return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+
+        from django.contrib.sessions.backends.db import SessionStore
+        from asgiref.sync import sync_to_async
+
+        session = SessionStore(session_key=session_cookie)
+
+        @sync_to_async
+        def get_auth_user_id(session_store, cookie):
+            if not session_store.exists(cookie):
+                return None
+            return session_store.get("_auth_user_id")
+
+        user_id = await get_auth_user_id(session, session_cookie)
+        if not user_id:
+            return JSONResponse(status_code=401, content={"detail": "Invalid session"})
 
 
         # Extract forwardedProps from the body (CopilotKit's protocol)
