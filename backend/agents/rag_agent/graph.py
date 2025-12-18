@@ -333,9 +333,9 @@ class DeepSightRAGAgent:
         filtered_documents = state["documents"]
         iteration_count = state.get("iteration_count", 0)
 
-        # Force generation if approaching recursion limit (45 out of 50)
-        if iteration_count >= 45:
-            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/50), FORCING GENERATION---")
+        # Force generation if approaching recursion limit (20 out of 25)
+        if iteration_count >= 20:
+            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/25), FORCING GENERATION---")
             return "generate"
 
         if not filtered_documents:
@@ -367,9 +367,9 @@ class DeepSightRAGAgent:
         generation = state["generation"]
         iteration_count = state.get("iteration_count", 0)
         
-        # Force acceptance if approaching recursion limit (45 out of 50)
-        if iteration_count >= 45:
-            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/50), ACCEPTING GENERATION---")
+        # Force acceptance if approaching recursion limit (20 out of 25)
+        if iteration_count >= 20:
+            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/25), ACCEPTING GENERATION---")
             return "useful"
         
         context = "\n\n".join(documents)
