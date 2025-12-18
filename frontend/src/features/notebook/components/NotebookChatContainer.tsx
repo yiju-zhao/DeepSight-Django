@@ -93,7 +93,8 @@ export function NotebookChatContainer({
 }: NotebookChatContainerProps) {
     // Build runtime URL (Relative path to use Vite Proxy)
     // This goes to http://localhost:5173/copilotkit -> proxies to Port 8101
-    const runtimeUrl = "/copilotkit";
+    // Try /copilotkit/internal to use LangGraph's native AG-UI endpoint
+    const runtimeUrl = "/copilotkit/internal";
 
     // Agent configuration
     const agentName = "rag_agent"; // Must match backend agent name

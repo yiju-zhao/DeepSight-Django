@@ -267,6 +267,20 @@ add_langgraph_fastapi_endpoint(
 )
 
 
+@app.get("/copilotkit")
+async def copilotkit_info_base():
+    """GET endpoint for agent discovery at base path."""
+    return JSONResponse({
+        "agents": [
+            {
+                "id": "rag_agent",
+                "name": "rag_agent",
+                "description": "RAG agent for notebook documents",
+            }
+        ]
+    })
+
+
 @app.get("/copilotkit/info")
 async def copilotkit_info_get():
     """GET endpoint for agent discovery."""
