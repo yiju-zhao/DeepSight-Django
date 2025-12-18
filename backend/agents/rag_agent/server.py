@@ -259,130 +259,13 @@ class DynamicRAGAgent:
             yield event
 
 
-# Add the CopilotKit endpoint at internal path
+# Add the CopilotKit endpoint directly at /copilotkit
+# This creates a native AG-UI endpoint that handles agent discovery automatically
 add_langgraph_fastapi_endpoint(
     app=app,
     agent=DynamicRAGAgent(rag_agent),
-    path="/copilotkit/internal",
+    path="/copilotkit",
 )
-
-
-@app.get("/copilotkit")
-async def copilotkit_info_base():
-    """GET endpoint for agent discovery at base path."""
-    return JSONResponse({
-        "agents": [
-            {
-                "id": "rag_agent",
-                "name": "rag_agent",
-                "description": "RAG agent for notebook documents",
-            }
-        ]
-    })
-
-
-@app.get("/copilotkit/info")
-async def copilotkit_info_get():
-    """GET endpoint for agent discovery."""
-    return JSONResponse({
-        "agents": [
-            {
-                "id": "rag_agent",
-                "name": "rag_agent",
-                "description": "RAG agent for notebook documents",
-            }
-        ]
-    })
-
-
-@app.post("/copilotkit")
-async def copilotkit_protocol_adapter(request: Request):
-    """
-    Adapter to translate CopilotKit's AG-UI protocol to LangGraph's expected format.
-
-    CopilotKit sends: {method: "...", params: {...}, body: {...}}
-    LangGraph expects: {...} (the body content directly)
-    """
-    try:
-        # Parse the AG-UI protocol request
-        payload = await request.json()
-        method = payload.get("method")
-
-        # Handle /info requests for agent discovery (public endpoint)
-        if method == "info":
-            return JSONResponse({
-                "agents": [
-                    {
-                        "id": "rag_agent",
-                        "name": "rag_agent",
-                        "description": "RAG agent for notebook documents",
-                    }
-                ]
-            })
-
-        # For all other methods, extract the body and forward to internal endpoint
-        inner_body = payload.get("body", {})
-
-        # Extract forwardedProps and merge into configurable for notebook_id
-        forwarded_props = inner_body.get("forwardedProps", {})
-        if forwarded_props:
-            if "configurable" not in inner_body:
-                inner_body["configurable"] = {}
-            inner_body["configurable"].update(forwarded_props)
-            logger.info(f"Merged forwardedProps into configurable: {inner_body.get('configurable')}")
-
-        # Forward to the internal LangGraph endpoint with just the body
-        forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/internal"
-
-        # Create a persistent client and stream that won't close prematurely
-        client = httpx.AsyncClient(timeout=None)
-
-        try:
-            # Start the streaming request
-            forward_resp = await client.send(
-                client.build_request(
-                    "POST",
-                    forward_url,
-                    json=inner_body,
-                    cookies=request.cookies,
-                    headers={"Content-Type": "application/json"},
-                ),
-                stream=True,
-            )
-
-            # Generator that properly closes resources after streaming completes
-            async def iter_bytes():
-                try:
-                    async for chunk in forward_resp.aiter_raw():
-                        yield chunk
-                finally:
-                    # Close the response and client after streaming is done
-                    await forward_resp.aclose()
-                    await client.aclose()
-
-            # Copy headers, excluding content-length and transfer-encoding
-            response_headers = dict(forward_resp.headers)
-            response_headers.pop('content-length', None)
-            response_headers.pop('Content-Length', None)
-            response_headers.pop('transfer-encoding', None)
-            response_headers.pop('Transfer-Encoding', None)
-
-            return StreamingResponse(
-                iter_bytes(),
-                status_code=forward_resp.status_code,
-                headers=response_headers,
-            )
-        except Exception as e:
-            # Clean up on error
-            await client.aclose()
-            raise e
-
-    except Exception as exc:
-        logger.exception("Protocol adapter error: %s", exc)
-        return JSONResponse(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            content={"detail": f"Protocol adapter error: {str(exc)}"},
-        )
 
 
 logger.info("RAG agent server initialized with CopilotKit SDK")
