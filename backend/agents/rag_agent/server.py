@@ -79,6 +79,31 @@ async def validate_django_session_middleware(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
+    # Allow unauthenticated access to /info endpoint for CopilotKit runtime sync
+    if request.url.path == "/copilotkit/info":
+        return await call_next(request)
+
+    # Allow unauthenticated access to AG-UI protocol /info requests
+    # CopilotKit POSTs to /copilotkit with method: "info" to discover agents
+    if request.url.path == "/copilotkit" and request.method == "POST":
+        try:
+            # Peek at the body to check if it's an info request
+            body = await request.body()
+            import json
+            payload = json.loads(body) if body else {}
+            if payload.get("method") == "info":
+                # Re-create request with the body for downstream handlers
+                from starlette.requests import Request as StarletteRequest
+                scope = request.scope.copy()
+
+                async def receive():
+                    return {"type": "http.request", "body": body}
+
+                new_request = StarletteRequest(scope, receive)
+                return await call_next(new_request)
+        except Exception:
+            pass  # If we can't parse, continue with normal auth flow
+
     if request.url.path.startswith("/copilotkit"):
         session_cookie = request.cookies.get("sessionid")
 

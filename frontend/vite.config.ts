@@ -265,6 +265,15 @@ export default defineConfig(({ mode }) => {
         target: `http://${env.VITE_RAG_AGENT_HOST || 'localhost'}:${env.VITE_RAG_AGENT_PORT || '8101'}`,
         changeOrigin: true,
         secure: false,
+        ws: true, // Enable WebSocket/SSE proxying
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Forward cookies and credentials
+            if (req.headers.cookie) {
+              proxyReq.setHeader('Cookie', req.headers.cookie);
+            }
+          });
+        },
       },
     },
     cors: true,
