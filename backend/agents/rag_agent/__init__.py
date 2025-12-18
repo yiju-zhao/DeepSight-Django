@@ -29,12 +29,11 @@ Usage:
 from .graph import DeepSightRAGAgent
 from .config import RAGAgentConfig
 from .states import RAGAgentState
-from .tools import create_mcp_retrieval_tools, invoke_mcp_retrieval
+from .tools import create_mcp_retrieval_tools
 
 __all__ = [
     "DeepSightRAGAgent",
     "RAGAgentConfig",
     "RAGAgentState",
     "create_mcp_retrieval_tools",
-    "invoke_mcp_retrieval",
 ]
