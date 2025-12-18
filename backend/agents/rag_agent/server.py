@@ -126,9 +126,9 @@ class DynamicRAGAgent:
     """
     def __init__(self, agent: DeepSightRAGAgent):
         self.agent = agent
-        self.name = "rag_assistant"
-        self.id = "rag_assistant"  # Required for AG-UI protocol /info
-        self.description = "RAG assistant for notebook documents"
+        self.name = "rag_agent"
+        self.id = "rag_agent"  # Required for AG-UI protocol /info
+        self.description = "RAG agent for notebook documents"
 
     async def run(self, input_data: dict[str, Any]):
         """
@@ -227,9 +227,9 @@ async def copilotkit_info():
     return JSONResponse({
         "agents": [
             {
-                "id": "rag_assistant",
-                "name": "rag_assistant",
-                "description": "RAG assistant for notebook documents",
+                "id": "rag_agent",
+                "name": "rag_agent",
+                "description": "RAG agent for notebook documents",
             }
         ]
     })

@@ -96,7 +96,7 @@ export function NotebookChatContainer({
     const runtimeUrl = "/copilotkit";
 
     // Agent configuration
-    const agentName = "rag_assistant"; // Must match backend LangGraphAGUIAgent name
+    const agentName = "rag_agent"; // Must match backend agent name
 
     // Properties passed to backend
     // Backend receives as config["configurable"]["notebook_id"]
