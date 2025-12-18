@@ -21,6 +21,7 @@ from .prompts import (
 from .states import RAGAgentState
 from .tools import create_mcp_retrieval_tools
 from .utils import format_tool_content
+from .context import current_retrieval_tools
 
 logger = logging.getLogger(__name__)
 
@@ -173,9 +174,10 @@ class DeepSightRAGAgent:
         logger.info("---RETRIEVE---")
         question = state["question"]
         
-        # Get tools (dynamic)
-        tools = config.get("configurable", {}).get("retrieval_tools", [])
+        # Get tools from context variable (NOT from config to avoid circular refs)
+        tools = current_retrieval_tools.get()
         if not tools:
+            # Fallback: create tools from config (for standalone usage)
             tools = await create_mcp_retrieval_tools(
                 dataset_ids=self.config.dataset_ids,
                 mcp_server_url=self.config.mcp_server_url

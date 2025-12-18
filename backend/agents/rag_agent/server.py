@@ -49,6 +49,7 @@ from agents.copilotkit_common.utils import get_openai_api_key, get_mcp_server_ur
 from agents.rag_agent.graph import DeepSightRAGAgent
 from agents.rag_agent.config import RAGAgentConfig
 from agents.rag_agent.tools import create_mcp_retrieval_tools
+from agents.rag_agent.context import current_retrieval_tools
 
 logger = logging.getLogger(__name__)
 
@@ -226,6 +227,9 @@ class DynamicRAGAgent:
             mcp_server_url=self.agent.config.mcp_server_url
         )
 
+        # Store tools in context variable (NOT in config to avoid serialization issues)
+        current_retrieval_tools.set(retrieval_tools)
+
         # Wrap in LangGraphAGUIAgent for protocol compliance
         aguiaagent = LangGraphAGUIAgent(
             name=self.name,
@@ -235,14 +239,14 @@ class DynamicRAGAgent:
 
         # Merge the configuration into input_data's configurable
         # LangGraph expects config in input_data, not as a separate parameter
+        # IMPORTANT: Do NOT include retrieval_tools here - they cause circular reference errors
         if isinstance(input_data, dict):
             if "configurable" not in input_data:
                 input_data["configurable"] = {}
 
-            # Merge our config with existing configurable
+            # Merge our config with existing configurable (WITHOUT tools)
             input_data["configurable"].update({
                 **configurable,
-                "retrieval_tools": retrieval_tools,
                 "notebook_id": notebook_id,
                 "user_id": user_id,
             })
@@ -252,14 +256,17 @@ class DynamicRAGAgent:
                 input_data.configurable = {}
             input_data.configurable.update({
                 **configurable,
-                "retrieval_tools": retrieval_tools,
                 "notebook_id": notebook_id,
                 "user_id": user_id,
             })
 
         # STREAM events from the agent
-        async for event in aguiaagent.run(input_data):
-            yield event
+        try:
+            async for event in aguiaagent.run(input_data):
+                yield event
+        finally:
+            # Cleanup context variable
+            current_retrieval_tools.set(None)
 
 
 # Add the LangGraph endpoint at /copilotkit/ag-ui (internal path)
