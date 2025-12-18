@@ -163,7 +163,11 @@ class DeepSightRAGAgent:
 
     async def retrieve(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Retrieve documents
+        Retrieve documents by calling MCP retrieval tool directly.
+        
+        This avoids the circular reference issue that occurs when using bind_tools(),
+        which embeds tool schemas (containing Pydantic models with circular refs) 
+        in the model response that ag_ui_langgraph tries to serialize.
         
         Args:
             state (dict): The current graph state
@@ -185,28 +189,22 @@ class DeepSightRAGAgent:
         
         documents = []
         if tools:
-            # We use the model to formulate the query or pass question directly.
-            # Using bind_tools allows flexibility.
-            model_with_tools = self.response_model.bind_tools(tools)
-            # Invoke model to generate tool call
-            response = await model_with_tools.ainvoke([HumanMessage(content=f"Search for: {question}")], config)
-            
-            # If tool called, execute it using ToolNode to ensure proper event emission
-            if response.tool_calls:
-                tool_node = ToolNode(tools)
-                # ToolNode expects a state with 'messages' where the last message has tool_calls
-                # We create a temporary state with the model's response
-                temp_state = {"messages": [response]}
-                
-                # Invoke ToolNode
-                tool_output = await tool_node.ainvoke(temp_state, config)
-                
-                # Extract content from ToolMessages
-                for msg in tool_output.get("messages", []):
-                    if isinstance(msg, ToolMessage):
-                        # Format output
-                        content = format_tool_content(msg.content)
-                        documents.append(content)
+            # Call the retrieval tool directly instead of bind_tools()
+            # This avoids embedding circular-reference tool schemas in the response
+            for tool in tools:
+                if "retrieval" in tool.name.lower() or "search" in tool.name.lower():
+                    try:
+                        # Invoke the tool directly with the question
+                        result = await tool.ainvoke({"query": question}, config)
+                        # Format and add the result
+                        content = format_tool_content(result)
+                        if content:
+                            documents.append(content)
+                        logger.info(f"Retrieved {len(documents)} documents")
+                        break  # Use the first matching retrieval tool
+                    except Exception as e:
+                        logger.error(f"Error calling retrieval tool: {e}")
+                        # Continue to try other tools or return empty
 
         return {"documents": documents, "question": question, "current_step": "retrieving"}
 
