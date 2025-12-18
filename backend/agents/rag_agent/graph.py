@@ -121,14 +121,9 @@ class DeepSightRAGAgent:
 
         # Add checkpointer for conversation state management
         memory = MemorySaver()
-        # Set recursion_limit to prevent infinite loops in Self-RAG workflow
-        # Default is 25, increase to 50 to allow more query refinement iterations
-        # When limit is hit, the graph will stop and return the current state
-        self.graph = workflow.compile(
-            checkpointer=memory,
-            recursion_limit=50
-        )
-        logger.info("RAG agent graph compiled successfully with Self-RAG structure (recursion_limit=50)")
+        # Note: recursion_limit is set in RunnableConfig when invoking the graph, not here
+        self.graph = workflow.compile(checkpointer=memory)
+        logger.info("RAG agent graph compiled successfully with Self-RAG structure")
 
     # --- Nodes ---
 

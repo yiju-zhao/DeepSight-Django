@@ -250,6 +250,10 @@ class DynamicRAGAgent:
                 "notebook_id": notebook_id,
                 "user_id": user_id,
             })
+            
+            # Set recursion_limit to prevent infinite loops (default is 25, set to 50)
+            if "recursion_limit" not in input_data:
+                input_data["recursion_limit"] = 50
         else:
             # If input_data is an object with configurable attribute
             if not hasattr(input_data, "configurable"):
@@ -259,6 +263,10 @@ class DynamicRAGAgent:
                 "notebook_id": notebook_id,
                 "user_id": user_id,
             })
+            
+            # Set recursion_limit
+            if not hasattr(input_data, "recursion_limit"):
+                input_data.recursion_limit = 50
 
         # STREAM events from the agent
         try:
