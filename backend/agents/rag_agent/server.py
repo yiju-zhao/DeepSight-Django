@@ -228,18 +228,34 @@ class DynamicRAGAgent:
             graph=self.agent.graph,
         )
 
-        # Merge tools into config
-        run_config = {
-            "configurable": {
+        # Merge the configuration into input_data's configurable
+        # LangGraph expects config in input_data, not as a separate parameter
+        if isinstance(input_data, dict):
+            if "configurable" not in input_data:
+                input_data["configurable"] = {}
+
+            # Merge our config with existing configurable
+            input_data["configurable"].update({
                 **configurable,
                 "retrieval_tools": retrieval_tools,
                 "notebook_id": notebook_id,
                 "user_id": user_id,
-            }
-        }
+            })
+        else:
+            # If input_data is an object with configurable attribute
+            if not hasattr(input_data, "configurable"):
+                input_data.configurable = {}
+            input_data.configurable.update({
+                **configurable,
+                "retrieval_tools": retrieval_tools,
+                "notebook_id": notebook_id,
+                "user_id": user_id,
+            })
+
+        logger.info(f"Running agent with input_data: {input_data}")
 
         # STREAM events from the agent
-        async for event in aguiaagent.run(input_data, config=run_config):
+        async for event in aguiaagent.run(input_data):
             yield event
 
 
