@@ -40,7 +40,3 @@ class RAGAgentState(CopilotKitState):
     synthesis_progress: int | None = None
     total_tool_calls: int | None = None
     agent_reasoning: str | None = None
-
-
-# Type alias for backward compatibility
-RAGReActState = RAGAgentState

@@ -181,14 +181,3 @@ def format_rewrite_question_prompt(question: str) -> str:
         Formatted rewrite prompt
     """
     return REWRITE_QUESTION_PROMPT.format(question=question)
-
-
-# ===== Backward Compatibility =====
-# Keep old names as aliases for code that imports them
-REASON_PROMPT = SYSTEM_PROMPT
-RELEVANT_EXTRACTION_PROMPT = GRADE_DOCUMENTS_PROMPT
-BEGIN_SEARCH_QUERY = "<|begin_search_query|>"  # Deprecated
-END_SEARCH_QUERY = "<|end_search_query|>"  # Deprecated
-BEGIN_SEARCH_RESULT = "<|begin_search_result|>"  # Deprecated
-END_SEARCH_RESULT = "<|end_search_result|>"  # Deprecated
-MAX_ITERATIONS = MAX_RETRIEVAL_ATTEMPTS

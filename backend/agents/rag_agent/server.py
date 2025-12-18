@@ -198,6 +198,18 @@ class DynamicRAGAgent:
             logger.error(f"notebook_id still missing in input_data: {input_data}")
             raise HTTPException(status_code=400, detail="notebook_id missing")
 
+        # Check for empty message list (initial connection/warm-up)
+        # If messages are empty, we should not run the graph as it would trigger an empty question flow
+        messages = []
+        if isinstance(input_data, dict):
+            messages = input_data.get("messages", [])
+        elif hasattr(input_data, "messages"):
+            messages = getattr(input_data, "messages", [])
+            
+        if not messages:
+            logger.info("Empty message list received, skipping graph execution")
+            return
+
         # user_id already authenticated above
         # Load notebook configuration asynchronously
         from notebooks.models import Notebook
