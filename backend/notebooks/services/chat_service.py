@@ -718,7 +718,7 @@ class ChatService(NotebookBaseService):
                 api_key = getattr(settings, "OPENAI_API_KEY", "")
 
                 # Initialize ReAct RAG agent components
-                from agents.rag_agent.graph import create_rag_agent
+                from agents.rag_agent.graph import DeepSightRAGAgent
                 from agents.rag_agent.config import RAGAgentConfig
                 from agents.rag_agent.utils import format_tool_content
 
@@ -757,8 +757,9 @@ class ChatService(NotebookBaseService):
                     f"dataset_ids={dataset_ids}, mcp_url={mcp_server_url}, max_iterations=5"
                 )
 
-                # Create agent (async)
-                agent = loop.run_until_complete(create_rag_agent(config))
+                # Create agent and get compiled graph
+                agent_instance = DeepSightRAGAgent(config)
+                agent = agent_instance.graph
 
                 # Load conversation history (for context in first reasoning step)
                 past_messages = SessionChatMessage.objects.filter(session=session).order_by(

@@ -1,27 +1,9 @@
-"""
-LangGraph workflow for RAG agent using MCP (Model Context Protocol).
-
-Implements agentic RAG pattern following LangGraph best practices with MCP integration:
-- Uses MessagesState for standard message handling
-- LLM decides when to use retrieval tool via bind_tools()
-- ToolNode handles automatic tool execution from MCP server
-- tools_condition routes based on tool calls
-- Document grading filters irrelevant results
-- Question rewriting improves failed searches
-
-Flow:
-START → generate_query_or_respond → [tools_condition] → retrieve → grade_documents
-                                          ↓                            ↓
-                                        END          [relevant?] → generate_answer → END
-                                                          ↓
-                                                   rewrite_question → generate_query_or_respond
-"""
-
 import logging
-from typing import Literal
+from typing import Literal, cast
 
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from pydantic import BaseModel, Field
@@ -52,162 +34,157 @@ class GradeDocuments(BaseModel):
     )
 
 
-async def create_rag_agent(config: RAGAgentConfig):
+class DeepSightRAGAgent:
     """
-    Build and compile the RAG agent graph using MCP server following LangGraph best practices.
-
-    The graph structure:
-    ```
-    START → generate_query_or_respond → [tools_condition]
-                 ↓                              ↓
-               END (direct response)        retrieve (ToolNode)
-                                               ↓
-                                        grade_documents
-                                         ↓         ↓
-                              (relevant)          (not relevant)
-                                 ↓                      ↓
-                          generate_answer        rewrite_question
-                                 ↓                      ↓
-                               END         generate_query_or_respond
-    ```
-
-    Args:
-        config: RAGAgentConfig with model and retrieval settings
-
-    Returns:
-        Compiled LangGraph that can be invoked or streamed
-
-    Example:
-        >>> from notebooks.agents.rag_agent import create_rag_agent, RAGAgentConfig
-        >>> config = RAGAgentConfig(
-        ...     model_name="gpt-4o-mini",
-        ...     dataset_ids=["kb1"],
-        ...     mcp_server_url="http://localhost:9382/mcp/"
-        ... )
-        >>> agent = await create_rag_agent(config)
-        >>> result = await agent.ainvoke({
-        ...     "messages": [HumanMessage(content="What is deep learning?")],
-        ...     "question": "What is deep learning?",
-        ...     "retrieved_chunks": [],
-        ... })
+    RAG Agent implementation using a class-based approach following the open-research-ANA scaffold.
+    
+    This allows the graph to be compiled once but remain dynamic via RunnableConfig.
     """
-    logger.info(f"Creating RAG agent with MCP integration, model: {config.model_name}")
-    logger.info(f"MCP server URL: {config.mcp_server_url}")
 
-    # Create MCP retrieval tools
-    retrieval_tools = await create_mcp_retrieval_tools(
-        dataset_ids=config.dataset_ids,
-        mcp_server_url=config.mcp_server_url,
-        document_ids=getattr(config, "document_ids", None),
-    )
+    def __init__(self, config: RAGAgentConfig):
+        self.config = config
+        self._initialize_models()
+        self._build_workflow()
 
-    logger.info(f"Retrieved {len(retrieval_tools)} tools from MCP server")
+    def _initialize_models(self):
+        """Initialize chat models."""
+        self.response_model = init_chat_model(
+            model=f"openai:{self.config.model_name}",
+            api_key=self.config.api_key,
+            temperature=self.config.temperature,
+        )
 
-    # Initialize chat models
-    response_model = init_chat_model(
-        model=f"openai:{config.model_name}",
-        api_key=config.api_key,
-        temperature=config.temperature,
-    )
+        self.grader_model = init_chat_model(
+            model=f"openai:{self.config.model_name}",
+            api_key=self.config.api_key,
+            temperature=self.config.eval_temperature,
+        )
 
-    grader_model = init_chat_model(
-        model=f"openai:{config.model_name}",
-        api_key=config.api_key,
-        temperature=config.eval_temperature,
-    )
+        self.synthesis_model = init_chat_model(
+            model=f"openai:{self.config.model_name}",
+            api_key=self.config.api_key,
+            temperature=self.config.synthesis_temperature,
+        )
 
-    synthesis_model = init_chat_model(
-        model=f"openai:{config.model_name}",
-        api_key=config.api_key,
-        temperature=config.synthesis_temperature,
-    )
+    def _build_workflow(self):
+        """Build the workflow graph with nodes and edges."""
+        workflow = StateGraph(RAGAgentState)
 
-    # ===== Node Definitions =====
+        # Add nodes
+        workflow.add_node("generate_query_or_respond", self.generate_query_or_respond)
+        workflow.add_node("retrieve", self.tool_node)
+        workflow.add_node("rewrite_question", self.rewrite_question)
+        workflow.add_node("generate_answer", self.generate_answer)
+        workflow.add_node("prepare_followup_query", self.prepare_followup_query)
 
-    def generate_query_or_respond(state: RAGAgentState) -> dict:
-        """
-        Call the model to generate a response based on the current state.
+        # Add edges
+        workflow.add_edge(START, "generate_query_or_respond")
 
-        Given the question, it will decide to:
-        - Use the retrieval tool to search the knowledge base
-        - Respond directly if no search is needed
-        """
+        # Route based on tool calls
+        workflow.add_conditional_edges(
+            "generate_query_or_respond",
+            self.route_after_query,
+            {
+                "tools": "retrieve",
+                "__end__": END,
+            },
+        )
+
+        # Grade documents after retrieval
+        workflow.add_conditional_edges(
+            "retrieve",
+            self.grade_documents,
+            {
+                "generate_answer": "generate_answer",
+                "rewrite_question": "rewrite_question",
+                "generate_query_or_respond": "generate_query_or_respond",
+                "prepare_followup_query": "prepare_followup_query",
+            },
+        )
+
+        # After rewrite, go back to generate query
+        workflow.add_edge("rewrite_question", "generate_query_or_respond")
+        # After preparing follow-up, go back to generate query
+        workflow.add_edge("prepare_followup_query", "generate_query_or_respond")
+
+        # After answer, end
+        workflow.add_edge("generate_answer", END)
+
+        self.graph = workflow.compile()
+        logger.info("RAG agent graph compiled successfully")
+
+    async def generate_query_or_respond(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+        """Call the model to generate a response or determine search queries."""
         logger.info("[generate_query_or_respond] Processing messages")
 
-        # Prepare messages with system prompt
-        messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
-
-        # Call LLM with tool binding
-        response = response_model.bind_tools(retrieval_tools).invoke(messages)
-
-        logger.debug(f"[generate_query_or_respond] Response type: {type(response)}")
-
-        if hasattr(response, "tool_calls") and response.tool_calls:
-            logger.info(
-                f"[generate_query_or_respond] Tool calls: {len(response.tool_calls)}"
+        # In a real dynamic scenario, we might want to refresh tools here or use a tool registry
+        # For now, we reuse the tools from initialization if they were pre-created
+        # But wait, we need to handle the case where dataset_ids might change
+        
+        # For DeepSight, we currently create tools per notebook.
+        # However, to compile the graph once, we either need a ToolRegistry or 
+        # to ensure the ToolNode can handle dynamic tools.
+        
+        # Actually, let's keep the tools dynamic by creating them if they don't exist in config or state
+        # Better: we can pass them in config['configurable']
+        
+        tools = config.get("configurable", {}).get("retrieval_tools", [])
+        if not tools:
+            # Fallback if tools aren't passed (shouldn't happen in our new server.py)
+            tools = await create_mcp_retrieval_tools(
+                dataset_ids=self.config.dataset_ids,
+                mcp_server_url=self.config.mcp_server_url
             )
-        else:
-            logger.info("[generate_query_or_respond] Direct response (no tool calls)")
+
+        messages = [SystemMessage(content=SYSTEM_PROMPT)] + state["messages"]
+        model_with_tools = self.response_model.bind_tools(tools)
+        response = await model_with_tools.ainvoke(messages, config)
 
         return {"messages": [response]}
 
-    def grade_documents(
-        state: RAGAgentState,
-    ) -> Literal["generate_answer", "rewrite_question", "generate_query_or_respond", "prepare_followup_query"]:
-        """
-        Determine whether the retrieved documents are relevant and complete for the question.
+    async def tool_node(self, state: RAGAgentState, config: RunnableConfig):
+        """Custom tool node that delegates to LangGraph's ToolNode but with dynamic tools."""
+        tools = config.get("configurable", {}).get("retrieval_tools", [])
+        node = ToolNode(tools)
+        return await node.ainvoke(state, config)
 
-        Returns the name of the next node to route to:
-        - "generate_answer" if documents are relevant
-        - "prepare_followup_query" if relevant but more retrieval is needed
-        - "rewrite_question" if documents are not relevant
-        """
+    async def grade_documents(self, state: RAGAgentState, config: RunnableConfig) -> Literal["generate_answer", "rewrite_question", "generate_query_or_respond", "prepare_followup_query"]:
+        """Grade the documents for relevance and completeness."""
         logger.info("[grade_documents] Grading retrieved documents")
 
         question = state.get("question", "")
         messages = state["messages"]
 
-        # Get latest tool output for grading
         latest_tool_context = ""
         for msg in reversed(messages):
-            if hasattr(msg, "type") and msg.type == "tool":
+            if isinstance(msg, ToolMessage):
                 latest_tool_context = format_tool_content(msg.content).strip()
                 break
 
         if not latest_tool_context or latest_tool_context == "No relevant documents found.":
-            logger.info("[grade_documents] No documents to grade, rewriting question")
             return "rewrite_question"
 
-        # Use structured output for grading
         prompt = format_grade_documents_prompt(question=question, context=latest_tool_context)
 
         try:
-            grader_with_output = grader_model.with_structured_output(GradeDocuments)
-            result = grader_with_output.invoke([{"role": "user", "content": prompt}])
+            grader_with_output = self.grader_model.with_structured_output(GradeDocuments)
+            result = await grader_with_output.ainvoke([{"role": "user", "content": prompt}], config)
             relevance = result.relevance.lower()
             completeness = result.completeness.lower()
 
-            logger.info(
-                f"[grade_documents] Relevance: {relevance}, Completeness: {completeness}"
-            )
-
-            # Avoid infinite loops: if we've already hit max attempts, proceed to answer
-            tool_call_count = sum(
-                1 for msg in messages if hasattr(msg, "type") and msg.type == "tool"
-            )
+            # Logic for max attempts and routing
+            tool_call_count = sum(1 for msg in messages if isinstance(msg, ToolMessage))
             if tool_call_count >= MAX_RETRIEVAL_ATTEMPTS:
-                logger.info(
-                    "[grade_documents] Max retrieval attempts reached, proceeding to answer"
-                )
                 return "generate_answer"
 
             if relevance != "yes":
                 return "rewrite_question"
 
-            # Accumulate only after passing relevance
             retrieved_chunks = state.get("retrieved_chunks", []) or []
             if latest_tool_context not in [c.get("content") for c in retrieved_chunks]:
                 retrieved_chunks = retrieved_chunks + [{"content": latest_tool_context}]
+            
+            # We must return the update
             state["retrieved_chunks"] = retrieved_chunks
 
             if completeness == "needs_more":
@@ -219,86 +196,41 @@ async def create_rag_agent(config: RAGAgentConfig):
             logger.warning(f"[grade_documents] Grading failed: {e}, defaulting to answer")
             return "generate_answer"
 
-    def rewrite_question(state: RAGAgentState) -> dict:
-        """
-        Rewrite the original user question to improve retrieval results.
-
-        Called when retrieved documents are not relevant.
-        """
+    async def rewrite_question(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+        """Rewrite the question for better retrieval."""
         logger.info("[rewrite_question] Rewriting question")
-
         question = state.get("question", "")
-
-        # Check if we've already rewritten too many times
-        rewrite_count = sum(
-            1 for msg in state["messages"]
-            if isinstance(msg, HumanMessage) and msg.content != question
-        )
-
-        if rewrite_count >= MAX_RETRIEVAL_ATTEMPTS:
-            logger.info("[rewrite_question] Max rewrites reached, proceeding to answer")
-            # Return empty to trigger direct answer
-            return {"messages": []}
-
+        
         prompt = format_rewrite_question_prompt(question)
-        response = response_model.invoke([{"role": "user", "content": prompt}])
-
-        logger.info(f"[rewrite_question] Rewritten: {response.content[:100]}...")
-
-        # Add the rewritten question as a new human message
+        response = await self.response_model.ainvoke([{"role": "user", "content": prompt}], config)
+        
         return {"messages": [HumanMessage(content=response.content)]}
 
-    def generate_answer(state: RAGAgentState) -> dict:
-        """
-        Generate the final answer using retrieved context.
-        """
+    async def generate_answer(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+        """Generate the final synthesis."""
         logger.info("[generate_answer] Generating final answer")
-
         question = state.get("question", "")
-        messages = state["messages"]
-
-        # Use accumulated relevant chunks gathered across retrieval passes
+        
         retrieved_chunks = state.get("retrieved_chunks", []) or []
         context_parts = [c.get("content", "") for c in retrieved_chunks if c.get("content")]
         context = "\n\n".join(context_parts) if context_parts else "No context available."
 
-        # Generate answer
         prompt = format_synthesis_prompt(question=question, context=context)
-        response = synthesis_model.invoke([{"role": "user", "content": prompt}])
-
-        logger.info(f"[generate_answer] Generated answer ({len(response.content)} chars)")
+        response = await self.synthesis_model.ainvoke([{"role": "user", "content": prompt}], config)
 
         return {"messages": [response]}
 
-    # ===== Custom tools_condition wrapper =====
+    def route_after_query(self, state: RAGAgentState) -> Literal["tools", "__end__"]:
+        """Determine next node based on tool calls."""
+        return tools_condition(state)
 
-    def route_after_query(state: RAGAgentState) -> Literal["tools", "__end__"]:
-        """
-        Route based on whether the LLM wants to use tools.
-
-        Uses LangGraph's tools_condition internally but allows customization.
-        """
-        result = tools_condition(state)
-        logger.info(f"[route_after_query] Routing to: {result}")
-        return result
-
-    def prepare_followup_query(state: RAGAgentState) -> dict:
-        """
-        Add a hint message to steer the next retrieval toward missing context.
-        """
-        question = state.get("question", "")
-        messages = state["messages"]
-
-        # Use the latest accumulated context as the anchor for continuation
+    async def prepare_followup_query(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+        """Prepare a follow-up hint for the next retrieval round."""
+        logger.info("[prepare_followup_query] Adding follow-up hint")
         latest_context = ""
         retrieved_chunks = state.get("retrieved_chunks", []) or []
         if retrieved_chunks:
             latest_context = retrieved_chunks[-1].get("content", "") or ""
-        else:
-            for msg in reversed(messages):
-                if hasattr(msg, "type") and msg.type == "tool":
-                    latest_context = format_tool_content(msg.content).strip()
-                    break
 
         tail_snippet = latest_context[-500:] if latest_context else ""
         hint = (
@@ -307,76 +239,13 @@ async def create_rag_agent(config: RAGAgentConfig):
             f"{tail_snippet}"
         )
 
-        logger.info("[prepare_followup_query] Adding follow-up hint for retrieval")
+# Define the graph export for direct usage
+# We initialize it with a base configuration as nodes handle dynamic overrides
+# via config['configurable'] at runtime.
+graph = DeepSightRAGAgent(RAGAgentConfig(
+    model_name="gpt-4o-mini",
+    dataset_ids=[],
+    mcp_server_url="http://localhost:9382/mcp/"
+)).graph
 
-        return {"messages": [HumanMessage(content=hint)]}
 
-    def accumulate_context(state: RAGAgentState) -> dict:
-        """
-        Capture the latest retrieval result into accumulated context for synthesis.
-        """
-        messages = state["messages"]
-        retrieved_chunks = state.get("retrieved_chunks", []) or []
-
-        latest_context = ""
-        for msg in reversed(messages):
-            if hasattr(msg, "type") and msg.type == "tool":
-                latest_context = format_tool_content(msg.content).strip()
-                break
-
-        if latest_context and latest_context != "No relevant documents found.":
-            updated_chunks = retrieved_chunks + [{"content": latest_context}]
-            return {"retrieved_chunks": updated_chunks}
-
-        return {}
-
-    # ===== Build Graph =====
-
-    workflow = StateGraph(RAGAgentState)
-
-    # Add nodes
-    workflow.add_node("generate_query_or_respond", generate_query_or_respond)
-    workflow.add_node("retrieve", ToolNode(retrieval_tools))
-    workflow.add_node("rewrite_question", rewrite_question)
-    workflow.add_node("generate_answer", generate_answer)
-    workflow.add_node("prepare_followup_query", prepare_followup_query)
-
-    # Add edges
-    workflow.add_edge(START, "generate_query_or_respond")
-
-    # Route based on tool calls
-    workflow.add_conditional_edges(
-        "generate_query_or_respond",
-        route_after_query,
-        {
-            "tools": "retrieve",
-            "__end__": END,
-        },
-    )
-
-    # Grade documents after retrieval
-    # Grade documents after retrieval
-    workflow.add_conditional_edges(
-        "retrieve",
-        grade_documents,
-        {
-            "generate_answer": "generate_answer",
-            "rewrite_question": "rewrite_question",
-            "generate_query_or_respond": "generate_query_or_respond",
-            "prepare_followup_query": "prepare_followup_query",
-        },
-    )
-
-    # After rewrite, go back to generate query
-    workflow.add_edge("rewrite_question", "generate_query_or_respond")
-    # After preparing follow-up, go back to generate query
-    workflow.add_edge("prepare_followup_query", "generate_query_or_respond")
-
-    # After answer, end
-    workflow.add_edge("generate_answer", END)
-
-    # Compile and return
-    compiled_graph = workflow.compile()
-    logger.info("RAG agent graph compiled successfully")
-
-    return compiled_graph

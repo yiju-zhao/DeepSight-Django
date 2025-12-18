@@ -10,10 +10,10 @@ Includes CopilotKit AG-UI protocol fields for real-time agent state rendering.
 
 from typing import Any
 
-from langgraph.graph import MessagesState
+from copilotkit import CopilotKitState
 
 
-class RAGAgentState(MessagesState):
+class RAGAgentState(CopilotKitState):
     """
     State for the RAG agent using LangGraph MessagesState pattern.
 

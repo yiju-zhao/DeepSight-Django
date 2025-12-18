@@ -46,8 +46,9 @@ from agents.copilotkit_common.base_server import create_agent_server
 from agents.copilotkit_common.utils import get_openai_api_key, get_mcp_server_url
 
 # RAG agent imports
-from agents.rag_agent.graph import create_rag_agent
+from agents.rag_agent.graph import DeepSightRAGAgent
 from agents.rag_agent.config import RAGAgentConfig
+from agents.rag_agent.tools import create_mcp_retrieval_tools
 
 logger = logging.getLogger(__name__)
 
@@ -57,97 +58,33 @@ RAG_AGENT_PORT = int(os.getenv("RAG_AGENT_PORT", "8101"))
 # Create FastAPI application with CORS and health check
 app = create_agent_server("RAG Agent Service", RAG_AGENT_PORT)
 
-# Track the current request for dynamic agent creation inside the AG-UI endpoint
+# Track the current request for dynamic context
 current_request: ContextVar[Request | None] = ContextVar("current_request", default=None)
 
+# Initialize the base configuration (we'll override specific values per request)
+# We don't have the API key yet, we'll get it from the utility
+base_config = RAGAgentConfig(
+    model_name=os.getenv("RAG_AGENT_MODEL", "gpt-4o-mini"),
+    api_key=get_openai_api_key(),
+    dataset_ids=[], # Initial empty, will be set per request
+    mcp_server_url=get_mcp_server_url(),
+)
 
-async def create_notebook_rag_graph(notebook_id: Any, user_id: Any):
-    """
-    Create a notebook-specific RAG agent graph.
-
-    This function:
-    1. Validates notebook access for the user
-    2. Loads notebook configuration (dataset IDs)
-    3. Creates and returns a RAG graph for that notebook
-
-    Args:
-        notebook_id: Notebook primary key (UUID or int)
-        user_id: Authenticated user ID (UUID or int)
-
-    Returns:
-        Compiled LangGraph for the notebook
-
-    Raises:
-        HTTPException: If notebook not found or access denied
-    """
-    from notebooks.models import Notebook
-
-    try:
-        # Load notebook with access validation
-        notebook = await Notebook.objects.select_related("user").aget(
-            id=notebook_id,
-            user_id=user_id,
-        )
-    except Notebook.DoesNotExist:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notebook not found or access denied",
-        )
-
-    # Build dataset IDs from notebook
-    dataset_ids = []
-    if notebook.ragflow_dataset_id:
-        dataset_ids = [notebook.ragflow_dataset_id]
-
-    if not dataset_ids:
-        logger.warning(f"Notebook {notebook_id} has no datasets configured")
-
-    # Create agent configuration
-    config = RAGAgentConfig(
-        model_name=os.getenv("RAG_AGENT_MODEL", "gpt-4o-mini"),
-        api_key=get_openai_api_key(),
-        dataset_ids=dataset_ids,
-        mcp_server_url=get_mcp_server_url(),
-        max_iterations=5,
-        temperature=0.7,
-        eval_temperature=0.1,
-        synthesis_temperature=0.3,
-    )
-
-    # Create and return RAG graph
-    graph = await create_rag_agent(config)
-    logger.info(f"Created RAG graph for notebook {notebook_id}")
-
-    return graph
+# Initialize the agent once
+rag_agent = DeepSightRAGAgent(base_config)
 
 
 async def validate_django_session_middleware(request: Request, call_next):
-    """
-    Middleware to validate Django session for CopilotKit requests.
-
-    Validates session cookies for all /copilotkit/* endpoints and injects
-    user_id into request.state for downstream use.
-    """
-    # Skip validation for OPTIONS requests (CORS preflight)
+    """Middleware to validate Django session and inject user_id."""
     if request.method == "OPTIONS":
         return await call_next(request)
 
     if request.url.path.startswith("/copilotkit"):
-        # Debug: Log all cookies and headers
-        logger.info(f"Request cookies: {request.cookies.keys()}")
-        logger.info(f"Session cookie present: {'sessionid' in request.cookies}")
-        
-        # Extract session cookie
         session_cookie = request.cookies.get("sessionid")
 
         if not session_cookie:
-            logger.warning("Authentication failed: No session cookie found")
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Authentication required"},
-            )
+            return JSONResponse(status_code=401, content={"detail": "Authentication required"})
 
-        # Validate session with Django
         from django.contrib.sessions.backends.db import SessionStore
         from django.contrib.auth import get_user_model
         from asgiref.sync import sync_to_async
@@ -156,151 +93,126 @@ async def validate_django_session_middleware(request: Request, call_next):
         session = SessionStore(session_key=session_cookie)
 
         @sync_to_async
-        def check_session_and_get_user(session_store, cookie):
+        def get_auth_user_id(session_store, cookie):
             if not session_store.exists(cookie):
-                return False, None
-            return True, session_store.get("_auth_user_id")
+                return None
+            return session_store.get("_auth_user_id")
 
-        is_valid, user_id = await check_session_and_get_user(session, session_cookie)
-
-        if not is_valid:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Invalid or expired session"},
-            )
+        user_id = await get_auth_user_id(session, session_cookie)
 
         if not user_id:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "User not authenticated"},
-            )
+            return JSONResponse(status_code=401, content={"detail": "Invalid session"})
 
-        # Verify user exists and is active
         try:
             user = await User.objects.aget(pk=user_id, is_active=True)
-            # Store user_id in request state for graph factory
             request.state.user_id = user.pk
         except User.DoesNotExist:
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "User not found or inactive"},
-            )
+            return JSONResponse(status_code=401, content={"detail": "User not active"})
 
-        # Store request in context var so downstream agent creation can access it
+        # Pass request context
         current_request.set(request)
 
     response = await call_next(request)
-
-    # Clear context var after request completes
     current_request.set(None)
     return response
 
 
-# Middleware: validate session for all CopilotKit routes
 app.middleware("http")(validate_django_session_middleware)
 
 
 class DynamicRAGAgent:
     """
-    Wrapper that creates a LangGraphAGUIAgent per request using context vars.
-
-    ag-ui-langgraph expects an object with a `run` method. We build the agent
-    on-demand so we can inject notebook_id and user_id from the current request.
+    Adapter for ag-ui-langgraph that handles per-request setup.
     """
+    def __init__(self, agent: DeepSightRAGAgent):
+        self.agent = agent
+        self.name = "rag_assistant"
 
     async def run(self, input_data: dict[str, Any]):
+        """
+        Main entry point for ag-ui-langgraph.
+        Returns an async generator of events.
+        """
         req = current_request.get()
         if req is None:
             raise HTTPException(status_code=500, detail="Request context unavailable")
 
-        # Extract notebook_id from configurable
+        # Extract notebook_id
         configurable = input_data.get("configurable", {}) if isinstance(input_data, dict) else {}
         notebook_id = configurable.get("notebook_id")
         if not notebook_id:
-            raise HTTPException(
-                status_code=400,
-                detail="notebook_id is required in configuration",
-            )
+            raise HTTPException(status_code=400, detail="notebook_id missing")
 
-        user_id = getattr(req.state, "user_id", None)
-        if not user_id:
-            raise HTTPException(
-                status_code=401,
-                detail="User authentication failed",
-            )
+        user_id = request_user_id = getattr(req.state, "user_id", None)
+        
+        # Load notebook configuration asynchronously
+        from notebooks.models import Notebook
+        try:
+            notebook = await Notebook.objects.aget(id=notebook_id, user_id=user_id)
+        except Notebook.DoesNotExist:
+            raise HTTPException(status_code=404, detail="Notebook not found")
 
-        logger.info(f"Creating agent for notebook {notebook_id}, user {user_id}")
-
-        graph = await create_notebook_rag_graph(
-            notebook_id=notebook_id,
-            user_id=user_id,
+        dataset_ids = [notebook.ragflow_dataset_id] if notebook.ragflow_dataset_id else []
+        
+        # Create tools for this specific request
+        retrieval_tools = await create_mcp_retrieval_tools(
+            dataset_ids=dataset_ids,
+            mcp_server_url=self.agent.config.mcp_server_url
         )
 
-        agent = LangGraphAGUIAgent(
-            name="rag_assistant",
-            description=(
-                f"Research assistant for notebook {notebook_id} that can query and synthesize "
-                "information from your documents"
-            ),
-            graph=graph,
+        # Wrap in LangGraphAGUIAgent for protocol compliance
+        aguiaagent = LangGraphAGUIAgent(
+            name=self.name,
+            description=f"RAG assistant for notebook {notebook_id}",
+            graph=self.agent.graph,
         )
 
-        # Delegate to the underlying agent's runner
-        return agent.run(input_data)
+        # Merge tools into config
+        run_config = {
+            "configurable": {
+                **configurable,
+                "retrieval_tools": retrieval_tools,
+                "notebook_id": notebook_id,
+                "user_id": user_id,
+            }
+        }
+
+        # STREAM events from the agent
+        async for event in aguiaagent.run(input_data, config=run_config):
+            yield event
 
 
-
-# Add the CopilotKit endpoint using official SDK
-# This replaces the manual AG-UI protocol implementation
-rag_agent_instance = DynamicRAGAgent()
-logger.info(f"DEBUG: Initializing endpoint with agent type: {type(rag_agent_instance)}")
-logger.info(f"DEBUG: Agent has run method: {hasattr(rag_agent_instance, 'run')}")
-
+# Add the CopilotKit endpoint using corrected wrapper
 add_langgraph_fastapi_endpoint(
     app=app,
-    agent=rag_agent_instance,  # Object with .run, builds per-request agent
+    agent=DynamicRAGAgent(rag_agent),
     path="/copilotkit/internal",
 )
 
 
 @app.post("/copilotkit")
 async def copilotkit_proxy(request: Request):
-    """
-    Accept CopilotKit JSON-RPC envelope and forward the inner body to the internal AG-UI path.
-
-    This mirrors the CopilotKit Runtime behavior from the example, but keeps the agent hosted
-    on FastAPI instead of LangGraph Platform.
-    """
+    """Proxy to handle AG-UI protocol routing and session forwarding."""
     try:
         payload = await request.json()
-    except Exception:
-        return JSONResponse(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            content={"detail": "Invalid JSON payload"},
-        )
+        method = payload.get("method")
+        inner_body = payload.get("body", {})
 
-    method = payload.get("method")
-    inner_body = payload.get("body", {})
-    if not isinstance(inner_body, dict):
-        inner_body = {}
+        if method == "info":
+            return JSONResponse({
+                "agents": [{
+                    "id": "rag_assistant",
+                    "name": "rag_assistant",
+                    "description": "Notebook RAG assistant",
+                }]
+            })
 
-    # Handle runtime info probe directly
-    if method == "info":
-        return JSONResponse(
-            {
-                "agents": [
-                    {
-                        "id": "rag_assistant",
-                        "name": "rag_assistant",
-                        "description": "Notebook RAG assistant",
-                    }
-                ]
-            }
-        )
-
-    forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/internal"
-    try:
+        # Forward to internal endpoint
+        forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/internal"
+        
+        # Use follow_redirects=True if needed, but here we just stream
         async with httpx.AsyncClient(timeout=None) as client:
+            # Forward cookies for authentication
             async with client.stream(
                 "POST",
                 forward_url,
@@ -308,20 +220,18 @@ async def copilotkit_proxy(request: Request):
                 cookies=request.cookies,
                 headers={"Content-Type": "application/json"},
             ) as forward_resp:
-                headers = {
-                    "Content-Type": forward_resp.headers.get(
-                        "Content-Type", "application/json"
-                    )
-                }
-
+                
                 async def iter_bytes():
-                    async for chunk in forward_resp.aiter_raw():
-                        yield chunk
-
+                    try:
+                        async for chunk in forward_resp.aiter_raw():
+                            yield chunk
+                    except Exception as e:
+                        logger.error(f"Stream error: {e}")
+                
                 return StreamingResponse(
                     iter_bytes(),
                     status_code=forward_resp.status_code,
-                    headers=headers,
+                    headers=dict(forward_resp.headers),
                 )
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to forward CopilotKit request: %s", exc)
