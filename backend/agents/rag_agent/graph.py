@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from .config import RAGAgentConfig
 from .prompts import (
-    SYSTEM_PROMPT,
+
     format_synthesis_prompt,
     format_grade_documents_prompt,
     format_grade_completeness_prompt,

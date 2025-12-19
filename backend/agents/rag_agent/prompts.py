@@ -73,7 +73,7 @@ Give a binary score 'yes' or 'no' to indicate whether the document is relevant t
 
 # ===== GRADE_COMPLETENESS_PROMPT =====
 # Used to evaluate if the entire collection of documents is sufficient
-GRADE_COMPLETENESS_PROMPT = """You are an expert evaluator assessing whether a collection of retrieved documents is SUFFICIENT to answer a specific user question.
+GRADE_COMPLETENESS_PROMPT = """You are an expert evaluator assessing whether a collection of retrieved documents forms a complete and coherent narrative.
 
 **Original Question:** {question}
 
@@ -81,13 +81,16 @@ GRADE_COMPLETENESS_PROMPT = """You are an expert evaluator assessing whether a c
 {context}
 
 **Your Task:**
-1. Analyze the original question and identify all its components.
-2. Review the retrieved documents to see if they provide enough facts to answer ALL parts of the question.
-3. Determine if the information is "Complete" or if something is "Missing".
+1. Identify the core narrative or key information present in the retrieved documents.
+2. Evaluate if this information forms a COMPLETE STORY (narrative integrity).
+   - Does the story have a logical beginning, middle, and end (or sufficient depth)?
+   - Are there glaring logical gaps where the text references something important that is not explained?
+   - Content is "Complete" if it tells a coherent story about the topic, even if it doesn't cover every minor detail of the user's question.
+3. Determine if the information is "Complete" or if something is "Missing" based on the NARRATIVE INTEGRITY of the chunks.
 
 **Output Requirements:**
-- If the documents are sufficient to provide a high-quality answer, mark as complete.
-- If there are gaps, identify EXACTLY what information is missing to help a search agent find it.
+- If the documents tell a coherent story, mark as complete.
+- If the narrative is fractured, cut off, or lacks essential context to be understood, identify EXACTLY what missing piece is needed to complete the story.
 
 Provide your evaluation as a structured decision."""
 
