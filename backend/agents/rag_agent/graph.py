@@ -17,6 +17,7 @@ from .prompts import (
     format_grade_completeness_prompt,
     format_rewrite_irrelevant_prompt,
     format_rewrite_incomplete_prompt,
+    format_rewrite_continuation_prompt,
     HALLUCINATION_GRADER_PROMPT,
     ANSWER_GRADER_PROMPT,
 )
@@ -92,6 +93,7 @@ class DeepSightRAGAgent:
         workflow.add_node("generate", self.generate)
         workflow.add_node("rewrite_irrelevant", self.rewrite_irrelevant)
         workflow.add_node("rewrite_incomplete", self.rewrite_incomplete)
+        workflow.add_node("rewrite_continuation", self.rewrite_continuation)
 
         # Build graph
         workflow.add_edge(START, "initialize_request")
@@ -122,12 +124,14 @@ class DeepSightRAGAgent:
             self.decide_after_completeness,
             {
                 "rewrite_incomplete": "rewrite_incomplete",
+                "rewrite_continuation": "rewrite_continuation",
                 "generate": "generate",
             },
         )
         
         workflow.add_edge("rewrite_irrelevant", "retrieve")
         workflow.add_edge("rewrite_incomplete", "retrieve")
+        workflow.add_edge("rewrite_continuation", "retrieve")
         
         workflow.add_conditional_edges(
             "generate",
@@ -348,9 +352,9 @@ class DeepSightRAGAgent:
 
     async def rewrite_incomplete(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Target missing info when research is incomplete.
+        Target missing topic info when research is incomplete (MISSING_TOPIC case).
         """
-        logger.info("---REWRITE INCOMPLETE---")
+        logger.info("---REWRITE INCOMPLETE (MISSING TOPIC)---")
         original_question = state["original_question"]
         documents = state["documents"]
         search_advice = state.get("search_advice", "Look for missing details.")
@@ -370,8 +374,43 @@ class DeepSightRAGAgent:
         return {
             "question": better_question,
             "iteration_count": iteration_count,
+            "continuation_mode": False,
             "current_step": "rewriting_incomplete",
             "agent_reasoning": f"Research incomplete. Targeting: {better_question}"
+        }
+
+    async def rewrite_continuation(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+        """
+        Find chunk continuation when content is TRUNCATED.
+        Uses phrases from the END of truncated content to find adjacent chunks.
+        """
+        logger.info("---REWRITE CONTINUATION (TRUNCATED)---")
+        original_question = state["original_question"]
+        documents = state["documents"]
+        iteration_count = state.get("iteration_count", 0) + 1
+        
+        # Get the last ~500 chars of the most recent document (likely truncated)
+        if documents:
+            last_doc = documents[-1]
+            last_portion = last_doc[-500:] if len(last_doc) > 500 else last_doc
+        else:
+            last_portion = ""
+        
+        prompt = format_rewrite_continuation_prompt(
+            question=original_question, 
+            last_portion=last_portion
+        )
+        response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
+        continuation_query = response.content
+        
+        logger.info(f"---CONTINUATION QUERY: {continuation_query}---")
+        
+        return {
+            "question": continuation_query,
+            "iteration_count": iteration_count,
+            "continuation_mode": True,
+            "current_step": "rewriting_continuation",
+            "agent_reasoning": f"Content truncated. Searching for continuation: {continuation_query}"
         }
 
     # --- Edges ---
@@ -396,13 +435,15 @@ class DeepSightRAGAgent:
         logger.info("---DECISION: RELEVANT DOCS FOUND, CHECK COMPLETENESS---")
         return "grade_completeness"
 
-    def decide_after_completeness(self, state: RAGAgentState) -> Literal["rewrite_incomplete", "generate"]:
+    def decide_after_completeness(self, state: RAGAgentState) -> Literal["rewrite_incomplete", "rewrite_continuation", "generate"]:
         """
         Routes based on whether the collection is complete.
+        Differentiates between missing topics and truncated content.
         """
         logger.info("---DECIDE AFTER COMPLETENESS---")
         iteration_count = state.get("iteration_count", 0)
         is_complete = state.get("is_complete", False)
+        search_advice = state.get("search_advice", "")
 
         # Force generation if approaching recursion limit
         if iteration_count >= self.config.max_iterations:
@@ -413,8 +454,13 @@ class DeepSightRAGAgent:
             logger.info("---DECISION: COMPLETE, GENERATE---")
             return "generate"
         else:
-            logger.info("---DECISION: INCOMPLETE, REWRITE INCOMPLETE---")
-            return "rewrite_incomplete"
+            # Check if truncated or missing topic based on search_advice prefix
+            if search_advice and search_advice.startswith("[TRUNCATED]"):
+                logger.info("---DECISION: TRUNCATED CONTENT, REWRITE CONTINUATION---")
+                return "rewrite_continuation"
+            else:
+                logger.info("---DECISION: MISSING TOPIC, REWRITE INCOMPLETE---")
+                return "rewrite_incomplete"
 
     async def grade_generation_v_documents_and_question(self, state: RAGAgentState, config: RunnableConfig) -> Literal["not supported", "useful", "not useful"]:
         """

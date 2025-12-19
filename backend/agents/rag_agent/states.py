@@ -36,7 +36,8 @@ class RAGAgentState(CopilotKitState):
     new_documents: List[str] = [] # Newly retrieved documents to be graded separately
     search_advice: str | None = None # Advice for the query rewriter if incomplete
     is_complete: bool = False  # Track if retrieval is sufficient
-    missing_info: str | None = Field(description="Description of what information is still missing if not complete")
+    continuation_mode: bool = False  # Track if searching for chunk continuation vs new topic
+    missing_info: str | None = Field(default=None, description="Description of what information is still missing if not complete")
 
     # --- CopilotKit AG-UI protocol fields for UI Rendering ---
     current_step: str | None = None

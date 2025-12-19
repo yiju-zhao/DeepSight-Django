@@ -48,14 +48,19 @@ GRADE_COMPLETENESS_PROMPT = """You are an expert evaluator assessing whether a c
 2. Evaluate if this information forms a COMPLETE STORY (narrative integrity).
    - Does the story have a logical beginning, middle, and end (or sufficient depth)?
    - Are there glaring logical gaps where the text references something important that is not explained?
-   - Content is "Complete" if it tells a coherent story about the topic, even if it doesn't cover every minor detail of the user's question.
-3. Determine if the information is "Complete" or if something is "Missing" based on the NARRATIVE INTEGRITY of the chunks.
+   - Content is "Complete" if it tells a coherent story about the topic.
+3. **CRITICAL: Check for TRUNCATION indicators**:
+   - Does any chunk end mid-sentence or mid-thought?
+   - Are there phrases like "continued...", "...", or cut-off statements?
+   - Is a speaker/person's statement clearly incomplete?
 
 **Output Requirements:**
 - If the documents tell a coherent story, mark as complete.
-- If the narrative is fractured, cut off, or lacks essential context to be understood:
-  - Identify EXACTLY what missing piece is needed.
-  - Provide specific SEARCH ADVICE (keywords, concepts) to help find this missing info.
+- If incomplete, determine the TYPE of incompleteness:
+  - **MISSING_TOPIC**: A different concept/topic is needed (e.g., need background on a term).
+  - **TRUNCATED_CONTINUATION**: The existing content is cut off and needs its continuation.
+- In your `search_advice`, ALWAYS start with either `[MISSING_TOPIC]` or `[TRUNCATED]` prefix.
+- For TRUNCATED: Extract a unique phrase from near the END of the truncated chunk to search for adjacent content.
 
 Provide your evaluation as a structured decision."""
 
@@ -77,9 +82,9 @@ Return ONLY the query and nothing else."""
 
 
 # ===== REWRITE_INCOMPLETE_PROMPT =====
-# Used when some info was found but specific gaps remain.
+# Used when some info was found but specific gaps remain (MISSING_TOPIC case).
 # Focus: Find connected/follow-up information based on specific advice.
-REWRITE_INCOMPLETE_PROMPT = """You are a research specialist. You have found some relevant information, but the narrative is incomplete.
+REWRITE_INCOMPLETE_PROMPT = """You are a research specialist. You have found some relevant information, but the narrative is incomplete because a related TOPIC is missing.
 
 **Original Question:** {question}
 
@@ -90,8 +95,27 @@ REWRITE_INCOMPLETE_PROMPT = """You are a research specialist. You have found som
 
 **Your Task:**
 1. Analyze the search advice and the current findings.
-2. Generate ONE targeted search query (2-5 words, keyword-focused) that specifically addresses the missing information identified in the advice.
+2. Generate ONE targeted search query (2-5 words, keyword-focused) that specifically addresses the missing TOPIC identified in the advice.
 3. Ensure the new query is distinct from what would likely have returned the current findings.
+
+Return ONLY the query and nothing else."""
+
+
+# ===== REWRITE_CONTINUATION_PROMPT =====
+# Used when content is TRUNCATED and we need to find the next chunk.
+# Focus: Use phrases from the END of the current chunk to find adjacent content.
+REWRITE_CONTINUATION_PROMPT = """You are a content continuation specialist. The retrieved content appears to be TRUNCATED mid-speech or mid-thought. You need to find the NEXT CHUNK that continues this content.
+
+**Original Question:** {question}
+
+**Truncated Content (last portion):**
+{last_portion}
+
+**Your Task:**
+1. Identify unique phrases or key terms from the END of the truncated content.
+2. Generate ONE search query (2-5 words) that would match the BEGINNING of the next chunk.
+3. AVOID using proper nouns (like person names) that might be in the original question but NOT in the continuation.
+4. Focus on: topic-specific verbs, technical terms, or unique phrases that would appear in both chunks.
 
 Return ONLY the query and nothing else."""
 
@@ -200,7 +224,7 @@ def format_rewrite_irrelevant_prompt(question: str) -> str:
 
 def format_rewrite_incomplete_prompt(question: str, current_context: str, search_advice: str) -> str:
     """
-    Format prompt for targeting missing information.
+    Format prompt for targeting missing topic information.
     
     Args:
         question: Original user question
@@ -211,4 +235,18 @@ def format_rewrite_incomplete_prompt(question: str, current_context: str, search
         question=question,
         current_context=current_context,
         search_advice=search_advice
+    )
+
+
+def format_rewrite_continuation_prompt(question: str, last_portion: str) -> str:
+    """
+    Format prompt for finding chunk continuations.
+    
+    Args:
+        question: Original user question
+        last_portion: The last ~500 chars of the truncated chunk
+    """
+    return REWRITE_CONTINUATION_PROMPT.format(
+        question=question,
+        last_portion=last_portion
     )
