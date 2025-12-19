@@ -11,7 +11,7 @@ from typing import Any, Sequence
 import tiktoken
 from langchain_core.messages import BaseMessage, SystemMessage
 
-from .prompts import MAX_RETRIEVAL_ATTEMPTS
+
 
 logger = logging.getLogger(__name__)
 
