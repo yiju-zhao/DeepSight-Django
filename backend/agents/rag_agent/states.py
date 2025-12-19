@@ -29,9 +29,10 @@ class RAGAgentState(CopilotKitState):
     """
 
     # --- Core GraphState Attributes ---
-    question: str
+    question: str = ""
     original_question: str | None = None  # Preserve the user's initial question
-    generation: str
+    generation: str = ""
+    documents: List[str] = [] # List of all relevant document contents
     new_documents: List[str] = [] # Newly retrieved documents to be graded separately
     search_advice: str | None = None # Advice for the query rewriter if incomplete
     is_complete: bool = False  # Track if retrieval is sufficient
