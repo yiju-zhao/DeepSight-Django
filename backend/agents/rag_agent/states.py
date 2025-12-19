@@ -11,6 +11,7 @@ Inherits from CopilotKitState for frontend compatibility (messages support).
 
 from typing import Any, List, Optional
 
+from pydantic import Field
 from copilotkit import CopilotKitState
 
 
