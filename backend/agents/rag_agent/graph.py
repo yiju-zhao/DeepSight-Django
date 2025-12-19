@@ -41,6 +41,7 @@ class GradeHallucinations(BaseModel):
 
 class GradeCompleteness(BaseModel):
     """Assess if the retrieved documents are sufficient to answer the original question."""
+    new_docs_contribute: bool = Field(description="Whether newly retrieved documents contribute to completing the story (True if no new docs)")
     is_complete: bool = Field(description="The collective documents are sufficient to answer the original question")
     missing_info: str | None = Field(description="Description of what information is still missing if not complete")
     search_advice: str | None = Field(description="Specific advice on what to search for next if incomplete")
@@ -108,7 +109,14 @@ class DeepSightRAGAgent:
             }
         )
 
-        workflow.add_edge("retrieve", "grade_relevance")
+        workflow.add_conditional_edges(
+            "retrieve",
+            self.decide_after_retrieve,
+            {
+                "grade_relevance": "grade_relevance",
+                "grade_completeness": "grade_completeness",
+            },
+        )
         
         workflow.add_conditional_edges(
             "grade_relevance",
@@ -270,29 +278,47 @@ class DeepSightRAGAgent:
         logger.info(f"---FILTERED {len(relevant_new_docs)}/{len(new_documents)} RELEVANT NEW DOCS---")
 
         return {
-            "documents": existing_documents + relevant_new_docs, # Accumulate relevant docs
-            "new_documents": [], # Clear new docs buffer
+            "new_documents": relevant_new_docs, # Store but don't accumulate yet
             "graded_documents": graded_docs_meta,
             "current_step": "grading_relevance"
         }
 
     async def grade_completeness(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Check if the current collection is sufficient for the original question.
+        Check if the current collection is sufficient and if new docs contribute.
         """
         logger.info("---CHECKING COMPLETENESS---")
         original_question = state["original_question"]
-        documents = state["documents"]
+        existing_documents = state.get("documents", [])
+        new_documents = state.get("new_documents", [])
         
-        context = "\n\n".join(documents)
+        # Prepare contexts for evaluation
+        existing_context = "\n\n".join(existing_documents) if existing_documents else "[No existing documents]"
+        new_context = "\n\n".join(new_documents) if new_documents else "[No new documents]"
+        
         completeness_grader = self.grader_model.with_structured_output(GradeCompleteness)
         
-        prompt = format_grade_completeness_prompt(question=original_question, context=context)
+        prompt = format_grade_completeness_prompt(
+            question=original_question, 
+            existing_context=existing_context,
+            new_context=new_context
+        )
         score = await completeness_grader.ainvoke([HumanMessage(content=prompt)], config)
         
-        logger.info(f"---COMPLETENESS: {score.is_complete}---")
+        # Decision: append new docs only if they contribute
+        if new_documents and score.new_docs_contribute:
+            logger.info(f"---NEW DOCS CONTRIBUTE: Appending {len(new_documents)} docs---")
+            updated_documents = existing_documents + new_documents
+        else:
+            if new_documents:
+                logger.info(f"---NEW DOCS DO NOT CONTRIBUTE: Discarding {len(new_documents)} docs---")
+            updated_documents = existing_documents
+        
+        logger.info(f"---COMPLETENESS: {score.is_complete}, Total docs: {len(updated_documents)}---")
         
         return {
+            "documents": updated_documents,
+            "new_documents": [], # Clear buffer after processing
             "is_complete": score.is_complete,
             "search_advice": score.search_advice,
             "agent_reasoning": f"Research incomplete. Advice: {score.search_advice}" if not score.is_complete else "Research complete.",
@@ -414,6 +440,24 @@ class DeepSightRAGAgent:
         }
 
     # --- Edges ---
+
+    def decide_after_retrieve(self, state: RAGAgentState) -> Literal["grade_relevance", "grade_completeness"]:
+        """
+        Routes after retrieval:
+        - First time (no existing docs): grade for relevance
+        - Subsequent times: directly check completeness (contribution-based)
+        """
+        logger.info("---DECIDE AFTER RETRIEVE---")
+        existing_documents = state.get("documents", [])
+        
+        if not existing_documents:
+            # First retrieval: check relevance
+            logger.info("---DECISION: FIRST RETRIEVAL, GRADE RELEVANCE---")
+            return "grade_relevance"
+        else:
+            # Have existing docs: skip relevance, directly evaluate contribution
+            logger.info("---DECISION: SUBSEQUENT RETRIEVAL, GRADE COMPLETENESS (CONTRIBUTION)---")
+            return "grade_completeness"
 
     def decide_after_relevance(self, state: RAGAgentState) -> Literal["rewrite_irrelevant", "grade_completeness"]:
         """

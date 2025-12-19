@@ -40,29 +40,37 @@ GRADE_COMPLETENESS_PROMPT = """You are an expert evaluator assessing whether a c
 
 **Original Question:** {question}
 
-**Retrieved Documents:**
-{context}
+**Existing Documents:**
+{existing_context}
+
+**Newly Retrieved Documents:**
+{new_context}
 
 **Your Task:**
-1. Identify the core narrative or key information present in the retrieved documents.
-2. Evaluate if this information forms a COMPLETE STORY (narrative integrity).
-   - Does the story have a logical beginning, middle, and end (or sufficient depth)?
-   - Are there glaring logical gaps where the text references something important that is not explained?
-   - Content is "Complete" if it tells a coherent story about the topic.
+1. **FIRST**: If there are newly retrieved documents, evaluate if they CONTRIBUTE to completing the story:
+   - Do they add NEW information that advances the narrative?
+   - Do they fill gaps in the existing documents?
+   - Do they provide continuation of truncated content?
+   - OR: Are they redundant/irrelevant to completing the story?
+
+2. **SECOND**: Assuming we KEEP the contributing new documents, evaluate if the COMBINED collection forms a COMPLETE STORY:
+   - Does it have logical coherence (beginning, middle, end or sufficient depth)?
+   - Are there glaring gaps where the text references something not explained?
+
 3. **CRITICAL: Check for TRUNCATION indicators**:
    - Does any chunk end mid-sentence or mid-thought?
    - Are there phrases like "continued...", "...", or cut-off statements?
-   - Is a speaker/person's statement clearly incomplete?
 
 **Output Requirements:**
-- If the documents tell a coherent story, mark as complete.
-- If incomplete, determine the TYPE of incompleteness:
-  - **MISSING_TOPIC**: A different concept/topic is needed (e.g., need background on a term).
-  - **TRUNCATED_CONTINUATION**: The existing content is cut off and needs its continuation.
-- In your `search_advice`, ALWAYS start with either `[MISSING_TOPIC]` or `[TRUNCATED]` prefix.
-- For TRUNCATED: Extract a unique phrase from near the END of the truncated chunk to search for adjacent content.
+- `new_docs_contribute`: (bool) Do new docs add value? (Always True if no new docs)
+- `is_complete`: (bool) Is the overall story complete?
+- If incomplete, determine TYPE:
+  - **MISSING_TOPIC**: Need different concept/topic
+  - **TRUNCATED_CONTINUATION**: Content is cut off
+- In `search_advice`, start with `[MISSING_TOPIC]` or `[TRUNCATED]` prefix.
+- For TRUNCATED: Extract unique phrase from END of truncated chunk.
 
-Provide your evaluation as a structured decision."""
+Provide structured evaluation."""
 
 
 # ===== REWRITE_IRRELEVANT_PROMPT =====
@@ -200,20 +208,22 @@ def format_grade_documents_prompt(question: str, context: str) -> str:
     )
 
 
-def format_grade_completeness_prompt(question: str, context: str) -> str:
+def format_grade_completeness_prompt(question: str, existing_context: str, new_context: str) -> str:
     """
-    Format completeness grading prompt.
+    Format completeness grading prompt with separate existing and new contexts.
 
     Args:
         question: Original user question
-        context: All retrieved document contents
+        existing_context: Previously accumulated document contents
+        new_context: Newly retrieved document contents
 
     Returns:
         Formatted completeness prompt
     """
     return GRADE_COMPLETENESS_PROMPT.format(
         question=question,
-        context=context
+        existing_context=existing_context,
+        new_context=new_context
     )
 
 
