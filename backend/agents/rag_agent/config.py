@@ -35,7 +35,8 @@ class RAGAgentConfig:
     """
 
     # Model configuration
-    model_name: str = "gpt-5"  # Using GPT-5 (latest model)
+    model_name: str = "gpt-5.2"  # Large model for result synthesis
+    nano_model_name: str = "gpt-5-nano"  # Small model for grading/query generation
     api_key: str | None = None
 
     # Temperature settings for different phases
@@ -44,7 +45,7 @@ class RAGAgentConfig:
     synthesis_temperature: float = 0.3  # Final answer (balance)
 
     # ReAct loop configuration
-    max_iterations: int = 5
+    max_iterations: int = 10
 
     # Retrieval configuration (improved thresholds)
     dataset_ids: list[str] = field(default_factory=list)

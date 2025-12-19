@@ -65,7 +65,8 @@ current_request: ContextVar[Request | None] = ContextVar("current_request", defa
 # Initialize the base configuration (we'll override specific values per request)
 # We don't have the API key yet, we'll get it from the utility
 base_config = RAGAgentConfig(
-    model_name=os.getenv("RAG_AGENT_MODEL", "gpt-4o-mini"),
+    model_name=os.getenv("RAG_AGENT_MODEL", "gpt-5.2"),
+    nano_model_name=os.getenv("RAG_AGENT_NANO_MODEL", "gpt-5-nano"),
     api_key=get_openai_api_key(),
     dataset_ids=[], # Initial empty, will be set per request
     mcp_server_url=get_mcp_server_url(),

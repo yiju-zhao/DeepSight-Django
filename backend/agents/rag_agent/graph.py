@@ -61,14 +61,15 @@ class DeepSightRAGAgent:
 
     def _initialize_models(self):
         """Initialize chat models."""
+        logger.info(f"Initializing models - Nano: {self.config.nano_model_name}, Full: {self.config.model_name}")
         self.response_model = init_chat_model(
-            model=f"openai:{self.config.model_name}",
+            model=f"openai:{self.config.nano_model_name}",
             api_key=self.config.api_key,
             temperature=self.config.temperature,
         )
 
         self.grader_model = init_chat_model(
-            model=f"openai:{self.config.model_name}",
+            model=f"openai:{self.config.nano_model_name}",
             api_key=self.config.api_key,
             temperature=self.config.eval_temperature,
         )
@@ -372,8 +373,8 @@ class DeepSightRAGAgent:
         iteration_count = state.get("iteration_count", 0)
         
         # Force progression if approaching recursion limit
-        if iteration_count >= 20:
-            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/25), FORCING PROGRESSION TO COMPLETENESS CHECK---")
+        if iteration_count >= self.config.max_iterations:
+            logger.warning(f"---ITERATION LIMIT REACHED ({iteration_count}/{self.config.max_iterations}), FORCING PROGRESSION TO COMPLETENESS CHECK---")
             return "grade_completeness"
         
         if not state["documents"]:
@@ -392,8 +393,8 @@ class DeepSightRAGAgent:
         is_complete = state.get("is_complete", False)
 
         # Force generation if approaching recursion limit
-        if iteration_count >= 20:
-            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/25), FORCING GENERATION---")
+        if iteration_count >= self.config.max_iterations:
+            logger.warning(f"---ITERATION LIMIT REACHED ({iteration_count}/{self.config.max_iterations}), FORCING GENERATION---")
             return "generate"
 
         if is_complete:
@@ -422,9 +423,9 @@ class DeepSightRAGAgent:
         generation = state["generation"]
         iteration_count = state.get("iteration_count", 0)
         
-        # Force acceptance if approaching recursion limit (20 out of 25)
-        if iteration_count >= 20:
-            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/25), ACCEPTING GENERATION---")
+        # Force acceptance if approaching recursion limit
+        if iteration_count >= self.config.max_iterations:
+            logger.warning(f"---ITERATION LIMIT REACHED ({iteration_count}/{self.config.max_iterations}), ACCEPTING GENERATION---")
             return "useful"
         
         context = "\n\n".join(documents)
