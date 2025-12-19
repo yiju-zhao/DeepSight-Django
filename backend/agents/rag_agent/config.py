@@ -45,7 +45,7 @@ class RAGAgentConfig:
     synthesis_temperature: float = 0.3  # Final answer (balance)
 
     # ReAct loop configuration
-    max_iterations: int = 10
+    max_iterations: int = 3
 
     # Retrieval configuration (improved thresholds)
     dataset_ids: list[str] = field(default_factory=list)
