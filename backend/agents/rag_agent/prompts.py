@@ -110,17 +110,17 @@ Return ONLY the query and nothing else."""
 
 # ===== REWRITE_INCOMPLETE_PROMPT =====
 # Used when some info was found but specific gaps remain.
-# Focus: Target exactly what is missing based on current context.
-REWRITE_INCOMPLETE_PROMPT = """You are a research specialist. You have found some information, but it is not yet enough to fully answer the question.
+# Focus: Find connected/follow-up information to build a coherent answer.
+REWRITE_INCOMPLETE_PROMPT = """You are a research specialist. You have found some relevant information, but you need to expand on it to provide a complete and professional answer.
 
 **Original Question:** {question}
 
-**What we already know:**
+**Current Findings:**
 {current_context}
 
 **Your Task:**
-Identify exactly what information is missing to answer the original question.
-Generate ONE specific search query (keyword-focused, 2-5 words) that targets ONLY the missing pieces.
+1. Analyze the current findings and identify what is missing or what naturally follows to provide a comprehensive answer.
+2. Generate ONE targeted search query (2-5 words, keyword-focused) that searches for information CONNECTED to or FOLLOWING from the current findings.
 
 Return ONLY the query and nothing else."""
 
