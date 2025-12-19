@@ -369,6 +369,13 @@ class DeepSightRAGAgent:
         Routes based on whether any relevant documents were found.
         """
         logger.info("---DECIDE AFTER RELEVANCE---")
+        iteration_count = state.get("iteration_count", 0)
+        
+        # Force progression if approaching recursion limit
+        if iteration_count >= 20:
+            logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/25), FORCING PROGRESSION TO COMPLETENESS CHECK---")
+            return "grade_completeness"
+        
         if not state["documents"]:
             logger.info("---DECISION: NO RELEVANT DOCS, REWRITE IRRELEVANT---")
             return "rewrite_irrelevant"
