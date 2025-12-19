@@ -197,7 +197,7 @@ class DeepSightRAGAgent:
                 if "retrieval" in tool.name.lower() or "search" in tool.name.lower():
                     try:
                         # Invoke the tool directly with the question
-                        result = await tool.ainvoke({"query": question}, config)
+                        result = await tool.ainvoke({"question": question}, config)
                         # Format and add the result
                         content = format_tool_content(result)
                         if content:
