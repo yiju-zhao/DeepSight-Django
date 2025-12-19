@@ -15,6 +15,7 @@ from .prompts import (
     SYSTEM_PROMPT,
     format_synthesis_prompt,
     format_grade_documents_prompt,
+    format_grade_completeness_prompt,
     format_rewrite_question_prompt,
     HALLUCINATION_GRADER_PROMPT,
     ANSWER_GRADER_PROMPT,
@@ -36,6 +37,11 @@ class GradeDocuments(BaseModel):
 class GradeHallucinations(BaseModel):
     """Assess whether the generation is grounded in the documents."""
     binary_score: str = Field(description="Answer is grounded in the facts, 'yes' or 'no'")
+
+class GradeCompleteness(BaseModel):
+    """Assess if the retrieved documents are sufficient to answer the original question."""
+    is_complete: bool = Field(description="The collective documents are sufficient to answer the original question")
+    missing_info: str | None = Field(description="Description of what information is still missing if not complete")
 
 class GradeAnswer(BaseModel):
     """Assess whether the answer addresses the question."""
@@ -148,8 +154,11 @@ class DeepSightRAGAgent:
             # Reset state for new turn
             return {
                 "question": question, 
+                "original_question": question, # Preserve the starting intent
                 "documents": [], 
                 "generation": "",
+                "is_complete": False,
+                "iteration_count": 0,
                 "current_step": "analyzing"
             }
         
@@ -166,19 +175,10 @@ class DeepSightRAGAgent:
     async def retrieve(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
         Retrieve documents by calling MCP retrieval tool directly.
-        
-        This avoids the circular reference issue that occurs when using bind_tools(),
-        which embeds tool schemas (containing Pydantic models with circular refs) 
-        in the model response that ag_ui_langgraph tries to serialize.
-        
-        Args:
-            state (dict): The current graph state
-
-        Returns:
-            state (dict): New key added to state, documents, that contains retrieved documents
         """
         logger.info("---RETRIEVE---")
         question = state["question"]
+        current_docs = state.get("documents", [])
         
         # Get tools from context variable (NOT from config to avoid circular refs)
         tools = current_retrieval_tools.get()
@@ -189,73 +189,74 @@ class DeepSightRAGAgent:
                 mcp_server_url=self.config.mcp_server_url
             )
         
-        documents = []
+        new_documents = []
         if tools:
             # Call the retrieval tool directly instead of bind_tools()
-            # This avoids embedding circular-reference tool schemas in the response
             for tool in tools:
                 if "retrieval" in tool.name.lower() or "search" in tool.name.lower():
                     try:
                         # Invoke the tool directly with the question
-                        # We pass callbacks=[] to avoid emitting tool events that 
-                        # ag_ui_langgraph might try to process incorrectly (AttributeError: 'list' object has no attribute 'tool_call_id')
                         result = await tool.ainvoke({"question": question}, {**config, "callbacks": []})
                         # Format and add the result
                         content = format_tool_content(result)
                         if content:
-                            documents.append(content)
-                        logger.info(f"Retrieved {len(documents)} documents")
+                            new_documents.append(content)
+                        logger.info(f"Retrieved {len(new_documents)} new documents")
                         break  # Use the first matching retrieval tool
                     except Exception as e:
                         logger.error(f"Error calling retrieval tool: {e}")
-                        # Continue to try other tools or return empty
 
-        return {"documents": documents, "question": question, "current_step": "retrieving"}
+        # Deduplicate and accumulate
+        seen = set(current_docs)
+        combined_docs = list(current_docs)
+        for doc in new_documents:
+            if doc not in seen:
+                combined_docs.append(doc)
+                seen.add(doc)
+
+        return {
+            "documents": combined_docs, 
+            "question": question, 
+            "current_step": "retrieving"
+        }
 
     async def grade_documents(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Determines whether the retrieved documents are relevant to the question.
-
-        Args:
-            state (dict): The current graph state
-
-        Returns:
-            state (dict): Updates documents key with only filtered relevant documents
+        Check document relevance and collection completeness.
         """
-        logger.info("---CHECK DOCUMENT RELEVANCE---")
-        question = state["question"]
+        logger.info("---CHECKING RELEVANCE AND COMPLETENESS---")
+        original_question = state["original_question"]
         documents = state["documents"]
         
-        # Score each doc
-        filtered_docs = []
-        structured_grader = self.grader_model.with_structured_output(GradeDocuments)
-        
-        graded_docs_meta = [] # For UI
-
+        # 1. Relevance Score (Optional: Could filter here, but we'll focus on completeness)
+        # We'll just grade for UI feedback
+        graded_docs_meta = []
         for d in documents:
-            prompt = format_grade_documents_prompt(question=question, context=d)
-            score = await structured_grader.ainvoke([HumanMessage(content=prompt)], config)
-            grade = score.binary_score
-            
-            is_relevant = grade.lower() == "yes"
             graded_docs_meta.append({
                 "content": d[:100] + "...",
-                "score": 1 if is_relevant else 0,
-                "relevant": is_relevant,
-                "reason": "Graded by LLM"
+                "relevant": True, # For now, keep all retrieved
+                "reason": "Retrieved from source"
             })
 
-            if is_relevant:
-                logger.info("---GRADE: DOCUMENT RELEVANT---")
-                filtered_docs.append(d)
-            else:
-                logger.info("---GRADE: DOCUMENT NOT RELEVANT---")
-                continue
-                
+        # 2. Check Completeness
+        context = "\n\n".join(documents)
+        completeness_grader = self.grader_model.with_structured_output(GradeCompleteness)
+        
+        prompt = format_grade_completeness_prompt(question=original_question, context=context)
+        score = await completeness_grader.ainvoke([HumanMessage(content=prompt)], config)
+        
+        is_complete = score.is_complete
+        missing_info = score.missing_info
+        
+        logger.info(f"---COMPLETENESS: {is_complete}---")
+        if not is_complete:
+            logger.info(f"---MISSING INFO: {missing_info}---")
+
         return {
-            "documents": filtered_docs, 
-            "question": question, 
+            "documents": documents, 
             "graded_documents": graded_docs_meta,
+            "is_complete": is_complete,
+            "agent_reasoning": f"Checks completeness: {is_complete}. " + (f"Missing: {missing_info}" if missing_info else "Ready to generate."),
             "current_step": "grading"
         }
 
@@ -291,29 +292,27 @@ class DeepSightRAGAgent:
 
     async def transform_query(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Transform the query to produce a better question.
-
-        Args:
-            state (dict): The current graph state
-
-        Returns:
-            state (dict): Updates question key with a re-phrased question
+        Target missing information using a context-aware rewrite.
         """
         logger.info("---TRANSFORM QUERY---")
-        question = state["question"]
+        original_question = state["original_question"]
         documents = state["documents"]
         iteration_count = state.get("iteration_count", 0) + 1
         
-        prompt = format_rewrite_question_prompt(question)
+        # Provide what we already know to the rewriter
+        current_context = "\n\n".join([d[:200] + "..." for d in documents]) if documents else "Nothing yet."
+        
+        prompt = format_rewrite_question_prompt(question=original_question, current_context=current_context)
         response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
         better_question = response.content
         
+        logger.info(f"---BETTER QUESTION: {better_question}---")
+        
         return {
-            "documents": documents, 
             "question": better_question,
             "iteration_count": iteration_count,
             "current_step": "rewriting",
-            "agent_reasoning": f"Rewrote query to: {better_question}"
+            "agent_reasoning": f"Searching for missing info: {better_question}"
         }
 
     # --- Edges ---
@@ -322,33 +321,23 @@ class DeepSightRAGAgent:
         """
         Determines whether to generate an answer, or re-generate a question.
         
-        Checks iteration count to prevent infinite loops - if approaching recursion limit,
-        forces generation even if documents aren't perfect.
-
-        Args:
-            state (dict): The current graph state
-
-        Returns:
-            str: Binary decision for next node to call
+        Checks iteration count and completeness flag to decide next step.
         """
-        logger.info("---ASSESS GRADED DOCUMENTS---")
-        filtered_documents = state["documents"]
+        logger.info("---ASSESSING NEXT STEP---")
         iteration_count = state.get("iteration_count", 0)
+        is_complete = state.get("is_complete", False)
 
         # Force generation if approaching recursion limit (20 out of 25)
         if iteration_count >= 20:
             logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/25), FORCING GENERATION---")
             return "generate"
 
-        if not filtered_documents:
-            # All documents have been filtered check_relevance
-            # We will re-generate a new query
-            logger.info("---DECISION: ALL DOCUMENTS ARE NOT RELEVANT, TRANSFORM QUERY---")
-            return "transform_query"
-        else:
-            # We have relevant documents, so generate answer
-            logger.info("---DECISION: GENERATE---")
+        if is_complete:
+            logger.info("---DECISION: COMPLETE, GENERATE---")
             return "generate"
+        else:
+            logger.info("---DECISION: INCOMPLETE, TRANSFORM QUERY---")
+            return "transform_query"
 
     async def grade_generation_v_documents_and_question(self, state: RAGAgentState, config: RunnableConfig) -> Literal["not supported", "useful", "not useful"]:
         """

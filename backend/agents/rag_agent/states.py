@@ -29,8 +29,10 @@ class RAGAgentState(CopilotKitState):
 
     # --- Core GraphState Attributes ---
     question: str
+    original_question: str | None = None  # Preserve the user's initial question
     generation: str
     documents: List[str]
+    is_complete: bool = False  # Track if retrieval is sufficient
 
     # --- CopilotKit AG-UI protocol fields for UI Rendering ---
     current_step: str | None = None

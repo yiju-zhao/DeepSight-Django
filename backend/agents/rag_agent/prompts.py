@@ -71,23 +71,44 @@ If the document contains ANY of the following, mark as relevant:
 Give a binary score 'yes' or 'no' to indicate whether the document is relevant to the question."""
 
 
+# ===== GRADE_COMPLETENESS_PROMPT =====
+# Used to evaluate if the entire collection of documents is sufficient
+GRADE_COMPLETENESS_PROMPT = """You are an expert evaluator assessing whether a collection of retrieved documents is SUFFICIENT to answer a specific user question.
+
+**Original Question:** {question}
+
+**Retrieved Documents:**
+{context}
+
+**Your Task:**
+1. Analyze the original question and identify all its components.
+2. Review the retrieved documents to see if they provide enough facts to answer ALL parts of the question.
+3. Determine if the information is "Complete" or if something is "Missing".
+
+**Output Requirements:**
+- If the documents are sufficient to provide a high-quality answer, mark as complete.
+- If there are gaps, identify EXACTLY what information is missing to help a search agent find it.
+
+Provide your evaluation as a structured decision."""
+
+
 # ===== REWRITE_QUESTION_PROMPT =====
 # Used to improve a question when initial retrieval returns irrelevant results
-# Based on Self-RAG: optimized for vectorstore retrieval
-REWRITE_QUESTION_PROMPT = """You are a question re-writer that converts an input question to a better version optimized for vectorstore retrieval.
+# Modified for accumulated retrieval: targets missing information
+REWRITE_QUESTION_PROMPT = """You are a search query optimizer. Your goal is to generate a search query that will find the MISSING information needed to answer a user's original question.
 
-Here is the initial question:
-{question}
+**Original Question:** {question}
 
-Look at the input and reason about the underlying SEMANTIC INTENT / MEANING.
+**What we already know:**
+{current_context}
 
-The previous search did not return relevant results. Generate an improved search query by:
-1. Extracting the core semantic intent
-2. Using different keywords or synonyms
-3. Making the query more specific OR more general (depending on the original)
-4. Keeping it SHORT (2-5 words, keyword-focused)
+**Reasoning:**
+Analyze what parts of the original question are still unanswered based on what we already know.
 
-Return ONLY the improved search query, nothing else."""
+**Your Goal:**
+Generate one improved search query (2-5 words, keyword-focused) specifically targeting the MISSING information. 
+
+Return ONLY the query and nothing else."""
 
 
 # ===== HALLUCINATION_GRADER_PROMPT =====
@@ -170,14 +191,35 @@ def format_grade_documents_prompt(question: str, context: str) -> str:
     )
 
 
-def format_rewrite_question_prompt(question: str) -> str:
+def format_grade_completeness_prompt(question: str, context: str) -> str:
+    """
+    Format completeness grading prompt.
+
+    Args:
+        question: Original user question
+        context: All retrieved document contents
+
+    Returns:
+        Formatted completeness prompt
+    """
+    return GRADE_COMPLETENESS_PROMPT.format(
+        question=question,
+        context=context
+    )
+
+
+def format_rewrite_question_prompt(question: str, current_context: str = "Nothing yet.") -> str:
     """
     Format question rewriting prompt.
 
     Args:
         question: Original question that needs improvement
+        current_context: Summary of what we already found
 
     Returns:
         Formatted rewrite prompt
     """
-    return REWRITE_QUESTION_PROMPT.format(question=question)
+    return REWRITE_QUESTION_PROMPT.format(
+        question=question,
+        current_context=current_context
+    )
