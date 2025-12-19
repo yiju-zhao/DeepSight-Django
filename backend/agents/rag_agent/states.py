@@ -31,8 +31,10 @@ class RAGAgentState(CopilotKitState):
     question: str
     original_question: str | None = None  # Preserve the user's initial question
     generation: str
-    documents: List[str]
+    new_documents: List[str] = [] # Newly retrieved documents to be graded separately
+    search_advice: str | None = None # Advice for the query rewriter if incomplete
     is_complete: bool = False  # Track if retrieval is sufficient
+    missing_info: str | None = Field(description="Description of what information is still missing if not complete")
 
     # --- CopilotKit AG-UI protocol fields for UI Rendering ---
     current_step: str | None = None
@@ -44,5 +46,4 @@ class RAGAgentState(CopilotKitState):
     agent_reasoning: str | None = None
 
 
-# Type alias for backward compatibility
-RAGReActState = RAGAgentState
+

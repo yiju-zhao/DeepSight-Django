@@ -90,7 +90,9 @@ GRADE_COMPLETENESS_PROMPT = """You are an expert evaluator assessing whether a c
 
 **Output Requirements:**
 - If the documents tell a coherent story, mark as complete.
-- If the narrative is fractured, cut off, or lacks essential context to be understood, identify EXACTLY what missing piece is needed to complete the story.
+- If the narrative is fractured, cut off, or lacks essential context to be understood:
+  - Identify EXACTLY what missing piece is needed.
+  - Provide specific SEARCH ADVICE (keywords, concepts) to help find this missing info.
 
 Provide your evaluation as a structured decision."""
 
@@ -113,99 +115,25 @@ Return ONLY the query and nothing else."""
 
 # ===== REWRITE_INCOMPLETE_PROMPT =====
 # Used when some info was found but specific gaps remain.
-# Focus: Find connected/follow-up information to build a coherent answer.
-REWRITE_INCOMPLETE_PROMPT = """You are a research specialist. You have found some relevant information, but you need to expand on it to provide a complete and professional answer.
+# Focus: Find connected/follow-up information based on specific advice.
+REWRITE_INCOMPLETE_PROMPT = """You are a research specialist. You have found some relevant information, but the narrative is incomplete.
 
 **Original Question:** {question}
+
+**Search Advice:** {search_advice}
 
 **Current Findings:**
 {current_context}
 
 **Your Task:**
-1. Analyze the current findings and identify what is missing or what naturally follows to provide a comprehensive answer.
-2. Generate ONE targeted search query (2-5 words, keyword-focused) that searches for information CONNECTED to or FOLLOWING from the current findings.
+1. Analyze the search advice and the current findings.
+2. Generate ONE targeted search query (2-5 words, keyword-focused) that specifically addresses the missing information identified in the advice.
+3. Ensure the new query is distinct from what would likely have returned the current findings.
 
 Return ONLY the query and nothing else."""
 
 
-# ===== HALLUCINATION_GRADER_PROMPT =====
-# Used to check if generation is grounded in retrieved documents
-HALLUCINATION_GRADER_PROMPT = """You are a grader assessing whether an LLM generation is grounded in / supported by a set of retrieved facts.
-
-Set of facts:
-{documents}
-
-LLM generation:
-{generation}
-
-Give a binary score 'yes' or 'no'. 'Yes' means the answer IS grounded in / supported by the set of facts."""
-
-
-# ===== ANSWER_GRADER_PROMPT =====
-# Used to check if the answer addresses the question
-ANSWER_GRADER_PROMPT = """You are a grader assessing whether an answer addresses / resolves a question.
-
-User question:
-{question}
-
-LLM generation:
-{generation}
-
-Give a binary score 'yes' or 'no'. 'Yes' means the answer resolves the question."""
-
-
-# ===== SYNTHESIS_PROMPT =====
-# Used to generate the final answer from retrieved context
-SYNTHESIS_PROMPT = """You are an assistant for question-answering tasks.
-
-Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
-
-**Question:** {question}
-
-**Context:** {context}
-
-**Guidelines:**
-- Be concise but comprehensive
-- Cite specific documents when making claims (use [Document Name] format)
-- Preserve important details (numbers, names, technical terms)
-- Acknowledge if information is incomplete
-- Use markdown formatting for readability
-
-Now provide the final answer."""
-
-
-def format_synthesis_prompt(question: str, context: str) -> str:
-    """
-    Format synthesis prompt with question and retrieved context.
-
-    Args:
-        question: Original user question
-        context: Retrieved document content
-
-    Returns:
-        Formatted synthesis prompt
-    """
-    return SYNTHESIS_PROMPT.format(
-        question=question,
-        context=context
-    )
-
-
-def format_grade_documents_prompt(question: str, context: str) -> str:
-    """
-    Format document grading prompt.
-
-    Args:
-        question: User question
-        context: Retrieved document content
-
-    Returns:
-        Formatted grading prompt
-    """
-    return GRADE_DOCUMENTS_PROMPT.format(
-        question=question,
-        context=context
-    )
+# ... (skipping unchanged parts) ...
 
 
 def format_grade_completeness_prompt(question: str, context: str) -> str:
@@ -230,9 +158,17 @@ def format_rewrite_irrelevant_prompt(question: str) -> str:
     return REWRITE_IRRELEVANT_PROMPT.format(question=question)
 
 
-def format_rewrite_incomplete_prompt(question: str, current_context: str) -> str:
-    """Format prompt for targeting missing information."""
+def format_rewrite_incomplete_prompt(question: str, current_context: str, search_advice: str) -> str:
+    """
+    Format prompt for targeting missing information.
+    
+    Args:
+        question: Original user question
+        current_context: Summary/snippet of existing docs
+        search_advice: Specific advice on what to search for next
+    """
     return REWRITE_INCOMPLETE_PROMPT.format(
         question=question,
-        current_context=current_context
+        current_context=current_context,
+        search_advice=search_advice
     )

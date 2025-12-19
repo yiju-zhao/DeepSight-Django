@@ -42,6 +42,7 @@ class GradeCompleteness(BaseModel):
     """Assess if the retrieved documents are sufficient to answer the original question."""
     is_complete: bool = Field(description="The collective documents are sufficient to answer the original question")
     missing_info: str | None = Field(description="Description of what information is still missing if not complete")
+    search_advice: str | None = Field(description="Specific advice on what to search for next if incomplete")
 
 class GradeAnswer(BaseModel):
     """Assess whether the answer addresses the question."""
@@ -169,6 +170,7 @@ class DeepSightRAGAgent:
                 "question": question, 
                 "original_question": question, # Preserve the starting intent
                 "documents": [], 
+                "new_documents": [],
                 "generation": "",
                 "is_complete": False,
                 "iteration_count": 0,
@@ -202,7 +204,7 @@ class DeepSightRAGAgent:
                 mcp_server_url=self.config.mcp_server_url
             )
         
-        new_documents = []
+        raw_new_documents = []
         if tools:
             # Call the retrieval tool directly instead of bind_tools()
             for tool in tools:
@@ -213,22 +215,23 @@ class DeepSightRAGAgent:
                         # Format and add the result
                         content = format_tool_content(result)
                         if content:
-                            new_documents.append(content)
-                        logger.info(f"Retrieved {len(new_documents)} new documents")
+                            raw_new_documents.append(content)
+                        logger.info(f"Retrieved {len(raw_new_documents)} new documents")
                         break  # Use the first matching retrieval tool
                     except Exception as e:
                         logger.error(f"Error calling retrieval tool: {e}")
 
-        # Deduplicate and accumulate
-        seen = set(current_docs)
-        combined_docs = list(current_docs)
-        for doc in new_documents:
-            if doc not in seen:
-                combined_docs.append(doc)
-                seen.add(doc)
-
+        # Filter out duplicates against existing docs
+        seen_existing = set(current_docs)
+        unique_new_docs = []
+        for doc in raw_new_documents:
+            if doc not in seen_existing:
+                unique_new_docs.append(doc)
+        
+        # Note: We do NOT append to "documents" yet. grade_relevance will do that.
+        
         return {
-            "documents": combined_docs, 
+            "new_documents": unique_new_docs,
             "question": question, 
             "current_step": "retrieving"
         }
@@ -236,16 +239,18 @@ class DeepSightRAGAgent:
     async def grade_relevance(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
         Filter retrieved documents for relevance.
+        Only grades NEW documents to save tokens and time.
         """
         logger.info("---CHECKING RELEVANCE---")
         question = state["question"]
-        documents = state["documents"]
+        new_documents = state["new_documents"]
+        existing_documents = state["documents"]
         
-        filtered_docs = []
+        relevant_new_docs = []
         graded_docs_meta = []
         structured_grader = self.grader_model.with_structured_output(GradeDocuments)
 
-        for d in documents:
+        for d in new_documents:
             prompt = format_grade_documents_prompt(question=question, context=d)
             score = await structured_grader.ainvoke([HumanMessage(content=prompt)], config)
             is_relevant = score.binary_score.lower() == "yes"
@@ -256,12 +261,13 @@ class DeepSightRAGAgent:
                 "reason": "Graded by LLM"
             })
             if is_relevant:
-                filtered_docs.append(d)
+                relevant_new_docs.append(d)
 
-        logger.info(f"---FILTERED {len(filtered_docs)}/{len(documents)} RELEVANT DOCS---")
+        logger.info(f"---FILTERED {len(relevant_new_docs)}/{len(new_documents)} RELEVANT NEW DOCS---")
 
         return {
-            "documents": filtered_docs, 
+            "documents": existing_documents + relevant_new_docs, # Accumulate relevant docs
+            "new_documents": [], # Clear new docs buffer
             "graded_documents": graded_docs_meta,
             "current_step": "grading_relevance"
         }
@@ -284,7 +290,8 @@ class DeepSightRAGAgent:
         
         return {
             "is_complete": score.is_complete,
-            "agent_reasoning": f"Research incomplete. Missing: {score.missing_info}" if not score.is_complete else "Research complete.",
+            "search_advice": score.search_advice,
+            "agent_reasoning": f"Research incomplete. Advice: {score.search_advice}" if not score.is_complete else "Research complete.",
             "current_step": "grading_completeness"
         }
 
@@ -346,10 +353,15 @@ class DeepSightRAGAgent:
         logger.info("---REWRITE INCOMPLETE---")
         original_question = state["original_question"]
         documents = state["documents"]
+        search_advice = state.get("search_advice", "Look for missing details.")
         iteration_count = state.get("iteration_count", 0) + 1
         
         current_context = "\n\n".join([d[:200] + "..." for d in documents])
-        prompt = format_rewrite_incomplete_prompt(question=original_question, current_context=current_context)
+        prompt = format_rewrite_incomplete_prompt(
+            question=original_question, 
+            current_context=current_context,
+            search_advice=search_advice
+        )
         response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
         better_question = response.content
         
@@ -359,7 +371,7 @@ class DeepSightRAGAgent:
             "question": better_question,
             "iteration_count": iteration_count,
             "current_step": "rewriting_incomplete",
-            "agent_reasoning": f"Research incomplete. Targeting gaps: {better_question}"
+            "agent_reasoning": f"Research incomplete. Targeting: {better_question}"
         }
 
     # --- Edges ---
@@ -377,6 +389,7 @@ class DeepSightRAGAgent:
             return "grade_completeness"
         
         if not state["documents"]:
+            # If we have NO relevant documents at all (new or old), we need to broaden request
             logger.info("---DECISION: NO RELEVANT DOCS, REWRITE IRRELEVANT---")
             return "rewrite_irrelevant"
         
@@ -461,10 +474,3 @@ class DeepSightRAGAgent:
         else:
             logger.info("---DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY---")
             return "not supported"
-
-# Define the graph export
-graph = DeepSightRAGAgent(RAGAgentConfig(
-    model_name="gpt-5.2",
-    dataset_ids=[],
-    mcp_server_url="http://localhost:9382/mcp/"
-)).graph
