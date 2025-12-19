@@ -197,7 +197,9 @@ class DeepSightRAGAgent:
                 if "retrieval" in tool.name.lower() or "search" in tool.name.lower():
                     try:
                         # Invoke the tool directly with the question
-                        result = await tool.ainvoke({"question": question}, config)
+                        # We pass callbacks=[] to avoid emitting tool events that 
+                        # ag_ui_langgraph might try to process incorrectly (AttributeError: 'list' object has no attribute 'tool_call_id')
+                        result = await tool.ainvoke({"question": question}, {**config, "callbacks": []})
                         # Format and add the result
                         content = format_tool_content(result)
                         if content:
