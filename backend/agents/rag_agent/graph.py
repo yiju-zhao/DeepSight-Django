@@ -69,7 +69,7 @@ class DeepSightRAGAgent:
         )
 
         self.grader_model = init_chat_model(
-            model=f"openai:{self.config.nano_model_name}",
+            model=f"openai:{self.config.model_name}",
             api_key=self.config.api_key,
             temperature=self.config.eval_temperature,
         )
