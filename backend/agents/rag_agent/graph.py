@@ -16,7 +16,8 @@ from .prompts import (
     format_synthesis_prompt,
     format_grade_documents_prompt,
     format_grade_completeness_prompt,
-    format_rewrite_question_prompt,
+    format_rewrite_irrelevant_prompt,
+    format_rewrite_incomplete_prompt,
     HALLUCINATION_GRADER_PROMPT,
     ANSWER_GRADER_PROMPT,
 )
@@ -85,9 +86,11 @@ class DeepSightRAGAgent:
         # Define the nodes
         workflow.add_node("initialize_request", self.initialize_request)
         workflow.add_node("retrieve", self.retrieve)
-        workflow.add_node("grade_documents", self.grade_documents)
+        workflow.add_node("grade_relevance", self.grade_relevance)
+        workflow.add_node("grade_completeness", self.grade_completeness)
         workflow.add_node("generate", self.generate)
-        workflow.add_node("transform_query", self.transform_query)
+        workflow.add_node("rewrite_irrelevant", self.rewrite_irrelevant)
+        workflow.add_node("rewrite_incomplete", self.rewrite_incomplete)
 
         # Build graph
         workflow.add_edge(START, "initialize_request")
@@ -102,18 +105,28 @@ class DeepSightRAGAgent:
             }
         )
 
-        workflow.add_edge("retrieve", "grade_documents")
+        workflow.add_edge("retrieve", "grade_relevance")
         
         workflow.add_conditional_edges(
-            "grade_documents",
-            self.decide_to_generate,
+            "grade_relevance",
+            self.decide_after_relevance,
             {
-                "transform_query": "transform_query",
+                "rewrite_irrelevant": "rewrite_irrelevant",
+                "grade_completeness": "grade_completeness",
+            },
+        )
+        
+        workflow.add_conditional_edges(
+            "grade_completeness",
+            self.decide_after_completeness,
+            {
+                "rewrite_incomplete": "rewrite_incomplete",
                 "generate": "generate",
             },
         )
         
-        workflow.add_edge("transform_query", "retrieve")
+        workflow.add_edge("rewrite_irrelevant", "retrieve")
+        workflow.add_edge("rewrite_incomplete", "retrieve")
         
         workflow.add_conditional_edges(
             "generate",
@@ -121,7 +134,7 @@ class DeepSightRAGAgent:
             {
                 "not supported": "generate", # Loop back to regenerate (simple retry)
                 "useful": END,
-                "not useful": "transform_query",
+                "not useful": "rewrite_incomplete", # If not useful, try to find more info
             },
         )
 
@@ -220,44 +233,59 @@ class DeepSightRAGAgent:
             "current_step": "retrieving"
         }
 
-    async def grade_documents(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+    async def grade_relevance(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Check document relevance and collection completeness.
+        Filter retrieved documents for relevance.
         """
-        logger.info("---CHECKING RELEVANCE AND COMPLETENESS---")
+        logger.info("---CHECKING RELEVANCE---")
+        question = state["question"]
+        documents = state["documents"]
+        
+        filtered_docs = []
+        graded_docs_meta = []
+        structured_grader = self.grader_model.with_structured_output(GradeDocuments)
+
+        for d in documents:
+            prompt = format_grade_documents_prompt(question=question, context=d)
+            score = await structured_grader.ainvoke([HumanMessage(content=prompt)], config)
+            is_relevant = score.binary_score.lower() == "yes"
+            
+            graded_docs_meta.append({
+                "content": d[:100] + "...",
+                "relevant": is_relevant,
+                "reason": "Graded by LLM"
+            })
+            if is_relevant:
+                filtered_docs.append(d)
+
+        logger.info(f"---FILTERED {len(filtered_docs)}/{len(documents)} RELEVANT DOCS---")
+
+        return {
+            "documents": filtered_docs, 
+            "graded_documents": graded_docs_meta,
+            "current_step": "grading_relevance"
+        }
+
+    async def grade_completeness(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+        """
+        Check if the current collection is sufficient for the original question.
+        """
+        logger.info("---CHECKING COMPLETENESS---")
         original_question = state["original_question"]
         documents = state["documents"]
         
-        # 1. Relevance Score (Optional: Could filter here, but we'll focus on completeness)
-        # We'll just grade for UI feedback
-        graded_docs_meta = []
-        for d in documents:
-            graded_docs_meta.append({
-                "content": d[:100] + "...",
-                "relevant": True, # For now, keep all retrieved
-                "reason": "Retrieved from source"
-            })
-
-        # 2. Check Completeness
         context = "\n\n".join(documents)
         completeness_grader = self.grader_model.with_structured_output(GradeCompleteness)
         
         prompt = format_grade_completeness_prompt(question=original_question, context=context)
         score = await completeness_grader.ainvoke([HumanMessage(content=prompt)], config)
         
-        is_complete = score.is_complete
-        missing_info = score.missing_info
+        logger.info(f"---COMPLETENESS: {score.is_complete}---")
         
-        logger.info(f"---COMPLETENESS: {is_complete}---")
-        if not is_complete:
-            logger.info(f"---MISSING INFO: {missing_info}---")
-
         return {
-            "documents": documents, 
-            "graded_documents": graded_docs_meta,
-            "is_complete": is_complete,
-            "agent_reasoning": f"Checks completeness: {is_complete}. " + (f"Missing: {missing_info}" if missing_info else "Ready to generate."),
-            "current_step": "grading"
+            "is_complete": score.is_complete,
+            "agent_reasoning": f"Research incomplete. Missing: {score.missing_info}" if not score.is_complete else "Research complete.",
+            "current_step": "grading_completeness"
         }
 
     async def generate(self, state: RAGAgentState, config: RunnableConfig) -> dict:
@@ -290,44 +318,73 @@ class DeepSightRAGAgent:
             "synthesis_progress": 100
         }
 
-    async def transform_query(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+    async def rewrite_irrelevant(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Target missing information using a context-aware rewrite.
+        Broaden search when initial results were irrelevant.
         """
-        logger.info("---TRANSFORM QUERY---")
-        original_question = state["original_question"]
-        documents = state["documents"]
+        logger.info("---REWRITE IRRELEVANT---")
+        question = state["question"]
         iteration_count = state.get("iteration_count", 0) + 1
         
-        # Provide what we already know to the rewriter
-        current_context = "\n\n".join([d[:200] + "..." for d in documents]) if documents else "Nothing yet."
-        
-        prompt = format_rewrite_question_prompt(question=original_question, current_context=current_context)
+        prompt = format_rewrite_irrelevant_prompt(question=question)
         response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
         better_question = response.content
         
-        logger.info(f"---BETTER QUESTION: {better_question}---")
+        logger.info(f"---BROADER QUESTION: {better_question}---")
         
         return {
             "question": better_question,
             "iteration_count": iteration_count,
-            "current_step": "rewriting",
-            "agent_reasoning": f"Searching for missing info: {better_question}"
+            "current_step": "rewriting_irrelevant",
+            "agent_reasoning": f"No relevant found. Broadening search: {better_question}"
+        }
+
+    async def rewrite_incomplete(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+        """
+        Target missing info when research is incomplete.
+        """
+        logger.info("---REWRITE INCOMPLETE---")
+        original_question = state["original_question"]
+        documents = state["documents"]
+        iteration_count = state.get("iteration_count", 0) + 1
+        
+        current_context = "\n\n".join([d[:200] + "..." for d in documents])
+        prompt = format_rewrite_incomplete_prompt(question=original_question, current_context=current_context)
+        response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
+        better_question = response.content
+        
+        logger.info(f"---TARGETED QUESTION: {better_question}---")
+        
+        return {
+            "question": better_question,
+            "iteration_count": iteration_count,
+            "current_step": "rewriting_incomplete",
+            "agent_reasoning": f"Research incomplete. Targeting gaps: {better_question}"
         }
 
     # --- Edges ---
 
-    def decide_to_generate(self, state: RAGAgentState) -> Literal["transform_query", "generate"]:
+    def decide_after_relevance(self, state: RAGAgentState) -> Literal["rewrite_irrelevant", "grade_completeness"]:
         """
-        Determines whether to generate an answer, or re-generate a question.
+        Routes based on whether any relevant documents were found.
+        """
+        logger.info("---DECIDE AFTER RELEVANCE---")
+        if not state["documents"]:
+            logger.info("---DECISION: NO RELEVANT DOCS, REWRITE IRRELEVANT---")
+            return "rewrite_irrelevant"
         
-        Checks iteration count and completeness flag to decide next step.
+        logger.info("---DECISION: RELEVANT DOCS FOUND, CHECK COMPLETENESS---")
+        return "grade_completeness"
+
+    def decide_after_completeness(self, state: RAGAgentState) -> Literal["rewrite_incomplete", "generate"]:
         """
-        logger.info("---ASSESSING NEXT STEP---")
+        Routes based on whether the collection is complete.
+        """
+        logger.info("---DECIDE AFTER COMPLETENESS---")
         iteration_count = state.get("iteration_count", 0)
         is_complete = state.get("is_complete", False)
 
-        # Force generation if approaching recursion limit (20 out of 25)
+        # Force generation if approaching recursion limit
         if iteration_count >= 20:
             logger.warning(f"---ITERATION LIMIT APPROACHING ({iteration_count}/25), FORCING GENERATION---")
             return "generate"
@@ -336,8 +393,8 @@ class DeepSightRAGAgent:
             logger.info("---DECISION: COMPLETE, GENERATE---")
             return "generate"
         else:
-            logger.info("---DECISION: INCOMPLETE, TRANSFORM QUERY---")
-            return "transform_query"
+            logger.info("---DECISION: INCOMPLETE, REWRITE INCOMPLETE---")
+            return "rewrite_incomplete"
 
     async def grade_generation_v_documents_and_question(self, state: RAGAgentState, config: RunnableConfig) -> Literal["not supported", "useful", "not useful"]:
         """

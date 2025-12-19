@@ -92,21 +92,35 @@ GRADE_COMPLETENESS_PROMPT = """You are an expert evaluator assessing whether a c
 Provide your evaluation as a structured decision."""
 
 
-# ===== REWRITE_QUESTION_PROMPT =====
-# Used to improve a question when initial retrieval returns irrelevant results
-# Modified for accumulated retrieval: targets missing information
-REWRITE_QUESTION_PROMPT = """You are a search query optimizer. Your goal is to generate a search query that will find the MISSING information needed to answer a user's original question.
+# ===== REWRITE_IRRELEVANT_PROMPT =====
+# Used when the search returned zero relevant results.
+# Focus: Broaden search, use synonyms, try more general terms.
+REWRITE_IRRELEVANT_PROMPT = """You are a search query optimizer. The previous search failed to find any relevant information.
+
+**Original Question:** {question}
+
+**Your Task:**
+Identify why the search might have failed. Generate ONE broader search query (keyword-focused, 2-5 words) that uses:
+1. Broad synonyms
+2. More general category terms
+3. Alternative terminology
+
+Return ONLY the query and nothing else."""
+
+
+# ===== REWRITE_INCOMPLETE_PROMPT =====
+# Used when some info was found but specific gaps remain.
+# Focus: Target exactly what is missing based on current context.
+REWRITE_INCOMPLETE_PROMPT = """You are a research specialist. You have found some information, but it is not yet enough to fully answer the question.
 
 **Original Question:** {question}
 
 **What we already know:**
 {current_context}
 
-**Reasoning:**
-Analyze what parts of the original question are still unanswered based on what we already know.
-
-**Your Goal:**
-Generate one improved search query (2-5 words, keyword-focused) specifically targeting the MISSING information. 
+**Your Task:**
+Identify exactly what information is missing to answer the original question.
+Generate ONE specific search query (keyword-focused, 2-5 words) that targets ONLY the missing pieces.
 
 Return ONLY the query and nothing else."""
 
@@ -208,18 +222,14 @@ def format_grade_completeness_prompt(question: str, context: str) -> str:
     )
 
 
-def format_rewrite_question_prompt(question: str, current_context: str = "Nothing yet.") -> str:
-    """
-    Format question rewriting prompt.
+def format_rewrite_irrelevant_prompt(question: str) -> str:
+    """Format prompt for broadening a failed search."""
+    return REWRITE_IRRELEVANT_PROMPT.format(question=question)
 
-    Args:
-        question: Original question that needs improvement
-        current_context: Summary of what we already found
 
-    Returns:
-        Formatted rewrite prompt
-    """
-    return REWRITE_QUESTION_PROMPT.format(
+def format_rewrite_incomplete_prompt(question: str, current_context: str) -> str:
+    """Format prompt for targeting missing information."""
+    return REWRITE_INCOMPLETE_PROMPT.format(
         question=question,
         current_context=current_context
     )
