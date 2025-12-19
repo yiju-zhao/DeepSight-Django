@@ -278,7 +278,8 @@ class DeepSightRAGAgent:
         logger.info(f"---FILTERED {len(relevant_new_docs)}/{len(new_documents)} RELEVANT NEW DOCS---")
 
         return {
-            "new_documents": relevant_new_docs, # Store but don't accumulate yet
+            "documents": existing_documents + relevant_new_docs, # Accumulate for first iteration
+            "new_documents": relevant_new_docs, # Also store for potential completeness eval
             "graded_documents": graded_docs_meta,
             "current_step": "grading_relevance"
         }
