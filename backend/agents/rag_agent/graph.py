@@ -157,16 +157,24 @@ class DeepSightRAGAgent:
         if last_human_message:
             question = last_human_message.content
             logger.info(f"Extracted question: {question}")
-            # Reset state for new turn
+            # Reset state for new turn to avoid state bloat and frontend lag
+            # This prevents large data from previous turns (documents, reasoning, etc.) 
+            # from accumulating and slowing down the JSON serialization/parsing.
             return {
                 "question": question, 
-                "original_question": question, # Preserve the starting intent
+                "original_question": question,
                 "queries": [],
                 "documents": [], 
                 "new_documents": [],
+                "reordered_context": "",
                 "generation": "",
                 "iteration_count": 0,
-                "current_step": "analyzing"
+                "current_step": "analyzing",
+                "graded_documents": None,
+                "query_rewrites": None,
+                "agent_reasoning": None,
+                "synthesis_progress": None,
+                "total_tool_calls": None
             }
         
         # If no question is found, return empty to trigger check_initialization -> end
@@ -237,8 +245,13 @@ class DeepSightRAGAgent:
                     try:
                         logger.info(f"Retrieving for query: {q}")
                         result = await retrieval_tool.ainvoke({"question": q}, {**config, "callbacks": []})
+                        # Format and add the result
                         content = format_tool_content(result)
                         if content:
+                            # CRITICAL: Truncate content to prevent frontend state bloat
+                            # Chunks for RAG are typically 1k-4k tokens, 3000 chars is a safe snippet
+                            if len(content) > 3000:
+                                content = content[:3000] + "..."
                             all_new_documents.append(content)
                     except Exception as e:
                         logger.error(f"Error calling retrieval tool for query '{q}': {e}")
@@ -362,6 +375,9 @@ class DeepSightRAGAgent:
         return {
             "generation": generation,
             "messages": [AIMessage(content=generation)],
+            "documents": [], # Clear massive doc list after generation to save browser memory
+            "reordered_context": "", # Clear heavy context
+            "graded_documents": None, # Clear graded metadata
             "current_step": "synthesizing",
             "synthesis_progress": 100
         }

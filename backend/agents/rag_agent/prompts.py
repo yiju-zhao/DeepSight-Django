@@ -104,14 +104,14 @@ Give a binary score 'yes' or 'no'. 'Yes' means the answer resolves the question.
 # Used to generate the final answer from retrieved context
 SYNTHESIS_PROMPT = """You are an assistant for question-answering tasks.
 
-Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.
+Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Provide a comprehensive and well-structured answer based on the organized context provided.
 
 **Question:** {question}
 
 **Context:** {context}
 
 **Guidelines:**
-- Be concise but comprehensive
+- Be comprehensive
 - Cite specific documents when making claims (use [Document Name] format)
 - Preserve important details (numbers, names, technical terms)
 - Acknowledge if information is incomplete
