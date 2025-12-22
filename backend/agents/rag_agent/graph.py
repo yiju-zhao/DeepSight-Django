@@ -14,10 +14,8 @@ from .config import RAGAgentConfig
 from .prompts import (
     format_synthesis_prompt,
     format_grade_documents_prompt,
-    format_grade_completeness_prompt,
-    format_rewrite_irrelevant_prompt,
-    format_rewrite_incomplete_prompt,
-    format_rewrite_continuation_prompt,
+    format_planning_prompt,
+    format_reorder_prompt,
     HALLUCINATION_GRADER_PROMPT,
     ANSWER_GRADER_PROMPT,
 )
@@ -88,13 +86,11 @@ class DeepSightRAGAgent:
 
         # Define the nodes
         workflow.add_node("initialize_request", self.initialize_request)
+        workflow.add_node("planning", self.planning)
         workflow.add_node("retrieve", self.retrieve)
         workflow.add_node("grade_relevance", self.grade_relevance)
-        workflow.add_node("grade_completeness", self.grade_completeness)
+        workflow.add_node("reorder", self.reorder)
         workflow.add_node("generate", self.generate)
-        workflow.add_node("rewrite_irrelevant", self.rewrite_irrelevant)
-        workflow.add_node("rewrite_incomplete", self.rewrite_incomplete)
-        workflow.add_node("rewrite_continuation", self.rewrite_continuation)
 
         # Build graph
         workflow.add_edge(START, "initialize_request")
@@ -104,52 +100,26 @@ class DeepSightRAGAgent:
             "initialize_request",
             self.check_initialization,
             {
-                "retrieve": "retrieve",
+                "planning": "planning",
                 "end": END
             }
         )
 
-        workflow.add_conditional_edges(
-            "retrieve",
-            self.decide_after_retrieve,
-            {
-                "grade_relevance": "grade_relevance",
-                "grade_completeness": "grade_completeness",
-            },
-        )
+        workflow.add_edge("planning", "retrieve")
+        workflow.add_edge("retrieve", "grade_relevance")
         
         workflow.add_conditional_edges(
             "grade_relevance",
             self.decide_after_relevance,
             {
-                "rewrite_irrelevant": "rewrite_irrelevant",
-                "grade_completeness": "grade_completeness",
-            },
-        )
-        
-        workflow.add_conditional_edges(
-            "grade_completeness",
-            self.decide_after_completeness,
-            {
-                "rewrite_incomplete": "rewrite_incomplete",
-                "rewrite_continuation": "rewrite_continuation",
+                "planning": "planning",
+                "reorder": "reorder",
                 "generate": "generate",
             },
         )
         
-        workflow.add_edge("rewrite_irrelevant", "retrieve")
-        workflow.add_edge("rewrite_incomplete", "retrieve")
-        workflow.add_edge("rewrite_continuation", "retrieve")
-        
-        workflow.add_conditional_edges(
-            "generate",
-            self.grade_generation_v_documents_and_question,
-            {
-                "not supported": "generate", # Loop back to regenerate (simple retry)
-                "useful": END,
-                "not useful": "rewrite_incomplete", # If not useful, try to find more info
-            },
-        )
+        workflow.add_edge("reorder", "generate")
+        workflow.add_edge("generate", END)
 
         # Add checkpointer for conversation state management
         memory = MemorySaver()
@@ -181,10 +151,10 @@ class DeepSightRAGAgent:
             return {
                 "question": question, 
                 "original_question": question, # Preserve the starting intent
+                "queries": [],
                 "documents": [], 
                 "new_documents": [],
                 "generation": "",
-                "is_complete": False,
                 "iteration_count": 0,
                 "current_step": "analyzing"
             }
@@ -192,78 +162,107 @@ class DeepSightRAGAgent:
         # If no question is found, return empty to trigger check_initialization -> end
         return {}
 
-    def check_initialization(self, state: RAGAgentState) -> Literal["retrieve", "end"]:
+    def check_initialization(self, state: RAGAgentState) -> Literal["planning", "end"]:
         """Check if we have a valid question to start retrieval."""
         if state.get("question"):
-            return "retrieve"
+            return "planning"
         logger.info("No question found, ending.")
         return "end"
 
+    async def planning(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+        """
+        Generate multiple search queries from different angles.
+        """
+        logger.info("---PLANNING---")
+        question = state["question"]
+        iteration_count = state.get("iteration_count", 0)
+        previous_queries = state.get("queries", [])
+        
+        prompt = format_planning_prompt(question=question, previous_queries=previous_queries if iteration_count > 0 else None)
+        
+        response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
+        try:
+            # Expecting a JSON list of strings
+            content = response.content.strip()
+            if content.startswith("```json"):
+                content = content[7:-3].strip()
+            elif content.startswith("```"):
+                content = content[3:-3].strip()
+            
+            queries = json.loads(content)
+            if not isinstance(queries, list):
+                queries = [content]
+        except Exception as e:
+            logger.error(f"Error parsing planning queries: {e}")
+            queries = [question]
+        
+        logger.info(f"Planned queries: {queries}")
+        
+        return {
+            "queries": queries,
+            "iteration_count": iteration_count + 1,
+            "current_step": "planning"
+        }
+
     async def retrieve(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Retrieve documents by calling MCP retrieval tool directly.
+        Retrieve documents by executing multiple planned queries.
         """
         logger.info("---RETRIEVE---")
-        question = state["question"]
-        current_docs = state.get("documents", [])
+        queries = state.get("queries", [state["question"]])
         
-        # Get tools from context variable (NOT from config to avoid circular refs)
+        # Get tools from context variable
         tools = current_retrieval_tools.get()
         if not tools:
-            # Fallback: create tools from config (for standalone usage)
             tools = await create_mcp_retrieval_tools(
                 dataset_ids=self.config.dataset_ids,
                 mcp_server_url=self.config.mcp_server_url
             )
         
-        raw_new_documents = []
+        all_new_documents = []
         if tools:
-            # Call the retrieval tool directly instead of bind_tools()
-            for tool in tools:
-                if "retrieval" in tool.name.lower() or "search" in tool.name.lower():
+            retrieval_tool = next((t for t in tools if "retrieval" in t.name.lower() or "search" in t.name.lower()), None)
+            if retrieval_tool:
+                for q in queries:
                     try:
-                        # Invoke the tool directly with the question
-                        result = await tool.ainvoke({"question": question}, {**config, "callbacks": []})
-                        # Format and add the result
+                        logger.info(f"Retrieving for query: {q}")
+                        result = await retrieval_tool.ainvoke({"question": q}, {**config, "callbacks": []})
                         content = format_tool_content(result)
                         if content:
-                            raw_new_documents.append(content)
-                        logger.info(f"Retrieved {len(raw_new_documents)} new documents")
-                        break  # Use the first matching retrieval tool
+                            all_new_documents.append(content)
                     except Exception as e:
-                        logger.error(f"Error calling retrieval tool: {e}")
+                        logger.error(f"Error calling retrieval tool for query '{q}': {e}")
 
-        # Filter out duplicates against existing docs
-        seen_existing = set(current_docs)
-        unique_new_docs = []
-        for doc in raw_new_documents:
-            if doc not in seen_existing:
-                unique_new_docs.append(doc)
+        # Deduplicate results (simple string comparison)
+        unique_new_docs = list(dict.fromkeys(all_new_documents))
         
-        # Note: We do NOT append to "documents" yet. grade_relevance will do that.
+        logger.info(f"Retrieved {len(unique_new_docs)} unique documents from {len(queries)} queries")
         
         return {
             "new_documents": unique_new_docs,
-            "question": question, 
             "current_step": "retrieving"
         }
 
     async def grade_relevance(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Filter retrieved documents for relevance.
-        Only grades NEW documents to save tokens and time.
+        Filter retrieved documents for relevance to the ORIGINAL question.
+        Merged with previously found documents.
         """
         logger.info("---CHECKING RELEVANCE---")
-        question = state["question"]
+        original_question = state["original_question"]
         new_documents = state["new_documents"]
-        existing_documents = state["documents"]
+        existing_documents = state.get("documents", [])
         
         relevant_new_docs = []
         graded_docs_meta = []
         structured_grader = self.grader_model.with_structured_output(GradeDocuments)
 
         for d in new_documents:
-            prompt = format_grade_documents_prompt(question=question, context=d)
+            # Skip if already in existing_documents
+            if d in existing_documents:
+                continue
+                
+            prompt = format_grade_documents_prompt(question=original_question, context=d)
             score = await structured_grader.ainvoke([HumanMessage(content=prompt)], config)
             is_relevant = score.binary_score.lower() == "yes"
             
@@ -275,237 +274,83 @@ class DeepSightRAGAgent:
             if is_relevant:
                 relevant_new_docs.append(d)
 
-        logger.info(f"---FILTERED {len(relevant_new_docs)}/{len(new_documents)} RELEVANT NEW DOCS---")
+        all_relevant_docs = existing_documents + relevant_new_docs
+        logger.info(f"---FILTERED {len(relevant_new_docs)} NEW RELEVANT DOCS. TOTAL: {len(all_relevant_docs)}---")
 
         return {
-            "documents": existing_documents + relevant_new_docs, # Accumulate for first iteration
-            "new_documents": relevant_new_docs, # Also store for potential completeness eval
+            "documents": all_relevant_docs,
+            "new_documents": [], # Clear buffer
             "graded_documents": graded_docs_meta,
             "current_step": "grading_relevance"
         }
 
-    async def grade_completeness(self, state: RAGAgentState, config: RunnableConfig) -> dict:
+    async def reorder(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Check if the current collection is sufficient and if new docs contribute.
+        Semantically reorder and group retrieved chunks.
         """
-        logger.info("---CHECKING COMPLETENESS---")
+        logger.info("---REORDERING---")
         original_question = state["original_question"]
-        existing_documents = state.get("documents", [])
-        new_documents = state.get("new_documents", [])
+        documents = state["documents"]
         
-        # Prepare contexts for evaluation
-        existing_context = "\n\n".join(existing_documents) if existing_documents else "[No existing documents]"
-        new_context = "\n\n".join(new_documents) if new_documents else "[No new documents]"
+        if not documents:
+            return {"current_step": "reordering"}
+            
+        context = "\n\n".join(documents)
+        prompt = format_reorder_prompt(question=original_question, context=context)
         
-        completeness_grader = self.grader_model.with_structured_output(GradeCompleteness)
+        response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
+        reordered_context = response.content
         
-        prompt = format_grade_completeness_prompt(
-            question=original_question, 
-            existing_context=existing_context,
-            new_context=new_context
-        )
-        score = await completeness_grader.ainvoke([HumanMessage(content=prompt)], config)
-        
-        # Decision: append new docs only if they contribute
-        if new_documents and score.new_docs_contribute:
-            logger.info(f"---NEW DOCS CONTRIBUTE: Appending {len(new_documents)} docs---")
-            updated_documents = existing_documents + new_documents
-        else:
-            if new_documents:
-                logger.info(f"---NEW DOCS DO NOT CONTRIBUTE: Discarding {len(new_documents)} docs---")
-            updated_documents = existing_documents
-        
-        logger.info(f"---COMPLETENESS: {score.is_complete}, Total docs: {len(updated_documents)}---")
+        logger.info("Reordering complete.")
         
         return {
-            "documents": updated_documents,
-            "new_documents": [], # Clear buffer after processing
-            "is_complete": score.is_complete,
-            "search_advice": score.search_advice,
-            "agent_reasoning": f"Research incomplete. Advice: {score.search_advice}" if not score.is_complete else "Research complete.",
-            "current_step": "grading_completeness"
+            "reordered_context": reordered_context,
+            "current_step": "reordering"
         }
 
     async def generate(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Generate answer
-
-        Args:
-            state (dict): The current graph state
-
-        Returns:
-            state (dict): New key added to state, generation, that contains LLM generation
+        Generate final answer using reordered context.
         """
         logger.info("---GENERATE---")
-        question = state["question"]
-        documents = state["documents"]
+        question = state["original_question"]
+        reordered_context = state.get("reordered_context", "")
         
-        context = "\n\n".join(documents)
-        prompt = format_synthesis_prompt(question=question, context=context)
+        if not reordered_context and not state["documents"]:
+            generation = "I'm sorry, but I couldn't find any relevant information to answer your question after several search attempts."
+        else:
+            context = reordered_context if reordered_context else "\n\n".join(state["documents"])
+            prompt = format_synthesis_prompt(question=question, context=context)
+            response = await self.synthesis_model.ainvoke([HumanMessage(content=prompt)], config)
+            generation = response.content
         
-        response = await self.synthesis_model.ainvoke([HumanMessage(content=prompt)], config)
-        generation = response.content
-        
-        # We also append the generation to the chat history for CopilotKit
         return {
-            "documents": documents, 
-            "question": question, 
             "generation": generation,
             "messages": [AIMessage(content=generation)],
             "current_step": "synthesizing",
             "synthesis_progress": 100
         }
 
-    async def rewrite_irrelevant(self, state: RAGAgentState, config: RunnableConfig) -> dict:
-        """
-        Broaden search when initial results were irrelevant.
-        """
-        logger.info("---REWRITE IRRELEVANT---")
-        question = state["question"]
-        iteration_count = state.get("iteration_count", 0) + 1
-        
-        prompt = format_rewrite_irrelevant_prompt(question=question)
-        response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
-        better_question = response.content
-        
-        logger.info(f"---BROADER QUESTION: {better_question}---")
-        
-        return {
-            "question": better_question,
-            "iteration_count": iteration_count,
-            "current_step": "rewriting_irrelevant",
-            "agent_reasoning": f"No relevant found. Broadening search: {better_question}"
-        }
-
-    async def rewrite_incomplete(self, state: RAGAgentState, config: RunnableConfig) -> dict:
-        """
-        Target missing topic info when research is incomplete (MISSING_TOPIC case).
-        """
-        logger.info("---REWRITE INCOMPLETE (MISSING TOPIC)---")
-        original_question = state["original_question"]
-        documents = state["documents"]
-        search_advice = state.get("search_advice", "Look for missing details.")
-        iteration_count = state.get("iteration_count", 0) + 1
-        
-        current_context = "\n\n".join([d[:200] + "..." for d in documents])
-        prompt = format_rewrite_incomplete_prompt(
-            question=original_question, 
-            current_context=current_context,
-            search_advice=search_advice
-        )
-        response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
-        better_question = response.content
-        
-        logger.info(f"---TARGETED QUESTION: {better_question}---")
-        
-        return {
-            "question": better_question,
-            "iteration_count": iteration_count,
-            "continuation_mode": False,
-            "current_step": "rewriting_incomplete",
-            "agent_reasoning": f"Research incomplete. Targeting: {better_question}"
-        }
-
-    async def rewrite_continuation(self, state: RAGAgentState, config: RunnableConfig) -> dict:
-        """
-        Find chunk continuation when content is TRUNCATED.
-        Uses phrases from the END of truncated content to find adjacent chunks.
-        """
-        logger.info("---REWRITE CONTINUATION (TRUNCATED)---")
-        original_question = state["original_question"]
-        documents = state["documents"]
-        iteration_count = state.get("iteration_count", 0) + 1
-        
-        # Get the last ~500 chars of the most recent document (likely truncated)
-        if documents:
-            last_doc = documents[-1]
-            last_portion = last_doc[-500:] if len(last_doc) > 500 else last_doc
-        else:
-            last_portion = ""
-        
-        prompt = format_rewrite_continuation_prompt(
-            question=original_question, 
-            last_portion=last_portion
-        )
-        response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
-        continuation_query = response.content
-        
-        logger.info(f"---CONTINUATION QUERY: {continuation_query}---")
-        
-        return {
-            "question": continuation_query,
-            "iteration_count": iteration_count,
-            "continuation_mode": True,
-            "current_step": "rewriting_continuation",
-            "agent_reasoning": f"Content truncated. Searching for continuation: {continuation_query}"
-        }
-
     # --- Edges ---
 
-    def decide_after_retrieve(self, state: RAGAgentState) -> Literal["grade_relevance", "grade_completeness"]:
+    def decide_after_relevance(self, state: RAGAgentState) -> Literal["planning", "reorder", "generate"]:
         """
-        Routes after retrieval:
-        - First time (no existing docs): grade for relevance
-        - Subsequent times: directly check completeness (contribution-based)
-        """
-        logger.info("---DECIDE AFTER RETRIEVE---")
-        existing_documents = state.get("documents", [])
-        
-        if not existing_documents:
-            # First retrieval: check relevance
-            logger.info("---DECISION: FIRST RETRIEVAL, GRADE RELEVANCE---")
-            return "grade_relevance"
-        else:
-            # Have existing docs: skip relevance, directly evaluate contribution
-            logger.info("---DECISION: SUBSEQUENT RETRIEVAL, GRADE COMPLETENESS (CONTRIBUTION)---")
-            return "grade_completeness"
-
-    def decide_after_relevance(self, state: RAGAgentState) -> Literal["rewrite_irrelevant", "grade_completeness"]:
-        """
-        Routes based on whether any relevant documents were found.
+        Routes based on whether relevant documents were found and iteration count.
         """
         logger.info("---DECIDE AFTER RELEVANCE---")
         iteration_count = state.get("iteration_count", 0)
+        has_documents = len(state.get("documents", [])) > 0
         
-        # Force progression if approaching recursion limit
-        if iteration_count >= self.config.max_iterations:
-            logger.warning(f"---ITERATION LIMIT REACHED ({iteration_count}/{self.config.max_iterations}), FORCING PROGRESSION TO COMPLETENESS CHECK---")
-            return "grade_completeness"
+        if has_documents:
+            logger.info("---DECISION: RELEVANT DOCS FOUND, REORDERING---")
+            return "reorder"
         
-        if not state["documents"]:
-            # If we have NO relevant documents at all (new or old), we need to broaden request
-            logger.info("---DECISION: NO RELEVANT DOCS, REWRITE IRRELEVANT---")
-            return "rewrite_irrelevant"
+        if iteration_count < 3:
+            logger.info(f"---DECISION: NO RELEVANT DOCS (Iter {iteration_count}/3), RE-PLANNING---")
+            return "planning"
         
-        logger.info("---DECISION: RELEVANT DOCS FOUND, CHECK COMPLETENESS---")
-        return "grade_completeness"
-
-    def decide_after_completeness(self, state: RAGAgentState) -> Literal["rewrite_incomplete", "rewrite_continuation", "generate"]:
-        """
-        Routes based on whether the collection is complete.
-        Differentiates between missing topics and truncated content.
-        """
-        logger.info("---DECIDE AFTER COMPLETENESS---")
-        iteration_count = state.get("iteration_count", 0)
-        is_complete = state.get("is_complete", False)
-        search_advice = state.get("search_advice", "")
-
-        # Force generation if approaching recursion limit
-        if iteration_count >= self.config.max_iterations:
-            logger.warning(f"---ITERATION LIMIT REACHED ({iteration_count}/{self.config.max_iterations}), FORCING GENERATION---")
-            return "generate"
-
-        if is_complete:
-            logger.info("---DECISION: COMPLETE, GENERATE---")
-            return "generate"
-        else:
-            # Check if truncated or missing topic based on search_advice prefix
-            if search_advice and search_advice.startswith("[TRUNCATED]"):
-                logger.info("---DECISION: TRUNCATED CONTENT, REWRITE CONTINUATION---")
-                return "rewrite_continuation"
-            else:
-                logger.info("---DECISION: MISSING TOPIC, REWRITE INCOMPLETE---")
-                return "rewrite_incomplete"
+        logger.info("---DECISION: NO RELEVANT DOCS AFTER 3 ITERS, FORCING GENERATION (Failure message)---")
+        return "generate"
 
     async def grade_generation_v_documents_and_question(self, state: RAGAgentState, config: RunnableConfig) -> Literal["not supported", "useful", "not useful"]:
         """
