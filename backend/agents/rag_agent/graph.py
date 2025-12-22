@@ -48,6 +48,16 @@ class GradeAnswer(BaseModel):
     """Assess whether the answer addresses the question."""
     binary_score: str = Field(description="Answer addresses the question, 'yes' or 'no'")
 
+class SemanticGroup(BaseModel):
+    """A logical group of document chunks."""
+    group_name: str = Field(description="Brief name or theme of the group")
+    description: str = Field(description="Short description of what these chunks collectively cover")
+    chunk_ids: list[int] = Field(description="Ordered list of chunk IDs belonging to this group")
+
+class ReorderedContext(BaseModel):
+    """The structured mapping of chunks into semantic groups."""
+    groups: list[SemanticGroup] = Field(description="List of semantic groups containing ordered chunk IDs")
+
 
 class DeepSightRAGAgent:
     """
@@ -286,7 +296,7 @@ class DeepSightRAGAgent:
 
     async def reorder(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Semantically reorder and group retrieved chunks.
+        Semantically reorder and group retrieved chunks using ID mapping.
         """
         logger.info("---REORDERING---")
         original_question = state["original_question"]
@@ -295,13 +305,34 @@ class DeepSightRAGAgent:
         if not documents:
             return {"current_step": "reordering"}
             
-        context = "\n\n".join(documents)
-        prompt = format_reorder_prompt(question=original_question, context=context)
+        # 1. Assign IDs to documents for the LLM to map
+        id_mapped_docs = {i: doc for i, doc in enumerate(documents, 1)}
+        formatted_context = ""
+        for i, doc in id_mapped_docs.items():
+            formatted_context += f"ID: {i}\nContent: {doc}\n\n"
+            
+        prompt = format_reorder_prompt(question=original_question, context=formatted_context)
         
-        response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
-        reordered_context = response.content
+        # 2. Call LLM with structured output
+        structured_reorderer = self.grader_model.with_structured_output(ReorderedContext)
+        result = await structured_reorderer.ainvoke([HumanMessage(content=prompt)], config)
         
-        logger.info("Reordering complete.")
+        # 3. Programmatically reassemble the context based on the groups
+        reordered_parts = []
+        for group in result.groups:
+            group_text = f"### {group.group_name}\n*{group.description}*\n\n"
+            group_chunks = []
+            for chunk_id in group.chunk_ids:
+                if chunk_id in id_mapped_docs:
+                    group_chunks.append(id_mapped_docs[chunk_id])
+            
+            if group_chunks:
+                group_text += "\n\n".join(group_chunks)
+                reordered_parts.append(group_text)
+        
+        reordered_context = "\n\n---\n\n".join(reordered_parts)
+        
+        logger.info(f"Reordering complete. Created {len(result.groups)} semantic groups.")
         
         return {
             "reordered_context": reordered_context,

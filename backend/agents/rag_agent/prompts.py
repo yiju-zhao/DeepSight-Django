@@ -50,8 +50,8 @@ Return a JSON list of strings."""
 
 
 # ===== REORDER_PROMPT =====
-# Used to semantically sort and group retrieved chunks
-REORDER_PROMPT = """You are a master editor. You have a collection of relevant document chunks that need to be organized for a logical and coherent answer.
+# Used to semantically sort and group retrieved chunks using ID mapping
+REORDER_PROMPT = """You are a master editor. Organize the following document chunks into a logical and coherent flow to answer the user question.
 
 **User Question:** {question}
 
@@ -59,12 +59,14 @@ REORDER_PROMPT = """You are a master editor. You have a collection of relevant d
 {context}
 
 **Your Task:**
-1. Identify the semantic relationships between the chunks.
-2. Group chunks into logical sub-themes if multiple perspectives exist.
-3. Within each group, sort chunks to form a natural information flow (e.g., definition -> mechanism -> example -> limitation).
-4. Remove any repetitive information that doesn't add value.
+1. Analyze the chunks and identify semantic relationships.
+2. Create logical groups (sub-themes).
+3. For each group:
+    - Provide a brief, professional description of what this group covers.
+    - List the IDs of the chunks that belong in this group, in their optimal reading order.
+4. Chunks that are purely redundant or irrelevant should be omitted.
 
-Return the reordered and grouped text, using markdown headers for any sub-themes if applicable."""
+Return a structured list of groups."""
 
 
 # ===== HALLUCINATION_GRADER_PROMPT =====
