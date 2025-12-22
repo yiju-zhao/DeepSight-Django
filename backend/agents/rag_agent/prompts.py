@@ -50,23 +50,28 @@ Return a JSON list of strings."""
 
 
 # ===== REORDER_PROMPT =====
-# Used to semantically sort and group retrieved chunks using ID mapping
-REORDER_PROMPT = """You are a master editor. Organize the following document chunks into a logical and coherent flow to answer the user question.
+# Used to semantically sort and group retrieved chunks using strict ID mapping
+REORDER_PROMPT = """You are a master editor. Your task is to organize retrieved document chunks into logical semantic groups and then sort them for a coherent narrative.
 
 **User Question:** {question}
 
 **Retrieved Chunks:**
 {context}
 
-**Your Task:**
-1. Analyze the chunks and identify semantic relationships.
-2. Create logical groups (sub-themes).
-3. For each group:
-    - Provide a brief, professional description of what this group covers.
-    - List the IDs of the chunks that belong in this group, in their optimal reading order.
-4. Chunks that are purely redundant or irrelevant should be omitted.
+**Critical Constraints:**
+1. **Uniqueness**: Each chunk ID MUST appear in exactly ONE group. Do not repeat chunks across groups.
+2. **Exclusion**: If a chunk is redundant or irrelevant, omit it entirely.
+3. **Workflow**:
+    - FIRST: Categorize all relevant chunks into distinct semantic groups (sub-themes).
+    - SECOND: For each group, determine the most logical sequence of chunks (e.g., theory -> application).
+    - THIRD: Determine the optimal order of the groups themselves to form a coherent story.
 
-Return a structured list of groups."""
+**Output Requirements for each Group:**
+- `group_name`: Concise thematic title.
+- `description`: A 1-2 sentence overview of the group's collective contribution.
+- `chunk_ids`: The list of assigned chunk IDs in their logical sequence.
+
+Return a structured list of groups in their intended presentation order."""
 
 
 # ===== HALLUCINATION_GRADER_PROMPT =====

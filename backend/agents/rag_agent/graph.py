@@ -319,20 +319,24 @@ class DeepSightRAGAgent:
         
         # 3. Programmatically reassemble the context based on the groups
         reordered_parts = []
+        assigned_chunk_ids = set()
+        
         for group in result.groups:
-            group_text = f"### {group.group_name}\n*{group.description}*\n\n"
-            group_chunks = []
+            # Filter IDs to ensure each chunk is only used once
+            unique_group_chunks = []
             for chunk_id in group.chunk_ids:
-                if chunk_id in id_mapped_docs:
-                    group_chunks.append(id_mapped_docs[chunk_id])
+                if chunk_id in id_mapped_docs and chunk_id not in assigned_chunk_ids:
+                    unique_group_chunks.append(id_mapped_docs[chunk_id])
+                    assigned_chunk_ids.add(chunk_id)
             
-            if group_chunks:
-                group_text += "\n\n".join(group_chunks)
+            if unique_group_chunks:
+                group_text = f"### {group.group_name}\n*{group.description}*\n\n"
+                group_text += "\n\n".join(unique_group_chunks)
                 reordered_parts.append(group_text)
         
         reordered_context = "\n\n---\n\n".join(reordered_parts)
         
-        logger.info(f"Reordering complete. Created {len(result.groups)} semantic groups.")
+        logger.info(f"Reordering complete. Created {len(reordered_parts)} semantic groups using {len(assigned_chunk_ids)} unique chunks.")
         
         return {
             "reordered_context": reordered_context,
