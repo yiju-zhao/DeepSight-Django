@@ -374,32 +374,6 @@ export interface SessionContextProviderProps {
   children: React.ReactNode;
 }
 
-// Component prop types
-export interface SessionTabsProps {
-  sessions: ChatSession[];
-  activeSessionId: string | null;
-  onCreateSession: () => void;
-  onSwitchSession: (sessionId: string) => void;
-  onCloseSession: (sessionId: string) => void;
-  onUpdateTitle: (sessionId: string, title: string) => void;
-  isLoading?: boolean;
-  hasFiles?: boolean;
-}
-
-export interface SessionChatWindowProps {
-  session: ChatSession | null;
-  messages: SessionChatMessage[];
-  suggestions: string[];
-  isLoading: boolean;
-  onSendMessage: (message: string) => Promise<boolean>;
-  notebookId: string;
-}
-
-export interface WelcomeScreenProps {
-  onStartChat: () => void;
-  isCreating?: boolean;
-  hasFiles?: boolean;
-}
 
 // Normalized Cache Types for Session Management
 /**

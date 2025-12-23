@@ -3,7 +3,7 @@ import { BookOpen } from "lucide-react";
 import Header from "@/shared/components/layout/Header";
 import Footer from "@/shared/components/layout/Footer";
 import { useAuth } from "@/shared/hooks/useAuth";
-import NotebookGridModernContainer from "@/features/notebook/components/modern/NotebookGridModernContainer";
+import { NotebookGrid } from "@/features/notebook/components/modern/NotebookGrid";
 import LoadingState from "@/features/dashboard/components/LoadingState";
 
 export default function NotebookListPage() {
@@ -48,7 +48,7 @@ export default function NotebookListPage() {
 
         {/* Main Content */}
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <NotebookGridModernContainer />
+          <NotebookGrid />
         </div>
       </main>
 
