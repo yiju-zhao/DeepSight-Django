@@ -754,14 +754,14 @@ const SourcesList = forwardRef<SourcesListRef, SourcesListProps>(({ notebookId, 
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-[32px] w-[32px] p-0 text-gray-400 hover:text-muted-foreground hover:bg-secondary rounded-md transition-colors"
+                className="h-[32px] w-[32px] p-0 text-gray-400 hover:text-muted-foreground hover:bg-secondary rounded-md transition-colors group"
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
                   onToggleCollapse();
                 }}
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-5 w-5 transition-transform duration-200 group-hover:-translate-x-0.5" />
               </Button>
             )}
           </div>

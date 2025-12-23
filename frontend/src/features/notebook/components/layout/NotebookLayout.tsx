@@ -118,7 +118,7 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
         {/* Main Content */}
         <main className="flex-1 flex flex-col min-h-0 bg-secondary overflow-hidden">
           <div
-            className={`w-full mx-auto h-full ${RESPONSIVE_PANELS.mobile.gap} ${RESPONSIVE_PANELS.mobile.padding} md:${RESPONSIVE_PANELS.tablet.gap} md:${RESPONSIVE_PANELS.tablet.padding} lg:${RESPONSIVE_PANELS.desktop.gap} lg:${RESPONSIVE_PANELS.desktop.padding} grid transition-[grid-template-columns] duration-300 ease-out`}
+            className={`w-full mx-auto h-full ${RESPONSIVE_PANELS.mobile.gap} ${RESPONSIVE_PANELS.mobile.padding} md:${RESPONSIVE_PANELS.tablet.gap} md:${RESPONSIVE_PANELS.tablet.padding} lg:${RESPONSIVE_PANELS.desktop.gap} lg:${RESPONSIVE_PANELS.desktop.padding} grid transition-[grid-template-columns] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]`}
             style={{
               gridTemplateColumns: isStudioExpanded
                 ? `56px 5fr 7fr` // Studio expanded: wider collapsed bar, balanced chat and studio
@@ -128,35 +128,54 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
             }}
           >
             {/* Sources Panel */}
-            <div className={`bg-white ${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} transition-all duration-300 overflow-hidden min-h-0 relative flex flex-col`}>
-              {!isSourcesCollapsed && !isStudioExpanded ? (
-                <div className="h-full flex flex-col">
-                  {React.cloneElement(sourcesPanel, {
-                    ...panelProps,
-                    ref: sourcesListRef,
-                    onToggleCollapse: () => setIsSourcesCollapsed(true),
-                    isCollapsed: isSourcesCollapsed,
-                    onSelectionChange: handleSelectionChange
-                  })}
-                </div>
-              ) : (
-                <div className="h-full flex flex-col">
-                  {/* Collapsed Header - Entire bar clickable with subtle highlight */}
-                  <div
-                    className="flex-shrink-0 py-4 bg-white flex items-center justify-center h-full w-full cursor-pointer transition-all duration-200 group hover:bg-gray-50"
-                    onClick={() => {
-                      if (isStudioExpanded) {
-                        setIsStudioExpanded(false);
-                      }
-                      setIsSourcesCollapsed(false);
-                    }}
-                    title={isStudioExpanded ? "Minimize Studio & Expand Sources Panel" : "Expand Sources Panel"}
+            <motion.div
+              layout
+              className={`bg-white ${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} transition-all duration-300 overflow-hidden min-h-0 relative flex flex-col z-10`}
+            >
+              <AnimatePresence mode="wait" initial={false}>
+                {!isSourcesCollapsed && !isStudioExpanded ? (
+                  <motion.div
+                    key="sources-expanded"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                    className="h-full flex flex-col"
                   >
-                    <Database className="h-5 w-5 text-gray-500 group-hover:text-gray-900 transition-all duration-200" />
-                  </div>
-                </div>
-              )}
-            </div>
+                    {React.cloneElement(sourcesPanel, {
+                      ...panelProps,
+                      ref: sourcesListRef,
+                      onToggleCollapse: () => setIsSourcesCollapsed(true),
+                      isCollapsed: isSourcesCollapsed,
+                      onSelectionChange: handleSelectionChange
+                    })}
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="sources-collapsed"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="h-full flex flex-col"
+                  >
+                    {/* Collapsed Header - Entire bar clickable with subtle highlight */}
+                    <div
+                      className="flex-shrink-0 py-4 bg-white flex items-center justify-center h-full w-full cursor-pointer transition-all duration-200 group hover:bg-gray-50"
+                      onClick={() => {
+                        if (isStudioExpanded) {
+                          setIsStudioExpanded(false);
+                        }
+                        setIsSourcesCollapsed(false);
+                      }}
+                      title={isStudioExpanded ? "Minimize Studio & Expand Sources Panel" : "Expand Sources Panel"}
+                    >
+                      <Database className="h-5 w-5 text-gray-500 group-hover:text-gray-900 transition-all duration-200" />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.div>
 
             {/* Chat Panel */}
             <div className={`bg-white ${RESPONSIVE_PANELS.desktop.radius} ${SHADOWS.panel.base} transition-all duration-300 overflow-hidden min-h-0 flex flex-col`}>
