@@ -101,11 +101,26 @@ Guidelines:
         .copilot-message-user {
           background-color: #3b82f6;
           color: white;
+          font-size: 0.875rem; /* 14px */
+          padding: 0.5rem 0.75rem;
         }
 
         .copilot-message-assistant {
           background-color: #f3f4f6;
           color: #111827;
+          font-size: 0.875rem; /* 14px */
+          padding: 0.5rem 0.75rem;
+        }
+
+        /* Scale down the overall message text container */
+        .copilotKitMessageContent {
+          font-size: 0.875rem !important;
+          line-height: 1.4 !important;
+        }
+
+        /* Adjust bubble spacing */
+        .copilotKitMessage {
+          margin-bottom: 0.75rem !important;
         }
 
         /* Input area styling */
