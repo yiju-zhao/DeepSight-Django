@@ -12,21 +12,32 @@
 #deep-sight-chat-panel .copilotKitMessage {
   font-size: var(--chat-font-size) !important;
   line-height: var(--chat-line-height) !important;
-  padding: 0.5rem 0.75rem !important; /* Reduce padding */
+  padding: 0.5rem 0.75rem !important;
+  margin-bottom: 0.25rem !important; /* Reduced from 0.5rem */
 }
 
 /* User Message Bubble */
 #deep-sight-chat-panel .copilotKitMessage.copilotKitUserMessage {
   font-size: var(--chat-font-size) !important;
-  background-color: #3b82f6 !important; /* Tailwind blue-500 */
+  background-color: #3b82f6 !important;
   color: white !important;
 }
 
 /* Assistant Message Bubble */
 #deep-sight-chat-panel .copilotKitMessage.copilotKitAssistantMessage {
   font-size: var(--chat-font-size) !important;
-  background-color: #f3f4f6 !important; /* Tailwind gray-100 */
-  padding-left: 0.75rem !important; /* Restore padding for assistant */
+  background-color: #f3f4f6 !important;
+  padding: 0.5rem 0.75rem 0.75rem 0.75rem !important; /* More bottom padding to keep icons away from edge */
+}
+
+/* Reduce the huge gap between assistant and user messages */
+#deep-sight-chat-panel .copilotKitMessage.copilotKitAssistantMessage + .copilotKitMessage.copilotKitUserMessage {
+  margin-top: 0.5rem !important; /* Reduced from 1.5rem */
+}
+
+/* Position controls slightly lower to not overlap with text */
+#deep-sight-chat-panel .copilotKitMessage.copilotKitAssistantMessage .copilotKitMessageControls {
+  padding-top: 8px !important;
 }
 
 /* === Markdown Content Styling === */
@@ -36,6 +47,10 @@
   font-size: var(--chat-font-size) !important;
   line-height: var(--chat-line-height) !important;
   margin-bottom: 0.5rem !important;
+}
+
+#deep-sight-chat-panel p.copilotKitMarkdownElement:last-child {
+  margin-bottom: 0 !important; /* Remove bottom margin for last paragraph to reduce inner whitespace */
 }
 
 /* Headers */
@@ -98,6 +113,8 @@
   font-size: var(--chat-font-size) !important;
   line-height: 1.4 !important;
   padding: 0.25rem !important;
+  overflow-y: hidden !important; /* Prevent scrollbar when empty or auto-growing */
+  resize: none !important;
 }
 
 /* === Header Styling === */
