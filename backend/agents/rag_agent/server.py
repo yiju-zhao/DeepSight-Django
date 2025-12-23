@@ -316,6 +316,12 @@ async def copilotkit_adapter(request: Request):
         payload = await request.json()
         method = payload.get("method")
 
+        # Debug: Log the full payload to understand abort request structure
+        logger.info(f"CopilotKit request - method: {method}, payload keys: {list(payload.keys())}")
+        if "body" in payload:
+            body_keys = list(payload.get("body", {}).keys())
+            logger.info(f"CopilotKit request - body keys: {body_keys}")
+
         # Handle /info method (agent discovery)
         if method == "info":
             return JSONResponse(
