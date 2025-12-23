@@ -16,6 +16,7 @@ Or with uvicorn:
     cd backend && uvicorn agents.rag_agent.server:app --port 8101 --reload
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -64,6 +65,10 @@ app = create_agent_server("RAG Agent Service", RAG_AGENT_PORT)
 current_request: ContextVar[Request | None] = ContextVar(
     "current_request", default=None
 )
+
+# Track active agent runs for cancellation support
+# Maps thread_id -> asyncio.Event (set when stop is requested)
+active_runs: dict[str, asyncio.Event] = {}
 
 # Initialize the base configuration (we'll override specific values per request)
 # We don't have the API key yet, we'll get it from the utility
@@ -273,13 +278,31 @@ class DynamicRAGAgent:
                 }
             )
 
-        # STREAM events from the agent
+        # Get thread_id for cancellation tracking
+        thread_id = None
+        if isinstance(input_data, dict):
+            thread_id = input_data.get("threadId")
+        elif hasattr(input_data, "threadId"):
+            thread_id = getattr(input_data, "threadId", None)
+
+        # Create cancellation event for this run
+        cancel_event = asyncio.Event()
+        if thread_id:
+            active_runs[thread_id] = cancel_event
+
+        # STREAM events from the agent with cancellation support
         try:
             async for event in aguiaagent.run(input_data):
+                # Check if cancellation was requested
+                if cancel_event.is_set():
+                    logger.info(f"Agent run cancelled for thread {thread_id}")
+                    break
                 yield event
         finally:
-            # Cleanup context variable
+            # Cleanup context variable and active run tracking
             current_retrieval_tools.set(None)
+            if thread_id and thread_id in active_runs:
+                del active_runs[thread_id]
 
 
 # Add the LangGraph endpoint at /copilotkit/ag-ui (internal path)
@@ -316,11 +339,20 @@ async def copilotkit_adapter(request: Request):
         payload = await request.json()
         method = payload.get("method")
 
-        # Debug: Log the full payload to understand abort request structure
-        logger.info(f"CopilotKit request - method: {method}, payload keys: {list(payload.keys())}")
-        if "body" in payload:
-            body_keys = list(payload.get("body", {}).keys())
-            logger.info(f"CopilotKit request - body keys: {body_keys}")
+        # Handle agent/stop requests - CopilotKit sends these when user clicks stop button
+        if method == "agent/stop":
+            # Extract thread_id from params
+            params = payload.get("params", {})
+            thread_id = params.get("threadId")
+
+            if thread_id and thread_id in active_runs:
+                # Signal the running agent to stop
+                active_runs[thread_id].set()
+                logger.info(f"Stop signal sent to agent for thread {thread_id}")
+                return JSONResponse({"success": True, "stopped": True})
+            else:
+                logger.debug(f"Stop request for unknown thread {thread_id}")
+                return JSONResponse({"success": True, "stopped": False, "message": "No active run found"})
 
         # Handle /info method (agent discovery)
         if method == "info":
@@ -340,16 +372,13 @@ async def copilotkit_adapter(request: Request):
         # Extract the body content - AG-UI expects body directly, not wrapped
         inner_body = payload.get("body", {})
 
-        # Handle abort/stop requests - return success without forwarding to AG-UI
-        # Abort requests are missing threadId and runId which are required by AG-UI
+        # Handle requests missing threadId/runId (e.g., malformed requests)
+        # These cannot be processed by AG-UI, so return early
         has_thread_id = "threadId" in inner_body and inner_body.get("threadId")
         has_run_id = "runId" in inner_body and inner_body.get("runId")
 
         if not has_thread_id or not has_run_id:
-            logger.info(
-                f"Request missing threadId or runId (abort request), returning success. "
-                f"threadId={inner_body.get('threadId')}, runId={inner_body.get('runId')}"
-            )
+            logger.debug("Request missing threadId or runId, returning success")
             return JSONResponse({"success": True, "message": "Request acknowledged"})
 
         # For all other requests, forward to the AG-UI endpoint
