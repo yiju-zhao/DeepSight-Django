@@ -27,7 +27,7 @@
 #deep-sight-chat-panel .copilotKitMessage.copilotKitAssistantMessage {
   font-size: var(--chat-font-size) !important;
   background-color: #f3f4f6 !important;
-  padding: 0.5rem 0.75rem 0.75rem 0.75rem !important; /* More bottom padding to keep icons away from edge */
+  padding: 0.5rem 0.75rem 1.25rem 0.75rem !important; /* Increased bottom padding to 1.25rem */
 }
 
 /* Reduce the huge gap between assistant and user messages */
@@ -35,9 +35,10 @@
   margin-top: 0.5rem !important; /* Reduced from 1.5rem */
 }
 
-/* Position controls slightly lower to not overlap with text */
+/* Position controls lower */
 #deep-sight-chat-panel .copilotKitMessage.copilotKitAssistantMessage .copilotKitMessageControls {
-  padding-top: 8px !important;
+  padding-top: 12px !important; /* Increased from 8px */
+  margin-top: 4px !important;
 }
 
 /* === Markdown Content Styling === */
