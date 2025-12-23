@@ -1,8 +1,20 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useRAGAgentState, STEPS_ORDER } from '@/features/notebook/hooks/useRAGAgentState';
 
 const StudioAgentStatus: React.FC = () => {
     const { state, currentIndex, percentage, isCompleted } = useRAGAgentState();
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const activeStepRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to active step
+    useEffect(() => {
+        if (activeStepRef.current && scrollContainerRef.current) {
+            activeStepRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+        }
+    }, [currentIndex, isCompleted]);
 
     // Only render if we have a current step or active generation
     if (!state?.current_step && !state?.generation) {
@@ -44,20 +56,21 @@ const StudioAgentStatus: React.FC = () => {
                 </div>
             </div>
 
-            {/* Steps Scroll Area */}
-            <div 
-                data-testid="task-progress"
-                className="flex-1 overflow-y-auto p-4 space-y-2"
-            >
-                {STEPS_ORDER.map((step, index) => {
-                        const isStepCompleted = index < currentIndex || isCompleted;
-                        const isCurrentPending = index === currentIndex && !isCompleted;
-
-                        return (
-                            <div
-                                key={step.id}
-                                className={`relative flex items-center p-2 rounded-lg transition-all duration-500 ${isStepCompleted
-                                    ? "bg-green-50/50 border border-green-100"
+                        {/* Steps Scroll Area */}
+                        <div 
+                            data-testid="task-progress"
+                            className="flex-1 overflow-y-auto p-4 space-y-2"
+                            ref={scrollContainerRef}
+                        >
+                            {STEPS_ORDER.map((step, index) => {
+                                const isStepCompleted = index < currentIndex || isCompleted;
+                                const isCurrentPending = index === currentIndex && !isCompleted;
+            
+                                return (
+                                    <div
+                                        key={step.id}
+                                        ref={isCurrentPending ? activeStepRef : null}
+                                        className={`relative flex items-center p-2 rounded-lg transition-all duration-500 ${isStepCompleted                                    ? "bg-green-50/50 border border-green-100"
                                     : isCurrentPending
                                         ? "bg-blue-50/50 border border-blue-100 shadow-sm"
                                         : "bg-gray-50/30 border border-gray-100"

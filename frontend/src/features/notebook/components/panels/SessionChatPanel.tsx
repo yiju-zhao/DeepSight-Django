@@ -46,17 +46,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
 }) => {
   return (
     <div className="h-full flex flex-col bg-white">
-      {/* Panel Header */}
-      <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-white">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <h3 className="text-lg font-semibold text-gray-900">Research Assistant</h3>
-          </div>
-          <span className="text-xs text-gray-500 font-mono">AI-Powered</span>
-        </div>
-      </div>
-
       {/* CopilotChat Component - Full Height */}
       <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
         <ChatAgentStatus />
@@ -97,7 +86,14 @@ Guidelines:
         /* These often appear as "Used tool..." or system messages */
         .copilotKitMessage[data-message-role="system"], 
         .copilotKitMessage[data-message-role="function"],
-        .copilot-kit-tool-call {
+        .copilot-kit-tool-call,
+        .copilotKitActivityMessage { 
+            display: none !important;
+        }
+        
+        /* Hide tool output containers if they exist as separate elements */
+        div[class*="CopilotKitResponse_toolOutput"],
+        div[class*="copilot-kit-tool-output"] {
             display: none !important;
         }
 
