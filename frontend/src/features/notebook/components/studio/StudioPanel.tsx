@@ -26,7 +26,7 @@ import FileViewer from './FileViewer';
 import StudioList from './list/StudioList';
 
 import NoteViewer from './NoteViewer';
-import RAGStatus from '../chat/RAGStatus';
+import StudioAgentStatus from './StudioAgentStatus';
 
 // ====== INTERFACE SEGREGATION PRINCIPLE (ISP) ======
 // Import type definitions and prop creators
@@ -667,8 +667,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
             <div className="px-4 py-3 border-b border-gray-50 flex justify-between items-center">
               <h4 className="text-sm font-medium text-gray-700">RAG Agent Progress</h4>
             </div>
-            <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
-              <RAGStatus />
+            <div className="flex-1 p-0 overflow-hidden relative">
+              <StudioAgentStatus />
             </div>
           </div>
 

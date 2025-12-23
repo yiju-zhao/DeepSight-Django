@@ -27,6 +27,7 @@
 import React from 'react';
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
+import ChatAgentStatus from "../chat/ChatAgentStatus";
 
 interface SessionChatPanelProps {
   notebookId: string;
@@ -57,9 +58,10 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
       </div>
 
       {/* CopilotChat Component - Full Height */}
-      <div className="flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-0 relative flex flex-col">
+        <ChatAgentStatus />
         <CopilotChat
-          className="h-full"
+          className="flex-1"
           instructions={`You are a research assistant for this notebook. You have access to the documents and sources in this notebook via RAG retrieval.
 
 Your capabilities:
