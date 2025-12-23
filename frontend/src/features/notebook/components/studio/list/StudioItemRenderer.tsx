@@ -3,8 +3,6 @@
 
 import React from 'react';
 import type { StudioItem, ReportStudioItem, PodcastStudioItem, NoteStudioItem } from '../../../types/studioItem';
-import { statusToPhase } from '../../../types/studioItem';
-import GeneratingCard from '../items/GeneratingCard';
 import ReportCard from '../items/ReportCard';
 import PodcastCard from '../items/PodcastCard';
 import NoteCard from '../items/NoteCard';
@@ -28,17 +26,6 @@ interface StudioItemRendererProps {
 }
 
 const StudioItemRenderer: React.FC<StudioItemRendererProps> = ({ item, callbacks }) => {
-  const phase = statusToPhase(item.status);
-
-  // If generating, use unified GeneratingCard
-  if (phase === 'generating') {
-    const onDelete = item.kind === 'report'
-      ? () => callbacks.onDeleteReport(item as ReportStudioItem)
-      : () => callbacks.onDeletePodcast(item as PodcastStudioItem);
-
-    return <GeneratingCard item={item} onDelete={onDelete} />;
-  }
-
   // Otherwise, render kind-specific cards
   if (item.kind === 'report') {
     return (

@@ -2,7 +2,7 @@
 // Display for completed/failed/cancelled report states
 
 import React from 'react';
-import { BookOpen, AlertCircle, XCircle } from 'lucide-react';
+import { BookOpen, AlertCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import type { ReportStudioItem } from '../../../types/studioItem';
@@ -17,11 +17,12 @@ const ReportCard: React.FC<ReportCardProps> = ({ item, onSelect, onDelete }) => 
   // Determine status-specific styling
   const isFailed = item.status === 'failed';
   const isCancelled = item.status === 'cancelled';
-  const isCompleted = item.status === 'completed';
+  const isGenerating = item.status === 'generating' || item.status === 'idle';
 
   const getStatusIcon = () => {
     if (isFailed) return <AlertCircle className="h-4 w-4 text-red-500" />;
     if (isCancelled) return <XCircle className="h-4 w-4 text-amber-500" />;
+    if (isGenerating) return <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />;
     return <BookOpen className="h-4 w-4 text-emerald-600" />;
   };
 
@@ -40,13 +41,20 @@ const ReportCard: React.FC<ReportCardProps> = ({ item, onSelect, onDelete }) => 
         </span>
       );
     }
+    if (isGenerating) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-800 rounded-full">
+          Generating
+        </span>
+      );
+    }
     return null;
   };
 
   return (
     <div
       className="relative overflow-hidden cursor-pointer group transition-colors duration-150 bg-white hover:bg-gray-50 rounded-lg px-4 border border-border hover:border-accent-red hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
-      onClick={() => onSelect(item)}
+      onClick={() => !isGenerating && onSelect(item)}
     >
       <div className="flex items-center justify-between py-3 h-16">
         <div className="flex items-center space-x-4 flex-1 min-w-0">
@@ -66,7 +74,9 @@ const ReportCard: React.FC<ReportCardProps> = ({ item, onSelect, onDelete }) => 
             {item.error ? (
               <p className="text-[12px] text-accent-red mt-0.5 truncate">{item.error}</p>
             ) : (
-              <p className="text-[12px] text-muted-foreground mt-0.5 truncate">Research Report</p>
+              <p className="text-[12px] text-muted-foreground mt-0.5 truncate">
+                {isGenerating ? 'Generation in progress...' : 'Research Report'}
+              </p>
             )}
           </div>
         </div>

@@ -2,7 +2,7 @@
 // Display for completed/failed/cancelled podcast states with inline player
 
 import React from 'react';
-import { Headphones, AlertCircle, XCircle } from 'lucide-react';
+import { Headphones, AlertCircle, XCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/shared/components/ui/button';
 import { Trash2 } from 'lucide-react';
 import type { PodcastStudioItem } from '../../../types/studioItem';
@@ -27,11 +27,12 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
   // Determine status-specific styling
   const isFailed = item.status === 'failed';
   const isCancelled = item.status === 'cancelled';
-  const isCompleted = item.status === 'completed';
+  const isGenerating = item.status === 'generating' || item.status === 'idle';
 
   const getStatusIcon = () => {
     if (isFailed) return <AlertCircle className="h-4 w-4 text-red-500" />;
     if (isCancelled) return <XCircle className="h-4 w-4 text-amber-500" />;
+    if (isGenerating) return <Loader2 className="h-4 w-4 text-violet-600 animate-spin" />;
     return <Headphones className="h-4 w-4 text-violet-600" />;
   };
 
@@ -50,6 +51,13 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
         </span>
       );
     }
+    if (isGenerating) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-violet-100 text-violet-800 rounded-full">
+          Generating
+        </span>
+      );
+    }
     return null;
   };
 
@@ -58,7 +66,7 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
       {/* Header */}
       <div
         className="relative overflow-hidden cursor-pointer group bg-white rounded-lg px-4 border border-border hover:border-accent-red hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)] transition-all duration-150"
-        onClick={() => onToggleExpand(item)}
+        onClick={() => !isGenerating && onToggleExpand(item)}
       >
         <div className="flex items-center justify-between py-3 h-16">
           <div className="flex items-center space-x-4 flex-1 min-w-0">
@@ -78,7 +86,9 @@ const PodcastCard: React.FC<PodcastCardProps> = ({
               {item.error ? (
                 <p className="text-[12px] text-accent-red mt-0.5 truncate">{item.error}</p>
               ) : (
-                <p className="text-[12px] text-muted-foreground mt-0.5 truncate">AI Podcast</p>
+                <p className="text-[12px] text-muted-foreground mt-0.5 truncate">
+                  {isGenerating ? 'Generation in progress...' : 'AI Podcast'}
+                </p>
               )}
             </div>
           </div>

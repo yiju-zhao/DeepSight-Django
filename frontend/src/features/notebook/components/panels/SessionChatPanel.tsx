@@ -29,10 +29,10 @@ import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import "../../styles/SessionChatPanel.css";
 import ChatAgentStatus from "../chat/ChatAgentStatus";
-import { useCreateNoteFromMessageMutation } from "@/features/notebook/hooks/notes/useNoteQueries";
+import { useCreateNoteMutation } from "@/features/notebook/hooks/notes/useNoteQueries";
 import { FilePlus } from "lucide-react";
 import { useToast } from "@/shared/components/ui/use-toast";
-import { Message } from "@copilotkit/react-core"; // Import from core, not shared
+import { Message } from "@copilotkit/shared";
 
 interface SessionChatPanelProps {
   notebookId: string;
@@ -50,17 +50,52 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
   notebookId,
 }) => {
   const { toast } = useToast();
-  const createNoteMutation = useCreateNoteFromMessageMutation(notebookId);
+  const createNoteMutation = useCreateNoteMutation(notebookId);
+
+  // Polyfill navigator.clipboard for non-secure contexts (HTTP) to prevent crashes
+  React.useEffect(() => {
+    if (!navigator.clipboard) {
+      // @ts-ignore - assigning to readonly property for polyfill purposes
+      navigator.clipboard = {
+        writeText: async (text: string) => {
+          const textArea = document.createElement("textarea");
+          textArea.value = text;
+          textArea.style.top = "0";
+          textArea.style.left = "0";
+          textArea.style.position = "fixed";
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          try {
+            document.execCommand('copy');
+          } catch (err) {
+            console.error('Fallback: Unable to copy', err);
+            throw err;
+          } finally {
+            document.body.removeChild(textArea);
+          }
+        }
+      };
+    }
+  }, []);
 
   const handleAddToNote = (message: Message) => {
     if (!message.content) return;
     
-    // Determine a title (first 40 chars or default)
-    const title = message.content.substring(0, 40).split('\n')[0].replace(/[#*]/g, '').trim() + "...";
+    let title = "Note from Chat";
+    
+    if (typeof message.content === 'string') {
+      const firstLine = message.content.split('\n')[0] || "";
+      if (firstLine) {
+        title = firstLine.substring(0, 40).replace(/[#*]/g, '').trim() + "...";
+      }
+    }
+      
+    const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content);
 
     createNoteMutation.mutate({
-      title: title || "Note from Chat",
-      content: message.content,
+      title: title,
+      content: content,
       tags: ["chat-insight"]
     }, {
       onSuccess: () => {
