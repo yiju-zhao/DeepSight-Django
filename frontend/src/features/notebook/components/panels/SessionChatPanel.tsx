@@ -80,8 +80,8 @@ Guidelines:
           height: 100%;
           display: flex;
           flex-direction: column;
-          --copilot-kit-font-size: 0.8125rem;
-          --ck-font-size: 0.8125rem;
+          --copilot-kit-font-size: 0.75rem; /* 12px */
+          --ck-font-size: 0.75rem;
         }
 
         /* Hide intermediate tool outputs/logs in chat */
@@ -120,14 +120,14 @@ Guidelines:
         .copilot-message-user {
           background-color: #3b82f6;
           color: white;
-          font-size: 0.8125rem; /* 13px */
+          font-size: 0.75rem; /* 12px */
           padding: 0.5rem 0.75rem;
         }
 
         .copilot-message-assistant {
           background-color: #f3f4f6;
           color: #111827;
-          font-size: 0.8125rem; /* 13px */
+          font-size: 0.75rem; /* 12px */
           padding: 0.5rem 0.75rem;
         }
 
@@ -136,7 +136,7 @@ Guidelines:
         .copilotKitMessageContent *,
         .copilot-kit-message-content,
         .copilot-kit-message-content * {
-          font-size: 0.8125rem !important;
+          font-size: 0.75rem !important;
           line-height: 1.5 !important;
         }
 
@@ -145,31 +145,84 @@ Guidelines:
         .copilotKitHeader *,
         .copilot-kit-header,
         .copilot-kit-header * {
-          font-size: 0.875rem !important; /* 14px for header */
+          font-size: 0.8125rem !important; /* 13px for header */
           font-weight: 600 !important;
         }
 
-        /* Target markdown content specifically if needed */
-        .copilotKitMessageContent p,
+        /* === Markdown & Content Styling === */
+        
+        /* Headers */
+        .copilotKitMessageContent h1,
+        .copilotKitMessageContent h2,
+        .copilotKitMessageContent h3,
+        .copilotKitMessageContent h4 {
+            font-weight: 600 !important;
+            margin-top: 0.75rem !important;
+            margin-bottom: 0.25rem !important;
+            line-height: 1.4 !important;
+            color: #111827;
+        }
+
+        .copilotKitMessageContent h1 { font-size: 0.9rem !important; }
+        .copilotKitMessageContent h2 { font-size: 0.85rem !important; }
+        .copilotKitMessageContent h3 { font-size: 0.8rem !important; }
+
+        /* Paragraphs and Lists */
+        .copilotKitMessageContent p {
+            margin-bottom: 0.5rem !important;
+        }
+        
+        .copilotKitMessageContent ul, 
+        .copilotKitMessageContent ol {
+            margin-top: 0.25rem !important;
+            margin-bottom: 0.5rem !important;
+            padding-left: 1.25rem !important;
+            list-style-type: disc !important;
+        }
+        
         .copilotKitMessageContent li {
-          margin-bottom: 0.5rem !important;
+            margin-bottom: 0.25rem !important;
+        }
+
+        /* Code Blocks */
+        .copilotKitMessageContent pre {
+            background-color: #282c34 !important;
+            color: #abb2bf !important;
+            padding: 0.75rem !important;
+            border-radius: 0.375rem !important;
+            margin: 0.5rem 0 !important;
+            overflow-x: auto !important;
+        }
+        
+        .copilotKitMessageContent code {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+            font-size: 0.7rem !important; /* Smaller code font */
+        }
+
+        /* Inline Code */
+        .copilotKitMessageContent :not(pre) > code {
+            background-color: rgba(0,0,0,0.06) !important;
+            color: #c026d3 !important; /* A distinct purple/pink for inline code */
+            padding: 0.1rem 0.25rem !important;
+            border-radius: 0.25rem !important;
+            font-size: 0.7rem !important;
         }
 
         /* Adjust input font size */
         .copilotKitInput textarea,
         .copilot-input-container textarea {
-          font-size: 0.8125rem !important;
+          font-size: 0.75rem !important;
         }
 
         /* Adjust bubble spacing */
         .copilotKitMessage {
-          margin-bottom: 0.75rem !important;
+          margin-bottom: 0.5rem !important;
         }
 
         /* Input area styling */
         .copilot-input-container {
           border-top: 1px solid #e5e7eb;
-          padding: 1rem;
+          padding: 0.75rem;
           background: white;
         }
 
