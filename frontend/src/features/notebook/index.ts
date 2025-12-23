@@ -27,35 +27,21 @@ export { useFileSelection } from './hooks/file/useFileSelection';
 export { useFileStatusSSE } from './hooks/file/useFileStatusSSE';
 export { useSessionChat } from './hooks/chat/useSessionChat';
 
-// Services
+// Services (keeping these for now as they have consumers)
 export { default as SourceService } from './services/SourceService';
 export { default as SessionChatService } from './services/SessionChatService';
-export { default as StudioService } from './services/StudioService';
 
-// API & Queries
+// API - Backward compatible combined API
 export { notebooksApi } from './api';
-export * from './queries';
 
-// Configuration
-export * from './config/fileConfig';
-export { 
-  ANIMATIONS,
-  COLORS,
-  SPACING,
-  TYPOGRAPHY,
-  PANEL_HEADERS,
-  RADIUS,
-  SHADOWS,
-  Z_INDEX,
-  BREAKPOINTS,
-  RESPONSIVE_PANELS,
-  SIZES,
-  GRID,
-  TRANSITIONS,
-  STATES,
-  buildGridCols,
-  buildSpacing
-} from './config/uiConfig';
+// Query Hooks - From the new modular structure
+export * from './hooks/api';
 
-// Types
-export * from './type';
+// Configuration - From the new modular structure  
+export * from './config';
+
+// Types - From the new modular structure
+export * from './types';
+
+// Download utilities
+export { downloadWithRedirect, triggerBlobDownload, triggerUrlDownload, downloadReportFile, downloadReportPdf, downloadPodcastAudio } from './utils/download';

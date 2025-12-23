@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { VALIDATION_CONFIG } from "@/features/notebook/config/fileConfig";
+import { VALIDATION_CONFIG } from "@/features/notebook/config/file";
 
 interface ValidationResult {
   isValid: boolean;
@@ -25,26 +25,26 @@ export const useFileUpload = () => {
     const extension = file.name.split(".").pop()?.toLowerCase() || "";
     const errors: string[] = [];
     const warnings: string[] = [];
-    
+
     // Check file extension
     if (!extension) {
       errors.push("File must have an extension");
     } else if (!VALIDATION_CONFIG.allowedExtensions.includes(extension)) {
       errors.push(`File type "${extension}" is not supported. Allowed types: ${VALIDATION_CONFIG.allowedExtensions.join(", ")}`);
     }
-    
+
     // Check file size
     if (file.size > VALIDATION_CONFIG.maxSize) {
       errors.push(`File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds maximum allowed size of 100MB`);
     } else if (file.size < VALIDATION_CONFIG.minSize) {
       warnings.push("File is very small and may be empty");
     }
-    
+
     // Check filename for potentially dangerous characters
     if (/[<>:"|?*]/.test(file.name)) {
       errors.push("Filename contains invalid characters");
     }
-    
+
     // Check MIME type if available
     if (file.type) {
       const expectedType = VALIDATION_CONFIG.expectedMimeTypes[extension as keyof typeof VALIDATION_CONFIG.expectedMimeTypes];
@@ -52,7 +52,7 @@ export const useFileUpload = () => {
         warnings.push(`File type "${file.type}" may not match extension "${extension}"`);
       }
     }
-    
+
     return { isValid: errors.length === 0, errors, warnings, extension };
   }, []);
 
@@ -78,7 +78,7 @@ export const useFileUpload = () => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(false);
-    
+
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0 && files[0] && onFileDrop) {
       onFileDrop(files[0]);

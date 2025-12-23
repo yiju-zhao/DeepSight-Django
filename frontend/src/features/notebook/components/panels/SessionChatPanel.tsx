@@ -27,7 +27,7 @@
 import React from 'react';
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
-import "./SessionChatPanel.css";
+import "../../styles/SessionChatPanel.css";
 import ChatAgentStatus from "../chat/ChatAgentStatus";
 
 interface SessionChatPanelProps {

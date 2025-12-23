@@ -19,7 +19,7 @@ import type {
   ModelsResponse,
   ListSessionsResponse,
   CreateSessionResponse,
-} from '@/features/notebook/type';
+} from '@/features/notebook/types/ui';
 
 // Query keys factory (hierarchical structure for efficient invalidation)
 export const sessionKeys = {

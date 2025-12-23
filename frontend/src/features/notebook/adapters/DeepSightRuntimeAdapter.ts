@@ -9,7 +9,7 @@ import type {
   ThreadMessage,
   AppendMessage,
 } from '@assistant-ui/react';
-import type { SessionChatMessage } from '@/features/notebook/type';
+import type { SessionChatMessage } from '@/features/notebook/types/ui';
 
 /**
  * Convert DeepSight message to assistant-ui message format

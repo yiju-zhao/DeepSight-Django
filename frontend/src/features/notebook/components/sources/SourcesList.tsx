@@ -6,7 +6,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Alert, AlertDescription } from "@/shared/components/ui/alert";
 import { Badge } from "@/shared/components/ui/badge";
 import sourceService from "@/features/notebook/services/SourceService";
-import { PANEL_HEADERS, COLORS } from "@/features/notebook/config/uiConfig";
+import { PANEL_HEADERS, COLORS } from "@/features/notebook/config/ui";
 import { FileIcons } from "@/shared/types";
 import { Source, SourcesListProps } from "@/features/notebook/type";
 import { FileMetadata } from "@/shared/types";

@@ -5,14 +5,14 @@
 import { useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { 
-  useNotebook, 
-  useUpdateNotebook, 
+import {
+  useNotebook,
+  useUpdateNotebook,
   useDeleteNotebook,
   useDuplicateNotebook,
   useNotebookStats,
-  notebookQueries 
-} from "@/features/notebook/queries";
+  notebookKeys
+} from "@/features/notebook/hooks/api";
 import type { UpdateNotebookRequest } from "@/shared/api";
 import { useErrorBoundary } from "@/shared/components/ui/ErrorBoundary";
 
@@ -24,13 +24,13 @@ interface UseNotebookOperationsOptions {
 }
 
 export const useNotebookOperations = (
-  notebookId: string, 
+  notebookId: string,
   options: UseNotebookOperationsOptions = {}
 ) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { captureError } = useErrorBoundary();
-  
+
   // Queries
   const {
     data: notebook,
@@ -131,7 +131,7 @@ export const useNotebookOperations = (
   const handleRefresh = useCallback(() => {
     refetchNotebook();
     queryClient.invalidateQueries({
-      queryKey: notebookQueries.detail(notebookId),
+      queryKey: notebookKeys.detail(notebookId),
     });
   }, [refetchNotebook, queryClient, notebookId]);
 
@@ -147,7 +147,7 @@ export const useNotebookOperations = (
     // Data
     notebook,
     stats,
-    
+
     // State
     isLoading,
     error,
@@ -155,7 +155,7 @@ export const useNotebookOperations = (
     isDeleting,
     isDuplicating,
     isBusy,
-    
+
     // Operations
     operations: {
       update: handleUpdate,
@@ -165,7 +165,7 @@ export const useNotebookOperations = (
       prefetchSources,
       prefetchChat,
     },
-    
+
     // Mutation objects (for more granular control)
     mutations: {
       update: updateNotebook,
@@ -178,7 +178,7 @@ export const useNotebookOperations = (
 // Simplified hook for basic notebook data
 export const useNotebookData = (notebookId: string) => {
   const { data, isLoading, error } = useNotebook(notebookId);
-  
+
   return {
     notebook: data,
     isLoading,
@@ -189,7 +189,7 @@ export const useNotebookData = (notebookId: string) => {
 // Hook for notebook statistics
 export const useNotebookStatsData = (notebookId: string) => {
   const { data, isLoading, error } = useNotebookStats(notebookId);
-  
+
   return {
     stats: data,
     isLoading,

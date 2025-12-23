@@ -48,7 +48,7 @@ class ChatErrorBoundary extends Component<Props, State> {
     };
   }
 
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+  override componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('Chat Error Boundary caught an error:', error, errorInfo);
     this.setState({
       error,
@@ -56,8 +56,9 @@ class ChatErrorBoundary extends Component<Props, State> {
     });
 
     // Log to error tracking service if available
-    if (window.analytics) {
-      window.analytics.track('Chat Error', {
+    const win = window as Window & { analytics?: { track: (event: string, data: unknown) => void } };
+    if (win.analytics) {
+      win.analytics.track('Chat Error', {
         error: error.message,
         stack: error.stack,
         notebookId: this.props.notebookId,
@@ -81,14 +82,14 @@ class ChatErrorBoundary extends Component<Props, State> {
     window.location.href = '/';
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       const { error } = this.state;
       const isNetworkError = error?.message?.includes('network') ||
-                            error?.message?.includes('fetch') ||
-                            error?.message?.includes('ECONNREFUSED');
+        error?.message?.includes('fetch') ||
+        error?.message?.includes('ECONNREFUSED');
       const isAuthError = error?.message?.includes('401') ||
-                         error?.message?.includes('unauthorized');
+        error?.message?.includes('unauthorized');
 
       return (
         <div className="h-full flex items-center justify-center bg-gray-50 p-6">

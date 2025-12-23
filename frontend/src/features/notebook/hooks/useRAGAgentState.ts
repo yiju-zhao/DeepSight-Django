@@ -30,7 +30,6 @@ export const useRAGAgentState = () => {
     // Use useCoAgent to access state without automatic chat rendering
     const { state } = useCoAgent<RAGAgentState>({
         name: "rag_agent",
-        render: () => null,
     });
 
     const currentStepId = state?.current_step || 'idle';
@@ -61,7 +60,7 @@ export const useRAGAgentState = () => {
         }
 
         const percentage = Math.min(((currentIndex) / STEPS_ORDER.length) * 100, 100);
-        
+
         return {
             currentIndex,
             percentage,

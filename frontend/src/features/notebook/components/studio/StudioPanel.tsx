@@ -7,13 +7,14 @@ import { Button } from "@/shared/components/ui/button";
 import { useToast } from "@/shared/components/ui/use-toast";
 
 // ====== DEPENDENCY INVERSION PRINCIPLE (DIP) ======
-// Import service abstractions, not concrete implementations
-import studioService from "@/features/notebook/services/StudioService";
+// Import modular API modules instead of monolithic service
+import { reportsApi } from "@/features/notebook/api/studioApi";
+import { downloadReportPdf, downloadPodcastAudio } from "@/features/notebook/utils/download";
 
 // ====== SINGLE RESPONSIBILITY PRINCIPLE (SRP) ======
 // Import focused custom hooks for specific concerns
 import { config } from "@/config";
-import { PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
+import { PANEL_HEADERS } from "@/features/notebook/config/ui";
 import { useNotebookReportJobs, useNotebookPodcastJobs, useReportModels, useDeleteReport, useDeletePodcast } from "@/features/notebook/hooks/studio/useStudio";
 import { useGenerationManager } from "@/features/notebook/hooks/studio/useGenerationManager";
 import { useNotebookJobStream } from '@/shared/hooks/useNotebookJobStream';
@@ -126,14 +127,14 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
           if (completedReport) {
             // Trigger a direct API call to select and display the report
-            studioService.getReportContent(completedReport.id || completedReport.job_id, notebookId)
-              .then(content => {
+            reportsApi.getContent(completedReport.id || completedReport.job_id)
+              .then((content: any) => {
                 setSelectedFile(completedReport);
                 setSelectedFileContent(content.content || content.markdown_content || '');
                 setViewMode('preview');
                 setIsReportPreview(true);
               })
-              .catch(error => {
+              .catch((error: Error) => {
                 console.error('Failed to auto-display completed report:', error);
               });
           }
@@ -283,7 +284,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         throw new Error('Report ID not found');
       }
 
-      const content = await studioService.getReportContent(reportId, notebookId);
+      const content = await reportsApi.getContent(reportId);
       setSelectedFile(report);
       setSelectedFileContent(content.content || content.markdown_content || '');
       setViewMode('preview');
@@ -303,7 +304,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [studioService, notebookId, toast, isStudioExpanded, onToggleExpand]);
+  }, [notebookId, toast, isStudioExpanded, onToggleExpand]);
 
   const handlePodcastClick = useCallback((podcast: PodcastItem) => {
     // Set selected podcast for bottom player
@@ -349,7 +350,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
       // Use notebookService.downloadReportPdf directly instead of studioService.downloadFile
       // This ensures we're using the correct PDF download endpoint
-      const blob = await studioService.downloadReportPdf(reportId, notebookId);
+      const blob = await downloadReportPdf(reportId);
 
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -377,7 +378,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [studioService, notebookId, toast]);
+  }, [notebookId, toast]);
 
   const handleDownloadPodcast = useCallback(async (podcast: PodcastItem) => {
     try {
@@ -387,7 +388,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       }
 
       // Download directly using browser navigation (avoids CORS issues)
-      await studioService.downloadPodcastAudio(podcastId, notebookId);
+      downloadPodcastAudio(podcastId);
 
       toast({
         title: "Download Started",
@@ -500,7 +501,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         throw new Error('File ID not found');
       }
 
-      await studioService.updateReport(fileId, notebookId, content);
+      await reportsApi.update(fileId, content);
       setSelectedFileContent(content);
 
       // Invalidate report jobs cache to sync changes
@@ -519,7 +520,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         variant: "destructive"
       });
     }
-  }, [selectedFile, studioService, reportJobs, notebookId, toast]);
+  }, [selectedFile, reportJobs, notebookId, toast]);
 
   const handleCloseFile = useCallback(() => {
     setSelectedFile(null);

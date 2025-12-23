@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import { useAuth } from "@/shared/hooks/useAuth";
-import { useNotebook } from "@/features/notebook/queries";
+import { useNotebook } from "@/features/notebook/hooks/api";
 import { useApiUtils } from "@/features/notebook/hooks";
 import NotebookLayout from "@/features/notebook/components/layout/NotebookLayout";
 import NotebookChatContainer from "@/features/notebook/components/layout/NotebookChatContainer";

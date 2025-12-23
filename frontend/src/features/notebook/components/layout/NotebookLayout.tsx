@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Database, RectangleHorizontal } from "lucide-react";
 import { Toaster } from "@/shared/components/ui/toaster";
 import { Button } from "@/shared/components/ui/button";
-import { LAYOUT_RATIOS, COLORS, SHADOWS, RESPONSIVE_PANELS, PANEL_HEADERS } from "@/features/notebook/config/uiConfig";
+import { LAYOUT_RATIOS, COLORS, SHADOWS, RESPONSIVE_PANELS, PANEL_HEADERS } from "@/features/notebook/config/ui";
 import NotebookHeader from "@/features/notebook/components/layout/NotebookHeader";
 import { NotebookSettingsProvider } from "@/features/notebook/contexts/NotebookSettingsContext";
 import NotebookSettingsModal from "@/features/notebook/components/modals/NotebookSettingsModal";

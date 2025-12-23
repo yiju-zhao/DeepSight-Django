@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from "@/shared/components/ui/button";
 import { Search, MessageSquare, X } from 'lucide-react';
-import { COLORS } from "@/features/notebook/config/uiConfig";
+import { COLORS } from "@/features/notebook/config/ui";
 
 interface FileItem {
   id: string;

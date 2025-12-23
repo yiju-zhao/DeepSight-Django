@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useMemo, useCallback } from 'react';
-import { useNotebook, useNotebookStats } from "@/features/notebook/queries";
+import { useNotebook, useNotebookStats } from "@/features/notebook/hooks/api";
 import type { ViewMode, SortConfig } from "@/shared/types/global";
 
 interface NotebookContextValue {
@@ -12,37 +12,37 @@ interface NotebookContextValue {
   notebookId: string;
   notebook?: any; // Replace with actual Notebook type
   stats?: any; // Replace with actual NotebookStats type
-  
+
   // Local UI state (client state)
   selectedSources: string[];
   setSelectedSources: (sources: string[] | ((prev: string[]) => string[])) => void;
-  
+
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
-  
+
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  
+
   sortConfig: SortConfig;
   setSortConfig: (config: SortConfig) => void;
-  
+
   // UI state
   activePanel: 'chat' | 'sources' | 'studio' | 'knowledge';
   setActivePanel: (panel: 'chat' | 'sources' | 'studio' | 'knowledge') => void;
-  
+
   sidebarOpen: boolean;
   setSidebarOpen: (open: boolean) => void;
-  
+
   // Selection state
   isMultiSelectMode: boolean;
   toggleMultiSelectMode: () => void;
   clearSelection: () => void;
   toggleSourceSelection: (sourceId: string) => void;
   selectAllSources: () => void;
-  
+
   // Actions
   refreshNotebook: () => void;
-  
+
   // Loading and error states
   isLoading: boolean;
   error: Error | null;
@@ -128,7 +128,7 @@ export const NotebookProvider: React.FC<NotebookProviderProps> = ({
       notebookId,
       notebook,
       stats,
-      
+
       // Client state
       selectedSources,
       setSelectedSources,
@@ -142,17 +142,17 @@ export const NotebookProvider: React.FC<NotebookProviderProps> = ({
       setActivePanel,
       sidebarOpen,
       setSidebarOpen,
-      
+
       // Selection state
       isMultiSelectMode,
       toggleMultiSelectMode,
       clearSelection,
       toggleSourceSelection,
       selectAllSources,
-      
+
       // Actions
       refreshNotebook,
-      
+
       // Loading and error states
       isLoading,
       error,

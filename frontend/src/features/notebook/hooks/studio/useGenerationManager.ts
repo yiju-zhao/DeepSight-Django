@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import studioService from '@/features/notebook/services/StudioService';
+import { reportsApi, podcastsApi } from '@/features/notebook/api/studioApi';
 import { studioKeys } from './useStudio';
 
 // Types
@@ -36,22 +36,23 @@ export const useGenerationManager = (
   onComplete?: (jobData: any) => void
 ) => {
   const queryClient = useQueryClient();
-  const sseControllerRef = useRef<AbortController | null>(null); // retained for API compatibility; unused
+  const sseControllerRef = useRef<AbortController | null>(null);
 
-  // Local state for form config (not job state)
-  // REMOVED: Config is now managed externally via NotebookSettingsContext
-  // const [config, setConfig] = useState<GenerationConfig>({});
-
-  // Query for active job (replaces localStorage jobStorage)
+  // Query for active job
   const activeJobQuery = useQuery({
     queryKey: generationKeys.activeJob(notebookId, type),
     queryFn: async (): Promise<ActiveJob | null> => {
-      // Check for running jobs from server instead of localStorage
       const jobs = type === 'report'
-        ? await studioService.listReportJobs(notebookId)
-        : await studioService.listPodcastJobs(notebookId);
+        ? await reportsApi.list(notebookId)
+        : await podcastsApi.list(notebookId);
 
-      const runningJob = jobs.jobs?.find((job: any) =>
+      // Normalize jobs
+      const normalizedJobs = jobs.map((job: any) => ({
+        ...job,
+        id: job.id || job.report_id || job.job_id,
+      }));
+
+      const runningJob = normalizedJobs.find((job: any) =>
         job.status === 'running' || job.status === 'generating' || job.status === 'pending'
       );
 
@@ -68,21 +69,16 @@ export const useGenerationManager = (
       return null;
     },
     enabled: !!notebookId,
-    // Disable periodic polling; rely on SSE-driven invalidation
     refetchInterval: false,
     staleTime: 15 * 1000,
-    refetchOnMount: true, // Always refetch on component mount to recover active jobs after refresh
-    refetchOnWindowFocus: true, // Refetch when user returns to tab to check for status updates
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
-  // SSE removed: rely on simple polling and list/detail queries
-
-  // Start job completion handler
+  // Job completion handler
   const handleJobComplete = useCallback((jobData: any) => {
-    // Clear active job
     queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
 
-    // Check if job list still contains this job (it might have been deleted)
     const currentData = queryClient.getQueryData(
       type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId)
     ) as any;
@@ -92,22 +88,17 @@ export const useGenerationManager = (
       (job.id === completedId || job.job_id === completedId) && job.status !== 'deleted'
     );
 
-    // Only invalidate if the job wasn't deleted
     if (jobExists !== false) {
       const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
-
-      // Force immediate refetch to show completed job since polling is disabled
       queryClient.invalidateQueries({ queryKey });
       queryClient.refetchQueries({ queryKey });
     }
 
-    // Stop SSE
     if (sseControllerRef.current) {
       sseControllerRef.current.abort();
       sseControllerRef.current = null;
     }
 
-    // Call external completion callback if provided
     if (onComplete && jobExists !== false) {
       onComplete(jobData);
     }
@@ -117,15 +108,12 @@ export const useGenerationManager = (
 
   // Job error handler
   const handleJobError = useCallback((error: string) => {
-    // Clear active job immediately so UI does not treat it as generating
     queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
 
-    // Refresh list to show error state
     const listKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
     queryClient.invalidateQueries({ queryKey: listKey });
     queryClient.refetchQueries({ queryKey: listKey });
 
-    // Stop SSE
     if (sseControllerRef.current) {
       sseControllerRef.current.abort();
       sseControllerRef.current = null;
@@ -138,7 +126,7 @@ export const useGenerationManager = (
       const finalConfig = { ...config, notebook_id: notebookId };
 
       if (type === 'report') {
-        return studioService.generateReport(finalConfig, notebookId);
+        return reportsApi.generate(finalConfig, notebookId);
       } else {
         const formData = new FormData();
         Object.entries(finalConfig).forEach(([key, value]) => {
@@ -150,11 +138,10 @@ export const useGenerationManager = (
             }
           }
         });
-        return studioService.generatePodcast(formData, notebookId);
+        return podcastsApi.generate(formData, notebookId);
       }
     },
     onSuccess: (response, variables) => {
-      // Backend returns report_id, not job_id
       const jobId = response.report_id || response.job_id || response.id;
 
       if (!jobId) {
@@ -162,23 +149,18 @@ export const useGenerationManager = (
         return;
       }
 
-      // Set active job in cache
       const newJob: ActiveJob = {
         jobId,
         type,
         status: 'pending',
-        config: variables, // Use the config passed to mutate
+        config: variables,
         startTime: new Date().toISOString(),
       };
 
       queryClient.setQueryData(generationKeys.activeJob(notebookId, type), newJob);
 
-      // No SSE: rely on periodic list/detail refetching
-
-      // Optimistically add the new job to the cache for immediate UI feedback
       const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
 
-      // Optimistically update the query data
       queryClient.setQueryData(queryKey, (old: any) => {
         const newJobItem = {
           id: jobId,
@@ -197,10 +179,8 @@ export const useGenerationManager = (
         };
       });
 
-      // Refetch to get accurate server data
       queryClient.refetchQueries({ queryKey });
 
-      // Refetch again after delay to ensure backend has committed the data
       setTimeout(() => {
         queryClient.refetchQueries({ queryKey });
       }, 500);
@@ -216,30 +196,22 @@ export const useGenerationManager = (
       }
 
       return type === 'report'
-        ? studioService.cancelReportJob(jobId, notebookId)
-        : studioService.cancelPodcastJob(jobId, notebookId);
+        ? reportsApi.cancel(jobId)
+        : podcastsApi.cancel(jobId);
     },
     onSuccess: () => {
-      // Clear active job
       queryClient.setQueryData(generationKeys.activeJob(notebookId, type), null);
 
-      // Stop SSE
       if (sseControllerRef.current) {
         sseControllerRef.current.abort();
         sseControllerRef.current = null;
       }
 
-      // Force immediate refetch of job lists to ensure UI updates
       const queryKey = type === 'report' ? studioKeys.reportJobs(notebookId) : studioKeys.podcastJobs(notebookId);
       queryClient.invalidateQueries({ queryKey });
       queryClient.refetchQueries({ queryKey });
     },
   });
-
-  // Config management - REMOVED
-  // const updateConfig = useCallback((updates: Partial<GenerationConfig>) => {
-  //   setConfig(prev => ({ ...prev, ...updates }));
-  // }, []);
 
   // Cleanup on unmount
   const cleanup = useCallback(() => {
@@ -250,24 +222,18 @@ export const useGenerationManager = (
   }, []);
 
   return {
-    // State
     activeJob: activeJobQuery.data,
-    // config, // REMOVED
     isGenerating: !!activeJobQuery.data && (activeJobQuery.data.status === 'running' || activeJobQuery.data.status === 'generating' || activeJobQuery.data.status === 'pending'),
     progress: '',
     error: null,
 
-    // Actions
     generate: generateMutation.mutate,
-    cancel: cancelMutation.mutateAsync, // Use mutateAsync so it returns a Promise for await
-    // updateConfig, // REMOVED
+    cancel: cancelMutation.mutateAsync,
     cleanup,
 
-    // Loading states
     isGeneratePending: generateMutation.isPending,
     isCancelPending: cancelMutation.isPending,
 
-    // For completion handlers (backward compatibility)
     onComplete: handleJobComplete,
   };
 };

@@ -1,7 +1,8 @@
 /**
- * Notebook feature configuration
+ * Environment Configuration
  * 
  * Feature flags and environment-based configuration for notebook functionality.
+ * All environment variables and dynamic host/port configurations go here.
  */
 
 // CopilotKit integration feature flag
@@ -21,3 +22,14 @@ export const RAG_AGENT_CONFIG = {
 // Future agent configurations
 export const REPORT_AGENT_PORT = import.meta.env.VITE_REPORT_AGENT_PORT || '8003';
 export const PANEL_CREW_PORT = import.meta.env.VITE_PANEL_CREW_PORT || '8004';
+
+// API base URL configuration
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+
+// Feature toggles
+export const FEATURES = {
+    enableDeepResearch: import.meta.env.VITE_ENABLE_DEEP_RESEARCH === 'true',
+    enablePodcasts: import.meta.env.VITE_ENABLE_PODCASTS !== 'false', // Enabled by default
+    enableReports: import.meta.env.VITE_ENABLE_REPORTS !== 'false', // Enabled by default
+    enableNotes: import.meta.env.VITE_ENABLE_NOTES !== 'false', // Enabled by default
+} as const;

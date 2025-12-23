@@ -29,7 +29,7 @@ import type {
   ChatSession,
   SessionChatMessage,
   UseSessionChatReturn,
-} from '@/features/notebook/type';
+} from '@/features/notebook/types/ui';
 
 /**
  * Main hook for session-based chat functionality

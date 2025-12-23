@@ -5,19 +5,19 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
-import studioService from '@/features/notebook/services/StudioService';
+import { reportsApi, podcastsApi } from '@/features/notebook/api/studioApi';
 
 // Query keys factory
 const studioKeys = {
   all: ['studio'] as const,
   notebook: (notebookId: string) => [...studioKeys.all, 'notebook', notebookId] as const,
-  
+
   // Report jobs
   reportJobs: (notebookId: string) => [...studioKeys.notebook(notebookId), 'report-jobs'] as const,
-  
+
   // Podcast jobs
   podcastJobs: (notebookId: string) => [...studioKeys.notebook(notebookId), 'podcast-jobs'] as const,
-  
+
   // Models (global)
   models: ['studio', 'models'] as const,
 };
@@ -27,13 +27,22 @@ const studioKeys = {
 export const useReportJobs = (notebookId: string) => {
   return useQuery({
     queryKey: studioKeys.reportJobs(notebookId),
-    queryFn: () => studioService.listReportJobs(notebookId),
+    queryFn: async () => {
+      const jobs = await reportsApi.list(notebookId);
+      // Normalize backend field names: map report_id -> id
+      const normalizedJobs = jobs.map((job: any) => ({
+        ...job,
+        id: job.id || job.report_id,
+        status: job.status,
+      }));
+      return { jobs: normalizedJobs };
+    },
     enabled: !!notebookId,
-    staleTime: 30 * 1000, // 30 seconds - shorter stale time for more responsive updates
-    gcTime: 10 * 60 * 1000, // 10 minutes cache
+    staleTime: 30 * 1000,
+    gcTime: 10 * 60 * 1000,
     retry: 2,
-    refetchOnWindowFocus: true, // Enable refetch on tab focus to catch updates
-    refetchOnMount: true, // Always refetch on mount to ensure fresh data
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
     select: (data) => ({
       ...data,
       jobs: data.jobs || [],
@@ -47,14 +56,25 @@ export const useReportJobs = (notebookId: string) => {
 export const usePodcastJobs = (notebookId: string) => {
   return useQuery({
     queryKey: studioKeys.podcastJobs(notebookId),
-    queryFn: () => studioService.listPodcastJobs(notebookId),
+    queryFn: async () => {
+      const jobs = await podcastsApi.list(notebookId);
+      // Normalize the ID field and status
+      const normalizedJobs = jobs.map((job: any) => {
+        const normalizedStatus = job.status === 'error' ? 'failed' : job.status;
+        return {
+          ...job,
+          id: job.id || job.job_id,
+          status: normalizedStatus,
+        };
+      }).filter((job: any) => job.status !== 'cancelled');
+      return { jobs: normalizedJobs };
+    },
     enabled: !!notebookId,
-    staleTime: 30 * 1000, // 30 seconds - shorter stale time for more responsive updates
-    gcTime: 10 * 60 * 1000, // 10 minutes cache
+    staleTime: 30 * 1000,
+    gcTime: 10 * 60 * 1000,
     retry: 2,
-    refetchOnWindowFocus: true, // Enable refetch on tab focus to catch updates
-    refetchOnMount: true, // Always refetch on mount to ensure fresh data
-    // No periodic polling; updates come from SSE invalidations
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
     select: (data) => ({
       ...data,
       jobs: data.jobs || [],
@@ -68,18 +88,17 @@ export const usePodcastJobs = (notebookId: string) => {
 export const useReportModels = () => {
   const queryResult = useQuery({
     queryKey: studioKeys.models,
-    queryFn: () => studioService.getAvailableModels(),
-    staleTime: 10 * 60 * 1000, // 10 minutes - models don't change often
-    gcTime: 30 * 60 * 1000, // 30 minutes cache
+    queryFn: () => reportsApi.getAvailableModels(),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     retry: 1,
   });
 
-  // Return data in the expected format with backward compatibility
   return {
     ...queryResult,
     data: queryResult.data ? {
       ...queryResult.data,
-      model_providers: queryResult.data.providers, // Map providers to model_providers for AvailableModels interface
+      model_providers: queryResult.data.providers,
     } : {
       model_providers: [],
       providers: [],
@@ -97,11 +116,10 @@ export const useReportModels = () => {
 
 export const useGenerateReport = (notebookId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: (config: any) => studioService.generateReport(config, notebookId),
+    mutationFn: (config: any) => reportsApi.generate(config, notebookId),
     onSuccess: () => {
-      // Invalidate report jobs to show the new job
       queryClient.invalidateQueries({
         queryKey: studioKeys.reportJobs(notebookId),
       });
@@ -113,9 +131,8 @@ export const useGeneratePodcast = (notebookId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (formData: FormData) => studioService.generatePodcast(formData, notebookId),
+    mutationFn: (formData: FormData) => podcastsApi.generate(formData, notebookId),
     onSuccess: () => {
-      // Force immediate refetch to show the new job
       queryClient.invalidateQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
       });
@@ -130,14 +147,11 @@ export const useDeleteReport = (notebookId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (jobId: string) => studioService.deleteReport(jobId, notebookId),
+    mutationFn: (jobId: string) => reportsApi.delete(jobId),
     onSuccess: (data, jobId) => {
-      // Clear any active generation job for this report
       queryClient.setQueryData(['generation', 'notebook', notebookId, 'active-job', 'report'], (old: any) => {
         return old?.jobId === jobId ? null : old;
       });
-
-      // Force immediate refetch to ensure UI updates
       queryClient.invalidateQueries({
         queryKey: studioKeys.reportJobs(notebookId),
       });
@@ -152,13 +166,11 @@ export const useDeletePodcast = (notebookId: string) => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (jobId: string) => studioService.deletePodcast(jobId, notebookId),
+    mutationFn: (jobId: string) => podcastsApi.delete(jobId),
     onSuccess: (data, jobId) => {
-      // Clear any active generation job for this podcast
       queryClient.setQueryData(['generation', 'notebook', notebookId, 'active-job', 'podcast'], (old: any) => {
         return old?.jobId === jobId ? null : old;
       });
-      // Force immediate refetch to ensure UI updates
       queryClient.invalidateQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
       });
@@ -171,9 +183,9 @@ export const useDeletePodcast = (notebookId: string) => {
 
 export const useCancelReportJob = (notebookId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: (jobId: string) => studioService.cancelReportJob(jobId, notebookId),
+    mutationFn: (jobId: string) => reportsApi.cancel(jobId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: studioKeys.reportJobs(notebookId),
@@ -184,9 +196,9 @@ export const useCancelReportJob = (notebookId: string) => {
 
 export const useCancelPodcastJob = (notebookId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: (jobId: string) => studioService.cancelPodcastJob(jobId, notebookId),
+    mutationFn: (jobId: string) => podcastsApi.cancel(jobId),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: studioKeys.podcastJobs(notebookId),
@@ -197,10 +209,10 @@ export const useCancelPodcastJob = (notebookId: string) => {
 
 export const useUpdateReport = (notebookId: string) => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: ({ jobId, content }: { jobId: string; content: string }) => 
-      studioService.updateReport(jobId, notebookId, content),
+    mutationFn: ({ jobId, content }: { jobId: string; content: string }) =>
+      reportsApi.update(jobId, content),
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: studioKeys.reportJobs(notebookId),
@@ -210,8 +222,6 @@ export const useUpdateReport = (notebookId: string) => {
 };
 
 // ─── BACKWARD COMPATIBILITY ALIASES ─────────────────────────────────────────
-// These maintain the same interface as the old notebook-overview hooks
-// They return the data in the expected structure (with .jobs property)
 
 export const useNotebookReportJobs = (notebookId: string) => {
   const queryResult = useReportJobs(notebookId);
@@ -237,7 +247,6 @@ export const useReportJobComplete = (notebookId: string) => {
   const queryClient = useQueryClient();
 
   return useCallback(() => {
-    // Invalidate and let React Query handle refetching based on stale time strategy
     queryClient.invalidateQueries({
       queryKey: studioKeys.reportJobs(notebookId),
     });
@@ -248,12 +257,10 @@ export const usePodcastJobComplete = (notebookId: string) => {
   const queryClient = useQueryClient();
 
   return useCallback(() => {
-    // Invalidate and let React Query handle refetching based on stale time strategy
     queryClient.invalidateQueries({
       queryKey: studioKeys.podcastJobs(notebookId),
     });
   }, [queryClient, notebookId]);
 };
 
-// Export query keys for external use
 export { studioKeys };

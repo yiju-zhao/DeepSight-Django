@@ -4,7 +4,7 @@ import { Button } from "@/shared/components/ui/button";
 import { Badge } from "@/shared/components/ui/badge";
 import { supportsPreview, PREVIEW_TYPES, formatDate, getVideoMimeType, getAudioMimeType, generateTextPreviewWithMinIOUrls } from "@/features/notebook/utils/filePreview";
 import { createSecureBlob, downloadFileSecurely, createBlobManager } from "@/features/notebook/utils/storageUtils";
-import { useFilePreview } from "@/features/notebook/queries";
+import { useFilePreview } from "@/features/notebook/hooks/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";

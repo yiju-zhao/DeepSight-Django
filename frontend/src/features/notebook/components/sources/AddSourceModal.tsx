@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { X, Upload, Link2, FileText, Globe, Youtube, Loader2 } from "lucide-react";
 import { Button } from "@/shared/components/ui/button";
 import sourceService from "@/features/notebook/services/SourceService";
-import { COLORS } from "@/features/notebook/config/uiConfig";
+import { COLORS } from "@/features/notebook/config/ui";
 
 
 interface AddSourceModalProps {

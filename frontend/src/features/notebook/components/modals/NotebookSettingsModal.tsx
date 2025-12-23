@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Settings, X, MessageSquare, Palette, RotateCcw } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
-import { COLORS } from "@/features/notebook/config/uiConfig";
+import { COLORS } from "@/features/notebook/config/ui";
 import { useNotebookSettings, DEFAULT_REPORT_CONFIG, DEFAULT_PODCAST_CONFIG } from '@/features/notebook/contexts/NotebookSettingsContext';
 import { useModelsQuery, useSelectModelMutation } from '@/features/notebook/hooks/chat/useSessionQueries';
 import { useToast } from "@/shared/components/ui/use-toast";
