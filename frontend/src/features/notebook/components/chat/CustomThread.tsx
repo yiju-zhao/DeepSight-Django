@@ -31,6 +31,7 @@ import 'katex/dist/katex.min.css';
 
 // Import Studio Mode components
 import MessageActions from './MessageActions';
+import RAGStatus from './RAGStatus';
 import { useNotebookSettings } from '@/features/notebook/contexts/NotebookSettingsContext';
 
 // Normalizer to convert backend-specific LaTeX formats to standard Markdown LaTeX
@@ -414,6 +415,8 @@ export const CustomThread: React.FC<CustomThreadProps> = ({ suggestions, noteboo
     <div className="flex h-full flex-col">
       <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
         <CustomMessage notebookId={notebookId} />
+        {/* Render RAG Status for active agent state */}
+        <RAGStatus />
       </div>
       <CustomComposer suggestions={suggestions} />
     </div>

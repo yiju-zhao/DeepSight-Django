@@ -35,7 +35,8 @@ class RAGAgentState(CopilotKitState):
     queries: List[str] = [] # List of generated queries for multi-angle search
     documents: List[str] = [] # List of all relevant document contents
     new_documents: List[str] = [] # Newly retrieved documents to be graded separately
-    reordered_context: str = "" # Semantically reordered and grouped context
+    semantic_groups: List[dict] = [] # Structured semantic groups (lightweight mapping) instead of heavy string
+    # reordered_context is removed to save bandwidth; generate node reconstructs it from groups + docs
 
     # --- CopilotKit AG-UI protocol fields for UI Rendering ---
     current_step: str | None = None

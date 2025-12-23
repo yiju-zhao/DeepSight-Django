@@ -174,7 +174,8 @@ class DeepSightRAGAgent:
                 "query_rewrites": None,
                 "agent_reasoning": None,
                 "synthesis_progress": None,
-                "total_tool_calls": None
+                "total_tool_calls": None,
+                "semantic_groups": []
             }
         
         # If no question is found, return empty to trigger check_initialization -> end
@@ -330,44 +331,65 @@ class DeepSightRAGAgent:
         structured_reorderer = self.grader_model.with_structured_output(ReorderedContext)
         result = await structured_reorderer.ainvoke([HumanMessage(content=prompt)], config)
         
-        # 3. Programmatically reassemble the context based on the groups
-        reordered_parts = []
+        # 3. Create lightweight semantic groups for state (UI rendering)
+        # We DO NOT construct the full string here to avoid doubling state size
+        final_groups = []
         assigned_chunk_ids = set()
         
         for group in result.groups:
             # Filter IDs to ensure each chunk is only used once
-            unique_group_chunks = []
+            valid_chunk_ids = []
             for chunk_id in group.chunk_ids:
                 if chunk_id in id_mapped_docs and chunk_id not in assigned_chunk_ids:
-                    unique_group_chunks.append(id_mapped_docs[chunk_id])
+                    valid_chunk_ids.append(chunk_id)
                     assigned_chunk_ids.add(chunk_id)
             
-            if unique_group_chunks:
-                group_text = f"### {group.group_name}\n*{group.description}*\n\n"
-                group_text += "\n\n".join(unique_group_chunks)
-                reordered_parts.append(group_text)
+            if valid_chunk_ids:
+                final_groups.append({
+                    "group_name": group.group_name,
+                    "description": group.description,
+                    "chunk_ids": valid_chunk_ids
+                })
         
-        reordered_context = "\n\n---\n\n".join(reordered_parts)
-        
-        logger.info(f"Reordering complete. Created {len(reordered_parts)} semantic groups using {len(assigned_chunk_ids)} unique chunks.")
+        logger.info(f"Reordering complete. Created {len(final_groups)} semantic groups.")
         
         return {
-            "reordered_context": reordered_context,
+            "semantic_groups": final_groups,
             "current_step": "reordering"
         }
 
     async def generate(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Generate final answer using reordered context.
+        Generate final answer using dynamic content reconstruction.
         """
         logger.info("---GENERATE---")
         question = state["original_question"]
-        reordered_context = state.get("reordered_context", "")
+        documents = state["documents"]
+        semantic_groups = state.get("semantic_groups", [])
         
-        if not reordered_context and not state["documents"]:
+        # Reconstruct context from groups + documents (only if needed for generation)
+        if not semantic_groups and not documents:
             generation = "I'm sorry, but I couldn't find any relevant information to answer your question after several search attempts."
         else:
-            context = reordered_context if reordered_context else "\n\n".join(state["documents"])
+            if semantic_groups:
+                # Rebuild structured context on the fly
+                context_parts = []
+                # Map 1-based IDs back to 0-based index
+                id_to_doc = {i: doc for i, doc in enumerate(documents, 1)}
+                
+                for group in semantic_groups:
+                    group_text = f"### {group['group_name']}\n*{group['description']}*\n\n"
+                    chunks = []
+                    for cid in group['chunk_ids']:
+                        if cid in id_to_doc:
+                            chunks.append(id_to_doc[cid])
+                    if chunks:
+                        group_text += "\n\n".join(chunks)
+                        context_parts.append(group_text)
+                context = "\n\n---\n\n".join(context_parts)
+            else:
+                context = "\n\n".join(documents)
+                
             prompt = format_synthesis_prompt(question=question, context=context)
             response = await self.synthesis_model.ainvoke([HumanMessage(content=prompt)], config)
             generation = response.content
@@ -375,9 +397,9 @@ class DeepSightRAGAgent:
         return {
             "generation": generation,
             "messages": [AIMessage(content=generation)],
-            "documents": [], # Clear massive doc list after generation to save browser memory
-            "reordered_context": "", # Clear heavy context
-            "graded_documents": None, # Clear graded metadata
+            "documents": [], # Clear massive doc list
+            "semantic_groups": [], # Clear groups
+            "graded_documents": None, 
             "current_step": "synthesizing",
             "synthesis_progress": 100
         }
