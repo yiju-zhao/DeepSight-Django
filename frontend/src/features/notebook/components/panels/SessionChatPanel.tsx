@@ -97,16 +97,14 @@ Guidelines:
             display: none !important;
         }
 
-        /* Input area styling - scale down */
+        /* Input area styling - scale down padding only */
         .copilot-input-container,
         .copilotKitInput {
           padding: 0.5rem 0.75rem !important;
-          font-size: 0.875rem !important;
           min-height: auto !important;
         }
 
         .copilotKitInput textarea {
-          font-size: 0.875rem !important;
           line-height: 1.4 !important;
           padding: 0.25rem 0 !important;
         }
