@@ -27,6 +27,7 @@
 import React from 'react';
 import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
+import RAGStatus from '../chat/RAGStatus';
 
 interface SessionChatPanelProps {
   notebookId: string;
@@ -55,6 +56,9 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
           <span className="text-xs text-gray-500 font-mono">AI-Powered</span>
         </div>
       </div>
+
+      {/* RAG Status - Renders agent progress inline in chat */}
+      <RAGStatus />
 
       {/* CopilotChat Component - Full Height */}
       <div className="flex-1 min-h-0 relative">

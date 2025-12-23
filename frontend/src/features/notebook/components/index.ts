@@ -17,8 +17,8 @@ export { default as AddSourceModal } from './sources/AddSourceModal';
 // Studio components
 export { default as StudioPanelMain } from './studio/StudioPanel';
 export { default as PodcastAudioPlayer } from './studio/PodcastAudioPlayer';
-export { default as PodcastGenerationForm } from './studio/PodcastGenerationForm';
-export { default as ReportGenerationForm } from './studio/ReportGenerationForm';
+// export { default as PodcastGenerationForm } from './studio/PodcastGenerationForm';
+// export { default as ReportGenerationForm } from './studio/ReportGenerationForm';
 
 export { default as CustomizeModal } from './studio/CustomizeModal';
 export { default as FileViewer } from './studio/FileViewer';

@@ -5,6 +5,7 @@ from typing import Literal, cast
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage, ToolMessage, AIMessage
 from langchain_core.runnables import RunnableConfig
+from langchain_core.callbacks.manager import adispatch_custom_event
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import ToolNode
@@ -141,32 +142,32 @@ class DeepSightRAGAgent:
 
     # --- Nodes ---
 
-    def initialize_request(self, state: RAGAgentState) -> dict:
+    async def initialize_request(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
-        Extract user question from messages. 
+        Extract user question from messages.
         Acts as the bridge between CopilotKit (messages) and Self-RAG (question state).
         """
         logger.info("---INITIALIZE REQUEST---")
         messages = state.get("messages", [])
-        
+
         # Find the latest human message
         last_human_message = None
         for msg in reversed(messages):
             if isinstance(msg, HumanMessage):
                 last_human_message = msg
                 break
-        
+
         if last_human_message:
             question = last_human_message.content
             logger.info(f"Extracted question: {question}")
             # Reset state for new turn to avoid state bloat and frontend lag
-            # This prevents large data from previous turns (documents, reasoning, etc.) 
+            # This prevents large data from previous turns (documents, reasoning, etc.)
             # from accumulating and slowing down the JSON serialization/parsing.
-            return {
-                "question": question, 
+            updated_state = {
+                "question": question,
                 "original_question": question,
                 "queries": [],
-                "documents": [], 
+                "documents": [],
                 "new_documents": [],
                 "reordered_context": "",
                 "generation": "",
@@ -179,7 +180,12 @@ class DeepSightRAGAgent:
                 "total_tool_calls": None,
                 "semantic_groups": []
             }
-        
+
+            # Emit state update to frontend
+            await adispatch_custom_event("manually_emit_state", updated_state, config=config)
+
+            return updated_state
+
         # If no question is found, return empty to trigger check_initialization -> end
         return {}
 
@@ -198,9 +204,9 @@ class DeepSightRAGAgent:
         question = state["question"]
         iteration_count = state.get("iteration_count", 0)
         previous_queries = state.get("queries", [])
-        
+
         prompt = format_planning_prompt(question=question, previous_queries=previous_queries if iteration_count > 0 else None)
-        
+
         response = await self.response_model.ainvoke([HumanMessage(content=prompt)], config)
         try:
             # Expecting a JSON list of strings
@@ -209,21 +215,26 @@ class DeepSightRAGAgent:
                 content = content[7:-3].strip()
             elif content.startswith("```"):
                 content = content[3:-3].strip()
-            
+
             queries = json.loads(content)
             if not isinstance(queries, list):
                 queries = [content]
         except Exception as e:
             logger.error(f"Error parsing planning queries: {e}")
             queries = [question]
-        
+
         logger.info(f"Planned queries: {queries}")
-        
-        return {
+
+        updated_state = {
             "queries": queries,
             "iteration_count": iteration_count + 1,
             "current_step": "planning"
         }
+
+        # Emit state update to frontend
+        await adispatch_custom_event("manually_emit_state", {**state, **updated_state}, config=config)
+
+        return updated_state
 
     async def retrieve(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
@@ -231,7 +242,7 @@ class DeepSightRAGAgent:
         """
         logger.info("---RETRIEVE---")
         queries = state.get("queries", [state["question"]])
-        
+
         # Get tools from context variable
         tools = current_retrieval_tools.get()
         if not tools:
@@ -239,7 +250,7 @@ class DeepSightRAGAgent:
                 dataset_ids=self.config.dataset_ids,
                 mcp_server_url=self.config.mcp_server_url
             )
-        
+
         all_new_documents = []
         if tools:
             retrieval_tool = next((t for t in tools if "retrieval" in t.name.lower() or "search" in t.name.lower()), None)
@@ -261,13 +272,18 @@ class DeepSightRAGAgent:
 
         # Deduplicate results (simple string comparison)
         unique_new_docs = list(dict.fromkeys(all_new_documents))
-        
+
         logger.info(f"Retrieved {len(unique_new_docs)} unique documents from {len(queries)} queries")
-        
-        return {
+
+        updated_state = {
             "new_documents": unique_new_docs,
             "current_step": "retrieving"
         }
+
+        # Emit state update to frontend
+        await adispatch_custom_event("manually_emit_state", {**state, **updated_state}, config=config)
+
+        return updated_state
 
     async def grade_relevance(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
@@ -317,27 +333,29 @@ class DeepSightRAGAgent:
         logger.info("---REORDERING---")
         original_question = state["original_question"]
         documents = state["documents"]
-        
+
         if not documents:
-            return {"current_step": "reordering"}
-            
+            updated_state = {"current_step": "reordering"}
+            await adispatch_custom_event("manually_emit_state", {**state, **updated_state}, config=config)
+            return updated_state
+
         # 1. Assign IDs to documents for the LLM to map
         id_mapped_docs = {i: doc for i, doc in enumerate(documents, 1)}
         formatted_context = ""
         for i, doc in id_mapped_docs.items():
             formatted_context += f"ID: {i}\nContent: {doc}\n\n"
-            
+
         prompt = format_reorder_prompt(question=original_question, context=formatted_context)
-        
+
         # 2. Call LLM with structured output
         structured_reorderer = self.grader_model.with_structured_output(ReorderedContext)
         result = await structured_reorderer.ainvoke([HumanMessage(content=prompt)], config)
-        
+
         # 3. Create lightweight semantic groups for state (UI rendering)
         # We DO NOT construct the full string here to avoid doubling state size
         final_groups = []
         assigned_chunk_ids = set()
-        
+
         for group in result.groups:
             # Filter IDs to ensure each chunk is only used once
             valid_chunk_ids = []
@@ -345,20 +363,25 @@ class DeepSightRAGAgent:
                 if chunk_id in id_mapped_docs and chunk_id not in assigned_chunk_ids:
                     valid_chunk_ids.append(chunk_id)
                     assigned_chunk_ids.add(chunk_id)
-            
+
             if valid_chunk_ids:
                 final_groups.append({
                     "group_name": group.group_name,
                     "description": group.description,
                     "chunk_ids": valid_chunk_ids
                 })
-        
+
         logger.info(f"Reordering complete. Created {len(final_groups)} semantic groups.")
-        
-        return {
+
+        updated_state = {
             "semantic_groups": final_groups,
             "current_step": "reordering"
         }
+
+        # Emit state update to frontend
+        await adispatch_custom_event("manually_emit_state", {**state, **updated_state}, config=config)
+
+        return updated_state
 
     async def prepare_generation(self, state: RAGAgentState) -> dict:
         """
@@ -379,7 +402,7 @@ class DeepSightRAGAgent:
         question = state["original_question"]
         documents = state["documents"]
         semantic_groups = state.get("semantic_groups", [])
-        
+
         # Reconstruct context from groups + documents (only if needed for generation)
         if not semantic_groups and not documents:
             generation = "I'm sorry, but I couldn't find any relevant information to answer your question after several search attempts."
@@ -389,7 +412,7 @@ class DeepSightRAGAgent:
                 context_parts = []
                 # Map 1-based IDs back to 0-based index
                 id_to_doc = {i: doc for i, doc in enumerate(documents, 1)}
-                
+
                 for group in semantic_groups:
                     group_text = f"### {group['group_name']}\n*{group['description']}*\n\n"
                     chunks = []
@@ -402,20 +425,25 @@ class DeepSightRAGAgent:
                 context = "\n\n---\n\n".join(context_parts)
             else:
                 context = "\n\n".join(documents)
-                
+
             prompt = format_synthesis_prompt(question=question, context=context)
             response = await self.synthesis_model.ainvoke([HumanMessage(content=prompt)], config)
             generation = response.content
-        
-        return {
+
+        updated_state = {
             "generation": generation,
             "messages": [AIMessage(content=generation)],
-            "documents": [], # Clear massive doc list
-            "semantic_groups": [], # Clear groups
-            "graded_documents": None, 
+            "documents": [],  # Clear massive doc list
+            "semantic_groups": [],  # Clear groups
+            "graded_documents": None,
             "current_step": "synthesizing",
             "synthesis_progress": 100
         }
+
+        # Emit state update to frontend
+        await adispatch_custom_event("manually_emit_state", {**state, **updated_state}, config=config)
+
+        return updated_state
 
     # --- Edges ---
 
