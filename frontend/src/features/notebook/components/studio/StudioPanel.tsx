@@ -26,9 +26,7 @@ import FileViewer from './FileViewer';
 import StudioList from './list/StudioList';
 
 import NoteViewer from './NoteViewer';
-import { useCoAgent } from "@copilotkit/react-core";
-import { AgentRuntimePanel } from './AgentRuntimePanel';
-import { RAGAgentState, INITIAL_RAG_STATE } from '../../types/agent';
+import RAGStatus from '../chat/RAGStatus';
 
 // ====== INTERFACE SEGREGATION PRINCIPLE (ISP) ======
 // Import type definitions and prop creators
@@ -62,12 +60,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { reportConfig, podcastConfig, updateReportConfig, updatePodcastConfig } = useNotebookSettings();
-
-  // ====== CopilotKit Agent State ======
-  const { state: agentState } = useCoAgent<RAGAgentState>({
-    name: "rag_agent",
-    initialState: INITIAL_RAG_STATE,
-  });
 
   // ====== SINGLE RESPONSIBILITY: UI State Management ======
   const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
@@ -670,14 +662,13 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
       {!isReportPreview ? (
         <div className="flex-1 flex flex-col overflow-hidden bg-secondary">
 
-          {/* UPPER SECTION: Agent Runtime States */}
+          {/* UPPER SECTION: RAG Agent Progress */}
           <div className="h-[35%] min-h-[200px] flex flex-col bg-white border-b border-gray-200">
             <div className="px-4 py-3 border-b border-gray-50 flex justify-between items-center">
-              <h4 className="text-sm font-medium text-gray-700">Agent Runtime States</h4>
-              {/* Optional: Add status indicators or controls here */}
+              <h4 className="text-sm font-medium text-gray-700">RAG Agent Progress</h4>
             </div>
-            <div className="flex-1 p-0 overflow-auto">
-              <AgentRuntimePanel state={agentState || INITIAL_RAG_STATE} />
+            <div className="flex-1 p-4 overflow-auto flex items-center justify-center">
+              <RAGStatus />
             </div>
           </div>
 

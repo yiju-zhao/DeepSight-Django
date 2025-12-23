@@ -4,6 +4,7 @@
 // Layout components
 export { default as NotebookLayout } from './layout/NotebookLayout';
 export { default as NotebookHeader } from './layout/NotebookHeader';
+export { default as NotebookChatContainer } from './layout/NotebookChatContainer';
 
 // Panel components
 export { default as SessionChatPanel } from './panels/SessionChatPanel';
@@ -30,8 +31,12 @@ export { default as GallerySection } from './shared/GallerySection';
 
 // Modern components
 export { NotebookGrid } from './modern/NotebookGrid';
+export { default as NotebookGridModernContainer } from './modern/NotebookGridModernContainer';
 
 export { default as CreateNotebookForm } from './CreateNotebookForm';
+
+// Utility components
+export { default as ChatErrorBoundary } from './utils/ChatErrorBoundary';
 
 // Types and utilities
 export * from './studio/types';

@@ -4,11 +4,11 @@ import { useAuth } from "@/shared/hooks/useAuth";
 import { useNotebook } from "@/features/notebook/queries";
 import { useApiUtils } from "@/features/notebook/hooks";
 import NotebookLayout from "@/features/notebook/components/layout/NotebookLayout";
+import NotebookChatContainer from "@/features/notebook/components/layout/NotebookChatContainer";
 import SourcesPanel from "@/features/notebook/components/panels/SourcesPanel";
 import SessionChatPanel from "@/features/notebook/components/panels/SessionChatPanel";
 import StudioPanel from "@/features/notebook/components/panels/StudioPanel";
-import NotebookChatContainer from "@/features/notebook/components/NotebookChatContainer";
-import ChatErrorBoundary from "@/features/notebook/components/ChatErrorBoundary";
+import ChatErrorBoundary from "@/features/notebook/components/utils/ChatErrorBoundary";
 
 import "highlight.js/styles/github.css";
 
