@@ -331,16 +331,23 @@ async def copilotkit_adapter(request: Request):
                 }
             )
 
-        # For all other requests, forward to the AG-UI endpoint
         # Extract the body content - AG-UI expects body directly, not wrapped
         inner_body = payload.get("body", {})
 
-        # Handle abort/stop requests - AG-UI requires all fields
-        # Populate missing required fields with safe defaults to prevent 422 errors
+        # Handle abort/stop requests - return success without forwarding to AG-UI
+        # Abort requests have minimal payload and shouldn't be validated against full schema
+        if method == "abort" or (inner_body and len(inner_body) < 3 and "threadId" not in inner_body):
+            logger.info(
+                "Abort request received for agent, returning success without forwarding to AG-UI"
+            )
+            return JSONResponse({"success": True})
+
+        # For all other requests, forward to the AG-UI endpoint
+        # Populate missing required fields with safe defaults
         inner_body.setdefault("state", {})
         inner_body.setdefault("messages", [])
         inner_body.setdefault("tools", [])
-        inner_body.setdefault("context", {})
+        inner_body.setdefault("context", [])
         inner_body.setdefault("forwardedProps", {})
 
         # Merge forwardedProps into configurable for LangGraph
