@@ -80,6 +80,8 @@ Guidelines:
           height: 100%;
           display: flex;
           flex-direction: column;
+          --copilot-kit-font-size: 0.8125rem;
+          --ck-font-size: 0.8125rem;
         }
 
         /* Hide intermediate tool outputs/logs in chat */
@@ -118,21 +120,45 @@ Guidelines:
         .copilot-message-user {
           background-color: #3b82f6;
           color: white;
-          font-size: 0.875rem; /* 14px */
+          font-size: 0.8125rem; /* 13px */
           padding: 0.5rem 0.75rem;
         }
 
         .copilot-message-assistant {
           background-color: #f3f4f6;
           color: #111827;
-          font-size: 0.875rem; /* 14px */
+          font-size: 0.8125rem; /* 13px */
           padding: 0.5rem 0.75rem;
         }
 
         /* Scale down the overall message text container */
-        .copilotKitMessageContent {
-          font-size: 0.875rem !important;
-          line-height: 1.4 !important;
+        .copilotKitMessageContent,
+        .copilotKitMessageContent *,
+        .copilot-kit-message-content,
+        .copilot-kit-message-content * {
+          font-size: 0.8125rem !important;
+          line-height: 1.5 !important;
+        }
+
+        /* Adjust header font size */
+        .copilotKitHeader,
+        .copilotKitHeader *,
+        .copilot-kit-header,
+        .copilot-kit-header * {
+          font-size: 0.875rem !important; /* 14px for header */
+          font-weight: 600 !important;
+        }
+
+        /* Target markdown content specifically if needed */
+        .copilotKitMessageContent p,
+        .copilotKitMessageContent li {
+          margin-bottom: 0.5rem !important;
+        }
+
+        /* Adjust input font size */
+        .copilotKitInput textarea,
+        .copilot-input-container textarea {
+          font-size: 0.8125rem !important;
         }
 
         /* Adjust bubble spacing */
