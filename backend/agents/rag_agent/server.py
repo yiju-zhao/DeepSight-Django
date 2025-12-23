@@ -25,7 +25,6 @@ from contextvars import ContextVar
 from pathlib import Path
 from typing import Any, Optional
 
-import httpx
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse, StreamingResponse, Response
 
@@ -43,6 +42,7 @@ django.setup()
 # Import CopilotKit SDK components
 from copilotkit import LangGraphAGUIAgent
 from ag_ui_langgraph import add_langgraph_fastapi_endpoint
+from ag_ui.encoder import EventEncoder
 
 from agents.copilotkit_common.base_server import create_agent_server
 from agents.copilotkit_common.utils import get_openai_api_key, get_mcp_server_url
@@ -82,6 +82,7 @@ base_config = RAGAgentConfig(
 
 # Initialize the agent once
 rag_agent = DeepSightRAGAgent(base_config)
+dynamic_rag_agent = DynamicRAGAgent(rag_agent)
 
 
 async def validate_django_session_middleware(request: Request, call_next):
@@ -308,7 +309,7 @@ class DynamicRAGAgent:
 # Add the LangGraph endpoint at /copilotkit/ag-ui (internal path)
 add_langgraph_fastapi_endpoint(
     app=app,
-    agent=DynamicRAGAgent(rag_agent),
+    agent=dynamic_rag_agent,
     path="/copilotkit/ag-ui",
 )
 
@@ -317,7 +318,7 @@ add_langgraph_fastapi_endpoint(
 async def copilotkit_adapter(request: Request):
     """
     Lightweight adapter for CopilotKit protocol.
-    Handles /info requests and forwards agent requests to AG-UI endpoint.
+    Handles /info requests and streams agent responses directly (no forwarding).
     """
     # Handle GET requests (agent discovery)
     if request.method == "GET":
@@ -381,8 +382,7 @@ async def copilotkit_adapter(request: Request):
             logger.debug("Request missing threadId or runId, returning success")
             return JSONResponse({"success": True, "message": "Request acknowledged"})
 
-        # For all other requests, forward to the AG-UI endpoint
-        # Populate missing required fields with safe defaults
+        # For all other requests, populate missing required fields with safe defaults
         inner_body.setdefault("state", {})
         inner_body.setdefault("messages", [])
         inner_body.setdefault("tools", [])
@@ -396,49 +396,38 @@ async def copilotkit_adapter(request: Request):
                 inner_body["configurable"] = {}
             inner_body["configurable"].update(forwarded_props)
 
-        forward_url = f"http://127.0.0.1:{RAG_AGENT_PORT}/copilotkit/ag-ui"
+        # Stream directly from the agent to keep cancellation in-process
+        encoder = EventEncoder(accept=request.headers.get("accept"))
+        agent_stream = dynamic_rag_agent.run(inner_body)
 
-        # Use a client for streaming
-        client = httpx.AsyncClient(timeout=None)
         try:
-            req = client.build_request(
-                "POST",
-                forward_url,
-                json=inner_body,
-                cookies=request.cookies,
-                headers={"Content-Type": "application/json"},
+            first_event = await agent_stream.__anext__()
+        except StopAsyncIteration:
+            await agent_stream.aclose()
+            return Response(
+                status_code=status.HTTP_200_OK,
+                media_type=encoder.get_content_type(),
             )
-            r = await client.send(req, stream=True)
         except Exception:
-            await client.aclose()
+            await agent_stream.aclose()
             raise
 
         async def stream_response():
             try:
-                async for chunk in r.aiter_raw():
-                    yield chunk
+                yield encoder.encode(first_event)
+                async for event in agent_stream:
+                    yield encoder.encode(event)
+                    if has_thread_id and await request.is_disconnected():
+                        cancel_event = active_runs.get(inner_body.get("threadId"))
+                        if cancel_event:
+                            cancel_event.set()
+                        break
             finally:
-                await r.aclose()
-                await client.aclose()
-
-        # Return the response with proper headers
-        # Filter out headers that might conflict with the new Response or have been handled by httpx
-        headers = dict(r.headers)
-        keys_to_remove = [
-            "content-length",
-            "transfer-encoding",
-            "content-encoding",
-            "connection",
-        ]
-        for key in keys_to_remove:
-            for h in list(headers.keys()):
-                if h.lower() == key:
-                    del headers[h]
+                await agent_stream.aclose()
 
         return StreamingResponse(
             stream_response(),
-            status_code=r.status_code,
-            headers=headers,
+            media_type=encoder.get_content_type(),
         )
 
     except Exception as exc:
