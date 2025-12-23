@@ -37,7 +37,14 @@ class RagflowDatasetService:
             chunk_method: Chunking method (naive, book, qa, etc.)
             permission: Access permission ("me" or "team")
             parser_config: Parser configuration dict
-            **kwargs: Additional configuration
+            **kwargs: Additional configuration options:
+                - chunk_token_num (int): Chunk token number (default: 512)
+                - delimiter (str): Delimiter for chunking (default: "\n")
+                - html4excel (bool): HTML for Excel (default: False)
+                - layout_recognize (str): Layout recognition method (default: "DeepDOC")
+                - use_raptor (bool): Use RAPTOR (default: False)
+                - auto_keywords (int): Auto-generate keywords count, 0-32 (default: 0)
+                - auto_questions (int): Auto-generate questions count, 0-10 (default: 0)
 
         Returns:
             Dataset object
@@ -82,6 +89,8 @@ class RagflowDatasetService:
                     "html4excel": kwargs.get("html4excel", False),
                     "layout_recognize": kwargs.get("layout_recognize", "DeepDOC"),
                     "raptor": {"use_raptor": kwargs.get("use_raptor", False)},
+                    "auto_keywords": kwargs.get("auto_keywords", 0),
+                    "auto_questions": kwargs.get("auto_questions", 0),
                 }
 
             # Additional kwargs

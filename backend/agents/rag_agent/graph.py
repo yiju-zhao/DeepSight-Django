@@ -100,6 +100,7 @@ class DeepSightRAGAgent:
         workflow.add_node("retrieve", self.retrieve)
         workflow.add_node("grade_relevance", self.grade_relevance)
         workflow.add_node("reorder", self.reorder)
+        workflow.add_node("prepare_generation", self.prepare_generation)
         workflow.add_node("generate", self.generate)
 
         # Build graph
@@ -124,11 +125,12 @@ class DeepSightRAGAgent:
             {
                 "planning": "planning",
                 "reorder": "reorder",
-                "generate": "generate",
+                "generate": "prepare_generation", # Route to prep step
             },
         )
         
-        workflow.add_edge("reorder", "generate")
+        workflow.add_edge("reorder", "prepare_generation")
+        workflow.add_edge("prepare_generation", "generate")
         workflow.add_edge("generate", END)
 
         # Add checkpointer for conversation state management
@@ -358,6 +360,17 @@ class DeepSightRAGAgent:
             "current_step": "reordering"
         }
 
+    async def prepare_generation(self, state: RAGAgentState) -> dict:
+        """
+        Updates state to indicate synthesis is starting.
+        This ensures the UI shows 'Generating Answer...' during the LLM call.
+        """
+        logger.info("---PREPARE GENERATION---")
+        return {
+            "current_step": "synthesizing",
+            "synthesis_progress": 0
+        }
+
     async def generate(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
         Generate final answer using dynamic content reconstruction.
@@ -423,7 +436,7 @@ class DeepSightRAGAgent:
             return "planning"
         
         logger.info("---DECISION: NO RELEVANT DOCS AFTER 3 ITERS, FORCING GENERATION (Failure message)---")
-        return "generate"
+        return "generate" 
 
     async def grade_generation_v_documents_and_question(self, state: RAGAgentState, config: RunnableConfig) -> Literal["not supported", "useful", "not useful"]:
         """

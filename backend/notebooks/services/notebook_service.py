@@ -154,6 +154,8 @@ class NotebookService(ModelService):
                 description=notebook.description
                 or f"Dataset for notebook '{notebook.name}'",
                 chunk_token_num=2048,
+                auto_keywords=6,
+                auto_questions=3,
             )
 
             # Update notebook with RagFlow dataset ID
