@@ -335,6 +335,14 @@ async def copilotkit_adapter(request: Request):
         # Extract the body content - AG-UI expects body directly, not wrapped
         inner_body = payload.get("body", {})
 
+        # Handle abort/stop requests - AG-UI requires all fields
+        # Populate missing required fields with safe defaults to prevent 422 errors
+        inner_body.setdefault("state", {})
+        inner_body.setdefault("messages", [])
+        inner_body.setdefault("tools", [])
+        inner_body.setdefault("context", {})
+        inner_body.setdefault("forwardedProps", {})
+
         # Merge forwardedProps into configurable for LangGraph
         forwarded_props = inner_body.get("forwardedProps", {})
         if forwarded_props:
