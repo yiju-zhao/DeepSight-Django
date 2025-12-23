@@ -97,6 +97,25 @@ Guidelines:
             display: none !important;
         }
 
+        /* Input area styling - scale down */
+        .copilot-input-container,
+        .copilotKitInput {
+          padding: 0.5rem 0.75rem !important;
+          font-size: 0.875rem !important;
+          min-height: auto !important;
+        }
+
+        .copilotKitInput textarea {
+          font-size: 0.875rem !important;
+          line-height: 1.4 !important;
+          padding: 0.25rem 0 !important;
+        }
+
+        /* Adjust send button size if possible */
+        .copilotKitInput button {
+          padding: 0.25rem !important;
+        }
+
         /* Customize message bubbles if needed */
         .copilot-message-user {
           background-color: #3b82f6;
