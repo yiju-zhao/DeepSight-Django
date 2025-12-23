@@ -58,10 +58,10 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
       </div>
 
       {/* CopilotChat Component - Full Height */}
-      <div className="flex-1 min-h-0 relative flex flex-col">
+      <div className="flex-1 min-h-0 relative flex flex-col overflow-hidden">
         <ChatAgentStatus />
         <CopilotChat
-          className="flex-1"
+          className="flex-1 h-full"
           instructions={`You are a research assistant for this notebook. You have access to the documents and sources in this notebook via RAG retrieval.
 
 Your capabilities:
@@ -91,6 +91,14 @@ Guidelines:
           height: 100%;
           display: flex;
           flex-direction: column;
+        }
+
+        /* Hide intermediate tool outputs/logs in chat */
+        /* These often appear as "Used tool..." or system messages */
+        .copilotKitMessage[data-message-role="system"], 
+        .copilotKitMessage[data-message-role="function"],
+        .copilot-kit-tool-call {
+            display: none !important;
         }
 
         /* Customize message bubbles if needed */

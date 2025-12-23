@@ -17,34 +17,39 @@ const StudioAgentStatus: React.FC = () => {
     }
 
     return (
-        <div className="w-full h-full p-2">
-            <div
-                data-testid="task-progress"
-                className="relative rounded-xl w-full h-full overflow-y-auto p-4 bg-white"
+        <div className="w-full h-full flex flex-col bg-white">
+            {/* Header / Progress Bar Area */}
+            <div 
+                className="flex-none px-4 py-3 bg-white border-b border-gray-100 sticky top-0 z-10"
+                data-testid="task-progress-header"
             >
-                {/* Header */}
-                <div className="mb-5 sticky top-0 bg-white z-10 pb-2 border-b border-gray-100">
-                    <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-lg font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            Agent Progress
-                        </h3>
-                        <div className="text-xs text-gray-500 font-mono">
-                            {Math.round(percentage)}%
-                        </div>
+                <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                        <span className={`h-2 w-2 rounded-full ${state?.generation || isCompleted ? 'bg-green-500' : 'bg-blue-500 animate-pulse'}`}></span>
+                        <span className="text-sm font-semibold text-gray-700">
+                            {isCompleted ? 'Completed' : (state?.current_step ? 'Agent Working...' : 'Ready')}
+                        </span>
                     </div>
-
-                    {/* Progress Bar */}
-                    <div className="relative h-1.5 rounded-full overflow-hidden bg-gray-100">
-                        <div
-                            className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-1000 ease-out"
-                            style={{ width: `${percentage}%` }}
-                        />
-                    </div>
+                    <span className="text-xs font-mono text-gray-500 font-medium">
+                        {Math.round(percentage)}%
+                    </span>
                 </div>
 
-                {/* Steps */}
-                <div className="space-y-2 pb-4">
-                    {STEPS_ORDER.map((step, index) => {
+                {/* Progress Bar */}
+                <div className="relative h-1.5 rounded-full overflow-hidden bg-gray-100 w-full">
+                    <div
+                        className="absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-1000 ease-out"
+                        style={{ width: `${percentage}%` }}
+                    />
+                </div>
+            </div>
+
+            {/* Steps Scroll Area */}
+            <div 
+                data-testid="task-progress"
+                className="flex-1 overflow-y-auto p-4 space-y-2"
+            >
+                {STEPS_ORDER.map((step, index) => {
                         const isStepCompleted = index < currentIndex || isCompleted;
                         const isCurrentPending = index === currentIndex && !isCompleted;
 
@@ -121,7 +126,6 @@ const StudioAgentStatus: React.FC = () => {
                             </div>
                         );
                     })}
-                </div>
             </div>
         </div>
     );

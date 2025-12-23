@@ -664,9 +664,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
           {/* UPPER SECTION: RAG Agent Progress */}
           <div className="h-[35%] min-h-[200px] flex flex-col bg-white border-b border-gray-200">
-            <div className="px-4 py-3 border-b border-gray-50 flex justify-between items-center">
-              <h4 className="text-sm font-medium text-gray-700">RAG Agent Progress</h4>
-            </div>
             <div className="flex-1 p-0 overflow-hidden relative">
               <StudioAgentStatus />
             </div>
