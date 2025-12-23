@@ -383,16 +383,21 @@ class DeepSightRAGAgent:
 
         return updated_state
 
-    async def prepare_generation(self, state: RAGAgentState) -> dict:
+    async def prepare_generation(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
         Updates state to indicate synthesis is starting.
         This ensures the UI shows 'Generating Answer...' during the LLM call.
         """
         logger.info("---PREPARE GENERATION---")
-        return {
+        updated_state = {
             "current_step": "synthesizing",
             "synthesis_progress": 0
         }
+        
+        # Emit state update IMMEDIATELY so UI shows "Generating Answer..." when synthesis starts
+        await adispatch_custom_event("manually_emit_state", {**state, **updated_state}, config=config)
+        
+        return updated_state
 
     async def generate(self, state: RAGAgentState, config: RunnableConfig) -> dict:
         """
@@ -436,11 +441,11 @@ class DeepSightRAGAgent:
             "documents": [],  # Clear massive doc list
             "semantic_groups": [],  # Clear groups
             "graded_documents": None,
-            "current_step": "synthesizing",
+            "current_step": "completed",  # Mark as completed instead of synthesizing
             "synthesis_progress": 100
         }
 
-        # Emit state update to frontend
+        # Emit state update to frontend BEFORE returning to ensure status updates before chat message
         await adispatch_custom_event("manually_emit_state", {**state, **updated_state}, config=config)
 
         return updated_state

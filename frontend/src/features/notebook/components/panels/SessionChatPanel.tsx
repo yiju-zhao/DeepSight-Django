@@ -79,10 +79,6 @@ Guidelines:
             initial: "👋 Hi! I'm your research assistant. I can help you:\n\n• Search through your documents\n• Answer questions about your research\n• Find connections between sources\n• Summarize key findings\n\nWhat would you like to explore?",
             placeholder: "Ask a question about your documents...",
           }}
-          makeSystemMessage={(message) => {
-            // Customize system message if needed
-            return message;
-          }}
         />
       </div>
 
