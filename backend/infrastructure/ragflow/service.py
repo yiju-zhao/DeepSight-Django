@@ -81,9 +81,7 @@ class RagflowService(RagflowServiceBase):
         prompt: dict = None,
         **kwargs,
     ) -> Chat:
-        return self.chat.create_chat(
-            name, dataset_ids, avatar, llm, prompt, **kwargs
-        )
+        return self.chat.create_chat(name, dataset_ids, avatar, llm, prompt, **kwargs)
 
     def update_chat(
         self,
@@ -111,9 +109,7 @@ class RagflowService(RagflowServiceBase):
         chat_id: str = None,
         name: str = None,
     ) -> list[Chat]:
-        return self.chat.list_chats(
-            page, page_size, orderby, desc, chat_id, name
-        )
+        return self.chat.list_chats(page, page_size, orderby, desc, chat_id, name)
 
     def get_chat(self, chat_id: str) -> Chat | None:
         return self.chat.get_chat(chat_id)

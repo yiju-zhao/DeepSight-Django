@@ -40,7 +40,9 @@ async def create_mcp_retrieval_tools(
         >>> # Use tools with LangGraph agent
         >>> agent = create_agent("claude-sonnet-4-5-20250929", tools)
     """
-    logger.info(f"[create_mcp_retrieval_tools] Connecting to MCP server: {mcp_server_url}")
+    logger.info(
+        f"[create_mcp_retrieval_tools] Connecting to MCP server: {mcp_server_url}"
+    )
     logger.info(f"[create_mcp_retrieval_tools] Dataset IDs: {dataset_ids}")
 
     # Configure MCP client for RAGFlow server
@@ -56,7 +58,9 @@ async def create_mcp_retrieval_tools(
     try:
         # Get all available tools from the MCP server
         tools = await client.get_tools()
-        logger.info(f"[create_mcp_retrieval_tools] Retrieved {len(tools)} tools from MCP server")
+        logger.info(
+            f"[create_mcp_retrieval_tools] Retrieved {len(tools)} tools from MCP server"
+        )
 
         # Store metadata on tools for later use
         for tool in tools:
@@ -67,5 +71,7 @@ async def create_mcp_retrieval_tools(
         return tools
 
     except Exception as e:
-        logger.error(f"[create_mcp_retrieval_tools] Failed to connect to MCP server: {e}")
+        logger.error(
+            f"[create_mcp_retrieval_tools] Failed to connect to MCP server: {e}"
+        )
         raise

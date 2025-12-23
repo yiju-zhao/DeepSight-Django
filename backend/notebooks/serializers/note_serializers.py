@@ -21,9 +21,7 @@ class NoteSerializer(serializers.ModelSerializer):
     created_by_username = serializers.CharField(
         source="created_by.username", read_only=True
     )
-    created_by_email = serializers.EmailField(
-        source="created_by.email", read_only=True
-    )
+    created_by_email = serializers.EmailField(source="created_by.email", read_only=True)
 
     # Include notebook name
     notebook_name = serializers.CharField(source="notebook.name", read_only=True)
@@ -317,9 +315,7 @@ class NoteFromMessageSerializer(serializers.Serializer):
         if value:
             value = value.strip()
             if len(value) > 255:
-                raise serializers.ValidationError(
-                    "Title cannot exceed 255 characters."
-                )
+                raise serializers.ValidationError("Title cannot exceed 255 characters.")
         return value
 
     def validate_tags(self, value):

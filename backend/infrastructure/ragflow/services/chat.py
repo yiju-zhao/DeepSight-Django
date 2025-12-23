@@ -11,6 +11,7 @@ from ..models import (
 
 logger = logging.getLogger(__name__)
 
+
 class RagflowChatService:
     """
     Service for RAGFlow chat and conversation operations.
@@ -392,7 +393,9 @@ class RagflowChatService:
             if data.get("code") != 0:
                 # Handle "chat doesn't exist" (code 102) as normal "not found" case
                 if data.get("code") == 102:
-                    logger.debug(f"No chats found (code 102): {data.get('message')} - this is normal for new notebooks")
+                    logger.debug(
+                        f"No chats found (code 102): {data.get('message')} - this is normal for new notebooks"
+                    )
                     return []  # Return empty list instead of raising error
 
                 # For other error codes, raise exception

@@ -279,7 +279,7 @@ class ChatService(NotebookBaseService):
 
             # Check if dataset has any parsed files
             parsed_files_count = notebook.knowledge_base_items.filter(
-                parsing_status='done'
+                parsing_status="done"
             ).count()
 
             if parsed_files_count == 0:
@@ -688,6 +688,7 @@ class ChatService(NotebookBaseService):
 
                 # Initialize event loop for async operations
                 import asyncio
+
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
 
@@ -695,24 +696,34 @@ class ChatService(NotebookBaseService):
                 # Fall back to default model if chat assistant is not found
                 model_name = None
                 chat = None
-                
+
                 if session.ragflow_agent_id:
                     try:
                         chat = self.ragflow_service.get_chat(session.ragflow_agent_id)
-                        if chat and hasattr(chat, 'llm') and chat.llm:
+                        if chat and hasattr(chat, "llm") and chat.llm:
                             raw_model_name = chat.llm.model_name
                             if raw_model_name:
                                 # Clean up model name: remove @Provider suffix if present
                                 # RagFlow uses format like "gpt-4o@OpenAI", we need just "gpt-4o"
-                                model_name = raw_model_name.split("@")[0] if "@" in raw_model_name else raw_model_name
-                                logger.info(f"[{trace_id}] Using model from chat assistant: {model_name} (raw: {raw_model_name})")
+                                model_name = (
+                                    raw_model_name.split("@")[0]
+                                    if "@" in raw_model_name
+                                    else raw_model_name
+                                )
+                                logger.info(
+                                    f"[{trace_id}] Using model from chat assistant: {model_name} (raw: {raw_model_name})"
+                                )
                     except Exception as e:
-                        logger.warning(f"[{trace_id}] Failed to get chat assistant config: {e}")
-                
+                        logger.warning(
+                            f"[{trace_id}] Failed to get chat assistant config: {e}"
+                        )
+
                 # Fallback to configured default model if not found from chat
                 if not model_name:
                     available_models = self.get_available_chat_models()
-                    model_name = available_models[0] if available_models else "gpt-4o-mini"
+                    model_name = (
+                        available_models[0] if available_models else "gpt-4o-mini"
+                    )
                     logger.info(f"[{trace_id}] Using default model: {model_name}")
 
                 api_key = getattr(settings, "OPENAI_API_KEY", "")
@@ -735,9 +746,7 @@ class ChatService(NotebookBaseService):
 
                 # Configure MCP server URL from settings
                 mcp_server_url = getattr(
-                    settings,
-                    "RAGFLOW_MCP_URL",
-                    "http://localhost:9382/mcp/"
+                    settings, "RAGFLOW_MCP_URL", "http://localhost:9382/mcp/"
                 )
 
                 config = RAGAgentConfig(
@@ -762,9 +771,9 @@ class ChatService(NotebookBaseService):
                 agent = agent_instance.graph
 
                 # Load conversation history (for context in first reasoning step)
-                past_messages = SessionChatMessage.objects.filter(session=session).order_by(
-                    "timestamp"
-                )[:10]  # Limit to recent messages
+                past_messages = SessionChatMessage.objects.filter(
+                    session=session
+                ).order_by("timestamp")[:10]  # Limit to recent messages
 
                 # Build message history in simple dict format for ReAct
                 message_history = []
@@ -774,21 +783,24 @@ class ChatService(NotebookBaseService):
 
                 # Initialize MessagesState-based state (LangGraph best practices)
                 from langchain_core.messages import HumanMessage as LCHumanMessage
-                
+
                 # Build message history for context
                 # Convert to list first since Django querysets don't support negative indexing
                 past_messages_list = list(past_messages)
                 context_messages = []
-                for msg in past_messages_list[:-1] if past_messages_list else []:  # Exclude the current question
+                for msg in (
+                    past_messages_list[:-1] if past_messages_list else []
+                ):  # Exclude the current question
                     if msg.sender == "user":
                         context_messages.append(LCHumanMessage(content=msg.message))
                     else:
                         from langchain_core.messages import AIMessage
+
                         context_messages.append(AIMessage(content=msg.message))
-                
+
                 # Add current question
                 context_messages.append(LCHumanMessage(content=question))
-                
+
                 initial_state = {
                     "messages": context_messages,
                     "question": question,
@@ -807,7 +819,7 @@ class ChatService(NotebookBaseService):
                     "synthesis_progress": 0,
                     "total_tool_calls": 0,
                     "agent_reasoning": "",
-                    "retrieved_chunks": []
+                    "retrieved_chunks": [],
                 }
 
                 try:
@@ -826,7 +838,9 @@ class ChatService(NotebookBaseService):
                         tool_call_count = 0
                         final_answer = ""
 
-                        async for event in agent.astream_events(initial_state, version="v2"):
+                        async for event in agent.astream_events(
+                            initial_state, version="v2"
+                        ):
                             event_type = event.get("event")
                             name = event.get("name", "")
 
@@ -835,28 +849,40 @@ class ChatService(NotebookBaseService):
                                 if "generate_query_or_respond" in name:
                                     current_node = "analyzing"
                                     agent_state["current_step"] = "analyzing"
-                                    agent_state["agent_reasoning"] = "Analyzing question and deciding on retrieval strategy..."
+                                    agent_state["agent_reasoning"] = (
+                                        "Analyzing question and deciding on retrieval strategy..."
+                                    )
                                     yield emit_agent_state()
                                 elif "retrieve" in name:
                                     current_node = "retrieving"
                                     agent_state["current_step"] = "retrieving"
-                                    agent_state["agent_reasoning"] = "Searching knowledge base..."
+                                    agent_state["agent_reasoning"] = (
+                                        "Searching knowledge base..."
+                                    )
                                     yield emit_agent_state()
                                 elif "grade_documents" in name:
                                     current_node = "grading"
                                     agent_state["current_step"] = "grading"
-                                    agent_state["agent_reasoning"] = "Evaluating document relevance..."
+                                    agent_state["agent_reasoning"] = (
+                                        "Evaluating document relevance..."
+                                    )
                                     yield emit_agent_state()
                                 elif "rewrite_question" in name:
                                     current_node = "rewriting"
                                     agent_state["current_step"] = "rewriting"
-                                    agent_state["agent_reasoning"] = "Rewriting query to improve retrieval..."
-                                    agent_state["iteration_count"] = agent_state.get("iteration_count", 0) + 1
+                                    agent_state["agent_reasoning"] = (
+                                        "Rewriting query to improve retrieval..."
+                                    )
+                                    agent_state["iteration_count"] = (
+                                        agent_state.get("iteration_count", 0) + 1
+                                    )
                                     yield emit_agent_state()
                                 elif "generate_answer" in name:
                                     current_node = "synthesizing"
                                     agent_state["current_step"] = "synthesizing"
-                                    agent_state["agent_reasoning"] = "Generating final answer from context..."
+                                    agent_state["agent_reasoning"] = (
+                                        "Generating final answer from context..."
+                                    )
                                     agent_state["synthesis_progress"] = 0
                                     yield emit_agent_state()
 
@@ -864,7 +890,9 @@ class ChatService(NotebookBaseService):
                             elif event_type == "on_tool_start":
                                 tool_call_count += 1
                                 agent_state["total_tool_calls"] = tool_call_count
-                                agent_state["agent_reasoning"] = f"Retrieving documents (call #{tool_call_count})..."
+                                agent_state["agent_reasoning"] = (
+                                    f"Retrieving documents (call #{tool_call_count})..."
+                                )
                                 yield emit_agent_state()
 
                             # Capture tool results (retrieved documents)
@@ -874,26 +902,41 @@ class ChatService(NotebookBaseService):
                                     formatted_content = format_tool_content(output)
                                     # Parse document chunks from output
                                     import re
-                                    matches = re.findall(r"\[(\d+)\]\s+([^\n(]+)", formatted_content)
+
+                                    matches = re.findall(
+                                        r"\[(\d+)\]\s+([^\n(]+)", formatted_content
+                                    )
                                     for match in matches:
                                         if len(match) >= 2:
                                             idx, doc_name = match[0], match[1].strip()
                                             # Extract content preview
-                                            content_start = formatted_content.find(f"[{idx}] {doc_name}")
+                                            content_start = formatted_content.find(
+                                                f"[{idx}] {doc_name}"
+                                            )
                                             if content_start >= 0:
-                                                content_preview = formatted_content[content_start:content_start + 200]
-                                                agent_state["retrieved_chunks"].append({
-                                                    "document_name": doc_name,
-                                                    "content": content_preview,
-                                                    "score": 0.0  # Score not available in tool output
-                                                })
-                                    agent_state["agent_reasoning"] = f"Retrieved {len(agent_state['retrieved_chunks'])} document chunks"
+                                                content_preview = formatted_content[
+                                                    content_start : content_start + 200
+                                                ]
+                                                agent_state["retrieved_chunks"].append(
+                                                    {
+                                                        "document_name": doc_name,
+                                                        "content": content_preview,
+                                                        "score": 0.0,  # Score not available in tool output
+                                                    }
+                                                )
+                                    agent_state["agent_reasoning"] = (
+                                        f"Retrieved {len(agent_state['retrieved_chunks'])} document chunks"
+                                    )
                                     yield emit_agent_state()
 
                             # Capture final answer streaming
                             elif event_type == "on_chat_model_stream":
                                 chunk = event.get("data", {}).get("chunk")
-                                if chunk and hasattr(chunk, "content") and chunk.content:
+                                if (
+                                    chunk
+                                    and hasattr(chunk, "content")
+                                    and chunk.content
+                                ):
                                     final_answer += chunk.content
                                     accumulated_content += chunk.content
 
@@ -903,8 +946,12 @@ class ChatService(NotebookBaseService):
                                     # Update synthesis progress
                                     if current_node == "synthesizing":
                                         # Estimate progress based on token count (rough approximation)
-                                        agent_state["synthesis_progress"] = min(100, len(final_answer) // 5)
-                                        if len(final_answer) % 50 == 0:  # Emit every 50 chars to avoid spam
+                                        agent_state["synthesis_progress"] = min(
+                                            100, len(final_answer) // 5
+                                        )
+                                        if (
+                                            len(final_answer) % 50 == 0
+                                        ):  # Emit every 50 chars to avoid spam
                                             yield emit_agent_state()
 
                             # Capture final state
@@ -941,6 +988,7 @@ class ChatService(NotebookBaseService):
                 if final_state and "messages" in final_state:
                     seen_docs = set()
                     import re
+
                     for msg in final_state["messages"]:
                         if hasattr(msg, "type") and msg.type == "tool":
                             # Parse [N] Document Name patterns from tool response
@@ -964,24 +1012,33 @@ class ChatService(NotebookBaseService):
                                 anchor = f"[{idx}] {doc_name}" if idx else doc_name
                                 preview_match = content.find(anchor)
                                 if preview_match >= 0:
-                                    preview = content[preview_match:preview_match + 250]
+                                    preview = content[
+                                        preview_match : preview_match + 250
+                                    ]
                                 else:
                                     preview = content[:200]
 
-                                citations.append({
-                                    "index": len(citations) + 1,
-                                    "document_name": doc_name,
-                                    "preview": preview
-                                })
+                                citations.append(
+                                    {
+                                        "index": len(citations) + 1,
+                                        "document_name": doc_name,
+                                        "preview": preview,
+                                    }
+                                )
 
                 # Update assistant message
                 if assistant_message:
                     assistant_message.message = accumulated_content
                     # Count tool calls as iterations
-                    tool_call_count = sum(
-                        1 for msg in final_state.get("messages", [])
-                        if hasattr(msg, "type") and msg.type == "tool"
-                    ) if final_state else 0
+                    tool_call_count = (
+                        sum(
+                            1
+                            for msg in final_state.get("messages", [])
+                            if hasattr(msg, "type") and msg.type == "tool"
+                        )
+                        if final_state
+                        else 0
+                    )
                     assistant_message.metadata = {
                         "status": "completed",
                         "trace_id": trace_id,
@@ -1004,7 +1061,6 @@ class ChatService(NotebookBaseService):
                 yield f"data: {json.dumps({'type': 'error', 'message': f'Chat service error: {str(e)}'})}\n\n"
 
         return session_stream()
-
 
     def get_session_count_for_notebook(self, notebook: Notebook) -> int:
         """Get the number of active sessions for a notebook."""

@@ -218,7 +218,7 @@ CORS_ALLOWED_ORIGINS = [
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
 
 # Session cookie settings for cross-port communication
-SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_SAMESITE = "Lax"
 SESSION_COOKIE_HTTPONLY = True
 
 CORS_ALLOW_HEADERS = [
@@ -315,19 +315,21 @@ XINFERENCE_API_KEY = os.getenv("XINFERENCE_API_KEY", "dummy")
 # ==============================================================================
 
 LOTUS_CONFIG = {
-    "llm_provider": os.getenv("LOTUS_LLM_PROVIDER", "xinference"), # [openai, xinference]
+    "llm_provider": os.getenv(
+        "LOTUS_LLM_PROVIDER", "xinference"
+    ),  # [openai, xinference]
     "default_model": os.getenv("LOTUS_LLM_MODEL", "Qwen3-Instruct"),
     # "helper_model": os.getenv("LOTUS_HELPER_MODEL", "gpt-4.1-mini"),  # Helper model for cascade optimization
     "max_tokens": int(os.getenv("LOTUS_LLM_MAX_TOKENS", "40000")),
     "timeout": int(os.getenv("LOTUS_TIMEOUT", "3600")),
     "max_publications": int(os.getenv("LOTUS_MAX_PUBLICATIONS", "10000")),
     # Cascade optimization settings
-#     "use_cascade": os.getenv("LOTUS_USE_CASCADE", "true").lower() == "true",
-#     "embedding_model": os.getenv("LOTUS_EMBEDDING_MODEL", "intfloat/e5-base-v2"),
-#     "cascade_recall_target": float(os.getenv("LOTUS_CASCADE_RECALL", "0.9")),
-#     "cascade_precision_target": float(os.getenv("LOTUS_CASCADE_PRECISION", "0.9")),
-#     "cascade_failure_probability": float(os.getenv("LOTUS_CASCADE_FAILURE_PROB", "0.2")),
-#     "cascade_sampling_percentage": float(os.getenv("LOTUS_CASCADE_SAMPLING", "0.5")),
+    #     "use_cascade": os.getenv("LOTUS_USE_CASCADE", "true").lower() == "true",
+    #     "embedding_model": os.getenv("LOTUS_EMBEDDING_MODEL", "intfloat/e5-base-v2"),
+    #     "cascade_recall_target": float(os.getenv("LOTUS_CASCADE_RECALL", "0.9")),
+    #     "cascade_precision_target": float(os.getenv("LOTUS_CASCADE_PRECISION", "0.9")),
+    #     "cascade_failure_probability": float(os.getenv("LOTUS_CASCADE_FAILURE_PROB", "0.2")),
+    #     "cascade_sampling_percentage": float(os.getenv("LOTUS_CASCADE_SAMPLING", "0.5")),
 }
 
 # ==============================================================================
@@ -338,20 +340,18 @@ CHROMA_CONFIG = {
     # Storage (REQUIRED - must be set in .env)
     "persist_dir": os.getenv("CHROMA_PERSIST_DIR"),  # No default, force explicit config
     "collection_name": os.getenv("CHROMA_COLLECTION_NAME", "publication"),
-
     # Xinference Embedding (Primary)
     "use_xinference": os.getenv("CHROMA_USE_XINFERENCE", "true").lower() == "true",
     "xinference_url": os.getenv("XINFERENCE_URL", "http://localhost:9997"),
     "xinference_api_key": os.getenv("XINFERENCE_API_KEY", "dummy"),
-    "embedding_model": os.getenv("CHROMA_EMBEDDING_MODEL"),  # Admin specifies (e.g., "bge-base-en-v1.5")
-
+    "embedding_model": os.getenv(
+        "CHROMA_EMBEDDING_MODEL"
+    ),  # Admin specifies (e.g., "bge-base-en-v1.5")
     # Fallback Embedding Model
     "fallback_model": "intfloat/e5-base-v2",
-
     # Search parameters
     "default_k_multiplier": 2,  # Fetch 2*topk candidates for LLM reranking
     "max_candidates": 100,  # Maximum candidates to fetch from Chroma
-
     # Feature flag
     "enabled": os.getenv("CHROMA_ENABLED", "true").lower() == "true",
 }

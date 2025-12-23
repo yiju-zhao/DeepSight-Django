@@ -15,7 +15,11 @@ from ..utils.helpers import clean_title
 from ..utils.storage import FileStorageService
 from .exceptions import IngestionError, ParseError, SourceError, StorageError
 from .parsers import MediaParser, DocuParser, ParseResult, TextParser, TableParser
-from .transcription import XinferenceProvider, WhisperFastapiProvider, TranscriptionClient
+from .transcription import (
+    XinferenceProvider,
+    WhisperFastapiProvider,
+    TranscriptionClient,
+)
 from .url_fetcher import UrlFetcher
 
 

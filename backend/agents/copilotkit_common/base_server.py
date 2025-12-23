@@ -58,12 +58,14 @@ def create_agent_server(title: str, port: int) -> FastAPI:
         for origin in extra_origins:
             if origin not in allowed_origins:
                 allowed_origins.append(origin)
-    
+
     # Add CORS middleware with credentials support for session cookies
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
-        allow_origin_regex=r"http://(10|172|192)\.\d+\.\d+\.\d+:5173" if environment == "development" else None,
+        allow_origin_regex=r"http://(10|172|192)\.\d+\.\d+\.\d+:5173"
+        if environment == "development"
+        else None,
         allow_credentials=True,  # Required for session cookies
         allow_methods=["*"],
         allow_headers=["*"],

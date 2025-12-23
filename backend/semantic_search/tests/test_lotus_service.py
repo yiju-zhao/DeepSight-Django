@@ -146,10 +146,13 @@ class LotusSemanticSearchServiceTestCase(TestCase):
         # Patch internal helpers:
         # - _publications_to_dataframe returns our mock_df
         # - _embedding_prefilter returns mock_filtered_df (simulating 2*topk selection)
-        with patch.object(
-            self.service, "_publications_to_dataframe", return_value=mock_df
-        ), patch.object(
-            self.service, "_embedding_prefilter", return_value=mock_filtered_df
+        with (
+            patch.object(
+                self.service, "_publications_to_dataframe", return_value=mock_df
+            ),
+            patch.object(
+                self.service, "_embedding_prefilter", return_value=mock_filtered_df
+            ),
         ):
             publication_ids = [str(pub.id) for pub in self.publications]
             result = self.service.semantic_search(
@@ -295,9 +298,7 @@ class ChromaIntegrationTestCase(TestCase):
         self.service._chroma_available = False
 
         result = self.service._chroma_prefilter(
-            query="test query",
-            publication_ids=["uuid1", "uuid2"],
-            topk=10
+            query="test query", publication_ids=["uuid1", "uuid2"], topk=10
         )
 
         self.assertIsNone(result)
@@ -323,9 +324,7 @@ class ChromaIntegrationTestCase(TestCase):
         self.service._chroma_initialized = True
 
         result = self.service._chroma_prefilter(
-            query="test query",
-            publication_ids=["uuid1", "uuid2", "uuid3"],
-            topk=10
+            query="test query", publication_ids=["uuid1", "uuid2", "uuid3"], topk=10
         )
 
         self.assertEqual(result, ["uuid1", "uuid2"])

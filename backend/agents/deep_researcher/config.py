@@ -47,24 +47,24 @@ def get_compression_model_config() -> dict:
 
 class ResearchConfig:
     """Configuration settings for research agent."""
-    
+
     # Maximum concurrent research workers
     MAX_CONCURRENT_RESEARCHERS: int = 3
-    
+
     # Maximum research iterations before stopping
     MAX_RESEARCHER_ITERATIONS: int = 10
-    
+
     # Maximum context length for summarization
     MAX_CONTEXT_LENGTH: int = 250000
-    
+
     # Default search parameters
     DEFAULT_SEARCH_MAX_RESULTS: int = 3
     DEFAULT_SEARCH_TOPIC: str = "general"
-    
+
     # Timeout settings (in seconds)
     DEFAULT_TIMEOUT: float = 300.0
     SEARCH_TIMEOUT: float = 30.0
-    
+
     @classmethod
     def from_settings(cls) -> "ResearchConfig":
         """Create config from Django settings with overrides."""

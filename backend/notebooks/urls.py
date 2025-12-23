@@ -70,4 +70,3 @@ urlpatterns = [
         name="notebook-studio-execute",
     ),
 ]
-

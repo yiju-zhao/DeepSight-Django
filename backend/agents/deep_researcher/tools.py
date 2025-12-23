@@ -37,10 +37,11 @@ def _get_summarization_model():
     global _summarization_model
     if _summarization_model is None:
         from .config import get_model_config
+
         config = get_model_config()
         _summarization_model = init_chat_model(
             model=f"openai:{config['model']}",
-            api_key=config['api_key'],
+            api_key=config["api_key"],
         )
     return _summarization_model
 
@@ -57,6 +58,7 @@ def _get_tavily_client():
 # ============================================================================
 # SEARCH FUNCTIONS
 # ============================================================================
+
 
 def tavily_search_multiple(
     search_queries: list[str],
@@ -78,20 +80,20 @@ def tavily_search_multiple(
     """
     client = _get_tavily_client()
     search_docs = []
-    
+
     for query in search_queries:
         try:
             result = client.search(
                 query,
                 max_results=max_results,
                 include_raw_content=include_raw_content,
-                topic=topic
+                topic=topic,
             )
             search_docs.append(result)
         except Exception as e:
             logger.warning(f"Search failed for query '{query}': {e}")
             search_docs.append({"results": []})
-    
+
     return search_docs
 
 
@@ -109,12 +111,15 @@ def summarize_webpage_content(webpage_content: str) -> str:
         model = _get_summarization_model()
         structured_model = model.with_structured_output(Summary)
 
-        summary = structured_model.invoke([
-            HumanMessage(content=summarize_webpage_prompt.format(
-                webpage_content=webpage_content,
-                date=get_today_str()
-            ))
-        ])
+        summary = structured_model.invoke(
+            [
+                HumanMessage(
+                    content=summarize_webpage_prompt.format(
+                        webpage_content=webpage_content, date=get_today_str()
+                    )
+                )
+            ]
+        )
 
         formatted_summary = (
             f"<summary>\n{summary.summary}\n</summary>\n\n"
@@ -125,7 +130,11 @@ def summarize_webpage_content(webpage_content: str) -> str:
 
     except Exception as e:
         logger.warning(f"Failed to summarize webpage: {e}")
-        return webpage_content[:1000] + "..." if len(webpage_content) > 1000 else webpage_content
+        return (
+            webpage_content[:1000] + "..."
+            if len(webpage_content) > 1000
+            else webpage_content
+        )
 
 
 def deduplicate_search_results(search_results: list[dict]) -> dict:
@@ -141,8 +150,8 @@ def deduplicate_search_results(search_results: list[dict]) -> dict:
     unique_results = {}
 
     for response in search_results:
-        for result in response.get('results', []):
-            url = result.get('url')
+        for result in response.get("results", []):
+            url = result.get("url")
             if url and url not in unique_results:
                 unique_results[url] = result
 
@@ -164,16 +173,16 @@ def process_search_results(unique_results: dict) -> dict:
 
     for url, result in unique_results.items():
         if not result.get("raw_content"):
-            content = result.get('content', '')
+            content = result.get("content", "")
         else:
             # Summarize raw content for better processing
             content = summarize_webpage_content(
-                result['raw_content'][:config.MAX_CONTEXT_LENGTH]
+                result["raw_content"][: config.MAX_CONTEXT_LENGTH]
             )
 
         summarized_results[url] = {
-            'title': result.get('title', 'Untitled'),
-            'content': content
+            "title": result.get("title", "Untitled"),
+            "content": content,
         }
 
     return summarized_results
@@ -207,11 +216,14 @@ def format_search_output(summarized_results: dict) -> str:
 # RESEARCH TOOLS (LangChain tool definitions)
 # ============================================================================
 
+
 @tool(parse_docstring=True)
 def tavily_search(
     query: str,
     max_results: Annotated[int, InjectedToolArg] = 3,
-    topic: Annotated[Literal["general", "news", "finance"], InjectedToolArg] = "general",
+    topic: Annotated[
+        Literal["general", "news", "finance"], InjectedToolArg
+    ] = "general",
 ) -> str:
     """
     Fetch results from Tavily search API with content summarization.

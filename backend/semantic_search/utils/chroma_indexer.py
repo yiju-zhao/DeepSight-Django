@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def index_publication_to_chroma(
-    publication: Publication,
-    chroma_vector_store: Any = None,
-    batch_mode: bool = False
+    publication: Publication, chroma_vector_store: Any = None, batch_mode: bool = False
 ) -> bool:
     """
     Index a single publication to Chroma vector store.
@@ -49,7 +47,9 @@ def index_publication_to_chroma(
         # Prepare metadata
         metadata = {
             "publication_id": str(publication.id),
-            "instance_id": publication.instance.instance_id if publication.instance else None,
+            "instance_id": publication.instance.instance_id
+            if publication.instance
+            else None,
         }
 
         document = Document(page_content=content, metadata=metadata)
@@ -73,14 +73,15 @@ def index_publication_to_chroma(
         logger.warning(f"Chroma dependencies not installed: {e}")
         return False
     except Exception as e:
-        logger.error(f"Failed to index publication {publication.id} to Chroma: {e}", exc_info=True)
+        logger.error(
+            f"Failed to index publication {publication.id} to Chroma: {e}",
+            exc_info=True,
+        )
         return False
 
 
 def batch_index_publications_to_chroma(
-    publications: list[Publication],
-    batch_size: int = 1000,
-    max_workers: int = 4
+    publications: list[Publication], batch_size: int = 1000, max_workers: int = 4
 ) -> dict[str, int]:
     """
     Batch index multiple publications to Chroma vector store using parallel processing.
@@ -104,7 +105,7 @@ def batch_index_publications_to_chroma(
         # Initialize Chroma once to check connectivity/configuration
         # Note: Each thread should ideally get its own client or use the thread-safe one,
         # but for LangChain/Chroma, sharing the instance for HTTP calls is usually fine.
-        # For local SQLite, we might hit write locks, but ThreadPool helps with the 
+        # For local SQLite, we might hit write locks, but ThreadPool helps with the
         # embedding generation latency which is usually the bottleneck.
         vector_store = _get_chroma_vector_store()
         if vector_store is None:
@@ -118,7 +119,7 @@ def batch_index_publications_to_chroma(
             content = f"{pub.title or ''} {pub.abstract or ''}".strip()
             if not content:
                 continue
-            
+
             metadata = {
                 "publication_id": str(pub.id),
                 "instance_id": pub.instance.instance_id if pub.instance else None,
@@ -129,7 +130,9 @@ def batch_index_publications_to_chroma(
         if total_docs == 0:
             return {"indexed": 0, "failed": 0}
 
-        logger.info(f"Prepared {total_docs} documents for indexing. Starting parallel execution with {max_workers} workers.")
+        logger.info(
+            f"Prepared {total_docs} documents for indexing. Starting parallel execution with {max_workers} workers."
+        )
 
         indexed = 0
         failed = 0
@@ -160,7 +163,7 @@ def batch_index_publications_to_chroma(
                     indexed += count
                     # Optional: Log progress
                     if indexed % (batch_size * max_workers) == 0:
-                         logger.info(f"Progress: {indexed}/{total_docs} indexed...")
+                        logger.info(f"Progress: {indexed}/{total_docs} indexed...")
                 except Exception:
                     # The exception is already logged in _process_batch
                     # We assume the whole batch failed
@@ -178,8 +181,7 @@ def batch_index_publications_to_chroma(
 
 
 def delete_publications_from_chroma(
-    instance_id: str = None,
-    publication_ids: list[str] = None
+    instance_id: str = None, publication_ids: list[str] = None
 ) -> dict[str, int]:
     """
     Delete publications from Chroma vector store.
@@ -212,7 +214,9 @@ def delete_publications_from_chroma(
             try:
                 # Chroma uses 'where' filter for metadata-based deletion
                 vector_store.delete(where={"instance_id": instance_id})
-                logger.info(f"Deleted all publications for instance {instance_id} from Chroma")
+                logger.info(
+                    f"Deleted all publications for instance {instance_id} from Chroma"
+                )
                 return {"deleted": -1, "success": True}  # -1 indicates unknown count
             except Exception as e:
                 logger.error(f"Failed to delete by instance_id {instance_id}: {e}")

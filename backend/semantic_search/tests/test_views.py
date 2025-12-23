@@ -48,10 +48,7 @@ class SemanticSearchStreamingAPITestCase(TestCase):
             publication = Publication.objects.create(
                 instance=self.instance,
                 title=f"Deep Learning Paper {i}",
-                abstract=(
-                    "This paper presents novel approaches "
-                    f"to deep learning {i}"
-                ),
+                abstract=(f"This paper presents novel approaches to deep learning {i}"),
                 keywords=f"deep learning;neural networks;AI {i}",
                 authors=f"Researcher {i}",
                 rating=4.0,
@@ -118,4 +115,3 @@ class SemanticSearchStreamingAPITestCase(TestCase):
         assert response.data["success"] is True
         assert "job_id" in response.data
         assert "stream_url" in response.data
-

@@ -215,7 +215,6 @@ class EventViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-
 class SessionViewSet(viewsets.ModelViewSet):
     """ViewSet for Session model"""
 

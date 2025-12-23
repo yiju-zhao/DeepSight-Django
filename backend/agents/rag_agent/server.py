@@ -36,6 +36,7 @@ if str(backend_dir) not in sys.path:
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "backend.settings")
 
 import django
+
 django.setup()
 
 # Import CopilotKit SDK components
@@ -60,7 +61,9 @@ RAG_AGENT_PORT = int(os.getenv("RAG_AGENT_PORT", "8101"))
 app = create_agent_server("RAG Agent Service", RAG_AGENT_PORT)
 
 # Track the current request for dynamic context
-current_request: ContextVar[Request | None] = ContextVar("current_request", default=None)
+current_request: ContextVar[Request | None] = ContextVar(
+    "current_request", default=None
+)
 
 # Initialize the base configuration (we'll override specific values per request)
 # We don't have the API key yet, we'll get it from the utility
@@ -68,7 +71,7 @@ base_config = RAGAgentConfig(
     model_name=os.getenv("RAG_AGENT_MODEL", "gpt-5.2"),
     nano_model_name=os.getenv("RAG_AGENT_NANO_MODEL", "gpt-5-nano"),
     api_key=get_openai_api_key(),
-    dataset_ids=[], # Initial empty, will be set per request
+    dataset_ids=[],  # Initial empty, will be set per request
     mcp_server_url=get_mcp_server_url(),
 )
 
@@ -95,7 +98,9 @@ async def validate_django_session_middleware(request: Request, call_next):
         session_cookie = request.cookies.get("sessionid")
 
         if not session_cookie:
-            return JSONResponse(status_code=401, content={"detail": "Authentication required"})
+            return JSONResponse(
+                status_code=401, content={"detail": "Authentication required"}
+            )
 
         from django.contrib.sessions.backends.db import SessionStore
         from django.contrib.auth import get_user_model
@@ -136,6 +141,7 @@ class DynamicRAGAgent:
     """
     Adapter for ag-ui-langgraph that handles per-request setup.
     """
+
     def __init__(self, agent: DeepSightRAGAgent):
         self.agent = agent
         self.name = "rag_agent"
@@ -207,7 +213,7 @@ class DynamicRAGAgent:
             messages = input_data.get("messages", [])
         elif hasattr(input_data, "messages"):
             messages = getattr(input_data, "messages", [])
-            
+
         if not messages:
             logger.info("Empty message list received, skipping graph execution")
             return
@@ -215,17 +221,19 @@ class DynamicRAGAgent:
         # user_id already authenticated above
         # Load notebook configuration asynchronously
         from notebooks.models import Notebook
+
         try:
             notebook = await Notebook.objects.aget(id=notebook_id, user_id=user_id)
         except Notebook.DoesNotExist:
             raise HTTPException(status_code=404, detail="Notebook not found")
 
-        dataset_ids = [notebook.ragflow_dataset_id] if notebook.ragflow_dataset_id else []
-        
+        dataset_ids = (
+            [notebook.ragflow_dataset_id] if notebook.ragflow_dataset_id else []
+        )
+
         # Create tools for this specific request
         retrieval_tools = await create_mcp_retrieval_tools(
-            dataset_ids=dataset_ids,
-            mcp_server_url=self.agent.config.mcp_server_url
+            dataset_ids=dataset_ids, mcp_server_url=self.agent.config.mcp_server_url
         )
 
         # Store tools in context variable (NOT in config to avoid serialization issues)
@@ -246,20 +254,24 @@ class DynamicRAGAgent:
                 input_data["configurable"] = {}
 
             # Merge our config with existing configurable (WITHOUT tools)
-            input_data["configurable"].update({
-                **configurable,
-                "notebook_id": notebook_id,
-                "user_id": user_id,
-            })
+            input_data["configurable"].update(
+                {
+                    **configurable,
+                    "notebook_id": notebook_id,
+                    "user_id": user_id,
+                }
+            )
         else:
             # If input_data is an object with configurable attribute
             if not hasattr(input_data, "configurable"):
                 input_data.configurable = {}
-            input_data.configurable.update({
-                **configurable,
-                "notebook_id": notebook_id,
-                "user_id": user_id,
-            })
+            input_data.configurable.update(
+                {
+                    **configurable,
+                    "notebook_id": notebook_id,
+                    "user_id": user_id,
+                }
+            )
 
         # STREAM events from the agent
         try:
@@ -286,25 +298,8 @@ async def copilotkit_adapter(request: Request):
     """
     # Handle GET requests (agent discovery)
     if request.method == "GET":
-        return JSONResponse({
-            "agents": {
-                "rag_agent": {
-                    "id": "rag_agent",
-                    "name": "rag_agent",
-                    "description": "RAG agent for notebook documents",
-                    "agentType": "langgraph",
-                }
-            }
-        })
-
-    # Handle POST requests
-    try:
-        payload = await request.json()
-        method = payload.get("method")
-
-        # Handle /info method (agent discovery)
-        if method == "info":
-            return JSONResponse({
+        return JSONResponse(
+            {
                 "agents": {
                     "rag_agent": {
                         "id": "rag_agent",
@@ -313,7 +308,28 @@ async def copilotkit_adapter(request: Request):
                         "agentType": "langgraph",
                     }
                 }
-            })
+            }
+        )
+
+    # Handle POST requests
+    try:
+        payload = await request.json()
+        method = payload.get("method")
+
+        # Handle /info method (agent discovery)
+        if method == "info":
+            return JSONResponse(
+                {
+                    "agents": {
+                        "rag_agent": {
+                            "id": "rag_agent",
+                            "name": "rag_agent",
+                            "description": "RAG agent for notebook documents",
+                            "agentType": "langgraph",
+                        }
+                    }
+                }
+            )
 
         # For all other requests, forward to the AG-UI endpoint
         # Extract the body content - AG-UI expects body directly, not wrapped
@@ -354,7 +370,12 @@ async def copilotkit_adapter(request: Request):
         # Return the response with proper headers
         # Filter out headers that might conflict with the new Response or have been handled by httpx
         headers = dict(r.headers)
-        keys_to_remove = ["content-length", "transfer-encoding", "content-encoding", "connection"]
+        keys_to_remove = [
+            "content-length",
+            "transfer-encoding",
+            "content-encoding",
+            "connection",
+        ]
         for key in keys_to_remove:
             for h in list(headers.keys()):
                 if h.lower() == key:

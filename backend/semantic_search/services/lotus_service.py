@@ -92,13 +92,17 @@ class LotusSemanticSearchService:
             else:
                 # OpenAI-compatible provider
                 self._lm = LM(model=model_name)
-                logger.info(f"Lotus LM initialized: provider={provider}, model={model_name}")
+                logger.info(
+                    f"Lotus LM initialized: provider={provider}, model={model_name}"
+                )
 
             # Initialize embedding / retrieval model (no cascade)
             embedding_model_name = config.get("embedding_model", "intfloat/e5-base-v2")
             try:
                 self._rm = SentenceTransformersRM(model=embedding_model_name)
-                logger.info(f"Lotus retrieval model initialized: {embedding_model_name}")
+                logger.info(
+                    f"Lotus retrieval model initialized: {embedding_model_name}"
+                )
             except Exception as rm_error:
                 self._rm = None
                 logger.warning(
@@ -110,7 +114,9 @@ class LotusSemanticSearchService:
             if helper_model:
                 helper_lm = LM(model=helper_model)
                 if self._rm is not None:
-                    lotus.settings.configure(lm=self._lm, helper_lm=helper_lm, rm=self._rm)
+                    lotus.settings.configure(
+                        lm=self._lm, helper_lm=helper_lm, rm=self._rm
+                    )
                 else:
                     lotus.settings.configure(lm=self._lm, helper_lm=helper_lm)
                 logger.info(f"Lotus configured with helper_lm={helper_model}")
@@ -124,7 +130,9 @@ class LotusSemanticSearchService:
 
         except ImportError as e:
             logger.error(f"Failed to import Lotus: {e}")
-            raise ImportError("lotus-ai library is not installed. Run: pip install lotus-ai")
+            raise ImportError(
+                "lotus-ai library is not installed. Run: pip install lotus-ai"
+            )
         except Exception as e:
             logger.error(f"Failed to initialize Lotus: {e}")
             raise RuntimeError(f"Lotus initialization failed: {str(e)}")
@@ -176,15 +184,21 @@ class LotusSemanticSearchService:
                         f"model={config['embedding_model']}, url={config['xinference_url']}"
                     )
                 except Exception as xe:
-                    logger.warning(f"Xinference embedding init failed: {xe}, trying fallback")
+                    logger.warning(
+                        f"Xinference embedding init failed: {xe}, trying fallback"
+                    )
                     # Fall back to SentenceTransformers
                     from sentence_transformers import SentenceTransformer
+
                     model = SentenceTransformer(config["fallback_model"])
                     self._chroma_embedding_function = model.encode
-                    logger.info(f"Using fallback embedding model: {config['fallback_model']}")
+                    logger.info(
+                        f"Using fallback embedding model: {config['fallback_model']}"
+                    )
             else:
                 # Fallback: SentenceTransformers
                 from sentence_transformers import SentenceTransformer
+
                 model = SentenceTransformer(config["fallback_model"])
                 self._chroma_embedding_function = model.encode
                 logger.info(f"Using SentenceTransformers: {config['fallback_model']}")
@@ -253,9 +267,11 @@ class LotusSemanticSearchService:
 
             # Build metadata filter to only search within provided publication_ids
             # Chroma filter: {"publication_id": {"$in": ["uuid1", "uuid2", ...]}}
-            metadata_filter = {
-                "publication_id": {"$in": publication_ids}
-            } if publication_ids else None
+            metadata_filter = (
+                {"publication_id": {"$in": publication_ids}}
+                if publication_ids
+                else None
+            )
 
             # Query Chroma
             logger.info(
@@ -387,17 +403,25 @@ Output:"""
             # Cache the result
             self._predicate_cache[cache_key] = final_instruction
 
-            logger.info(f"Generated topk instruction for '{user_query}': {final_instruction}")
+            logger.info(
+                f"Generated topk instruction for '{user_query}': {final_instruction}"
+            )
             return final_instruction
 
         except Exception as e:
-            logger.warning(f"Failed to generate topk instruction via OpenAI, using fallback: {e}")
+            logger.warning(
+                f"Failed to generate topk instruction via OpenAI, using fallback: {e}"
+            )
             # Fallback to simple template
-            fallback_instruction = f"Which {{title}} or {{abstract}} is most related to {user_query}?"
+            fallback_instruction = (
+                f"Which {{title}} or {{abstract}} is most related to {user_query}?"
+            )
             self._predicate_cache[cache_key] = fallback_instruction
             return fallback_instruction
 
-    def _publications_to_dataframe(self, publications: list[Publication]) -> pd.DataFrame:
+    def _publications_to_dataframe(
+        self, publications: list[Publication]
+    ) -> pd.DataFrame:
         """
         Convert Publication objects to DataFrame for Lotus processing.
 
@@ -437,7 +461,9 @@ Output:"""
             data["authors"].append(pub.authors or "")
             data["keywords"].append(pub.keywords or "")
             data["rating"].append(float(pub.rating) if pub.rating else 0.0)
-            data["venue"].append(pub.instance.venue.name if pub.instance and pub.instance.venue else "")
+            data["venue"].append(
+                pub.instance.venue.name if pub.instance and pub.instance.venue else ""
+            )
             data["year"].append(pub.instance.year if pub.instance else None)
 
         return pd.DataFrame(data)
@@ -481,7 +507,9 @@ Output:"""
             return df
 
         if self._rm is None:
-            logger.warning("Retrieval model not initialized; skipping embedding prefilter")
+            logger.warning(
+                "Retrieval model not initialized; skipping embedding prefilter"
+            )
             return df
 
         try:
@@ -500,10 +528,14 @@ Output:"""
             ).tolist()
 
         try:
-            query_vec = np.asarray(self._encode_with_retrieval_model([query])[0], dtype=float)
+            query_vec = np.asarray(
+                self._encode_with_retrieval_model([query])[0], dtype=float
+            )
             doc_vecs = np.asarray(self._encode_with_retrieval_model(texts), dtype=float)
         except Exception as e:
-            logger.error(f"Failed to encode texts with retrieval model: {e}", exc_info=True)
+            logger.error(
+                f"Failed to encode texts with retrieval model: {e}", exc_info=True
+            )
             return df
 
         if doc_vecs.size == 0 or query_vec.size == 0:
@@ -555,7 +587,9 @@ Output:"""
 
         # Generate ranking instruction using LLM
         topk_instruction = self._generate_topk_instruction(query)
-        logger.info(f"Applying top-{actual_topk} ranking with instruction: {topk_instruction}")
+        logger.info(
+            f"Applying top-{actual_topk} ranking with instruction: {topk_instruction}"
+        )
 
         return filtered_df.sem_topk(topk_instruction, K=actual_topk, method="quick")
 
@@ -599,7 +633,7 @@ Output:"""
         publication_ids: list[str],
         query: str,
         topk: int | None = 20,
-        progress_callback: Callable[[str, int], None] | None = None
+        progress_callback: Callable[[str, int], None] | None = None,
     ) -> dict[str, Any]:
         """
         Perform semantic search on publications using Lotus.
@@ -663,10 +697,14 @@ Output:"""
 
             if settings.CHROMA_CONFIG.get("enabled", True):
                 if progress_callback:
-                    logger.info("Calling progress_callback for filtering phase (Chroma)")
+                    logger.info(
+                        "Calling progress_callback for filtering phase (Chroma)"
+                    )
                     progress_callback("filtering", len(publication_ids))
 
-                chroma_candidate_ids = self._chroma_prefilter(query, publication_ids, topk)
+                chroma_candidate_ids = self._chroma_prefilter(
+                    query, publication_ids, topk
+                )
 
                 if chroma_candidate_ids:
                     logger.info(
@@ -676,7 +714,9 @@ Output:"""
                     # Replace publication_ids with Chroma-filtered subset
                     publication_ids = chroma_candidate_ids
                 else:
-                    logger.warning("Chroma filtering failed, loading all publications for fallback")
+                    logger.warning(
+                        "Chroma filtering failed, loading all publications for fallback"
+                    )
 
             # Load publications from database (either Chroma subset or all)
             publications = Publication.objects.select_related("instance__venue").filter(
@@ -685,7 +725,9 @@ Output:"""
             publications_list = list(publications)
 
             if not publications_list:
-                logger.warning(f"No publications found for {len(publication_ids)} provided IDs")
+                logger.warning(
+                    f"No publications found for {len(publication_ids)} provided IDs"
+                )
                 return {
                     "success": True,
                     "query": query,
@@ -695,11 +737,15 @@ Output:"""
                     "metadata": {
                         "llm_model": settings.LOTUS_CONFIG.get("default_model"),
                         "processing_time_ms": int((time.time() - start_time) * 1000),
-                        "search_method": "chroma" if chroma_candidate_ids else "fallback",
+                        "search_method": "chroma"
+                        if chroma_candidate_ids
+                        else "fallback",
                     },
                 }
 
-            logger.info(f"Loaded {len(publications_list)} publications for semantic search")
+            logger.info(
+                f"Loaded {len(publications_list)} publications for semantic search"
+            )
 
             # Convert to DataFrame
             df = self._publications_to_dataframe(publications_list)
@@ -714,17 +760,23 @@ Output:"""
                     "metadata": {
                         "llm_model": settings.LOTUS_CONFIG.get("default_model"),
                         "processing_time_ms": int((time.time() - start_time) * 1000),
-                        "search_method": "chroma" if chroma_candidate_ids else "fallback",
+                        "search_method": "chroma"
+                        if chroma_candidate_ids
+                        else "fallback",
                     },
                 }
 
             # If Chroma was NOT used, apply embedding-based prefilter (fallback)
             if not chroma_candidate_ids:
                 if progress_callback:
-                    logger.info(f"Calling progress_callback for filtering phase (fallback)")
+                    logger.info(
+                        f"Calling progress_callback for filtering phase (fallback)"
+                    )
                     progress_callback("filtering", len(df))
                 else:
-                    logger.warning("No progress_callback provided, skipping filtering notification")
+                    logger.warning(
+                        "No progress_callback provided, skipping filtering notification"
+                    )
 
                 filtered_df = self._embedding_prefilter(df, query, topk)
             else:
@@ -733,10 +785,14 @@ Output:"""
 
             # Notify reranking phase starting
             if progress_callback:
-                logger.info(f"Calling progress_callback for reranking phase with {len(filtered_df)} publications")
+                logger.info(
+                    f"Calling progress_callback for reranking phase with {len(filtered_df)} publications"
+                )
                 progress_callback("reranking", len(filtered_df))
             else:
-                logger.warning("No progress_callback provided, skipping reranking notification")
+                logger.warning(
+                    "No progress_callback provided, skipping reranking notification"
+                )
 
             # Apply semantic ranking (LLM-based)
             if not filtered_df.empty:
@@ -773,7 +829,9 @@ Output:"""
             logger.error(f"Semantic search failed: {str(e)}", exc_info=True)
             return self._handle_lotus_error(e, query, len(publication_ids))
 
-    def _handle_lotus_error(self, error: Exception, query: str, input_count: int) -> dict:
+    def _handle_lotus_error(
+        self, error: Exception, query: str, input_count: int
+    ) -> dict:
         """
         Handle Lotus operation errors gracefully.
 
@@ -791,13 +849,17 @@ Output:"""
         # Categorize common errors
         if "api" in error_message.lower() or "openai" in error_message.lower():
             error_code = "LLM_API_ERROR"
-            detail = "Failed to connect to LLM API. Check API key and network connection."
+            detail = (
+                "Failed to connect to LLM API. Check API key and network connection."
+            )
         elif "rate limit" in error_message.lower():
             error_code = "RATE_LIMIT_ERROR"
             detail = "LLM API rate limit exceeded. Please try again later."
         elif "timeout" in error_message.lower():
             error_code = "TIMEOUT_ERROR"
-            detail = "Semantic search timed out. Try reducing the number of publications."
+            detail = (
+                "Semantic search timed out. Try reducing the number of publications."
+            )
         elif "cascade" in error_message.lower() or "index" in error_message.lower():
             error_code = "CASCADE_ERROR"
             detail = f"Cascade optimization failed: {error_message}. Operation may have fallen back to standard mode."
@@ -813,7 +875,11 @@ Output:"""
 
         logger.error(
             f"Semantic search error [{error_code}]: {detail}",
-            extra={"query": query, "input_count": input_count, "error_type": error_type},
+            extra={
+                "query": query,
+                "input_count": input_count,
+                "error_type": error_type,
+            },
         )
 
         return {

@@ -19,6 +19,7 @@ from ..models import (
 
 logger = logging.getLogger(__name__)
 
+
 class RagflowChunkService:
     """
     Service for RAGFlow chunk and retrieval operations.
@@ -155,7 +156,7 @@ class RagflowChunkService:
         if not dataset_ids and not document_ids:
             raise RagFlowConfigurationError(
                 "Either dataset_ids or document_ids must be provided",
-                details={"question": question}
+                details={"question": question},
             )
 
         try:
@@ -199,10 +200,7 @@ class RagflowChunkService:
             )
 
             # Make API request
-            response = self.http_client.post(
-                "/api/v1/retrieval",
-                json_data=payload
-            )
+            response = self.http_client.post("/api/v1/retrieval", json_data=payload)
 
             # Parse response
             api_response = APIResponse[dict](**response.json())
@@ -213,7 +211,11 @@ class RagflowChunkService:
             # Parse chunks and aggregations
             chunks = [ChunkResponse(**chunk) for chunk in data.get("chunks", [])]
             doc_aggs = [
-                {"doc_id": agg["doc_id"], "doc_name": agg["doc_name"], "count": agg["count"]}
+                {
+                    "doc_id": agg["doc_id"],
+                    "doc_name": agg["doc_name"],
+                    "count": agg["count"],
+                }
                 for agg in data.get("doc_aggs", [])
             ]
             total = data.get("total", 0)
@@ -226,7 +228,7 @@ class RagflowChunkService:
             return RetrievalResponse(
                 chunks=chunks,
                 doc_aggs=[DocumentAggregation(**agg) for agg in doc_aggs],
-                total=total
+                total=total,
             )
 
         except RagFlowConfigurationError:
@@ -240,6 +242,6 @@ class RagflowChunkService:
                     "question": question[:100],
                     "dataset_ids": dataset_ids,
                     "document_ids": document_ids,
-                    "page": page
-                }
+                    "page": page,
+                },
             ) from e

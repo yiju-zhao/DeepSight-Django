@@ -6,6 +6,6 @@ from .base_server import create_agent_server
 
 __all__ = [
     "verify_django_session",
-    "get_notebook_config", 
+    "get_notebook_config",
     "create_agent_server",
 ]

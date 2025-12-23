@@ -16,7 +16,7 @@ class MetadataCondition(BaseModel):
         description=(
             "Comparison operator. Valid values: 'contains', 'not contains', "
             "'start with', 'empty', 'not empty', '=', '≠', '>', '<', '≥', '≤'"
-        )
+        ),
     )
     value: str = Field(..., description="Value to compare against")
 
@@ -30,8 +30,7 @@ class MetadataFilter(BaseModel):
     """
 
     conditions: list[MetadataCondition] = Field(
-        default_factory=list,
-        description="List of metadata filter conditions"
+        default_factory=list, description="List of metadata filter conditions"
     )
 
 
@@ -46,45 +45,37 @@ class RetrievalRequest(BaseModel):
     question: str = Field(..., description="User query or search keywords")
     dataset_ids: list[str] | None = Field(
         default=None,
-        description="List of dataset IDs to search (requires this or document_ids)"
+        description="List of dataset IDs to search (requires this or document_ids)",
     )
     document_ids: list[str] | None = Field(
         default=None,
-        description="List of document IDs to search (requires this or dataset_ids)"
+        description="List of document IDs to search (requires this or dataset_ids)",
     )
     page: int = Field(default=1, description="Page number for pagination")
     page_size: int = Field(default=30, description="Number of results per page")
     similarity_threshold: float = Field(
-        default=0.2,
-        description="Minimum similarity score to include"
+        default=0.2, description="Minimum similarity score to include"
     )
     vector_similarity_weight: float = Field(
         default=0.3,
-        description="Weight for vector cosine similarity (term weight = 1 - this value)"
+        description="Weight for vector cosine similarity (term weight = 1 - this value)",
     )
     top_k: int = Field(
-        default=1024,
-        description="Number of chunks for vector computation"
+        default=1024, description="Number of chunks for vector computation"
     )
     rerank_id: str | None = Field(
-        default=None,
-        description="Optional rerank model ID for re-ranking results"
+        default=None, description="Optional rerank model ID for re-ranking results"
     )
-    keyword: bool = Field(
-        default=False,
-        description="Enable keyword-based matching"
-    )
+    keyword: bool = Field(default=False, description="Enable keyword-based matching")
     highlight: bool = Field(
-        default=False,
-        description="Enable highlighting of matched terms in results"
+        default=False, description="Enable highlighting of matched terms in results"
     )
     cross_languages: list[str] | None = Field(
         default=None,
-        description="Languages for query translation and cross-lingual retrieval"
+        description="Languages for query translation and cross-lingual retrieval",
     )
     metadata_condition: MetadataFilter | None = Field(
-        default=None,
-        description="Optional metadata filters for chunk filtering"
+        default=None, description="Optional metadata filters for chunk filtering"
     )
 
 
@@ -97,14 +88,10 @@ class RetrievalResponse(BaseModel):
     """
 
     chunks: list[ChunkResponse] = Field(
-        default_factory=list,
-        description="Retrieved chunks with similarity scores"
+        default_factory=list, description="Retrieved chunks with similarity scores"
     )
     doc_aggs: list[DocumentAggregation] = Field(
         default_factory=list,
-        description="Document aggregations showing chunk count per document"
+        description="Document aggregations showing chunk count per document",
     )
-    total: int = Field(
-        default=0,
-        description="Total number of matching chunks"
-    )
+    total: int = Field(default=0, description="Total number of matching chunks")

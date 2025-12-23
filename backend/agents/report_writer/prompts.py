@@ -127,7 +127,7 @@ Write in a business report style:
 - Include actionable insights
 - Focus on implications and next steps
 - Use professional but accessible language
-"""
+""",
 }
 
 

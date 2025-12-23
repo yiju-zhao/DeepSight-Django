@@ -195,9 +195,15 @@ class Command(BaseCommand):
                         self.stdout.write(f"  Updated: {obj.title}")
 
                 # Step 4: Index publications to Chroma vector store
-                self.stdout.write(self.style.SUCCESS("\nIndexing publications to Chroma vector store..."))
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        "\nIndexing publications to Chroma vector store..."
+                    )
+                )
                 all_publications = Publication.objects.filter(instance=instance)
-                chroma_stats = batch_index_publications_to_chroma(list(all_publications))
+                chroma_stats = batch_index_publications_to_chroma(
+                    list(all_publications)
+                )
 
                 if chroma_stats["indexed"] > 0:
                     self.stdout.write(
@@ -208,7 +214,9 @@ class Command(BaseCommand):
                     )
                 else:
                     self.stdout.write(
-                        self.style.WARNING("Chroma indexing skipped (disabled or failed)")
+                        self.style.WARNING(
+                            "Chroma indexing skipped (disabled or failed)"
+                        )
                     )
 
         except Exception as e:

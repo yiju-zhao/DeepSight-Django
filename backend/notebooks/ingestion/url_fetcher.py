@@ -178,18 +178,15 @@ class UrlFetcher:
             )
 
         try:
-            config = self._crawl4ai_config(  
-                excluded_tags=["nav", "header", "footer"],  
-                markdown_generator=self._crawl4ai_gen(  
-                    content_filter=self._crawl4ai_filter(threshold=0.5)  
-                )
+            config = self._crawl4ai_config(
+                excluded_tags=["nav", "header", "footer"],
+                markdown_generator=self._crawl4ai_gen(
+                    content_filter=self._crawl4ai_filter(threshold=0.5)
+                ),
             )
 
             async with self._crawl4ai(verbose=False) as crawler:
-                result = await crawler.arun(
-                    url=url,
-                    config=config
-                )
+                result = await crawler.arun(url=url, config=config)
 
                 if not result.success:
                     error_msg = f"Crawl4ai failed with status: {getattr(result, 'status_code', 'unknown')}"
@@ -202,21 +199,22 @@ class UrlFetcher:
                 description = (
                     result.metadata.get("description", "") if result.metadata else ""
                 )
-                
+
                 # Use fit_markdown if available (filtered content), otherwise raw markdown
                 content = ""
                 if result.markdown:
-                    if hasattr(result.markdown, 'fit_markdown') and result.markdown.fit_markdown:
+                    if (
+                        hasattr(result.markdown, "fit_markdown")
+                        and result.markdown.fit_markdown
+                    ):
                         content = result.markdown.fit_markdown
-                    elif hasattr(result.markdown, 'raw_markdown'):
+                    elif hasattr(result.markdown, "raw_markdown"):
                         content = result.markdown.raw_markdown
                     else:
                         content = str(result.markdown)
-                
+
                 if not content and result.cleaned_html:
                     content = result.cleaned_html
-
-
 
                 metadata = {
                     "title": title,
@@ -301,7 +299,9 @@ class UrlFetcher:
             downloaded_path = await self._download_video(url, temp_dir, base_filename)
 
             if not downloaded_path:
-                downloaded_path = await self._download_audio(url, temp_dir, base_filename)
+                downloaded_path = await self._download_audio(
+                    url, temp_dir, base_filename
+                )
 
             if not downloaded_path:
                 raise SourceError("Failed to download media file")
@@ -755,5 +755,3 @@ class UrlFetcher:
         except ImportError as e:
             self.logger.warning(f"crawl4ai not available: {e}")
             self._crawl4ai_loaded = False
-
-

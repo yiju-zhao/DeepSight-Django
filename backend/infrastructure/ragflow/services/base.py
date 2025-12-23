@@ -3,6 +3,7 @@ from ..http_client import RagFlowHttpClient
 
 logger = logging.getLogger(__name__)
 
+
 class RagflowServiceBase:
     """
     Base service for RAGFlow operations.

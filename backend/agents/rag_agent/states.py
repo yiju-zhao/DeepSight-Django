@@ -18,12 +18,12 @@ from copilotkit import CopilotKitState
 class RAGAgentState(CopilotKitState):
     """
     State for the RAG agent aligning with the requested GraphState schema.
-    
+
     Attributes:
         question: The user's question or the rewritten query.
         generation: The LLM generated answer.
         documents: List of retrieved document contents.
-        
+
     CopilotKit Integration:
         messages: Maintained by CopilotKitState for chat history.
     """
@@ -32,10 +32,12 @@ class RAGAgentState(CopilotKitState):
     question: str = ""
     original_question: str | None = None  # Preserve the user's initial question
     generation: str = ""
-    queries: List[str] = [] # List of generated queries for multi-angle search
-    documents: List[str] = [] # List of all relevant document contents
-    new_documents: List[str] = [] # Newly retrieved documents to be graded separately
-    semantic_groups: List[dict] = [] # Structured semantic groups (lightweight mapping) instead of heavy string
+    queries: List[str] = []  # List of generated queries for multi-angle search
+    documents: List[str] = []  # List of all relevant document contents
+    new_documents: List[str] = []  # Newly retrieved documents to be graded separately
+    semantic_groups: List[
+        dict
+    ] = []  # Structured semantic groups (lightweight mapping) instead of heavy string
     # reordered_context is removed to save bandwidth; generate node reconstructs it from groups + docs
 
     # --- CopilotKit AG-UI protocol fields for UI Rendering ---
@@ -46,6 +48,3 @@ class RAGAgentState(CopilotKitState):
     synthesis_progress: int | None = None
     total_tool_calls: int | None = None
     agent_reasoning: str | None = None
-
-
-

@@ -175,7 +175,9 @@ class SessionChatViewSet(viewsets.ModelViewSet):
                 Notebook.objects.filter(user=request.user), pk=notebook_pk
             )
 
-            logger.info(f"Clearing session {session.session_id} for notebook {notebook_pk}")
+            logger.info(
+                f"Clearing session {session.session_id} for notebook {notebook_pk}"
+            )
 
             # Call service to clear the session
             result = self.chat_service.clear_chat_session(
@@ -186,7 +188,9 @@ class SessionChatViewSet(viewsets.ModelViewSet):
 
             if not result.get("success"):
                 error_msg = result.get("error", "Failed to clear session")
-                status_code = result.get("status_code", status.HTTP_500_INTERNAL_SERVER_ERROR)
+                status_code = result.get(
+                    "status_code", status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
                 return Response({"detail": error_msg}, status=status_code)
 
             return Response(
@@ -201,4 +205,6 @@ class SessionChatViewSet(viewsets.ModelViewSet):
 
         except Exception as e:
             logger.exception(f"Failed to clear session: {e}")
-            return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(
+                {"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )

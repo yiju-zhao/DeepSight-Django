@@ -66,7 +66,9 @@ class SemanticSearchRequestSerializer(serializers.Serializer):
         - All UUIDs are valid (handled by UUIDField)
         """
         if len(value) != len(set(value)):
-            raise serializers.ValidationError("Duplicate publication IDs are not allowed")
+            raise serializers.ValidationError(
+                "Duplicate publication IDs are not allowed"
+            )
         return value
 
     def validate_query(self, value):
@@ -79,7 +81,9 @@ class SemanticSearchRequestSerializer(serializers.Serializer):
         """
         cleaned = value.strip()
         if not cleaned:
-            raise serializers.ValidationError("Query cannot be empty or whitespace only")
+            raise serializers.ValidationError(
+                "Query cannot be empty or whitespace only"
+            )
         return cleaned
 
 
@@ -91,42 +95,27 @@ class PublicationResultSerializer(serializers.Serializer):
     computed by Lotus semantic ranking.
     """
 
-    id = serializers.UUIDField(
-        help_text="Publication UUID"
-    )
+    id = serializers.UUIDField(help_text="Publication UUID")
 
-    title = serializers.CharField(
-        help_text="Publication title"
-    )
+    title = serializers.CharField(help_text="Publication title")
 
-    abstract = serializers.CharField(
-        allow_blank=True,
-        help_text="Publication abstract"
-    )
+    abstract = serializers.CharField(allow_blank=True, help_text="Publication abstract")
 
     authors = serializers.CharField(
-        allow_blank=True,
-        help_text="Semicolon-separated list of authors"
+        allow_blank=True, help_text="Semicolon-separated list of authors"
     )
 
     keywords = serializers.CharField(
-        allow_blank=True,
-        help_text="Semicolon-separated list of keywords"
+        allow_blank=True, help_text="Semicolon-separated list of keywords"
     )
 
-    rating = serializers.FloatField(
-        help_text="Publication rating/score"
-    )
+    rating = serializers.FloatField(help_text="Publication rating/score")
 
     venue = serializers.CharField(
-        allow_blank=True,
-        help_text="Conference or journal venue name"
+        allow_blank=True, help_text="Conference or journal venue name"
     )
 
-    year = serializers.IntegerField(
-        allow_null=True,
-        help_text="Publication year"
-    )
+    year = serializers.IntegerField(allow_null=True, help_text="Publication year")
 
     relevance_score = serializers.FloatField(
         help_text="Semantic relevance score (0.0-1.0, higher is more relevant)"
@@ -151,9 +140,7 @@ class SemanticSearchResponseSerializer(serializers.Serializer):
         help_text="Whether the semantic search completed successfully"
     )
 
-    query = serializers.CharField(
-        help_text="The semantic query that was executed"
-    )
+    query = serializers.CharField(help_text="The semantic query that was executed")
 
     total_input = serializers.IntegerField(
         help_text="Number of publications in the input set"
@@ -164,8 +151,7 @@ class SemanticSearchResponseSerializer(serializers.Serializer):
     )
 
     results = PublicationResultSerializer(
-        many=True,
-        help_text="List of publications ranked by semantic relevance"
+        many=True, help_text="List of publications ranked by semantic relevance"
     )
 
     metadata = serializers.DictField(
@@ -174,13 +160,12 @@ class SemanticSearchResponseSerializer(serializers.Serializer):
 
     # Error fields (only present on failure)
     error = serializers.CharField(
-        required=False,
-        help_text="Error code (only present on failure)"
+        required=False, help_text="Error code (only present on failure)"
     )
 
     detail = serializers.CharField(
         required=False,
-        help_text="Human-readable error message (only present on failure)"
+        help_text="Human-readable error message (only present on failure)",
     )
 
     def validate(self, data):
@@ -197,7 +182,9 @@ class SemanticSearchResponseSerializer(serializers.Serializer):
                     "Error and detail fields are required when success=False"
                 )
 
-        if data.get("success") and len(data.get("results", [])) != data.get("total_results", 0):
+        if data.get("success") and len(data.get("results", [])) != data.get(
+            "total_results", 0
+        ):
             raise serializers.ValidationError(
                 f"Results length ({len(data.get('results', []))}) does not match "
                 f"total_results ({data.get('total_results', 0)})"
@@ -239,5 +226,7 @@ class BulkPublicationFetchSerializer(serializers.Serializer):
         - All UUIDs are valid (handled by UUIDField)
         """
         if len(value) != len(set(value)):
-            raise serializers.ValidationError("Duplicate publication IDs are not allowed")
+            raise serializers.ValidationError(
+                "Duplicate publication IDs are not allowed"
+            )
         return value

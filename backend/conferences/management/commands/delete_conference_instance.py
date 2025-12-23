@@ -27,23 +27,23 @@ class Command(BaseCommand):
             "--venue-name",
             type=str,
             required=True,
-            help="Name of the venue/conference to delete"
+            help="Name of the venue/conference to delete",
         )
         parser.add_argument(
             "--year",
             type=int,
             required=True,
-            help="Year of the conference instance to delete"
+            help="Year of the conference instance to delete",
         )
         parser.add_argument(
             "--delete-venue",
             action="store_true",
-            help="Also delete the venue if this is the last instance (default: False)"
+            help="Also delete the venue if this is the last instance (default: False)",
         )
         parser.add_argument(
             "--skip-confirmation",
             action="store_true",
-            help="Skip confirmation prompt (use with caution!)"
+            help="Skip confirmation prompt (use with caution!)",
         )
 
     def handle(self, *args, **options):
@@ -62,9 +62,7 @@ class Command(BaseCommand):
         try:
             instance = Instance.objects.get(venue=venue, year=year)
         except Instance.DoesNotExist:
-            raise CommandError(
-                f'Conference instance "{venue_name} {year}" not found.'
-            )
+            raise CommandError(f'Conference instance "{venue_name} {year}" not found.')
 
         # Step 3: Get publication count
         publications = Publication.objects.filter(instance=instance)
@@ -109,9 +107,7 @@ class Command(BaseCommand):
 
         # Step 6: Confirmation
         if not skip_confirmation:
-            confirmation = input(
-                'Type "DELETE" (in all caps) to confirm deletion: '
-            )
+            confirmation = input('Type "DELETE" (in all caps) to confirm deletion: ')
             if confirmation != "DELETE":
                 self.stdout.write(self.style.SUCCESS("Deletion cancelled."))
                 return
@@ -170,7 +166,11 @@ class Command(BaseCommand):
                 f"Deletion completed successfully!\n"
                 f"Publications deleted: {pub_count}\n"
                 f"Instance deleted: {venue.name} {year}\n"
-                + (f"Venue deleted: {venue.name}\n" if delete_venue and is_last_instance else "")
+                + (
+                    f"Venue deleted: {venue.name}\n"
+                    if delete_venue and is_last_instance
+                    else ""
+                )
                 + f"{'=' * 70}"
             )
         )

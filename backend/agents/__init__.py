@@ -16,7 +16,7 @@ from .report_writer import run_writer, WriterResult
 __all__ = [
     # Coordinator
     "execute_task",
-    "TaskResult", 
+    "TaskResult",
     "TaskOptions",
     # Deep Researcher
     "run_research",

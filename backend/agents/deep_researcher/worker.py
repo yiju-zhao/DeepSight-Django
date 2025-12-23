@@ -1,7 +1,7 @@
 """
 Research Worker for Deep Researcher Agent
 
-This module implements an individual research worker that can perform 
+This module implements an individual research worker that can perform
 iterative web searches and synthesis to answer specific research questions.
 The worker is spawned by the supervisor for each research sub-task.
 """
@@ -10,12 +10,21 @@ import logging
 from typing_extensions import Literal
 
 from langgraph.graph import StateGraph, START, END
-from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage, filter_messages
+from langchain_core.messages import (
+    SystemMessage,
+    HumanMessage,
+    ToolMessage,
+    filter_messages,
+)
 from langchain.chat_models import init_chat_model
 
 from .states import ResearcherState, ResearcherOutputState
 from .tools import RESEARCH_TOOLS, TOOLS_BY_NAME
-from .prompts import research_agent_prompt, compress_research_system_prompt, compress_research_human_message
+from .prompts import (
+    research_agent_prompt,
+    compress_research_system_prompt,
+    compress_research_human_message,
+)
 from .config import get_today_str, get_model_config, get_compression_model_config
 
 
@@ -38,8 +47,8 @@ def _get_model():
         config = get_model_config()
         _model = init_chat_model(
             model=f"openai:{config['model']}",
-            api_key=config['api_key'],
-            temperature=config.get('temperature', 0.7),
+            api_key=config["api_key"],
+            temperature=config.get("temperature", 0.7),
         )
     return _model
 
@@ -59,8 +68,8 @@ def _get_compress_model():
         config = get_compression_model_config()
         _compress_model = init_chat_model(
             model=f"openai:{config['model']}",
-            api_key=config['api_key'],
-            max_tokens=config.get('max_tokens', 32000),
+            api_key=config["api_key"],
+            max_tokens=config.get("max_tokens", 32000),
         )
     return _compress_model
 
@@ -68,6 +77,7 @@ def _get_compress_model():
 # ============================================================================
 # WORKER NODES
 # ============================================================================
+
 
 def llm_call(state: ResearcherState) -> dict:
     """
@@ -81,11 +91,11 @@ def llm_call(state: ResearcherState) -> dict:
     """
     model = _get_model_with_tools()
     system_prompt = research_agent_prompt.format(date=get_today_str())
-    
+
     response = model.invoke(
         [SystemMessage(content=system_prompt)] + state["researcher_messages"]
     )
-    
+
     return {"researcher_messages": [response]}
 
 
@@ -114,10 +124,9 @@ def tool_node(state: ResearcherState) -> dict:
     # Create tool message outputs
     tool_outputs = [
         ToolMessage(
-            content=observation,
-            name=tool_call["name"],
-            tool_call_id=tool_call["id"]
-        ) for observation, tool_call in zip(observations, tool_calls)
+            content=observation, name=tool_call["name"], tool_call_id=tool_call["id"]
+        )
+        for observation, tool_call in zip(observations, tool_calls)
     ]
 
     return {"researcher_messages": tool_outputs}
@@ -131,30 +140,32 @@ def compress_research(state: ResearcherState) -> dict:
     a compressed summary suitable for the supervisor's aggregation.
     """
     model = _get_compress_model()
-    
+
     system_message = compress_research_system_prompt.format(date=get_today_str())
     research_topic = state.get("research_topic", "the given topic")
-    human_message = compress_research_human_message.format(research_topic=research_topic)
-    
-    messages = (
-        [SystemMessage(content=system_message)] + 
-        state.get("researcher_messages", []) + 
-        [HumanMessage(content=human_message)]
+    human_message = compress_research_human_message.format(
+        research_topic=research_topic
     )
-    
+
+    messages = (
+        [SystemMessage(content=system_message)]
+        + state.get("researcher_messages", [])
+        + [HumanMessage(content=human_message)]
+    )
+
     response = model.invoke(messages)
 
     # Extract raw notes from tool and AI messages
     raw_notes = [
-        str(m.content) for m in filter_messages(
-            state["researcher_messages"],
-            include_types=["tool", "ai"]
+        str(m.content)
+        for m in filter_messages(
+            state["researcher_messages"], include_types=["tool", "ai"]
         )
     ]
 
     return {
         "compressed_research": str(response.content),
-        "raw_notes": ["\n".join(raw_notes)]
+        "raw_notes": ["\n".join(raw_notes)],
     }
 
 
@@ -162,11 +173,14 @@ def compress_research(state: ResearcherState) -> dict:
 # ROUTING LOGIC
 # ============================================================================
 
-def should_continue(state: ResearcherState) -> Literal["tool_node", "compress_research"]:
+
+def should_continue(
+    state: ResearcherState,
+) -> Literal["tool_node", "compress_research"]:
     """
     Determine whether to continue research or compress findings.
 
-    Determines whether the agent should continue the research loop or 
+    Determines whether the agent should continue the research loop or
     compress findings based on whether the LLM made tool calls.
 
     Returns:
@@ -177,7 +191,7 @@ def should_continue(state: ResearcherState) -> Literal["tool_node", "compress_re
     last_message = messages[-1]
 
     # If the LLM makes a tool call, continue to tool execution
-    if hasattr(last_message, 'tool_calls') and last_message.tool_calls:
+    if hasattr(last_message, "tool_calls") and last_message.tool_calls:
         return "tool_node"
     # Otherwise, compress the research
     return "compress_research"
@@ -187,9 +201,10 @@ def should_continue(state: ResearcherState) -> Literal["tool_node", "compress_re
 # GRAPH CONSTRUCTION
 # ============================================================================
 
+
 def build_researcher_graph() -> StateGraph:
     """Build and return the research worker graph."""
-    
+
     agent_builder = StateGraph(ResearcherState, output_schema=ResearcherOutputState)
 
     # Add nodes

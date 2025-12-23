@@ -14,17 +14,17 @@ logger = logging.getLogger(__name__)
 def setup_logging(name: str, level: int = logging.INFO) -> logging.Logger:
     """
     Configure logging for an agent service.
-    
+
     Args:
         name: Logger name (typically __name__)
         level: Logging level
-        
+
     Returns:
         Configured logger
     """
     log = logging.getLogger(name)
     log.setLevel(level)
-    
+
     if not log.handlers:
         handler = logging.StreamHandler()
         handler.setLevel(level)
@@ -33,7 +33,7 @@ def setup_logging(name: str, level: int = logging.INFO) -> logging.Logger:
         )
         handler.setFormatter(formatter)
         log.addHandler(handler)
-    
+
     return log
 
 
@@ -41,13 +41,14 @@ def setup_logging(name: str, level: int = logging.INFO) -> logging.Logger:
 def get_openai_api_key() -> str:
     """
     Get OpenAI API key from Django settings.
-    
+
     Cached to avoid repeated settings access.
-    
+
     Returns:
         OpenAI API key
     """
     from django.conf import settings
+
     return getattr(settings, "OPENAI_API_KEY", "")
 
 
@@ -55,23 +56,24 @@ def get_openai_api_key() -> str:
 def get_mcp_server_url() -> str:
     """
     Get MCP server URL from Django settings.
-    
+
     Returns:
         MCP server URL for RAGFlow integration
     """
     from django.conf import settings
+
     return getattr(settings, "RAGFLOW_MCP_URL", "http://localhost:9382/mcp/")
 
 
 def format_agent_state(state: dict[str, Any]) -> dict[str, Any]:
     """
     Format agent state for CopilotKit AG-UI protocol.
-    
+
     Ensures all required fields are present with defaults.
-    
+
     Args:
         state: Raw agent state
-        
+
     Returns:
         Formatted state with defaults
     """

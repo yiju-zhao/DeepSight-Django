@@ -10,10 +10,22 @@ from django.conf import settings
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework import permissions, serializers, status, viewsets, filters, authentication
+from rest_framework import (
+    permissions,
+    serializers,
+    status,
+    viewsets,
+    filters,
+    authentication,
+)
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter, OpenApiResponse
+from drf_spectacular.utils import (
+    extend_schema,
+    extend_schema_view,
+    OpenApiParameter,
+    OpenApiResponse,
+)
 
 from core.pagination import LargePageNumberPagination
 from core.permissions import IsNotebookOwner
@@ -34,6 +46,7 @@ from ..utils.view_mixins import ETagCacheMixin
 from ..constants import ParsingStatus, RagflowDocStatus
 
 logger = logging.getLogger(__name__)
+
 
 # ----------------------------
 # File operations

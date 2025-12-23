@@ -116,8 +116,12 @@ class ConferenceImportService:
             "year": publication.instance.year,
             "venue": publication.instance.venue.name,
             "doi": publication.doi if publication.doi else None,
-            "abstract": publication.abstract if hasattr(publication, "abstract") else None,
-            "keywords": publication.keywords if hasattr(publication, "keywords") else None,
+            "abstract": publication.abstract
+            if hasattr(publication, "abstract")
+            else None,
+            "keywords": publication.keywords
+            if hasattr(publication, "keywords")
+            else None,
             "research_topic": (
                 publication.research_topic
                 if hasattr(publication, "research_topic")
@@ -143,9 +147,9 @@ class ConferenceImportService:
 
         for pub_id in publication_ids:
             try:
-                publication = Publication.objects.select_related(
-                    "instance__venue"
-                ).get(id=pub_id)
+                publication = Publication.objects.select_related("instance__venue").get(
+                    id=pub_id
+                )
 
                 # Check if PDF URL exists
                 if not publication.pdf_url or publication.pdf_url.strip() == "":
@@ -239,9 +243,7 @@ class ConferenceImportService:
             status="pending",
             total_items=total_items,
         )
-        logger.info(
-            f"Created new batch job {batch_job.id} for notebook {notebook.id}"
-        )
+        logger.info(f"Created new batch job {batch_job.id} for notebook {notebook.id}")
         return batch_job, False  # False indicates new job
 
     @transaction.atomic
@@ -396,9 +398,7 @@ class ConferenceImportService:
 
         return "; ".join(parts) if parts else "No publications processed"
 
-    def _determine_status_code(
-        self, imported: int, failed: int, skipped: int
-    ) -> int:
+    def _determine_status_code(self, imported: int, failed: int, skipped: int) -> int:
         """Determine appropriate HTTP status code based on results"""
         if imported > 0 and failed == 0:
             return status.HTTP_202_ACCEPTED  # All succeeded

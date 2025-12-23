@@ -131,10 +131,7 @@ def format_synthesis_prompt(question: str, context: str) -> str:
     Returns:
         Formatted synthesis prompt
     """
-    return SYNTHESIS_PROMPT.format(
-        question=question,
-        context=context
-    )
+    return SYNTHESIS_PROMPT.format(question=question, context=context)
 
 
 def format_grade_documents_prompt(question: str, context: str) -> str:
@@ -148,10 +145,7 @@ def format_grade_documents_prompt(question: str, context: str) -> str:
     Returns:
         Formatted grading prompt
     """
-    return GRADE_DOCUMENTS_PROMPT.format(
-        question=question,
-        context=context
-    )
+    return GRADE_DOCUMENTS_PROMPT.format(question=question, context=context)
 
 
 def format_planning_prompt(question: str, previous_queries: list[str] = None) -> str:
@@ -159,16 +153,10 @@ def format_planning_prompt(question: str, previous_queries: list[str] = None) ->
     retry_context = ""
     if previous_queries:
         retry_context = f"**Previous attempts failed:** {', '.join(previous_queries)}\nPlease refine the search strategy to find relevant information from DIFFERENT angles."
-    
-    return PLANNING_PROMPT.format(
-        question=question,
-        retry_context=retry_context
-    )
+
+    return PLANNING_PROMPT.format(question=question, retry_context=retry_context)
 
 
 def format_reorder_prompt(question: str, context: str) -> str:
     """Format reordering prompt."""
-    return REORDER_PROMPT.format(
-        question=question,
-        context=context
-    )
+    return REORDER_PROMPT.format(question=question, context=context)

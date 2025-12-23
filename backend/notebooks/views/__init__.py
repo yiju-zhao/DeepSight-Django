@@ -13,24 +13,19 @@ from .coordinator_views import CoordinatorViewSet, StudioExecuteSSEView
 
 __all__ = [
     # Notebook views
-    'NotebookViewSet',
-    'KnowledgeBaseViewSet',
-    'BatchJobViewSet',
-
+    "NotebookViewSet",
+    "KnowledgeBaseViewSet",
+    "BatchJobViewSet",
     # File views
-    'FileViewSet',
-
+    "FileViewSet",
     # Chat views
-    'SessionChatViewSet',
-
+    "SessionChatViewSet",
     # Note views
-    'NoteViewSet',
-
+    "NoteViewSet",
     # SSE views
-    'FileStatusSSEView',
-    'NotebookJobsSSEView',
-
+    "FileStatusSSEView",
+    "NotebookJobsSSEView",
     # Coordinator views
-    'CoordinatorViewSet',
-    'StudioExecuteSSEView',
+    "CoordinatorViewSet",
+    "StudioExecuteSSEView",
 ]

@@ -46,40 +46,29 @@ class ChunkResponse(Chunk):
     document_name: str = Field(
         ...,
         alias="document_keyword",
-        description="Document name (API returns as 'document_keyword')"
+        description="Document name (API returns as 'document_keyword')",
     )
     dataset_id: str = Field(
-        ...,
-        alias="kb_id",
-        description="Dataset ID (API returns as 'kb_id')"
+        ..., alias="kb_id", description="Dataset ID (API returns as 'kb_id')"
     )
 
     # Override important_keywords to list type
     important_keywords: list[str] = Field(
-        default_factory=list,
-        description="Important keywords extracted"
+        default_factory=list, description="Important keywords extracted"
     )
 
     # Additional fields for retrieval responses
-    content_ltks: str | None = Field(
-        None,
-        description="Content with lowercase tokens"
-    )
+    content_ltks: str | None = Field(None, description="Content with lowercase tokens")
     highlight: str | None = Field(
-        None,
-        description="Highlighted content with matched terms"
+        None, description="Highlighted content with matched terms"
     )
 
     # URL field from ReferenceChunk
-    url: str | None = Field(
-        None,
-        description="URL if applicable"
-    )
+    url: str | None = Field(None, description="URL if applicable")
 
     # doc_type field from ReferenceChunk
     doc_type: str | list[str] = Field(
-        default="",
-        description="Document type(s) - can be string or list"
+        default="", description="Document type(s) - can be string or list"
     )
 
     model_config = {"populate_by_name": True}

@@ -21,6 +21,7 @@ from ..models import KnowledgeBaseItem, Notebook
 
 logger = logging.getLogger(__name__)
 
+
 class FileStatusSSEView(View):
     @method_decorator(csrf_exempt)
     @method_decorator(login_required)

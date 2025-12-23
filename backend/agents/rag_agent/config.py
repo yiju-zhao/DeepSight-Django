@@ -49,7 +49,9 @@ class RAGAgentConfig:
 
     # Retrieval configuration (improved thresholds)
     dataset_ids: list[str] = field(default_factory=list)
-    document_ids: list[str] = field(default_factory=list)  # Optional specific document IDs
+    document_ids: list[str] = field(
+        default_factory=list
+    )  # Optional specific document IDs
     similarity_threshold: float = 0.4  # Raised from 0.2 to filter weak matches
     top_k: int = 10  # Increased from 6 for larger candidate set
 

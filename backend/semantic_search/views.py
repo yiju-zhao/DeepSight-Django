@@ -32,26 +32,26 @@ logger = logging.getLogger(__name__)
 class InitiateStreamingSearchView(APIView):
     """
     Initiate streaming semantic search.
-    
+
     POST /api/v1/semantic-search/publications/stream/
-    
+
     Returns job_id immediately. Client should connect to SSE endpoint
     at GET /api/v1/semantic-search/publications/stream/{job_id}/
     """
-    
+
     permission_classes = [IsAuthenticated]
-    
+
     def post(self, request):
         """
         Start async semantic search job.
-        
+
         Request body:
         {
             "publication_ids": ["uuid-1", "uuid-2", ...],
             "query": "papers about AI",
             "topk": 20
         }
-        
+
         Response:
         {
             "success": true,
@@ -70,25 +70,25 @@ class InitiateStreamingSearchView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         validated_data = request_serializer.validated_data
         publication_ids = [str(uid) for uid in validated_data["publication_ids"]]
         query = validated_data["query"]
         topk = validated_data["topk"]
-        
+
         # Generate job ID
         job_id = str(uuid.uuid4())
-        
+
         logger.info(
             f"Starting streaming search job {job_id} for user {request.user.id}: "
             f"{len(publication_ids)} publications"
         )
-        
+
         # Launch Celery task asynchronously
         semantic_search_streaming_task.delay(
             publication_ids=publication_ids, query=query, topk=topk, job_id=job_id
         )
-        
+
         # Return job ID immediately
         return Response(
             {
@@ -100,7 +100,6 @@ class InitiateStreamingSearchView(APIView):
         )
 
 
-
 class SemanticSearchStreamView(View):
     """
     SSE endpoint for streaming semantic search progress.
@@ -108,51 +107,53 @@ class SemanticSearchStreamView(View):
     Subscribes to Redis Pub/Sub channel: semantic_search:{job_id}
     Streams progress updates (started, complete, error) to the client.
     """
-    
+
     MAX_DURATION_SECONDS = 600  # 10 minutes max connection time
-    
+
     @method_decorator(csrf_exempt)
     @method_decorator(login_required)
     def dispatch(self, request, *args, **kwargs):
         return super().dispatch(request, *args, **kwargs)
-    
+
     def options(self, request, job_id: str):
         response = HttpResponse()
         # CORS headers for credentials mode
-        origin = request.META.get('HTTP_ORIGIN', 'http://localhost:5173')
+        origin = request.META.get("HTTP_ORIGIN", "http://localhost:5173")
         response["Access-Control-Allow-Origin"] = origin
         response["Access-Control-Allow-Credentials"] = "true"
         response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
         response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
         return response
-    
+
     def get(self, request, job_id: str):
         """Stream search progress for a specific job."""
         try:
             logger.info(
                 f"Starting semantic search stream for job {job_id}, user {request.user.id}"
             )
-            
+
             response = StreamingHttpResponse(
                 self.generate_search_stream(job_id), content_type="text/event-stream"
             )
             response["Cache-Control"] = "no-cache"
             response["X-Accel-Buffering"] = "no"  # Disable nginx buffering
-            
+
             # CORS headers for credentials mode
-            origin = request.META.get('HTTP_ORIGIN', 'http://localhost:5173')
+            origin = request.META.get("HTTP_ORIGIN", "http://localhost:5173")
             response["Access-Control-Allow-Origin"] = origin
             response["Access-Control-Allow-Credentials"] = "true"
-            response["Access-Control-Allow-Headers"] = "Accept, Authorization, Content-Type"
+            response["Access-Control-Allow-Headers"] = (
+                "Accept, Authorization, Content-Type"
+            )
             response["Access-Control-Allow-Methods"] = "GET, OPTIONS"
             return response
-            
+
         except Exception as e:
             logger.exception(f"Failed to create semantic search SSE stream: {e}")
             return HttpResponse(
                 f"Error: {str(e)}", status=500, content_type="text/plain"
             )
-    
+
     def generate_search_stream(self, job_id: str):
         """
         Generate SSE stream by subscribing to Redis Pub/Sub channel.
@@ -289,30 +290,23 @@ class BulkPublicationFetchView(APIView):
 
         ids = serializer.validated_data["publication_ids"]
 
-        logger.info(
-            f"Bulk fetching {len(ids)} publications for user {request.user.id}"
-        )
+        logger.info(f"Bulk fetching {len(ids)} publications for user {request.user.id}")
 
         try:
             # Fetch publications with related data
-            publications = Publication.objects.filter(id__in=ids).select_related(
-                "instance",
-                "instance__venue"
-            ).prefetch_related()
+            publications = (
+                Publication.objects.filter(id__in=ids)
+                .select_related("instance", "instance__venue")
+                .prefetch_related()
+            )
 
             # Create ID to publication mapping
             id_to_pub = {p.id: p for p in publications}
 
             # Return publications in requested order, skip missing IDs
-            ordered_pubs = [
-                id_to_pub[pub_id]
-                for pub_id in ids
-                if pub_id in id_to_pub
-            ]
+            ordered_pubs = [id_to_pub[pub_id] for pub_id in ids if pub_id in id_to_pub]
 
-            logger.info(
-                f"Found {len(ordered_pubs)}/{len(ids)} publications"
-            )
+            logger.info(f"Found {len(ordered_pubs)}/{len(ids)} publications")
 
             # Serialize and return
             result_serializer = PublicationTableSerializer(ordered_pubs, many=True)

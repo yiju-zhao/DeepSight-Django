@@ -10,6 +10,7 @@ from ..models import (
 
 logger = logging.getLogger(__name__)
 
+
 class RagflowDocumentService:
     """
     Service for RAGFlow document management.

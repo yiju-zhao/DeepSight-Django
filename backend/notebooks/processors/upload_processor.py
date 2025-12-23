@@ -67,7 +67,9 @@ class UploadProcessor:
 
         # Initialize new ingestion orchestrator
         # Whisper-FastAPI configuration (default provider)
-        whisper_api_base_url = os.getenv("WHISPER_API_BASE_URL", "http://localhost:5005")
+        whisper_api_base_url = os.getenv(
+            "WHISPER_API_BASE_URL", "http://localhost:5005"
+        )
         transcription_provider = os.getenv("TRANSCRIPTION_PROVIDER", "whisper_fastapi")
 
         # Xinference configuration (fallback provider)

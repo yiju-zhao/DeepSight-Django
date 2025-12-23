@@ -116,7 +116,6 @@ class EventSerializer(serializers.ModelSerializer):
         ]
 
 
-
 class SessionSerializer(serializers.ModelSerializer):
     """Serializer for Session model"""
 
@@ -226,7 +225,9 @@ class ImportToNotebookRequestSerializer(serializers.Serializer):
         elif action == "create":
             if not data.get("notebook_name"):
                 raise serializers.ValidationError(
-                    {"notebook_name": "notebook_name is required when action is 'create'"}
+                    {
+                        "notebook_name": "notebook_name is required when action is 'create'"
+                    }
                 )
 
             # Check if notebook name already exists for this user
@@ -235,7 +236,9 @@ class ImportToNotebookRequestSerializer(serializers.Serializer):
             user = self.context.get("request").user
             if Notebook.objects.filter(user=user, name=data["notebook_name"]).exists():
                 raise serializers.ValidationError(
-                    {"notebook_name": f"Notebook with name '{data['notebook_name']}' already exists"}
+                    {
+                        "notebook_name": f"Notebook with name '{data['notebook_name']}' already exists"
+                    }
                 )
 
         return data

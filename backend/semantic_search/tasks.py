@@ -49,7 +49,9 @@ def semantic_search_streaming_task(
     def publish_progress(phase: str, count: int):
         """Publish progress for different search phases."""
         if phase == "filtering":
-            logger.info(f"Job {job_id}: Publishing embedding prefilter event with {count} publications")
+            logger.info(
+                f"Job {job_id}: Publishing embedding prefilter event with {count} publications"
+            )
             _publish_progress(
                 job_id,
                 {
@@ -59,7 +61,9 @@ def semantic_search_streaming_task(
                 },
             )
         elif phase == "reranking":
-            logger.info(f"Job {job_id}: Publishing reranking event with {count} publications")
+            logger.info(
+                f"Job {job_id}: Publishing reranking event with {count} publications"
+            )
             _publish_progress(
                 job_id,
                 {
@@ -104,13 +108,15 @@ def semantic_search_streaming_task(
             final_result_ids = [
                 {
                     "id": str(pub["id"]),
-                    "relevance_score": float(pub.get("relevance_score", 0))
+                    "relevance_score": float(pub.get("relevance_score", 0)),
                 }
                 for pub in result["results"]
             ]
         else:
             final_result_ids = []
-            logger.error(f"Job {job_id}: Semantic search failed: {result.get('detail', 'Unknown error')}")
+            logger.error(
+                f"Job {job_id}: Semantic search failed: {result.get('detail', 'Unknown error')}"
+            )
 
         logger.info(
             f"Job {job_id}: Completed with {len(final_result_ids)} final results"
