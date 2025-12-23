@@ -29,6 +29,10 @@ import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import "../../styles/SessionChatPanel.css";
 import ChatAgentStatus from "../chat/ChatAgentStatus";
+import { useCreateNoteFromMessageMutation } from "@/features/notebook/hooks/notes/useNoteQueries";
+import { FilePlus } from "lucide-react";
+import { useToast } from "@/shared/components/ui/use-toast";
+import { Message } from "@copilotkit/react-core"; // Import from core, not shared
 
 interface SessionChatPanelProps {
   notebookId: string;
@@ -45,6 +49,36 @@ interface SessionChatPanelProps {
 const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
   notebookId,
 }) => {
+  const { toast } = useToast();
+  const createNoteMutation = useCreateNoteFromMessageMutation(notebookId);
+
+  const handleAddToNote = (message: Message) => {
+    if (!message.content) return;
+    
+    // Determine a title (first 40 chars or default)
+    const title = message.content.substring(0, 40).split('\n')[0].replace(/[#*]/g, '').trim() + "...";
+
+    createNoteMutation.mutate({
+      title: title || "Note from Chat",
+      content: message.content,
+      tags: ["chat-insight"]
+    }, {
+      onSuccess: () => {
+        toast({
+          title: "Note Created",
+          description: "Chat response has been added to your notes.",
+        });
+      },
+      onError: () => {
+        toast({
+          title: "Error",
+          description: "Failed to create note from chat.",
+          variant: "destructive",
+        });
+      }
+    });
+  };
+
   return (
     <div 
       id="deep-sight-chat-panel"
@@ -73,7 +107,12 @@ Guidelines:
             title: "Research Assistant",
             initial: "👋 Hi! I'm your research assistant. I can help you:\n\n• Search through your documents\n• Answer questions about your research\n• Find connections between sources\n• Summarize key findings\n\nWhat would you like to explore?",
             placeholder: "Ask a question about your documents...",
+            thumbsUp: "Add to Notes" // Rename label
           }}
+          icons={{
+            thumbsUpIcon: <FilePlus className="w-4 h-4" /> // Replace icon
+          }}
+          onThumbsUp={handleAddToNote} // Repurpose handler
         />
       </div>
     </div>

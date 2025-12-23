@@ -131,3 +131,30 @@
 #deep-sight-chat-panel .copilot-kit-tool-call {
   display: none !important;
 }
+
+/* === Control Buttons Customization === */
+
+/* Hide Regenerate Button */
+#deep-sight-chat-panel button[aria-label="Regenerate response"],
+#deep-sight-chat-panel button[title="Regenerate response"] {
+  display: none !important;
+}
+
+/* Hide Thumbs Down Button */
+#deep-sight-chat-panel button[aria-label="Thumbs down"],
+#deep-sight-chat-panel button[title="Thumbs down"] {
+  display: none !important;
+}
+
+/* Style the "Add to Note" button (repurposed Thumbs Up) */
+#deep-sight-chat-panel button[aria-label="Add to Notes"],
+#deep-sight-chat-panel button[title="Add to Notes"] {
+  color: #6b7280 !important; /* Gray-500 */
+}
+
+#deep-sight-chat-panel button[aria-label="Add to Notes"]:hover,
+#deep-sight-chat-panel button[title="Add to Notes"]:hover {
+  color: #3b82f6 !important; /* Blue-500 */
+  background-color: transparent !important;
+  transform: scale(1.1);
+}
