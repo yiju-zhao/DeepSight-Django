@@ -131,7 +131,6 @@ class NoteCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Note
         fields = [
-            "notebook",
             "title",
             "content",
             "tags",

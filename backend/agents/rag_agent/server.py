@@ -43,6 +43,7 @@ django.setup()
 from copilotkit import LangGraphAGUIAgent
 from ag_ui_langgraph import add_langgraph_fastapi_endpoint
 from ag_ui.encoder import EventEncoder
+from ag_ui.core.types import RunAgentInput
 
 from agents.copilotkit_common.base_server import create_agent_server
 from agents.copilotkit_common.utils import get_openai_api_key, get_mcp_server_url
@@ -158,6 +159,12 @@ class DynamicRAGAgent:
         Main entry point for ag-ui-langgraph.
         Returns an async generator of events.
         """
+        # Normalize the incoming payload so we can safely mutate it before validation
+        if isinstance(input_data, dict):
+            payload = dict(input_data)
+        else:
+            payload = input_data.model_dump(by_alias=True)
+
         req = current_request.get()
         if req is None:
             raise HTTPException(status_code=500, detail="Request context unavailable")
@@ -184,38 +191,37 @@ class DynamicRAGAgent:
             raise HTTPException(status_code=401, detail="Invalid session")
 
         # Extract notebook_id
-        if hasattr(input_data, "configurable"):
-            configurable = getattr(input_data, "configurable", {})
-        elif isinstance(input_data, dict):
-            configurable = input_data.get("configurable", {})
-        else:
-            configurable = {}
+        configurable = {}
+        if isinstance(payload, dict):
+            configurable = payload.get("configurable", {}) or {}
+        elif hasattr(input_data, "configurable"):
+            configurable = getattr(input_data, "configurable", {}) or {}
 
         notebook_id = configurable.get("notebook_id")
         if not notebook_id:
             # Try to see if it's in metadata
-            if hasattr(input_data, "metadata"):
+            if isinstance(payload, dict):
+                metadata = payload.get("metadata", {})
+            elif hasattr(input_data, "metadata"):
                 metadata = getattr(input_data, "metadata", {})
-            elif isinstance(input_data, dict):
-                metadata = input_data.get("metadata", {})
             else:
                 metadata = {}
             notebook_id = metadata.get("notebook_id")
 
         if not notebook_id:
             # Last ditch effort: search the whole input_data if it's a dict
-            if isinstance(input_data, dict):
-                notebook_id = input_data.get("notebook_id")
+            if isinstance(payload, dict):
+                notebook_id = payload.get("notebook_id")
 
         if not notebook_id:
-            logger.error(f"notebook_id still missing in input_data: {input_data}")
+            logger.error(f"notebook_id still missing in input_data: {payload}")
             raise HTTPException(status_code=400, detail="notebook_id missing")
 
         # Check for empty message list (initial connection/warm-up)
         # If messages are empty, we should not run the graph as it would trigger an empty question flow
         messages = []
-        if isinstance(input_data, dict):
-            messages = input_data.get("messages", [])
+        if isinstance(payload, dict):
+            messages = payload.get("messages", [])
         elif hasattr(input_data, "messages"):
             messages = getattr(input_data, "messages", [])
 
@@ -254,36 +260,27 @@ class DynamicRAGAgent:
         # Merge the configuration into input_data's configurable
         # LangGraph expects config in input_data, not as a separate parameter
         # IMPORTANT: Do NOT include retrieval_tools here - they cause circular reference errors
-        if isinstance(input_data, dict):
-            if "configurable" not in input_data:
-                input_data["configurable"] = {}
+        if isinstance(payload, dict):
+            if "configurable" not in payload:
+                payload["configurable"] = {}
 
-            # Merge our config with existing configurable (WITHOUT tools)
-            input_data["configurable"].update(
+            payload["configurable"].update(
                 {
                     **configurable,
                     "notebook_id": notebook_id,
                     "user_id": user_id,
                 }
             )
-        else:
-            # If input_data is an object with configurable attribute
-            if not hasattr(input_data, "configurable"):
-                input_data.configurable = {}
-            input_data.configurable.update(
-                {
-                    **configurable,
-                    "notebook_id": notebook_id,
-                    "user_id": user_id,
-                }
-            )
+
+        # Ensure required fields exist for RunAgentInput validation
+        payload.setdefault("forwardedProps", {})
+        payload.setdefault("state", payload.get("state", {}))
+        payload.setdefault("tools", payload.get("tools", []))
+        payload.setdefault("context", payload.get("context", []))
 
         # Get thread_id for cancellation tracking
-        thread_id = None
-        if isinstance(input_data, dict):
-            thread_id = input_data.get("threadId")
-        elif hasattr(input_data, "threadId"):
-            thread_id = getattr(input_data, "threadId", None)
+        run_input = RunAgentInput.model_validate(payload)
+        thread_id = run_input.thread_id or getattr(input_data, "thread_id", None)
 
         # Create cancellation event for this run
         cancel_event = asyncio.Event()
@@ -292,7 +289,12 @@ class DynamicRAGAgent:
 
         # STREAM events from the agent with cancellation support
         try:
-            async for event in aguiaagent.run(input_data):
+            # Pass per-request config through the LangGraph agent
+            aguiaagent.config = {
+                "configurable": payload.get("configurable", {}),
+            }
+
+            async for event in aguiaagent.run(run_input):
                 # Check if cancellation was requested
                 if cancel_event.is_set():
                     logger.info(f"Agent run cancelled for thread {thread_id}")
