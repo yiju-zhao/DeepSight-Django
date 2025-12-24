@@ -25,7 +25,7 @@
  */
 
 import React from 'react';
-import { CopilotChat } from "@copilotkit/react-ui";
+import { CopilotChat, useCopilotChatSuggestions } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import "../../styles/SessionChatPanel.css";
 import ChatAgentStatus from "../chat/ChatAgentStatus";
@@ -33,7 +33,6 @@ import { useCreateNoteMutation } from "@/features/notebook/hooks/notes/useNoteQu
 import { FilePlus } from "lucide-react";
 import { useToast } from "@/shared/components/ui/use-toast";
 import { Message } from "@copilotkit/shared";
-import { useCopilotChatInternal } from "@copilotkit/react-core";
 
 interface SessionChatPanelProps {
   notebookId: string;
@@ -52,19 +51,11 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
 }) => {
   const { toast } = useToast();
   const createNoteMutation = useCreateNoteMutation(notebookId);
-  const { messages, setSuggestions, resetSuggestions } = useCopilotChatInternal({
-    suggestions: "manual",
-  });
-  const [isInProgress, setIsInProgress] = React.useState(false);
 
-  // Use refs to hold stable function references (CopilotKit functions may not be memoized)
-  const setSuggestionsRef = React.useRef(setSuggestions);
-  const resetSuggestionsRef = React.useRef(resetSuggestions);
-
-  // Keep refs updated
-  React.useEffect(() => {
-    setSuggestionsRef.current = setSuggestions;
-    resetSuggestionsRef.current = resetSuggestions;
+  // Auto-generate follow-up suggestions after each message exchange
+  useCopilotChatSuggestions({
+    instructions: "Suggest 3 relevant follow-up questions based on the research conversation. Focus on: asking for sources, digging deeper into topics, or exploring next steps.",
+    maxSuggestions: 3
   });
 
   // Polyfill navigator.clipboard for non-secure contexts (HTTP) to prevent crashes
@@ -129,42 +120,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     });
   };
 
-  // After the first assistant reply, surface three follow-up suggestions.
-  // Uses refs for setSuggestions/resetSuggestions to avoid infinite loops
-  // (CopilotKit functions may not be stable references)
-  React.useEffect(() => {
-    if (isInProgress) return;
-
-    const hasAssistantReply = messages.some((m) => m.role === "assistant");
-    if (!hasAssistantReply) {
-      resetSuggestionsRef.current();
-      return;
-    }
-
-    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
-    const lastUserText =
-      typeof lastUserMessage?.content === "string"
-        ? lastUserMessage.content
-        : "";
-
-    setSuggestionsRef.current([
-      {
-        title: "Ask for sources",
-        message: "Which sources back up the key points you mentioned?",
-      },
-      {
-        title: "Dig deeper",
-        message: lastUserText
-          ? `What deeper insights can we derive about "${lastUserText}"?`
-          : "What deeper insights can we derive from the previous answer?",
-      },
-      {
-        title: "Next steps",
-        message: "What should I explore next to strengthen this research?",
-      },
-    ]);
-  }, [isInProgress, messages]);
-
   return (
     <div 
       id="deep-sight-chat-panel"
@@ -199,8 +154,7 @@ Guidelines:
             thumbsUpIcon: <FilePlus className="w-4 h-4" /> // Replace icon
           }}
           onThumbsUp={handleAddToNote} // Repurpose handler
-          suggestions="manual"
-          onInProgress={setIsInProgress}
+          suggestions="auto"
         />
       </div>
     </div>
