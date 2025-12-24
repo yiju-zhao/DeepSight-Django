@@ -219,16 +219,6 @@ class DynamicRAGAgent:
 
         # Check for empty message list (initial connection/warm-up)
         # If messages are empty, we should not run the graph as it would trigger an empty question flow
-        messages = []
-        if isinstance(payload, dict):
-            messages = payload.get("messages", [])
-        elif hasattr(input_data, "messages"):
-            messages = getattr(input_data, "messages", [])
-
-        if not messages:
-            logger.info("Empty message list received, skipping graph execution")
-            return
-
         # user_id already authenticated above
         # Load notebook configuration asynchronously
         from notebooks.models import Notebook

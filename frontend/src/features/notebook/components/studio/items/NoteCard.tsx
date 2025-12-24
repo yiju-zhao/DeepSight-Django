@@ -1,6 +1,8 @@
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Trash2, Pin, PinOff, Calendar, Tag } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
 import type { NoteStudioItem } from '../../../types/studioItem';
@@ -70,9 +72,11 @@ const NoteCard: React.FC<NoteCardProps> = ({ item, className, onSelect, onDelete
                 )}
             </div>
 
-            <p className="text-sm text-gray-600 line-clamp-3 mb-3 min-h-[1.25rem]">
-                {item.content || 'No content'}
-            </p>
+            <div className="text-sm text-gray-600 line-clamp-3 mb-3 min-h-[1.25rem] prose prose-sm prose-gray max-w-none [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {item.content || 'No content'}
+                </ReactMarkdown>
+            </div>
 
             <div className="flex items-center justify-between text-xs text-gray-400 mt-2">
                 <div className="flex items-center gap-2">

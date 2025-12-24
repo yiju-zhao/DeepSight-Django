@@ -33,6 +33,7 @@ import { useCreateNoteMutation } from "@/features/notebook/hooks/notes/useNoteQu
 import { FilePlus } from "lucide-react";
 import { useToast } from "@/shared/components/ui/use-toast";
 import { Message } from "@copilotkit/shared";
+import { useCopilotChatInternal } from "@copilotkit/react-core";
 
 interface SessionChatPanelProps {
   notebookId: string;
@@ -51,6 +52,10 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
 }) => {
   const { toast } = useToast();
   const createNoteMutation = useCreateNoteMutation(notebookId);
+  const { messages, setSuggestions, resetSuggestions } = useCopilotChatInternal({
+    suggestions: "manual",
+  });
+  const [isInProgress, setIsInProgress] = React.useState(false);
 
   // Polyfill navigator.clipboard for non-secure contexts (HTTP) to prevent crashes
   React.useEffect(() => {
@@ -114,6 +119,40 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
     });
   };
 
+  // After the first assistant reply, surface three follow-up suggestions.
+  React.useEffect(() => {
+    if (isInProgress) return;
+
+    const hasAssistantReply = messages.some((m) => m.role === "assistant");
+    if (!hasAssistantReply) {
+      resetSuggestions();
+      return;
+    }
+
+    const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+    const lastUserText =
+      typeof lastUserMessage?.content === "string"
+        ? lastUserMessage.content
+        : "";
+
+    setSuggestions([
+      {
+        title: "Ask for sources",
+        message: "Which sources back up the key points you mentioned?",
+      },
+      {
+        title: "Dig deeper",
+        message: lastUserText
+          ? `What deeper insights can we derive about "${lastUserText}"?`
+          : "What deeper insights can we derive from the previous answer?",
+      },
+      {
+        title: "Next steps",
+        message: "What should I explore next to strengthen this research?",
+      },
+    ]);
+  }, [isInProgress, messages, resetSuggestions, setSuggestions]);
+
   return (
     <div 
       id="deep-sight-chat-panel"
@@ -148,6 +187,8 @@ Guidelines:
             thumbsUpIcon: <FilePlus className="w-4 h-4" /> // Replace icon
           }}
           onThumbsUp={handleAddToNote} // Repurpose handler
+          suggestions="manual"
+          onInProgress={setIsInProgress}
         />
       </div>
     </div>
