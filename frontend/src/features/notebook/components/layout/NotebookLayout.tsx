@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, ReactElement } from "react";
+import React, { useState, useRef, useCallback, useMemo, ReactElement } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Database, RectangleHorizontal } from "lucide-react";
 import { Toaster } from "@/shared/components/ui/toaster";
@@ -96,14 +96,14 @@ const NotebookLayout: React.FC<NotebookLayoutProps> = ({
     setIsStudioExpanded(prev => !prev);
   }, []);
 
-  // Pass modal functions to panels
-  const panelProps = {
+  // Pass modal functions to panels (memoized to prevent unnecessary re-renders)
+  const panelProps = useMemo(() => ({
     sourcesListRef,
     onSelectionChange: registerSelectionCallback,
     onOpenModal: openModal,
     onCloseModal: closeModal,
     sourcesRemovedTrigger
-  };
+  }), [sourcesListRef, registerSelectionCallback, openModal, closeModal, sourcesRemovedTrigger]);
 
   return (
     <NotebookSettingsProvider>

@@ -151,13 +151,24 @@ class NoteViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         """Create note with created_by set to current user."""
+        from ..services.tag_generator import generate_tags_for_content
+
         try:
             notebook = self.get_notebook()
+            validated_data = serializer.validated_data
+
+            # Generate tags if not provided or empty
+            tags = validated_data.get("tags", [])
+            if not tags:
+                content = validated_data.get("content", "")
+                if content:
+                    tags = generate_tags_for_content(content, max_tags=3)
 
             # Create the note
             note = serializer.save(
                 notebook=notebook,
                 created_by=self.request.user,
+                tags=tags,
             )
 
             # Store instance for response

@@ -16,6 +16,7 @@ from .chat_service import ChatService
 from .file_service import FileService
 from .knowledge_base_service import KnowledgeBaseService
 from .notebook_service import NotebookService
+from .tag_generator import TagGeneratorService, generate_tags_for_content
 from .url_service import URLService
 
 # Optional services
@@ -31,4 +32,6 @@ __all__ = [
     "ChatService",
     "KnowledgeBaseService",
     "KnowledgeBaseImageService",
+    "TagGeneratorService",
+    "generate_tags_for_content",
 ]
