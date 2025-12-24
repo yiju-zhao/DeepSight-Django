@@ -82,7 +82,6 @@ base_config = RAGAgentConfig(
 
 # Initialize the agent once
 rag_agent = DeepSightRAGAgent(base_config)
-dynamic_rag_agent = DynamicRAGAgent(rag_agent)
 
 
 async def validate_django_session_middleware(request: Request, call_next):
@@ -307,6 +306,7 @@ class DynamicRAGAgent:
 
 
 # Add the LangGraph endpoint at /copilotkit/ag-ui (internal path)
+dynamic_rag_agent = DynamicRAGAgent(rag_agent)
 add_langgraph_fastapi_endpoint(
     app=app,
     agent=dynamic_rag_agent,
