@@ -123,7 +123,6 @@
   line-height: 1.4 !important;
   padding: 0.25rem !important;
   max-height: min(40vh, 320px) !important; /* Keep input from overtaking the viewport */
-  overflow-y: auto !important; /* Show scrollbar once content exceeds max height */
   resize: none !important;
 }
 

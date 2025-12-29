@@ -90,7 +90,7 @@ const StudioAgentStatus: React.FC<StudioAgentStatusProps> = ({
     }
 
     return (
-        <div className="w-full h-full flex flex-col bg-white">
+        <div className="w-full h-full flex flex-col bg-white relative">
             {/* Header / Progress Bar Area */}
             <div
                 className="flex-none px-4 py-3 bg-white border-b border-gray-100 sticky top-0 z-10"
@@ -109,17 +109,7 @@ const StudioAgentStatus: React.FC<StudioAgentStatusProps> = ({
                             {Math.round(percentage)}%
                         </span>
 
-                        {onToggle && (
-                            <button
-                                onClick={onToggle}
-                                className="p-1 -mr-1 text-gray-400 hover:text-gray-600 rounded-md hover:bg-gray-100 transition-colors"
-                                title="Collapse Status"
-                            >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                                </svg>
-                            </button>
-                        )}
+
                     </div>
                 </div>
 
@@ -216,6 +206,17 @@ const StudioAgentStatus: React.FC<StudioAgentStatusProps> = ({
                     );
                 })}
             </div>
+            {onToggle && (
+                <button
+                    onClick={(e) => { e.stopPropagation(); onToggle(); }}
+                    className="absolute bottom-4 right-4 p-2 bg-white shadow-md border border-gray-200 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-all z-20"
+                    title="Collapse Status"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                </button>
+            )}
         </div>
     );
 };

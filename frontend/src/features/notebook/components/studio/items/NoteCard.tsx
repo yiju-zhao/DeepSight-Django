@@ -3,6 +3,12 @@ import { formatDistanceToNow } from 'date-fns';
 import { Trash2, Pin, PinOff, Calendar, Tag } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeHighlight from 'rehype-highlight';
+import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
+import 'highlight.js/styles/github.css';
+import 'katex/dist/katex.min.css';
 import { Button } from '@/shared/components/ui/button';
 import { Badge } from '@/shared/components/ui/badge';
 import type { NoteStudioItem } from '../../../types/studioItem';
@@ -67,7 +73,14 @@ const NoteCard: React.FC<NoteCardProps> = ({ item, className, onSelect, onDelete
             )}
 
             <div className="text-sm text-gray-600 line-clamp-4 mb-3 min-h-[1.5rem] prose prose-sm prose-gray max-w-none [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0 pt-1">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkMath]}
+                    rehypePlugins={[
+                        rehypeRaw,
+                        [rehypeKatex, { strict: false, throwOnError: false, output: 'html' }],
+                        rehypeHighlight
+                    ]}
+                >
                     {item.content || 'No content'}
                 </ReactMarkdown>
             </div>
