@@ -152,6 +152,12 @@
   /* Hide scrollbar by default, autosize should handle height */
 }
 
+/* Hide the "Powered by CopilotKit" footer */
+#deep-sight-chat-panel .poweredByContainer,
+#deep-sight-chat-panel .poweredBy {
+  display: none !important;
+}
+
 /* === Header Styling === */
 /* Note: Class name guessed based on component usage, but checked if available in CSS dump */
 /* Since header.css was imported but not cat'd, assuming standard class */
