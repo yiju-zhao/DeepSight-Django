@@ -643,16 +643,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
             ) : (
               // Default studio controls
               <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-[32px] px-[12px] text-[12px] font-medium text-muted-foreground hover:text-gray-900 hover:bg-secondary rounded-md transition-colors"
-                  onClick={handleRefresh}
-                  disabled={reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading}
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${reportJobs.isLoading || podcastJobs.isLoading || reportModels.isLoading ? 'animate-spin' : ''}`} />
-                  Refresh
-                </Button>
+
 
                 <Button
                   variant="ghost"
@@ -689,9 +680,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
           {/* LOWER SECTION: Generated Content */}
           <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/50">
-            <div className="flex-shrink-0 px-4 pt-6 pb-2">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Generated Content</h4>
-            </div>
+
 
             <div className="flex-1 flex flex-col min-h-0 relative">
               {selectedNoteId ? (

@@ -57,7 +57,7 @@ const StudioAgentStatus: React.FC<StudioAgentStatusProps> = ({
     if (isCollapsed) {
         return (
             <div
-                className="w-full flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="w-full flex items-center justify-between px-4 py-2 bg-indigo-50/50 border-b border-indigo-100 cursor-pointer hover:bg-indigo-50 transition-colors shadow-sm"
                 onClick={onToggle}
             >
                 <div className="flex items-center space-x-3 min-w-0 flex-1">
