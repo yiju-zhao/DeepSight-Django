@@ -99,22 +99,8 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
     return (
         <div className="h-full flex flex-col bg-white overflow-hidden">
             {/* Header */}
-            <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <div className="flex items-center gap-2 overflow-hidden">
-                    {isEditing ? (
-                        <Input
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
-                            className="h-8 font-semibold text-lg border-transparent hover:border-gray-200 focus:border-gray-300 px-0"
-                            placeholder="Note Title"
-                        />
-                    ) : (
-                        <h2 className="text-xl font-bold text-gray-900 truncate">
-                            {selectedNote.title || 'Untitled Note'}
-                        </h2>
-                    )}
-                </div>
-
+            {/* Header / Toolbar */}
+            <div className="flex-shrink-0 flex items-center justify-end px-4 py-2 border-b border-gray-50 bg-gray-50/50">
                 <div className="flex items-center gap-2 flex-shrink-0">
                     {isEditing ? (
                         <>

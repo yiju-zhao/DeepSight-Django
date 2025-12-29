@@ -28,13 +28,9 @@ const NoteCard: React.FC<NoteCardProps> = ({ item, className, onSelect, onDelete
             className={`group relative bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer ${className}`}
             onClick={() => onSelect(item)}
         >
-            <div className="flex justify-between items-start mb-2">
-                <h4 className="font-semibold text-gray-900 line-clamp-1 flex-1 pr-8 text-[15px]">
-                    {item.title || 'Untitled Note'}
-                </h4>
-
+            <div className="flex justify-end items-start mb-2 min-h-[1.5rem]">
                 {/* Action Buttons (visible on hover) */}
-                <div className="absolute top-4 right-4 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
+                <div className="absolute top-2 right-2 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2 z-10">
                     {onPin && (
                         <Button
                             variant="ghost"
@@ -78,28 +74,25 @@ const NoteCard: React.FC<NoteCardProps> = ({ item, className, onSelect, onDelete
                 </ReactMarkdown>
             </div>
 
-            <div className="flex items-center justify-between text-xs text-gray-400 mt-2">
-                <div className="flex items-center gap-2">
-                    <span className="flex items-center">
-                        <Calendar className="h-3 w-3 mr-1" />
-                        {item.createdAt ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true }) : ''}
-                    </span>
-                </div>
-            </div>
+            <div className="flex items-center justify-between text-xs text-gray-400 mt-2 border-t border-gray-50 pt-2">
+                <span className="flex items-center flex-shrink-0 mr-2">
+                    <Calendar className="h-3 w-3 mr-1" />
+                    {item.createdAt ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true }) : ''}
+                </span>
 
-            {item.tags && item.tags.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1">
-                    {item.tags.slice(0, 3).map((tag, i) => (
-                        <Badge key={i} variant="secondary" className="bg-gray-100 text-gray-600 hover:bg-gray-200 text-[10px] py-0 h-5 font-normal px-2">
-                            <Tag className="h-2.5 w-2.5 mr-1 opacity-70" />
-                            {tag}
-                        </Badge>
-                    ))}
-                    {item.tags.length > 3 && (
-                        <span className="text-[10px] text-gray-400 ml-1">+{item.tags.length - 3}</span>
-                    )}
-                </div>
-            )}
+                {item.tags && item.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 justify-end">
+                        {item.tags.slice(0, 2).map((tag, i) => (
+                            <Badge key={i} variant="secondary" className="bg-gray-100 text-gray-500 text-[9px] py-0 h-4 font-normal px-1.5">
+                                {tag}
+                            </Badge>
+                        ))}
+                        {item.tags.length > 2 && (
+                            <span className="text-[9px] text-gray-400 ml-0.5">+{item.tags.length - 2}</span>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
