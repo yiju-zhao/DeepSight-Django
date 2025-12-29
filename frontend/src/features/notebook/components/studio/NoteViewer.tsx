@@ -27,7 +27,9 @@ interface NoteViewerProps {
 
 const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) => {
     // Query the note directly using noteId prop
-    const { data: selectedNote, isLoading } = useNoteQuery(notebookId, noteId);
+    const { data: selectedNote, isLoading, error } = useNoteQuery(notebookId, noteId);
+
+    console.log('[NoteViewer] noteId:', noteId, 'isLoading:', isLoading, 'selectedNote:', selectedNote, 'error:', error);
     const updateNoteMutation = useUpdateNoteMutation(notebookId);
     const deleteNoteMutation = useDeleteNoteMutation(notebookId);
     const { toast } = useToast();

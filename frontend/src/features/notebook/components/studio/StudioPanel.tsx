@@ -540,6 +540,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, []);
 
   const handleSelectNote = useCallback((note: NoteStudioItem) => {
+    console.log('[StudioPanel] handleSelectNote called with:', note.id, note);
     setSelectedNoteId(note.id);
   }, []);
 
@@ -690,6 +691,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
               </div>
 
               <div className="relative flex-1 overflow-hidden">
+                {(() => { console.log('[StudioPanel] selectedNoteId:', selectedNoteId); return null; })()}
                 {selectedNoteId ? (
                   <div className="absolute inset-0 z-10 bg-white">
                     <div className="flex justify-end p-2 bg-gray-50 border-b border-gray-100">
