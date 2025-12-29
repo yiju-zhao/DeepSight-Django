@@ -98,14 +98,17 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
 
     return (
         <div className="h-full flex flex-col bg-white overflow-hidden relative">
-            {/* Type Indicators to match Card View */}
-            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500 z-20" />
-            <div className="absolute top-0 left-1.5 p-1.5 bg-amber-50/80 rounded-br-lg text-amber-600 z-20">
-                <StickyNote className="h-4 w-4" />
-            </div>
+            {/* Header / Toolbar with Top Strip Indicator */}
+            <div className="flex-shrink-0 flex items-center justify-between px-4 py-2 border-b border-gray-50 bg-gray-50/50 border-t-4 border-amber-500">
+                {/* Type Icon (Left) */}
+                <div className="flex items-center gap-2 text-amber-600">
+                    <div className="p-1.5 bg-amber-50 rounded-md border border-amber-100 shadow-sm">
+                        <StickyNote className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600/90">Note</span>
+                </div>
 
-            {/* Header / Toolbar */}
-            <div className="flex-shrink-0 flex items-center justify-end px-4 py-2 border-b border-gray-50 bg-gray-50/50 pl-10">
+                {/* Actions (Right) */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                     {isEditing ? (
                         <>
