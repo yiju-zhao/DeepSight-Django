@@ -66,51 +66,6 @@ final_answer = result["messages"][-1].content
 print(final_answer)
 ```
 
-## Usage in Chat Service
-
-The RAG agent is integrated into the chat service at `notebooks/services/chat_service.py`:
-
-```python
-# From chat_service.py: create_session_chat_stream()
-from notebooks.agents.rag_agent import create_rag_agent, RAGAgentConfig
-from langchain_core.messages import HumanMessage
-
-# Get configuration
-mcp_server_url = getattr(settings, "RAGFLOW_MCP_URL", "http://localhost:9382/mcp/")
-api_key = getattr(settings, "OPENAI_API_KEY", "")
-dataset_ids = [notebook.ragflow_dataset_id] if notebook.ragflow_dataset_id else []
-
-# Create agent configuration
-config = RAGAgentConfig(
-    model_name="gpt-4o-mini",
-    api_key=api_key,
-    dataset_ids=dataset_ids,
-    mcp_server_url=mcp_server_url,
-    max_iterations=5,
-    temperature=0.7,              # Reasoning phase
-    eval_temperature=0.1,         # Evaluation phase
-    synthesis_temperature=0.3,    # Final answer
-)
-
-# Create agent (async)
-import asyncio
-loop = asyncio.new_event_loop()
-agent = loop.run_until_complete(create_rag_agent(config))
-
-# Build message history
-context_messages = [HumanMessage(content=question)]
-
-# Invoke agent
-result = loop.run_until_complete(agent.ainvoke({
-    "messages": context_messages,
-    "question": question,
-    "retrieved_chunks": [],
-}))
-
-# Extract final answer
-final_answer = result["messages"][-1].content
-```
-
 ## Configuration Options
 
 ### Basic Configuration

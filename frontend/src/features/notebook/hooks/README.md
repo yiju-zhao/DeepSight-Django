@@ -14,8 +14,6 @@ hooks/
 ├── file/            # File handling hooks
 │   ├── useFileUpload.ts
 │   └── useFileSelection.ts
-├── chat/            # Chat functionality hooks
-│   └── useChat.ts
 ├── generation/      # Generation and job management hooks
 │   ├── useJobStatus.ts
 │   └── useGenerationState.ts
@@ -81,20 +79,6 @@ hooks/
   - Selection state persistence
   - Bulk operations
 - **Dependencies**: None (pure state)
-
-### 💬 Chat Hooks (`chat/`)
-
-**Purpose**: Chat functionality and message management
-
-#### `useChat`
-- **Purpose**: Complete chat functionality
-- **Features**:
-  - Message sending and receiving
-  - Chat history management
-  - Suggested questions
-  - Real-time updates
-  - Message caching
-- **Dependencies**: `ChatService`, `useApiUtils`
 
 ### ⚙️ Generation Hooks (`generation/`)
 

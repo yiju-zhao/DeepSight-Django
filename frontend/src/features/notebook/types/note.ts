@@ -6,7 +6,7 @@
  * Represents a user note that can be created from chat messages or manually
  */
 export interface Note {
-  id: number;
+  id: string;
   notebook: string;
   notebook_name: string;
   created_by: string;
@@ -38,7 +38,7 @@ export interface NoteMetadata {
  * Lightweight note representation for list views
  */
 export interface NoteListItem {
-  id: number;
+  id: string;
   title: string;
   content_preview: string;
   tags: string[];

@@ -25,7 +25,7 @@ export const noteKeys = {
   lists: (notebookId: string) => [...noteKeys.notebook(notebookId), 'list'] as const,
   list: (notebookId: string) => [...noteKeys.lists(notebookId)] as const,
   details: () => [...noteKeys.all, 'detail'] as const,
-  detail: (notebookId: string, noteId: number) =>
+  detail: (notebookId: string, noteId: string) =>
     [...noteKeys.details(), notebookId, noteId] as const,
 };
 
@@ -49,9 +49,9 @@ export const useNotesQuery = (notebookId: string) => {
  * Query hook for a single note
  * Fetches detailed note information
  */
-export const useNoteQuery = (notebookId: string, noteId: number | null) => {
+export const useNoteQuery = (notebookId: string, noteId: string | null) => {
   return useQuery({
-    queryKey: noteKeys.detail(notebookId, noteId || 0),
+    queryKey: noteKeys.detail(notebookId, noteId || ''),
     queryFn: async (): Promise<Note | null> => {
       if (!noteId) return null;
       return await noteService.getNote(notebookId, noteId);
@@ -146,7 +146,7 @@ export const useUpdateNoteMutation = (notebookId: string) => {
   return useMutation<
     Note,
     Error,
-    { noteId: number; request: UpdateNoteRequest },
+    { noteId: string; request: UpdateNoteRequest },
     { previousNotes?: NoteListItem[] }
   >({
     mutationFn: async ({ noteId, request }): Promise<Note> => {
@@ -208,10 +208,10 @@ export const useDeleteNoteMutation = (notebookId: string) => {
   return useMutation<
     void,
     Error,
-    number,
+    string,
     { previousNotes?: NoteListItem[] }
   >({
-    mutationFn: async (noteId: number): Promise<void> => {
+    mutationFn: async (noteId: string): Promise<void> => {
       await noteService.deleteNote(notebookId, noteId);
     },
 
@@ -259,10 +259,10 @@ export const usePinNoteMutation = (notebookId: string) => {
   return useMutation<
     Note,
     Error,
-    number,
+    string,
     { previousNotes?: NoteListItem[] }
   >({
-    mutationFn: async (noteId: number): Promise<Note> => {
+    mutationFn: async (noteId: string): Promise<Note> => {
       return await noteService.pinNote(notebookId, noteId);
     },
 
@@ -311,10 +311,10 @@ export const useUnpinNoteMutation = (notebookId: string) => {
   return useMutation<
     Note,
     Error,
-    number,
+    string,
     { previousNotes?: NoteListItem[] }
   >({
-    mutationFn: async (noteId: number): Promise<Note> => {
+    mutationFn: async (noteId: string): Promise<Note> => {
       return await noteService.unpinNote(notebookId, noteId);
     },
 

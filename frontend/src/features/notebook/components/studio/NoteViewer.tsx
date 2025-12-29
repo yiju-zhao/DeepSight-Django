@@ -21,7 +21,7 @@ import { useToast } from '@/shared/components/ui/use-toast';
 
 interface NoteViewerProps {
     notebookId: string;
-    noteId: number | null;
+    noteId: string | null;
     onClose: () => void;
 }
 

@@ -33,13 +33,13 @@ export interface UseNotesReturn {
   error: Error | null;
 
   // Actions
-  selectNote: (noteId: number | null) => void;
+  selectNote: (noteId: string | null) => void;
   createNote: (request: CreateNoteRequest) => Promise<Note | null>;
   createNoteFromMessage: (request: CreateNoteFromMessageRequest) => Promise<Note | null>;
-  updateNote: (noteId: number, request: UpdateNoteRequest) => Promise<Note | null>;
-  deleteNote: (noteId: number) => Promise<boolean>;
-  pinNote: (noteId: number) => Promise<boolean>;
-  unpinNote: (noteId: number) => Promise<boolean>;
+  updateNote: (noteId: string, request: UpdateNoteRequest) => Promise<Note | null>;
+  deleteNote: (noteId: string) => Promise<boolean>;
+  pinNote: (noteId: string) => Promise<boolean>;
+  unpinNote: (noteId: string) => Promise<boolean>;
   refreshNotes: () => Promise<void>;
 }
 
@@ -47,7 +47,7 @@ export interface UseNotesReturn {
  * Main hook for managing notes in a notebook
  */
 export const useNotes = (notebookId: string): UseNotesReturn => {
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
   // Queries
   const notesQuery = useNotesQuery(notebookId);
@@ -62,7 +62,7 @@ export const useNotes = (notebookId: string): UseNotesReturn => {
   const unpinNoteMutation = useUnpinNoteMutation(notebookId);
 
   // Actions
-  const selectNote = useCallback((noteId: number | null) => {
+  const selectNote = useCallback((noteId: string | null) => {
     setSelectedNoteId(noteId);
   }, []);
 
@@ -93,7 +93,7 @@ export const useNotes = (notebookId: string): UseNotesReturn => {
   );
 
   const updateNote = useCallback(
-    async (noteId: number, request: UpdateNoteRequest): Promise<Note | null> => {
+    async (noteId: string, request: UpdateNoteRequest): Promise<Note | null> => {
       try {
         const note = await updateNoteMutation.mutateAsync({ noteId, request });
         return note;
@@ -106,7 +106,7 @@ export const useNotes = (notebookId: string): UseNotesReturn => {
   );
 
   const deleteNote = useCallback(
-    async (noteId: number): Promise<boolean> => {
+    async (noteId: string): Promise<boolean> => {
       try {
         await deleteNoteMutation.mutateAsync(noteId);
         // If deleted note was selected, deselect it
@@ -123,7 +123,7 @@ export const useNotes = (notebookId: string): UseNotesReturn => {
   );
 
   const pinNote = useCallback(
-    async (noteId: number): Promise<boolean> => {
+    async (noteId: string): Promise<boolean> => {
       try {
         await pinNoteMutation.mutateAsync(noteId);
         return true;
@@ -136,7 +136,7 @@ export const useNotes = (notebookId: string): UseNotesReturn => {
   );
 
   const unpinNote = useCallback(
-    async (noteId: number): Promise<boolean> => {
+    async (noteId: string): Promise<boolean> => {
       try {
         await unpinNoteMutation.mutateAsync(noteId);
         return true;

@@ -25,7 +25,7 @@
  */
 
 import React from 'react';
-import { CopilotChat, useCopilotChatSuggestions } from "@copilotkit/react-ui";
+import { CopilotChat } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import "../../styles/SessionChatPanel.css";
 import ChatAgentStatus from "../chat/ChatAgentStatus";
@@ -51,12 +51,6 @@ const SessionChatPanel: React.FC<SessionChatPanelProps> = ({
 }) => {
   const { toast } = useToast();
   const createNoteMutation = useCreateNoteMutation(notebookId);
-
-  // Auto-generate follow-up suggestions after each message exchange
-  useCopilotChatSuggestions({
-    instructions: "Suggest 3 relevant follow-up questions based on the research conversation. Focus on: asking for sources, digging deeper into topics, or exploring next steps.",
-    maxSuggestions: 3
-  });
 
   // Polyfill navigator.clipboard for non-secure contexts (HTTP) to prevent crashes
   React.useEffect(() => {
@@ -154,7 +148,6 @@ Guidelines:
             thumbsUpIcon: <FilePlus className="w-4 h-4" /> // Replace icon
           }}
           onThumbsUp={handleAddToNote} // Repurpose handler
-          suggestions="auto"
         />
       </div>
     </div>

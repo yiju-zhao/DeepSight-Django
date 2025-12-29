@@ -88,7 +88,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   // ====== SINGLE RESPONSIBILITY: File Selection State ======
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
   const [selectedSources, setSelectedSources] = useState<SourceItem[]>([]);
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+  const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
 
   // ====== SINGLE RESPONSIBILITY: Notes Data ======
   const { notes, deleteNote } = useNotes(notebookId);
@@ -540,13 +540,13 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, []);
 
   const handleSelectNote = useCallback((note: NoteStudioItem) => {
-    setSelectedNoteId(Number(note.id));
+    setSelectedNoteId(note.id);
   }, []);
 
   const handleDeleteNote = useCallback(async (note: NoteStudioItem) => {
     if (!confirm('Are you sure you want to delete this note?')) return;
     try {
-      await deleteNote(Number(note.id));
+      await deleteNote(note.id);
       toast({ title: "Note Deleted", description: "Note deleted successfully" });
     } catch (error) {
       toast({ title: "Delete Failed", description: "Failed to delete note", variant: "destructive" });

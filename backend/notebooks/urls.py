@@ -19,7 +19,6 @@ from .views import (
     NotebookJobsSSEView,
     NotebookViewSet,
     NoteViewSet,
-    SessionChatViewSet,
     CoordinatorViewSet,
     StudioExecuteSSEView,
 )
@@ -33,9 +32,6 @@ router.register(r"notebooks", NotebookViewSet, basename="notebook")
 
 notebooks_router = routers.NestedDefaultRouter(router, r"notebooks", lookup="notebook")
 notebooks_router.register(r"files", FileViewSet, basename="notebook-files")
-notebooks_router.register(
-    r"chat/sessions", SessionChatViewSet, basename="notebook-chat-sessions"
-)
 notebooks_router.register(
     r"knowledge", KnowledgeBaseViewSet, basename="notebook-knowledge"
 )

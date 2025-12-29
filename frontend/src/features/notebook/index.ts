@@ -25,11 +25,9 @@ export { default as Studio } from './components/studio/StudioPanel';
 export { useFileUpload } from './hooks/file/useFileUpload';
 export { useFileSelection } from './hooks/file/useFileSelection';
 export { useFileStatusSSE } from './hooks/file/useFileStatusSSE';
-export { useSessionChat } from './hooks/chat/useSessionChat';
 
 // Services (keeping these for now as they have consumers)
 export { default as SourceService } from './services/SourceService';
-export { default as SessionChatService } from './services/SessionChatService';
 
 // API - Backward compatible combined API
 export { notebooksApi } from './api';

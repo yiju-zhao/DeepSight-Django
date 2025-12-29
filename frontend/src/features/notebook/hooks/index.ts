@@ -18,9 +18,6 @@ export { useAsyncState } from './shared/useAsyncState';
 // DOMAIN-SPECIFIC HOOKS
 // ============================================================================
 
-// Chat functionality
-export { useSessionChat } from './chat/useSessionChat';
-
 // Data management (legacy hook removed). Use TanStack Query hooks in shared/queries instead.
 
 // File handling
