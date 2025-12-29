@@ -3,7 +3,6 @@ import { Settings, X, MessageSquare, Palette, RotateCcw } from 'lucide-react';
 import { Button } from "@/shared/components/ui/button";
 import { COLORS } from "@/features/notebook/config/ui";
 import { useNotebookSettings, DEFAULT_REPORT_CONFIG, DEFAULT_PODCAST_CONFIG } from '@/features/notebook/contexts/NotebookSettingsContext';
-import { useModelsQuery, useSelectModelMutation } from '@/features/notebook/hooks/chat/useSessionQueries';
 import { useToast } from "@/shared/components/ui/use-toast";
 
 interface NotebookSettingsModalProps {
@@ -28,11 +27,11 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
         updatePodcastConfig
     } = useNotebookSettings();
 
-    // Chat Data
-    const modelsQuery = useModelsQuery(notebookId);
-    const selectModelMutation = useSelectModelMutation(notebookId);
-    const availableModels = modelsQuery.data?.available_models || [];
-    const currentModel = modelsQuery.data?.current_model || '';
+    // Chat Data - Model selection disabled (functionality not implemented)
+    // const modelsQuery = useModelsQuery(notebookId);
+    // const selectModelMutation = useSelectModelMutation(notebookId);
+    // const availableModels = modelsQuery.data?.available_models || [];
+    // const currentModel = modelsQuery.data?.current_model || '';
 
     // Xinference models state
     const [xinferenceModels, setXinferenceModels] = useState<any[]>([]);
@@ -68,21 +67,22 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
         updatePodcastConfig(updates);
     };
 
-    const handleChatModelChange = async (model: string) => {
-        try {
-            await selectModelMutation.mutateAsync(model);
-            toast({
-                title: 'Model Updated',
-                description: `Chat model changed to ${model}`,
-            });
-        } catch (error) {
-            toast({
-                title: 'Error',
-                description: 'Failed to update chat model',
-                variant: 'destructive',
-            });
-        }
-    };
+    // Model selection disabled (functionality not implemented)
+    // const handleChatModelChange = async (model: string) => {
+    //     try {
+    //         await selectModelMutation.mutateAsync(model);
+    //         toast({
+    //             title: 'Model Updated',
+    //             description: `Chat model changed to ${model}`,
+    //         });
+    //     } catch (error) {
+    //         toast({
+    //             title: 'Error',
+    //             description: 'Failed to update chat model',
+    //             variant: 'destructive',
+    //         });
+    //     }
+    // };
 
     const handleReset = () => {
         if (activeTab === 'studio') {
@@ -165,6 +165,10 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                 {activeTab === 'chat' && (
                     <div className="space-y-6 max-w-2xl animate-in fade-in slide-in-from-bottom-2 duration-300">
                         <div className="space-y-4">
+                            <p className="text-[14px] text-muted-foreground">
+                                Chat settings are currently managed at the application level.
+                            </p>
+                            {/* Model Configuration - Disabled (functionality not implemented)
                             <h3 className="text-[15px] font-bold text-gray-900 border-b border-secondary/50 pb-2">Model Configuration</h3>
                             <div className="space-y-2">
                                 <label className="block text-[13px] font-medium text-gray-900">Chat Model</label>
@@ -191,6 +195,7 @@ const NotebookSettingsModal: React.FC<NotebookSettingsModalProps> = ({
                                     Select the AI model to use for chat sessions.
                                 </p>
                             </div>
+                            */}
                         </div>
                     </div>
                 )}
