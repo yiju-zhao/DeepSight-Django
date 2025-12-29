@@ -58,7 +58,7 @@ class NoteService {
   /**
    * Get details of a specific note
    */
-  async getNote(notebookId: string, noteId: number): Promise<Note> {
+  async getNote(notebookId: string, noteId: string): Promise<Note> {
     const url = `${apiClient.getBaseUrl()}/notebooks/${notebookId}/notes/${noteId}/`;
     const response = await fetch(url, {
       credentials: "include",
@@ -135,7 +135,7 @@ class NoteService {
    */
   async updateNote(
     notebookId: string,
-    noteId: number,
+    noteId: string,
     request: UpdateNoteRequest
   ): Promise<Note> {
     const url = `${apiClient.getBaseUrl()}/notebooks/${notebookId}/notes/${noteId}/`;
@@ -162,7 +162,7 @@ class NoteService {
   /**
    * Delete a note
    */
-  async deleteNote(notebookId: string, noteId: number): Promise<void> {
+  async deleteNote(notebookId: string, noteId: string): Promise<void> {
     const url = `${apiClient.getBaseUrl()}/notebooks/${notebookId}/notes/${noteId}/`;
     const response = await fetch(url, {
       method: "DELETE",
@@ -183,7 +183,7 @@ class NoteService {
   /**
    * Pin a note to the top
    */
-  async pinNote(notebookId: string, noteId: number): Promise<Note> {
+  async pinNote(notebookId: string, noteId: string): Promise<Note> {
     const url = `${apiClient.getBaseUrl()}/notebooks/${notebookId}/notes/${noteId}/pin/`;
     const response = await fetch(url, {
       method: "POST",
@@ -206,7 +206,7 @@ class NoteService {
   /**
    * Unpin a note
    */
-  async unpinNote(notebookId: string, noteId: number): Promise<Note> {
+  async unpinNote(notebookId: string, noteId: string): Promise<Note> {
     const url = `${apiClient.getBaseUrl()}/notebooks/${notebookId}/notes/${noteId}/unpin/`;
     const response = await fetch(url, {
       method: "POST",

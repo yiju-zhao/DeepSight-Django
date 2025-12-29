@@ -10,7 +10,7 @@ import rehypeRaw from 'rehype-raw';
 import 'highlight.js/styles/github.css';
 import 'katex/dist/katex.min.css';
 
-import { useNotes } from '@/features/notebook/hooks/notes/useNotes';
+import { useNoteQuery, useUpdateNoteMutation, useDeleteNoteMutation } from '@/features/notebook/hooks/notes/useNoteQueries';
 import { Button } from '@/shared/components/ui/button';
 import { Input } from '@/shared/components/ui/input';
 import { Textarea } from '@/shared/components/ui/textarea';
@@ -26,8 +26,10 @@ interface NoteViewerProps {
 }
 
 const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) => {
-    const { selectedNote, selectNote, updateNote, deleteNote, isLoading } = useNotes(notebookId);
-    // const { switchSession } = useSessionChat(notebookId);
+    // Query the note directly using noteId prop
+    const { data: selectedNote, isLoading } = useNoteQuery(notebookId, noteId);
+    const updateNoteMutation = useUpdateNoteMutation(notebookId);
+    const deleteNoteMutation = useDeleteNoteMutation(notebookId);
     const { toast } = useToast();
 
     const [isEditing, setIsEditing] = useState(false);
@@ -35,11 +37,6 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
     const [editContent, setEditContent] = useState('');
     const [editTags, setEditTags] = useState('');
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
-    // Sync prop noteId with hook state
-    useEffect(() => {
-        selectNote(noteId);
-    }, [noteId, selectNote]);
 
     // Sync local state when note loads
     useEffect(() => {
@@ -54,11 +51,14 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
         if (!selectedNote) return;
 
         try {
-            const tagsArray = editTags.split(',').map(t => t.trim()).filter(Boolean);
-            await updateNote(selectedNote.id, {
-                title: editTitle,
-                content: editContent,
-                tags: tagsArray
+            const tagsArray = editTags.split(',').map((t: string) => t.trim()).filter(Boolean);
+            await updateNoteMutation.mutateAsync({
+                noteId: selectedNote.id,
+                request: {
+                    title: editTitle,
+                    content: editContent,
+                    tags: tagsArray
+                }
             });
             setIsEditing(false);
             toast({ title: 'Note updated successfully' });
@@ -70,11 +70,11 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
     const handleDelete = async () => {
         if (!selectedNote) return;
 
-        const success = await deleteNote(selectedNote.id);
-        if (success) {
+        try {
+            await deleteNoteMutation.mutateAsync(selectedNote.id);
             toast({ title: 'Note deleted' });
             onClose();
-        } else {
+        } catch (error) {
             toast({ title: 'Failed to delete note', variant: 'destructive' });
         }
         setDeleteDialogOpen(false);
@@ -176,7 +176,7 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
                         ) : (
                             <div className="flex flex-wrap gap-2">
                                 {selectedNote.tags && selectedNote.tags.length > 0 ? (
-                                    selectedNote.tags.map((tag, i) => (
+                                    selectedNote.tags.map((tag: string, i: number) => (
                                         <Badge key={i} variant="secondary" className="px-2 py-1 bg-gray-100 text-gray-700 font-medium rounded-md">
                                             <Tag className="h-3 w-3 mr-1.5 opacity-60" />
                                             {tag}

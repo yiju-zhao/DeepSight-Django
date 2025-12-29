@@ -70,7 +70,7 @@ export const fromNote = (note: Note | NoteListItem): NoteStudioItem => {
 
   return {
     kind: 'note',
-    id: String(note.id),
+    id: note.id,
     title: note.title || 'Untitled Note',
     createdAt: note.created_at,
     status: 'completed', // Notes are always ready
