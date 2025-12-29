@@ -72,6 +72,9 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   const [selectedPodcast, setSelectedPodcast] = useState<PodcastItem | null>(null);
   const [expandedByReport, setExpandedByReport] = useState<boolean>(false);
 
+  // ====== SINGLE RESPONSIBILITY: Agent Status State ======
+  const [isAgentStatusExpanded, setIsAgentStatusExpanded] = useState<boolean>(true);
+
   // Prevent body scroll when a file/report is open
   useEffect(() => {
     if (selectedFile) {
@@ -541,7 +544,13 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
   const handleSelectNote = useCallback((note: NoteStudioItem) => {
     setSelectedNoteId(note.id);
-  }, []);
+    // Collapse agent status when opening a note
+    setIsAgentStatusExpanded(false);
+    // Expand studio panel if not already expanded (widen studio, narrow chat)
+    if (!isStudioExpanded && onToggleExpand) {
+      onToggleExpand();
+    }
+  }, [isStudioExpanded, onToggleExpand]);
 
   const handleDeleteNote = useCallback(async (note: NoteStudioItem) => {
     if (!confirm('Are you sure you want to delete this note?')) return;
@@ -664,9 +673,17 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
         <div className="flex-1 flex flex-col overflow-hidden bg-secondary">
 
           {/* UPPER SECTION: RAG Agent Progress */}
-          <div className="h-[35%] min-h-[200px] flex flex-col bg-white border-b border-gray-200">
-            <div className="flex-1 p-0 overflow-hidden relative">
-              <StudioAgentStatus />
+          <div
+            className={`flex flex-col bg-white border-b border-gray-200 transition-all duration-300 ease-in-out ${isAgentStatusExpanded
+                ? 'h-[35%] min-h-[200px]'
+                : 'h-auto shrink-0'
+              }`}
+          >
+            <div className={`flex-1 overflow-hidden relative ${!isAgentStatusExpanded ? 'h-auto' : ''}`}>
+              <StudioAgentStatus
+                isCollapsed={!isAgentStatusExpanded}
+                onToggle={() => setIsAgentStatusExpanded(prev => !prev)}
+              />
             </div>
           </div>
 
@@ -677,85 +694,85 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
             </div>
 
             <div className="flex-1 flex flex-col min-h-0 relative">
-                {selectedNoteId ? (
-                  <div className="absolute inset-0 z-10 bg-white flex flex-col">
-                    <div className="flex-shrink-0 flex justify-end p-2 bg-gray-50 border-b border-gray-100">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedNoteId(null)}
-                        className="h-6 px-2 text-xs"
-                      >
-                        Close Note
-                      </Button>
-                    </div>
-                    <div className="flex-1 min-h-0 overflow-hidden">
-                      <NoteViewer
-                        notebookId={notebookId}
-                        noteId={selectedNoteId}
-                        onClose={() => setSelectedNoteId(null)}
-                      />
-                    </div>
+              {selectedNoteId ? (
+                <div className="absolute inset-0 z-10 bg-white flex flex-col">
+                  <div className="flex-shrink-0 flex justify-end p-2 bg-gray-50 border-b border-gray-100">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedNoteId(null)}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Close Note
+                    </Button>
                   </div>
-                ) : (
-                  <div className="flex-1 overflow-y-auto scrollbar-overlay pb-6">
-                    <StudioList
-                      items={combineStudioItems(
-                        reportJobs.jobs || [],
-                        podcastJobs.jobs || [],
-                        notes || []
-                      )}
-                      isLoading={reportJobs.isLoading || podcastJobs.isLoading}
-                      error={reportJobs.error || podcastJobs.error}
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <NoteViewer
                       notebookId={notebookId}
-                      expandedPodcasts={expandedPodcasts}
-                      onSelectReport={(item: ReportStudioItem) => {
-                        const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                        if (originalReport) handleSelectReport(originalReport);
-                      }}
-                      onDeleteReport={(item: ReportStudioItem) => {
-                        const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                        if (originalReport) handleDeleteReport(originalReport);
-                      }}
-                      onTogglePodcast={(item: PodcastStudioItem) => {
-                        const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                        if (originalPodcast) handlePodcastClick(originalPodcast);
-                      }}
-                      onDeletePodcast={(item: PodcastStudioItem) => {
-                        const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                        if (originalPodcast) handleDeletePodcast(originalPodcast);
-                      }}
-                      onDownloadPodcast={(item: PodcastStudioItem) => {
-                        const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                        if (originalPodcast) handleDownloadPodcast(originalPodcast);
-                      }}
-                      onSelectNote={handleSelectNote}
-                      onDeleteNote={handleDeleteNote}
+                      noteId={selectedNoteId}
+                      onClose={() => setSelectedNoteId(null)}
                     />
                   </div>
-                )}
-              </div>
-
-              {/* Podcast Player Floating */}
-              {selectedPodcast && selectedPodcast.status === 'completed' && (
-                <div className="flex-shrink-0 bg-white border-t border-gray-200 shadow-lg p-0">
-                  <PodcastAudioPlayer
-                    podcast={{
-                      id: selectedPodcast.id,
-                      title: selectedPodcast.title || 'Untitled Podcast',
-                      audio_url: (selectedPodcast as any).audio_url || selectedPodcast.audio_file || '',
-                      duration: selectedPodcast.duration,
-                      description: selectedPodcast.description || '',
-                      status: selectedPodcast.status,
-                      created_at: selectedPodcast.created_at || '',
-                      updated_at: selectedPodcast.updated_at || ''
-                    }}
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto scrollbar-overlay pb-6">
+                  <StudioList
+                    items={combineStudioItems(
+                      reportJobs.jobs || [],
+                      podcastJobs.jobs || [],
+                      notes || []
+                    )}
+                    isLoading={reportJobs.isLoading || podcastJobs.isLoading}
+                    error={reportJobs.error || podcastJobs.error}
                     notebookId={notebookId}
-                    onDownload={() => handleDownloadPodcast(selectedPodcast)}
-                    onClose={() => setSelectedPodcast(null)}
+                    expandedPodcasts={expandedPodcasts}
+                    onSelectReport={(item: ReportStudioItem) => {
+                      const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                      if (originalReport) handleSelectReport(originalReport);
+                    }}
+                    onDeleteReport={(item: ReportStudioItem) => {
+                      const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                      if (originalReport) handleDeleteReport(originalReport);
+                    }}
+                    onTogglePodcast={(item: PodcastStudioItem) => {
+                      const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                      if (originalPodcast) handlePodcastClick(originalPodcast);
+                    }}
+                    onDeletePodcast={(item: PodcastStudioItem) => {
+                      const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                      if (originalPodcast) handleDeletePodcast(originalPodcast);
+                    }}
+                    onDownloadPodcast={(item: PodcastStudioItem) => {
+                      const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                      if (originalPodcast) handleDownloadPodcast(originalPodcast);
+                    }}
+                    onSelectNote={handleSelectNote}
+                    onDeleteNote={handleDeleteNote}
                   />
                 </div>
               )}
+            </div>
+
+            {/* Podcast Player Floating */}
+            {selectedPodcast && selectedPodcast.status === 'completed' && (
+              <div className="flex-shrink-0 bg-white border-t border-gray-200 shadow-lg p-0">
+                <PodcastAudioPlayer
+                  podcast={{
+                    id: selectedPodcast.id,
+                    title: selectedPodcast.title || 'Untitled Podcast',
+                    audio_url: (selectedPodcast as any).audio_url || selectedPodcast.audio_file || '',
+                    duration: selectedPodcast.duration,
+                    description: selectedPodcast.description || '',
+                    status: selectedPodcast.status,
+                    created_at: selectedPodcast.created_at || '',
+                    updated_at: selectedPodcast.updated_at || ''
+                  }}
+                  notebookId={notebookId}
+                  onDownload={() => handleDownloadPodcast(selectedPodcast)}
+                  onClose={() => setSelectedPodcast(null)}
+                />
+              </div>
+            )}
           </div>
         </div>
       ) : (
