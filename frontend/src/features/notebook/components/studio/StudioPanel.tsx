@@ -540,7 +540,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
   }, []);
 
   const handleSelectNote = useCallback((note: NoteStudioItem) => {
-    console.log('[StudioPanel] handleSelectNote called with:', note.id, note);
     setSelectedNoteId(note.id);
   }, []);
 
@@ -673,28 +672,14 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
 
           {/* LOWER SECTION: Generated Content */}
           <div className="flex-1 flex flex-col overflow-hidden bg-gray-50/50">
-            <div className="flex-1 overflow-y-auto scrollbar-overlay pb-6">
+            <div className="flex-shrink-0 px-4 pt-6 pb-2">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Generated Content</h4>
+            </div>
 
-              {/* Section Header: Reports & Podcasts */}
-              {/* We need to combine items here. Since we can't easily add useMemo hook inside this return block replacement, 
-                    we will use the raw arrays if combineStudioItems is not memoized or just call it directly. 
-                    Ideally we added useMemo above, but we are inside a replace block. 
-                    Let's assume we can call combineStudioItems directly here or rely on StudioList to handle it if we modify it? 
-                    No, StudioList takes `items`. 
-                    
-                    Wait, I didn't add the `combinedItems` useMemo hook in the previous chunk. 
-                    I should just call `combineStudioItems(reportJobs.jobs || [], podcastJobs.jobs || [])` inline for now or access the imported function.
-                */}
-
-              <div className="px-4 pt-6 pb-2">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Generated Content</h4>
-              </div>
-
-              <div className="relative flex-1 overflow-hidden">
-                {(() => { console.log('[StudioPanel] selectedNoteId:', selectedNoteId); return null; })()}
+            <div className="flex-1 flex flex-col min-h-0 relative">
                 {selectedNoteId ? (
-                  <div className="absolute inset-0 z-10 bg-white">
-                    <div className="flex justify-end p-2 bg-gray-50 border-b border-gray-100">
+                  <div className="absolute inset-0 z-10 bg-white flex flex-col">
+                    <div className="flex-shrink-0 flex justify-end p-2 bg-gray-50 border-b border-gray-100">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -704,56 +689,56 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                         Close Note
                       </Button>
                     </div>
-                    <NoteViewer
-                      notebookId={notebookId}
-                      noteId={selectedNoteId}
-                      onClose={() => setSelectedNoteId(null)}
-                    />
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                      <NoteViewer
+                        notebookId={notebookId}
+                        noteId={selectedNoteId}
+                        onClose={() => setSelectedNoteId(null)}
+                      />
+                    </div>
                   </div>
                 ) : (
-                  <StudioList
-                    items={combineStudioItems(
-                      reportJobs.jobs || [],
-                      podcastJobs.jobs || [],
-                      notes || []
-                    )}
-                    isLoading={reportJobs.isLoading || podcastJobs.isLoading}
-                    error={reportJobs.error || podcastJobs.error}
-                    notebookId={notebookId}
-                    expandedPodcasts={expandedPodcasts}
-                    onSelectReport={(item: ReportStudioItem) => {
-                      const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                      if (originalReport) handleSelectReport(originalReport);
-                    }}
-                    onDeleteReport={(item: ReportStudioItem) => {
-                      const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
-                      if (originalReport) handleDeleteReport(originalReport);
-                    }}
-                    onTogglePodcast={(item: PodcastStudioItem) => {
-                      const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                      if (originalPodcast) handlePodcastClick(originalPodcast);
-                    }}
-                    onDeletePodcast={(item: PodcastStudioItem) => {
-                      const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                      if (originalPodcast) handleDeletePodcast(originalPodcast);
-                    }}
-                    onDownloadPodcast={(item: PodcastStudioItem) => {
-                      const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
-                      if (originalPodcast) handleDownloadPodcast(originalPodcast);
-                    }}
-                    onSelectNote={handleSelectNote}
-                    onDeleteNote={handleDeleteNote}
-                  />
+                  <div className="flex-1 overflow-y-auto scrollbar-overlay pb-6">
+                    <StudioList
+                      items={combineStudioItems(
+                        reportJobs.jobs || [],
+                        podcastJobs.jobs || [],
+                        notes || []
+                      )}
+                      isLoading={reportJobs.isLoading || podcastJobs.isLoading}
+                      error={reportJobs.error || podcastJobs.error}
+                      notebookId={notebookId}
+                      expandedPodcasts={expandedPodcasts}
+                      onSelectReport={(item: ReportStudioItem) => {
+                        const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                        if (originalReport) handleSelectReport(originalReport);
+                      }}
+                      onDeleteReport={(item: ReportStudioItem) => {
+                        const originalReport = reportJobs.jobs.find((r: ReportItem) => r.id === item.id);
+                        if (originalReport) handleDeleteReport(originalReport);
+                      }}
+                      onTogglePodcast={(item: PodcastStudioItem) => {
+                        const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                        if (originalPodcast) handlePodcastClick(originalPodcast);
+                      }}
+                      onDeletePodcast={(item: PodcastStudioItem) => {
+                        const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                        if (originalPodcast) handleDeletePodcast(originalPodcast);
+                      }}
+                      onDownloadPodcast={(item: PodcastStudioItem) => {
+                        const originalPodcast = podcastJobs.jobs.find((p: PodcastItem) => p.id === item.id);
+                        if (originalPodcast) handleDownloadPodcast(originalPodcast);
+                      }}
+                      onSelectNote={handleSelectNote}
+                      onDeleteNote={handleDeleteNote}
+                    />
+                  </div>
                 )}
               </div>
 
-              {/* Podcast Player Floating (if needed) or inline? 
-                    The current implementation has it inside the TabsContent. 
-                    If we want it to persist, we can put it at the bottom of the container or fixed.
-                    The previous code had it in the Podcasts tab.
-                */}
+              {/* Podcast Player Floating */}
               {selectedPodcast && selectedPodcast.status === 'completed' && (
-                <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg p-0 z-10">
+                <div className="flex-shrink-0 bg-white border-t border-gray-200 shadow-lg p-0">
                   <PodcastAudioPlayer
                     podcast={{
                       id: selectedPodcast.id,
@@ -771,7 +756,6 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
                   />
                 </div>
               )}
-            </div>
           </div>
         </div>
       ) : (
