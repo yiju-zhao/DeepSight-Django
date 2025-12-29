@@ -26,38 +26,53 @@ interface StudioItemRendererProps {
 }
 
 const StudioItemRenderer: React.FC<StudioItemRendererProps> = ({ item, callbacks }) => {
-  // Otherwise, render kind-specific cards
+  // Helper to render type badge (optional, if visually distinct enough, or requested)
+  const renderTypeBadge = (type: string, colorClass: string) => (
+    <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${colorClass} px-1`}>
+      {type}
+    </div>
+  );
+
   if (item.kind === 'report') {
     return (
-      <ReportCard
-        item={item}
-        onSelect={callbacks.onSelectReport}
-        onDelete={callbacks.onDeleteReport}
-      />
+      <div className="relative">
+        {renderTypeBadge('Report', 'text-blue-600')}
+        <ReportCard
+          item={item}
+          onSelect={callbacks.onSelectReport}
+          onDelete={callbacks.onDeleteReport}
+        />
+      </div>
     );
   }
 
   if (item.kind === 'podcast') {
     const isExpanded = callbacks.isPodcastExpanded(item.id);
     return (
-      <PodcastCard
-        item={item}
-        notebookId={callbacks.notebookId}
-        isExpanded={isExpanded}
-        onToggleExpand={callbacks.onTogglePodcast}
-        onDelete={callbacks.onDeletePodcast}
-        onDownload={callbacks.onDownloadPodcast}
-      />
+      <div className="relative">
+        {renderTypeBadge('Podcast', 'text-purple-600')}
+        <PodcastCard
+          item={item}
+          notebookId={callbacks.notebookId}
+          isExpanded={isExpanded}
+          onToggleExpand={callbacks.onTogglePodcast}
+          onDelete={callbacks.onDeletePodcast}
+          onDownload={callbacks.onDownloadPodcast}
+        />
+      </div>
     );
   }
 
   if (item.kind === 'note') {
     return (
-      <NoteCard
-        item={item}
-        onSelect={callbacks.onSelectNote}
-        onDelete={callbacks.onDeleteNote}
-      />
+      <div className="relative">
+        {renderTypeBadge('Note', 'text-amber-600')}
+        <NoteCard
+          item={item}
+          onSelect={callbacks.onSelectNote}
+          onDelete={callbacks.onDeleteNote}
+        />
+      </div>
     );
   }
 

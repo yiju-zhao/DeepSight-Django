@@ -163,9 +163,36 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
                         )}
                     </div>
 
-                    {/* Tags */}
+
+
+                    {/* Note Body */}
                     <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Tags</label>
+
+                        {isEditing ? (
+                            <Textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="min-h-[400px] font-mono text-sm leading-relaxed"
+                                placeholder="Write your note here..."
+                            />
+                        ) : (
+                            <div className="prose prose-sm max-w-none prose-p:text-gray-800 prose-headings:text-gray-900 prose-a:text-accent-red">
+                                <ReactMarkdown
+                                    remarkPlugins={[remarkGfm, remarkMath]}
+                                    rehypePlugins={[
+                                        rehypeRaw,
+                                        [rehypeKatex, { strict: false, throwOnError: false, output: 'html' }],
+                                        rehypeHighlight
+                                    ]}
+                                >
+                                    {selectedNote.content}
+                                </ReactMarkdown>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Tags (Moved to bottom) */}
+                    <div className="space-y-2 pt-4 border-t border-gray-100">
                         {isEditing ? (
                             <Input
                                 value={editTags}
@@ -189,31 +216,6 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
                         )}
                     </div>
 
-                    {/* Note Body */}
-                    <div className="space-y-2">
-                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Content</label>
-                        {isEditing ? (
-                            <Textarea
-                                value={editContent}
-                                onChange={(e) => setEditContent(e.target.value)}
-                                className="min-h-[400px] font-mono text-sm leading-relaxed"
-                                placeholder="Write your note here..."
-                            />
-                        ) : (
-                            <div className="prose prose-sm max-w-none prose-p:text-gray-800 prose-headings:text-gray-900 prose-a:text-accent-red">
-                                <ReactMarkdown
-                                    remarkPlugins={[remarkGfm, remarkMath]}
-                                    rehypePlugins={[
-                                        rehypeRaw,
-                                        [rehypeKatex, { strict: false, throwOnError: false, output: 'html' }],
-                                        rehypeHighlight
-                                    ]}
-                                >
-                                    {selectedNote.content}
-                                </ReactMarkdown>
-                            </div>
-                        )}
-                    </div>
                 </div>
             </div>
 
