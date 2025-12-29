@@ -72,7 +72,7 @@ const NoteCard: React.FC<NoteCardProps> = ({ item, className, onSelect, onDelete
                 <Pin className="h-3.5 w-3.5 text-accent-red absolute top-3 right-8 z-20 group-hover:opacity-0 transition-opacity" />
             )}
 
-            <div className="text-sm text-gray-600 line-clamp-4 mb-3 min-h-[1.5rem] prose prose-sm prose-gray max-w-none [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0 pt-1">
+            <div className="text-sm text-gray-600 line-clamp-2 mb-3 min-h-[1.5rem] prose prose-sm prose-gray max-w-none [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0 pt-1">
                 <ReactMarkdown
                     remarkPlugins={[remarkGfm, remarkMath]}
                     rehypePlugins={[

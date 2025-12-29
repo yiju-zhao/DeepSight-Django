@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit2, Trash2, Save, ExternalLink, Calendar, Tag, MoreHorizontal } from 'lucide-react';
+import { X, Edit2, Trash2, Save, ExternalLink, Calendar, Tag, MoreHorizontal, StickyNote } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -97,10 +97,15 @@ const NoteViewer: React.FC<NoteViewerProps> = ({ notebookId, noteId, onClose }) 
     };
 
     return (
-        <div className="h-full flex flex-col bg-white overflow-hidden">
-            {/* Header */}
+        <div className="h-full flex flex-col bg-white overflow-hidden relative">
+            {/* Type Indicators to match Card View */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-amber-500 z-20" />
+            <div className="absolute top-0 left-1.5 p-1.5 bg-amber-50/80 rounded-br-lg text-amber-600 z-20">
+                <StickyNote className="h-4 w-4" />
+            </div>
+
             {/* Header / Toolbar */}
-            <div className="flex-shrink-0 flex items-center justify-end px-4 py-2 border-b border-gray-50 bg-gray-50/50">
+            <div className="flex-shrink-0 flex items-center justify-end px-4 py-2 border-b border-gray-50 bg-gray-50/50 pl-10">
                 <div className="flex items-center gap-2 flex-shrink-0">
                     {isEditing ? (
                         <>

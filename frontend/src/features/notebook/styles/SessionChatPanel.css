@@ -2,9 +2,11 @@
 
 /* Scope all overrides to the specific ID to ensure specificity */
 #deep-sight-chat-panel {
-  --chat-font-size: 0.8125rem; /* 13px */
+  --chat-font-size: 0.8125rem;
+  /* 13px */
   --chat-line-height: 1.5;
-  --code-font-size: 0.75rem; /* 12px */
+  --code-font-size: 0.75rem;
+  /* 12px */
 }
 
 /* === Base Message Styling === */
@@ -13,7 +15,8 @@
   font-size: var(--chat-font-size) !important;
   line-height: var(--chat-line-height) !important;
   padding: 0.5rem 0.75rem !important;
-  margin-bottom: 0.25rem !important; /* Reduced from 0.5rem */
+  margin-bottom: 0.25rem !important;
+  /* Reduced from 0.5rem */
 }
 
 /* User Message Bubble */
@@ -27,25 +30,28 @@
 #deep-sight-chat-panel .copilotKitMessage.copilotKitAssistantMessage {
   font-size: var(--chat-font-size) !important;
   background-color: #f3f4f6 !important;
-  padding: 0.5rem 0.75rem !important; /* Reset padding to normal */
-  margin-bottom: 1.75rem !important; /* Increased margin to make room for icons below */
+  padding: 0.5rem 0.75rem !important;
+  /* Reset padding to normal */
+  margin-bottom: 1.75rem !important;
+  /* Increased margin to make room for icons below */
   position: relative !important;
 }
 
 /* Position controls OUTSIDE and BELOW the bubble */
 #deep-sight-chat-panel .copilotKitMessage.copilotKitAssistantMessage .copilotKitMessageControls {
   position: absolute !important;
-  bottom: -22px !important; 
+  bottom: -22px !important;
   left: 0 !important;
   padding: 0 !important;
   margin: 0 !important;
   display: flex !important;
-  opacity: 1 !important; /* Ensure they are visible if they were hidden by default */
+  opacity: 1 !important;
+  /* Ensure they are visible if they were hidden by default */
 }
 
 /* Reduce the gap between assistant and user messages now that we have larger margin-bottom */
-#deep-sight-chat-panel .copilotKitMessage.copilotKitAssistantMessage + .copilotKitMessage.copilotKitUserMessage {
-  margin-top: 0.25rem !important; 
+#deep-sight-chat-panel .copilotKitMessage.copilotKitAssistantMessage+.copilotKitMessage.copilotKitUserMessage {
+  margin-top: 0.25rem !important;
 }
 
 
@@ -59,7 +65,8 @@
 }
 
 #deep-sight-chat-panel p.copilotKitMarkdownElement:last-child {
-  margin-bottom: 0 !important; /* Remove bottom margin for last paragraph to reduce inner whitespace */
+  margin-bottom: 0 !important;
+  /* Remove bottom margin for last paragraph to reduce inner whitespace */
 }
 
 /* Headers */
@@ -70,13 +77,25 @@
   font-weight: 600 !important;
   margin-top: 0.75rem !important;
   margin-bottom: 0.25rem !important;
-  color: #111827 !important; /* Gray-900 */
+  color: #111827 !important;
+  /* Gray-900 */
 }
 
-#deep-sight-chat-panel h1.copilotKitMarkdownElement { font-size: 0.95rem !important; }
-#deep-sight-chat-panel h2.copilotKitMarkdownElement { font-size: 0.9rem !important; }
-#deep-sight-chat-panel h3.copilotKitMarkdownElement { font-size: 0.85rem !important; }
-#deep-sight-chat-panel h4.copilotKitMarkdownElement { font-size: 0.8125rem !important; }
+#deep-sight-chat-panel h1.copilotKitMarkdownElement {
+  font-size: 0.95rem !important;
+}
+
+#deep-sight-chat-panel h2.copilotKitMarkdownElement {
+  font-size: 0.9rem !important;
+}
+
+#deep-sight-chat-panel h3.copilotKitMarkdownElement {
+  font-size: 0.85rem !important;
+}
+
+#deep-sight-chat-panel h4.copilotKitMarkdownElement {
+  font-size: 0.8125rem !important;
+}
 
 /* Lists */
 #deep-sight-chat-panel ul.copilotKitMarkdownElement,
@@ -94,7 +113,8 @@
   font-size: var(--code-font-size) !important;
   padding: 0.1rem 0.3rem !important;
   background-color: rgba(0, 0, 0, 0.05) !important;
-  color: #c026d3 !important; /* Fuschia-600 */
+  color: #c026d3 !important;
+  /* Fuschia-600 */
   border: 1px solid rgba(0, 0, 0, 0.1) !important;
 }
 
@@ -122,15 +142,19 @@
   font-size: var(--chat-font-size) !important;
   line-height: 1.4 !important;
   padding: 0.25rem !important;
-  max-height: min(40vh, 320px) !important; /* Keep input from overtaking the viewport */
+  max-height: min(40vh, 320px) !important;
+  /* Keep input from overtaking the viewport */
   resize: none !important;
+  overflow-y: hidden;
+  /* Hide scrollbar by default, autosize should handle height */
 }
 
 /* === Header Styling === */
 /* Note: Class name guessed based on component usage, but checked if available in CSS dump */
 /* Since header.css was imported but not cat'd, assuming standard class */
 #deep-sight-chat-panel .copilotKitHeader {
-  font-size: 0.875rem !important; /* 14px */
+  font-size: 0.875rem !important;
+  /* 14px */
   padding: 0.5rem 1rem !important;
 }
 
@@ -158,12 +182,14 @@
 /* Style the "Add to Note" button (repurposed Thumbs Up) */
 #deep-sight-chat-panel button[aria-label="Add to Notes"],
 #deep-sight-chat-panel button[title="Add to Notes"] {
-  color: #6b7280 !important; /* Gray-500 */
+  color: #6b7280 !important;
+  /* Gray-500 */
 }
 
 #deep-sight-chat-panel button[aria-label="Add to Notes"]:hover,
 #deep-sight-chat-panel button[title="Add to Notes"]:hover {
-  color: #3b82f6 !important; /* Blue-500 */
+  color: #3b82f6 !important;
+  /* Blue-500 */
   background-color: transparent !important;
   transform: scale(1.1);
 }
