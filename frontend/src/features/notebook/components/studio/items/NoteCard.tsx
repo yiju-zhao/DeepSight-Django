@@ -28,47 +28,45 @@ const NoteCard: React.FC<NoteCardProps> = ({ item, className, onSelect, onDelete
             className={`group relative bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer ${className}`}
             onClick={() => onSelect(item)}
         >
-            <div className="flex justify-end items-start mb-2 min-h-[1.5rem]">
-                {/* Action Buttons (visible on hover) */}
-                <div className="absolute top-2 right-2 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2 z-10">
-                    {onPin && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 hover:bg-gray-100 text-gray-500"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                onPin(item);
-                            }}
-                            title={isPinned ? "Unpin note" : "Pin note"}
-                        >
-                            {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
-                        </Button>
-                    )}
+            {/* Action Buttons (visible on hover) - Positioned absolute to not take space */}
+            <div className="absolute top-2 right-8 flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/80 backdrop-blur-sm pl-2 pr-1 rounded-l-md z-30">
+                {onPin && (
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 hover:bg-red-50 text-gray-500 hover:text-red-600"
+                        className="h-7 w-7 p-0 hover:bg-gray-100 text-gray-500"
                         onClick={(e) => {
                             e.stopPropagation();
-                            onDelete(item);
+                            onPin(item);
                         }}
-                        title="Delete note"
+                        title={isPinned ? "Unpin note" : "Pin note"}
                     >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5" />}
                     </Button>
-                </div>
-
-                {/* Persistent Pin Icon (hidden on hover when buttons appear) */}
-                {isPinned && !onPin && (
-                    <Pin className="h-3.5 w-3.5 text-accent-red absolute top-4 right-4" />
                 )}
-                {isPinned && onPin && (
-                    <Pin className="h-3.5 w-3.5 text-accent-red absolute top-4 right-4 group-hover:opacity-0 transition-opacity" />
-                )}
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 w-7 p-0 hover:bg-red-50 text-gray-500 hover:text-red-600"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(item);
+                    }}
+                    title="Delete note"
+                >
+                    <Trash2 className="h-3.5 w-3.5" />
+                </Button>
             </div>
 
-            <div className="text-sm text-gray-600 line-clamp-3 mb-3 min-h-[1.25rem] prose prose-sm prose-gray max-w-none [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0">
+            {/* Persistent Pin Icon (hidden on hover when buttons appear) */}
+            {isPinned && !onPin && (
+                <Pin className="h-3.5 w-3.5 text-accent-red absolute top-3 right-8 z-20" />
+            )}
+            {isPinned && onPin && (
+                <Pin className="h-3.5 w-3.5 text-accent-red absolute top-3 right-8 z-20 group-hover:opacity-0 transition-opacity" />
+            )}
+
+            <div className="text-sm text-gray-600 line-clamp-4 mb-3 min-h-[1.5rem] prose prose-sm prose-gray max-w-none [&_p]:my-0 [&_ul]:my-0 [&_ol]:my-0 [&_h1]:text-sm [&_h2]:text-sm [&_h3]:text-sm [&_h1]:font-semibold [&_h2]:font-semibold [&_h3]:font-semibold [&_h1]:my-0 [&_h2]:my-0 [&_h3]:my-0 pt-1">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {item.content || 'No content'}
                 </ReactMarkdown>

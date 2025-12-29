@@ -2,6 +2,7 @@
 // Strategy pattern: selects the appropriate card component based on item kind and status
 
 import React from 'react';
+import { FileText, Mic, StickyNote } from 'lucide-react';
 import type { StudioItem, ReportStudioItem, PodcastStudioItem, NoteStudioItem } from '../../../types/studioItem';
 import ReportCard from '../items/ReportCard';
 import PodcastCard from '../items/PodcastCard';
@@ -26,17 +27,20 @@ interface StudioItemRendererProps {
 }
 
 const StudioItemRenderer: React.FC<StudioItemRendererProps> = ({ item, callbacks }) => {
-  // Helper to render type badge (optional, if visually distinct enough, or requested)
-  const renderTypeBadge = (type: string, colorClass: string) => (
-    <div className={`text-[10px] font-bold uppercase tracking-wider mb-1 ${colorClass} px-1`}>
-      {type}
-    </div>
+  // Visual indicators
+  const renderIndicator = (colorClass: string, Icon: any) => (
+    <>
+      <div className={`absolute left-0 top-0 bottom-0 w-1 ${colorClass} z-10 rounded-l-lg`} />
+      <div className={`absolute top-0 right-0 p-1.5 bg-white/90 backdrop-blur-sm shadow-sm rounded-bl-lg border-b border-l border-gray-100 z-20 ${colorClass.replace('bg-', 'text-')}`}>
+        <Icon className="h-3.5 w-3.5" />
+      </div>
+    </>
   );
 
   if (item.kind === 'report') {
     return (
-      <div className="relative">
-        {renderTypeBadge('Report', 'text-blue-600')}
+      <div className="relative group">
+        {renderIndicator('bg-blue-500', FileText)}
         <ReportCard
           item={item}
           onSelect={callbacks.onSelectReport}
@@ -49,8 +53,8 @@ const StudioItemRenderer: React.FC<StudioItemRendererProps> = ({ item, callbacks
   if (item.kind === 'podcast') {
     const isExpanded = callbacks.isPodcastExpanded(item.id);
     return (
-      <div className="relative">
-        {renderTypeBadge('Podcast', 'text-purple-600')}
+      <div className="relative group">
+        {renderIndicator('bg-purple-500', Mic)}
         <PodcastCard
           item={item}
           notebookId={callbacks.notebookId}
@@ -65,8 +69,8 @@ const StudioItemRenderer: React.FC<StudioItemRendererProps> = ({ item, callbacks
 
   if (item.kind === 'note') {
     return (
-      <div className="relative">
-        {renderTypeBadge('Note', 'text-amber-600')}
+      <div className="relative group">
+        {renderIndicator('bg-amber-500', StickyNote)}
         <NoteCard
           item={item}
           onSelect={callbacks.onSelectNote}

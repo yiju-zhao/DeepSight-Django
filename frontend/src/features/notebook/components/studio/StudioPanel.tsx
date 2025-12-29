@@ -675,8 +675,8 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
           {/* UPPER SECTION: RAG Agent Progress */}
           <div
             className={`flex flex-col bg-white border-b border-gray-200 transition-all duration-300 ease-in-out ${isAgentStatusExpanded
-                ? 'h-[35%] min-h-[200px]'
-                : 'h-auto shrink-0'
+              ? 'h-[35%] min-h-[200px]'
+              : 'h-auto shrink-0'
               }`}
           >
             <div className={`flex-1 overflow-hidden relative ${!isAgentStatusExpanded ? 'h-auto' : ''}`}>
@@ -696,16 +696,7 @@ const StudioPanel: React.FC<StudioPanelProps> = ({
             <div className="flex-1 flex flex-col min-h-0 relative">
               {selectedNoteId ? (
                 <div className="absolute inset-0 z-10 bg-white flex flex-col">
-                  <div className="flex-shrink-0 flex justify-end p-2 bg-gray-50 border-b border-gray-100">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedNoteId(null)}
-                      className="h-6 px-2 text-xs"
-                    >
-                      Close Note
-                    </Button>
-                  </div>
+                  {/* Minimized Header removed as requested */}
                   <div className="flex-1 min-h-0 overflow-hidden">
                     <NoteViewer
                       notebookId={notebookId}
