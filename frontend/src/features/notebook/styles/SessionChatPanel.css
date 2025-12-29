@@ -135,17 +135,20 @@
 /* === Input Area Styling === */
 
 #deep-sight-chat-panel .copilotKitInput {
-  padding: 0.5rem !important;
+  padding: 0.75rem !important;
+  min-height: 5.5rem !important;
 }
 
 #deep-sight-chat-panel .copilotKitInput textarea {
   font-size: var(--chat-font-size) !important;
   line-height: 1.4 !important;
-  padding: 0.25rem !important;
+  padding: 0.4rem !important;
+  min-height: 3rem !important;
   max-height: min(40vh, 320px) !important;
   /* Keep input from overtaking the viewport */
   resize: none !important;
-  overflow-y: hidden;
+  overflow-y: auto !important;
+  scrollbar-gutter: stable;
   /* Hide scrollbar by default, autosize should handle height */
 }
 
@@ -188,8 +191,20 @@
 
 #deep-sight-chat-panel button[aria-label="Add to Notes"]:hover,
 #deep-sight-chat-panel button[title="Add to Notes"]:hover {
-  color: #3b82f6 !important;
   /* Blue-500 */
   background-color: transparent !important;
   transform: scale(1.1);
+}
+
+/* === Branding Removal === */
+#deep-sight-chat-panel .copilotKitBranding,
+#deep-sight-chat-panel .copilot-kit-branding,
+#deep-sight-chat-panel a[href*="copilotkit.ai"] {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
 }

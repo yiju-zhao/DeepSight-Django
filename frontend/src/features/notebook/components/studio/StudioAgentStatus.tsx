@@ -209,7 +209,7 @@ const StudioAgentStatus: React.FC<StudioAgentStatusProps> = ({
             {onToggle && (
                 <button
                     onClick={(e) => { e.stopPropagation(); onToggle(); }}
-                    className="absolute bottom-4 right-4 p-2 bg-white shadow-md border border-gray-200 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-all z-20"
+                    className="absolute top-3 right-4 p-2 bg-white shadow-md border border-gray-200 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-50 transition-all z-20"
                     title="Collapse Status"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
