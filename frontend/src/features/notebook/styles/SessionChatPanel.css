@@ -152,10 +152,12 @@
   /* Hide scrollbar by default, autosize should handle height */
 }
 
-/* Hide the "Powered by CopilotKit" footer */
-#deep-sight-chat-panel .poweredByContainer,
+/* Hide the "Powered by CopilotKit" footer text only (keep container for layout) */
 #deep-sight-chat-panel .poweredBy {
   display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 /* === Header Styling === */
