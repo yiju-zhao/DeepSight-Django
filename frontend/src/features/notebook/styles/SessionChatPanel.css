@@ -160,6 +160,11 @@
   margin: 0 !important;
 }
 
+/* Add breathing room below the input area */
+#deep-sight-chat-panel .copilotKitInputContainer {
+  padding-bottom: 1.25rem !important;
+}
+
 /* === Header Styling === */
 /* Note: Class name guessed based on component usage, but checked if available in CSS dump */
 /* Since header.css was imported but not cat'd, assuming standard class */
